@@ -19,6 +19,10 @@ name: e2e
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
     branches: [main]
   workflow_dispatch:
