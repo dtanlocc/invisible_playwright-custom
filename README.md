@@ -9,7 +9,6 @@
   <a href="https://github.com/feder-cr/invisible_playwright/releases"><img src="https://img.shields.io/github/v/release/feder-cr/invisible_playwright.svg" alt="GitHub release"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://img.shields.io/github/stars/feder-cr/invisible_playwright" alt="GitHub stars"></a>
   <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
-  <a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white" alt="LinkedIn"></a>
 </p>
 
 <h1 align="center">invisible_playwright</h1>
@@ -188,3 +187,11 @@ MIT - see [LICENSE](LICENSE). The patched Firefox binary is distributed under th
 ## Disclaimer
 
 This project is for educational purposes only. It is provided as-is, with no warranties. I take no responsibility for how it is used. Use it at your own risk and in compliance with the laws of your jurisdiction.
+
+
+---
+
+<p align="center">
+  Built by <a href="https://it.linkedin.com/in/federico-elia-5199951b6">Federico Elia</a>
+  &nbsp;<a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white" alt="LinkedIn"></a>
+</p>
