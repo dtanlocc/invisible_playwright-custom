@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="docs/invisible_playwright-logo.png" width="150" alt="invisible_playwright">
+</p>
+
+<p align="center">
 [![tests](https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg)](https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -5,10 +10,11 @@
 [![GitHub stars](https://img.shields.io/github/stars/feder-cr/invisible_playwright)](https://github.com/feder-cr/invisible_playwright/stargazers)
 [![browser launches](https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue)](https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white)](https://it.linkedin.com/in/federico-elia-5199951b6)
+</p>
 
-# invisible_playwright
+<h1 align="center">invisible_playwright</h1>
 
-**A modified Firefox that passes every bot detection test.**
+<p align="center"><strong>A modified Firefox that passes every bot detection test.</strong></p>
 
 ![invisible_playwright - 5/5 detection suites passed](docs/screenshots/hero.gif)
 
