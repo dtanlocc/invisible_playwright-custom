@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-[![tests](https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg)](https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![GitHub release](https://img.shields.io/github/v/release/feder-cr/invisible_playwright.svg)](https://github.com/feder-cr/invisible_playwright/releases)
-[![GitHub stars](https://img.shields.io/github/stars/feder-cr/invisible_playwright)](https://github.com/feder-cr/invisible_playwright/stargazers)
-[![browser launches](https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue)](https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white)](https://it.linkedin.com/in/federico-elia-5199951b6)
+  <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
+  <a href="https://github.com/feder-cr/invisible_playwright/releases"><img src="https://img.shields.io/github/v/release/feder-cr/invisible_playwright.svg" alt="GitHub release"></a>
+  <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://img.shields.io/github/stars/feder-cr/invisible_playwright" alt="GitHub stars"></a>
+  <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
+  <a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white" alt="LinkedIn"></a>
 </p>
 
 <h1 align="center">invisible_playwright</h1>
