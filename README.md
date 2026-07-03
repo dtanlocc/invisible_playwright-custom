@@ -1,5 +1,3 @@
-<img src="docs/invisible_playwright-logo.png" align="right" width="130" alt="invisible_playwright">
-
 <p>
   <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
@@ -8,6 +6,8 @@
   <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://img.shields.io/github/stars/feder-cr/invisible_playwright" alt="GitHub stars"></a>
   <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
 </p>
+
+<img src="docs/invisible_playwright-logo.png" align="right" width="130" alt="invisible_playwright">
 
 # invisible_playwright
 
