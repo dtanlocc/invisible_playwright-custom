@@ -9,7 +9,7 @@
   <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
 </p>
 
-# invisible_playwright
+<h1 align="left">invisible_playwright</h1>
 
 <br clear="all">
 
