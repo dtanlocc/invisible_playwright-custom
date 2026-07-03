@@ -11,7 +11,9 @@
 
 # invisible_playwright
 
-**A modified Firefox that passes every bot detection test.**
+<br clear="all">
+
+<h3 align="center">A modified Firefox that passes every bot detection test.</h3>
 
 ![invisible_playwright - 5/5 detection suites passed](docs/screenshots/hero.gif)
 
