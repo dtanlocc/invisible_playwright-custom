@@ -9,7 +9,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
-  <img src="docs/banner-light.png" alt="invisible_playwright" width="520">
+  <img src="docs/banner-light.png" alt="invisible_playwright" width="620">
 </picture>
 
 <h3 align="center">A modified Firefox that passes every bot detection test.</h3>
