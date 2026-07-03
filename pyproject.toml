@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "invisible-playwright"
-version = "0.2.0"
+version = "0.3.0"
 description = "Playwright wrapper for a patched Firefox with deterministic stealth profile."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,13 +20,11 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
+    # Pure config (seed -> fingerprint -> prefs, binary download, proxy, geo) lives
+    # in invisible-core since the 2026-07-03 split; it pulls platformdirs/requests/
+    # maxminddb/tzdata/tqdm/pywin32 transitively. The wrapper only adds Playwright.
+    "invisible-core @ git+https://github.com/feder-cr/invisible_core.git",
     "playwright>=1.40,<1.61",
-    "platformdirs>=4",
-    "requests[socks]>=2.31",
-    "maxminddb>=2.2",
-    "tzdata>=2024.1",
-    "tqdm>=4.66",
-    "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -57,6 +55,7 @@ Issues = "https://github.com/feder-cr/invisible_playwright/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/invisible_playwright"]
+exclude = ["*.bak", "*-bak"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/invisible_playwright", "tests", "README.md", "LICENSE", "pyproject.toml"]
