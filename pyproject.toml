@@ -53,6 +53,12 @@ invisible-playwright = "invisible_playwright.cli:main"
 Homepage = "https://github.com/feder-cr/invisible_playwright"
 Issues = "https://github.com/feder-cr/invisible_playwright/issues"
 
+[tool.hatch.metadata]
+# invisible-core is pinned by a direct git reference (see [project].dependencies).
+# Hatchling refuses direct references unless this is opted in — without it a clean
+# `pip install git+.../invisible_playwright` fails at metadata generation.
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/invisible_playwright"]
 exclude = ["*.bak", "*-bak"]
