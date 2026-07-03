@@ -1,8 +1,6 @@
-<p align="center">
-  <img src="docs/invisible_playwright-logo.png" width="110" alt="invisible_playwright">
-</p>
+<img src="docs/invisible_playwright-logo.png" align="right" width="130" alt="invisible_playwright">
 
-<p align="center">
+<p>
   <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
@@ -11,9 +9,11 @@
   <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
 </p>
 
-<h3 align="center">invisible_playwright</h3>
+# invisible_playwright
 
-<p align="center">A modified Firefox that passes every bot detection test.</p>
+<br clear="all">
+
+<h3 align="center">A modified Firefox that passes every bot detection test.</h3>
 
 ![invisible_playwright - 5/5 detection suites passed](docs/screenshots/hero.gif)
 
