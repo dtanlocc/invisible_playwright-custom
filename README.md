@@ -7,11 +7,12 @@
   <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
 </p>
 
-<img src="docs/invisible_playwright-logo.png" align="right" width="130" alt="invisible_playwright">
-
-# invisible_playwright
-
-<br clear="all">
+<table width="100%">
+<tr>
+<td valign="middle"><h1>invisible_playwright</h1></td>
+<td valign="middle" align="right"><img src="docs/invisible_playwright-logo.png" width="120" alt="invisible_playwright"></td>
+</tr>
+</table>
 
 <h3 align="center">A modified Firefox that passes every bot detection test.</h3>
 
