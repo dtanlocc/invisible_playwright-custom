@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Generate the GitHub release body for a firefox-N build from the actual
-invisible_firefox commits that went into it.
+firefox_antidetect_patch commits that went into it.
 
 The release tag (firefox-N) lives on the wrapper, but the binary's changes live
-on the SOURCE repo (feder-cr/invisible_firefox). We never deep-clone that history
+on the SOURCE repo (feder-cr/firefox_antidetect_patch). We never deep-clone that history
 (it's a full Firefox fork); instead we use GitHub's compare API to list the
 commits between the PREVIOUS release's source commit and this one, and turn their
 subject lines into a short human-readable "What changed" list.
@@ -20,7 +20,7 @@ subjects as plain bullets. Quality rides on writing good commit subjects.
 
 Usage:
     python scripts/gen_release_notes.py --tag firefox-10 --current <sha> \
-        [--prev-sha <sha>] [--source-repo feder-cr/invisible_firefox]
+        [--prev-sha <sha>] [--source-repo feder-cr/firefox_antidetect_patch]
     # reads GITHUB_TOKEN from the env for the compare API (optional for public).
 """
 from __future__ import annotations
@@ -92,16 +92,16 @@ def build_body(tag: str, current_sha: str, bullets: list[str]) -> str:
         "`xattr -dr com.apple.quarantine Firefox.app`",
     ]
     if short:
-        parts += ["", f"Built from invisible_firefox @{short}."]
+        parts += ["", f"Built from firefox_antidetect_patch @{short}."]
     return "\n".join(parts)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True, help="release tag, e.g. firefox-10")
-    ap.add_argument("--current", required=True, help="invisible_firefox SHA this build was built from")
+    ap.add_argument("--current", required=True, help="firefox_antidetect_patch SHA this build was built from")
     ap.add_argument("--prev-sha", default="", help="previous release's source SHA (omit for none)")
-    ap.add_argument("--source-repo", default="feder-cr/invisible_firefox")
+    ap.add_argument("--source-repo", default="feder-cr/firefox_antidetect_patch")
     args = ap.parse_args()
 
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")

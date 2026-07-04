@@ -27,7 +27,7 @@ on:
         required: true
 
 env:
-  SOURCE_REPO: feder-cr/invisible_firefox
+  SOURCE_REPO: feder-cr/firefox_antidetect_patch
 
 jobs:
   gate:
@@ -200,7 +200,7 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: invisible_firefox (150.0.1) rev ${{ steps.tag.outputs.num }}
+          name: firefox_antidetect_patch (150.0.1) rev ${{ steps.tag.outputs.num }}
           draft: true
           prerelease: false
           fail_on_unmatched_files: true

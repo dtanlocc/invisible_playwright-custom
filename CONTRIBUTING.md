@@ -7,7 +7,7 @@ Thanks for your interest in improving this project. Contributions are welcome vi
 - **Bug?** Open a [bug report](https://github.com/feder-cr/invisible_playwright/issues/new?template=bug_report.yml).
 - **Idea?** Open a [feature request](https://github.com/feder-cr/invisible_playwright/issues/new?template=feature_request.yml).
 - **Security issue?** Do **not** open a public issue — see [SECURITY.md](SECURITY.md).
-- **The C++ patches** live in the companion repo [feder-cr/invisible_firefox](https://github.com/feder-cr/invisible_firefox) (branch `stealth/150`). Bugs in fingerprint spoofing usually belong there.
+- **The C++ patches** live in the companion repo [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch) (branch `stealth/150`). Bugs in fingerprint spoofing usually belong there.
 
 ## Scope
 
@@ -18,7 +18,7 @@ This repository ships the **Python wrapper** (`invisible_playwright`) around a p
 - Binary download/caching, CLI, proxy plumbing
 - Tests, docs, examples, packaging
 
-Out of scope (belongs in `invisible_firefox`):
+Out of scope (belongs in `firefox_antidetect_patch`):
 
 - Changes to the Firefox C++ source
 - New preferences exposed by the patched binary
@@ -65,7 +65,7 @@ Before opening, please:
 
 - Search [existing issues](https://github.com/feder-cr/invisible_playwright/issues) — the bug may already be tracked.
 - Reproduce on the **latest release** if possible.
-- Confirm the issue is in the Python wrapper, not the patched Firefox itself. If a fingerprint is leaking or a detector flags the browser, open the issue at `feder-cr/invisible_firefox` instead.
+- Confirm the issue is in the Python wrapper, not the patched Firefox itself. If a fingerprint is leaking or a detector flags the browser, open the issue at `feder-cr/firefox_antidetect_patch` instead.
 
 Include:
 

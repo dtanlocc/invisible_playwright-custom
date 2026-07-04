@@ -4,7 +4,7 @@
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/releases"><img src="https://img.shields.io/github/v/release/feder-cr/invisible_playwright.svg" alt="GitHub release"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://img.shields.io/github/stars/feder-cr/invisible_playwright" alt="GitHub stars"></a>
-  <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/invisible_firefox/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
+  <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/firefox_antidetect_patch/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
 </p>
 
 <div align="center">
@@ -32,7 +32,7 @@ Anti-bots ask two questions. invisible_playwright answers yes to both.
 - Every click, hover and drag follows a natural mouse path with human timing, no teleporting cursor.
 - Each input is byte-identical to a real mouse: real input source, pressure, trusted events.
 
-Driven by the standard Playwright API. Full breakdown: [feder-cr/invisible_firefox](https://github.com/feder-cr/invisible_firefox).
+Driven by the standard Playwright API. Full breakdown: [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
 
 ---
 
@@ -181,7 +181,7 @@ Related projects that cover similar ground:
 
 ## License
 
-MIT - see [LICENSE](LICENSE). The patched Firefox binary is distributed under the MPL-2.0 (Firefox upstream license). The C++ patches against mozilla-central that produce that binary are at [feder-cr/invisible_firefox](https://github.com/feder-cr/invisible_firefox).
+MIT - see [LICENSE](LICENSE). The patched Firefox binary is distributed under the MPL-2.0 (Firefox upstream license). The C++ patches against mozilla-central that produce that binary are at [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
 
 ---
 
