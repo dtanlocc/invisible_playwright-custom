@@ -171,7 +171,7 @@ def test_release_url_points_at_owned_repo():
     """The template MUST point at an owner/repo the maintainer actually
     controls. A typo here would direct everyone's downloads at a stranger's
     GitHub account — silent supply-chain risk."""
-    assert "/feder-cr/invisible_playwright/" in RELEASE_URL_TEMPLATE, (
+    assert "/feder-cr/firefox_antidetect_patch/" in RELEASE_URL_TEMPLATE, (
         f"RELEASE_URL_TEMPLATE was changed to point elsewhere: "
         f"{RELEASE_URL_TEMPLATE!r}. Update this test only if the move is intentional."
     )

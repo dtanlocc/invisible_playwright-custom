@@ -56,8 +56,8 @@ def test_ensure_binary_downloads_and_verifies(tmp_path, monkeypatch):
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("win32", "AMD64")
 
-    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
-    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
 
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
                   content_type="application/zip")
@@ -84,8 +84,8 @@ def test_ensure_binary_rejects_sha_mismatch(tmp_path, monkeypatch):
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("win32", "AMD64")
 
-    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
-    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
     responses.add(responses.GET, url_sums, body=f"{wrong_sha}  {asset}\n", status=200)
 
@@ -301,14 +301,8 @@ def test_ensure_binary_accepts_binary_mode_checksums(tmp_path, monkeypatch):
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("win32", "AMD64")
 
-    url_archive = (
-        f"https://github.com/feder-cr/invisible_playwright/releases/download/"
-        f"{BINARY_VERSION}/{asset}"
-    )
-    url_sums = (
-        f"https://github.com/feder-cr/invisible_playwright/releases/download/"
-        f"{BINARY_VERSION}/checksums.txt"
-    )
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
 
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
                   content_type="application/zip")
@@ -353,8 +347,8 @@ def test_ensure_binary_missing_entry_after_extract_raises(tmp_path, monkeypatch)
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("win32", "AMD64")
 
-    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
-    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
 
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
     responses.add(responses.GET, url_sums, body=f"{archive_sha}  {asset}\n", status=200)
@@ -444,8 +438,8 @@ def test_ensure_binary_downloads_and_verifies_linux(tmp_path, monkeypatch):
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("linux", "x86_64")
 
-    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
-    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
 
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
                   content_type="application/gzip")
@@ -475,8 +469,8 @@ def test_ensure_binary_rejects_sha_mismatch_linux(tmp_path, monkeypatch):
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("linux", "x86_64")
 
-    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
-    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
     responses.add(responses.GET, url_sums, body=f"{wrong_sha}  {asset}\n", status=200)
 
@@ -528,8 +522,8 @@ def test_ensure_binary_missing_entry_after_extract_raises_linux(tmp_path, monkey
     from invisible_playwright.constants import ARCHIVE_NAME
     asset = ARCHIVE_NAME("linux", "x86_64")
 
-    url_archive = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/{asset}"
-    url_sums = f"https://github.com/feder-cr/invisible_playwright/releases/download/{BINARY_VERSION}/checksums.txt"
+    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
+    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
 
     responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
     responses.add(responses.GET, url_sums, body=f"{archive_sha}  {asset}\n", status=200)
@@ -569,7 +563,7 @@ def test_resolve_asset_url_public_url_format_is_stable(monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     url = _resolve_asset_url("firefox-4", "abc.tar.gz")
     assert url == (
-        "https://github.com/feder-cr/invisible_playwright/releases/"
+        "https://github.com/feder-cr/firefox_antidetect_patch/releases/"
         "download/firefox-4/abc.tar.gz"
     )
 
@@ -584,7 +578,7 @@ def test_resolve_asset_url_private_uses_api_with_token(monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
     api_url = (
-        "https://api.github.com/repos/feder-cr/invisible_playwright"
+        "https://api.github.com/repos/feder-cr/firefox_antidetect_patch"
         "/releases/tags/firefox-4"
     )
     responses.add(
@@ -606,7 +600,7 @@ def test_resolve_asset_url_private_raises_when_asset_missing(monkeypatch):
     with the asset name in the message than to download something else."""
     monkeypatch.setenv("STEALTHFOX_GITHUB_TOKEN", "ghp_fake")
     api_url = (
-        "https://api.github.com/repos/feder-cr/invisible_playwright"
+        "https://api.github.com/repos/feder-cr/firefox_antidetect_patch"
         "/releases/tags/firefox-4"
     )
     responses.add(
@@ -625,7 +619,7 @@ def test_resolve_asset_url_private_propagates_api_4xx(monkeypatch):
     don't swallow it silently — raise so the user sees the real reason."""
     monkeypatch.setenv("STEALTHFOX_GITHUB_TOKEN", "ghp_fake")
     api_url = (
-        "https://api.github.com/repos/feder-cr/invisible_playwright"
+        "https://api.github.com/repos/feder-cr/firefox_antidetect_patch"
         "/releases/tags/firefox-99"
     )
     responses.add(responses.GET, api_url, status=404)
@@ -640,7 +634,7 @@ def test_resolve_asset_url_private_sends_auth_header(monkeypatch):
     a private repo returns 404 and the user thinks the release is missing."""
     monkeypatch.setenv("STEALTHFOX_GITHUB_TOKEN", "ghp_secret")
     api_url = (
-        "https://api.github.com/repos/feder-cr/invisible_playwright"
+        "https://api.github.com/repos/feder-cr/firefox_antidetect_patch"
         "/releases/tags/firefox-4"
     )
 
