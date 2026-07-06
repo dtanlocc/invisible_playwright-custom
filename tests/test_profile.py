@@ -22,12 +22,6 @@ from invisible_playwright._fpforge.profile import (
 # ─────────────────────────────────────────────────────────────────────
 
 @pytest.mark.unit
-def test_validate_pin_key_top_level_fonts():
-    """VK1 — `fonts` is a known top-level key."""
-    _validate_pin_key("fonts")
-
-
-@pytest.mark.unit
 def test_validate_pin_key_top_level_dark_theme():
     """VK2 — `dark_theme` is a known top-level key."""
     _validate_pin_key("dark_theme")
@@ -98,7 +92,6 @@ def _raw_baseline():
         "screen_h": 1080,
         "webgl_vendor": "Google Inc. (Intel)",
         "webgl_renderer": "ANGLE (Intel)",
-        "font_whitelist": "arial,calibri",
         "dark_theme": 0,
     }
 
@@ -108,34 +101,6 @@ def test_apply_pins_to_raw_screen_width():
     """AP1 — `screen.width` rewrites `screen_w` in raw."""
     out = _apply_pins_to_raw(_raw_baseline(), {"screen.width": 2560})
     assert out["screen_w"] == 2560
-
-
-@pytest.mark.unit
-def test_apply_pins_to_raw_fonts_list():
-    """AP2 — list pin joined into comma-separated whitelist."""
-    out = _apply_pins_to_raw(_raw_baseline(), {"fonts": ["Arial", "Verdana"]})
-    assert out["font_whitelist"] == "Arial,Verdana"
-
-
-@pytest.mark.unit
-def test_apply_pins_to_raw_fonts_tuple():
-    """AP3 — tuple pin is also accepted."""
-    out = _apply_pins_to_raw(_raw_baseline(), {"fonts": ("Arial",)})
-    assert out["font_whitelist"] == "Arial"
-
-
-@pytest.mark.unit
-def test_apply_pins_to_raw_fonts_string_raises():
-    """AP4 — bare string is not a list/tuple, must raise."""
-    with pytest.raises(TypeError, match="list/tuple"):
-        _apply_pins_to_raw(_raw_baseline(), {"fonts": "Arial"})
-
-
-@pytest.mark.unit
-def test_apply_pins_to_raw_fonts_int_raises():
-    """AP5 — int is also rejected."""
-    with pytest.raises(TypeError):
-        _apply_pins_to_raw(_raw_baseline(), {"fonts": 42})
 
 
 @pytest.mark.unit
@@ -158,7 +123,7 @@ def test_apply_pins_to_raw_returns_copy_not_mutation():
 
 @pytest.mark.unit
 def test_apply_pins_to_raw_unknown_key_silent():
-    """AP8 — key not in `_PIN_TO_RAW` (and not 'fonts') is ignored.
+    """AP8 — key not in `_PIN_TO_RAW` is ignored.
 
     Validation happens upstream in `generate_profile`; the inner helper
     guards defensively but does not raise.
@@ -261,15 +226,6 @@ def test_generate_profile_is_frozen():
 
 
 @pytest.mark.unit
-def test_generate_profile_fonts_is_list_of_strings():
-    """GP11 — fonts is a non-empty list of stripped strings."""
-    p = generate_profile(seed=42)
-    assert isinstance(p.fonts, list)
-    assert len(p.fonts) > 0
-    assert all(isinstance(f, str) and f.strip() == f for f in p.fonts)
-
-
-@pytest.mark.unit
 def test_generate_profile_to_prefs_dict_flat_and_matches_raw():
     """GP12 — to_prefs_dict() returns a flat dict containing core sampler keys."""
     p = generate_profile(seed=42)
@@ -320,13 +276,6 @@ def test_generate_profile_pin_dark_theme_false():
 
 
 @pytest.mark.unit
-def test_generate_profile_pin_fonts_list_visible_on_profile():
-    """fonts pin: list → joined raw string → split back to list on Profile."""
-    p = generate_profile(seed=42, pin={"fonts": ["Arial", "Verdana"]})
-    assert p.fonts == ["Arial", "Verdana"]
-
-
-@pytest.mark.unit
 def test_generate_profile_pin_gpu_renderer_propagates():
     p = generate_profile(seed=42, pin={"gpu.renderer": "FORCED_RENDERER"})
     assert p.gpu.renderer == "FORCED_RENDERER"
@@ -335,14 +284,13 @@ def test_generate_profile_pin_gpu_renderer_propagates():
 
 @pytest.mark.unit
 def test_generate_profile_pin_to_raw_keymap_complete():
-    """Every dotted pin key (besides 'fonts') has a `_PIN_TO_RAW` mapping.
+    """Every dotted pin key has a `_PIN_TO_RAW` mapping.
 
     Guards against silently-ignored pins if someone adds a key to `_PIN_GROUPS`
     but forgets the raw-key mapping.
     """
     dotted = {f"{group}.{field}" for group, fields in _PIN_GROUPS.items()
               for field in fields}
-    # 'dark_theme' is top-level and present in _PIN_TO_RAW; 'fonts' is handled
-    # specially and intentionally absent.
+    # 'dark_theme' is top-level and present in _PIN_TO_RAW.
     missing = dotted - set(_PIN_TO_RAW.keys())
     assert missing == set(), f"pin keys without raw mapping: {sorted(missing)}"

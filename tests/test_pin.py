@@ -51,20 +51,9 @@ def test_pin_key_without_dot_raises():
         generate_profile(seed=42, pin={"madeup": 1})
 
 
-def test_pin_top_level_fonts_accepted():
-    p = generate_profile(seed=42, pin={"fonts": ["Arial", "Verdana", "Tahoma"]})
-    assert "Arial" in p.fonts
-    assert "Verdana" in p.fonts
-
-
 def test_pin_top_level_dark_theme_accepted():
     p = generate_profile(seed=42, pin={"dark_theme": True})
     assert p.dark_theme is True
-
-
-def test_pin_fonts_wrong_type_raises():
-    with pytest.raises(TypeError, match="list/tuple"):
-        generate_profile(seed=42, pin={"fonts": "Arial,Verdana"})
 
 
 def test_pin_overrides_seed_value():
