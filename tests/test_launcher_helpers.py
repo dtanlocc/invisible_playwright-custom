@@ -210,8 +210,8 @@ def test_build_env_caller_env_override_wins(monkeypatch):
 def test_build_env_never_injects_font_env():
     # The patched binary is self-contained for fonts (always bundle-only; the
     # exposed set IS the bundle, system-ui + generics baked in C++). The wrapper
-    # must NOT inject any STEALTHFOX_FONTLIST/SYSTEMUI env — even if legacy font
-    # prefs are passed — so there is no external font customization channel.
+    # must NOT inject any STEALTHFOX_FONTLIST/SYSTEMUI env - even if legacy font
+    # prefs are passed - so there is no external font customization channel.
     ip = InvisiblePlaywright(seed=42)
     env = ip._build_env({
         "zoom.stealth.font.fontlist": "arial,calibri,segoe ui",
