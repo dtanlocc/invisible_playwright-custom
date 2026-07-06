@@ -42,8 +42,6 @@ _REQUIRED_PREFS_KEYS = (
     "media.encoder.webm.enabled",
     "media.mediasource.webm.enabled",
     "media.mediasource.mp4.enabled",
-    "zoom.stealth.font.fontlist",
-    "zoom.stealth.font.system_ui",
     "ui.systemUsesDarkTheme",
     "intl.accept_languages",
     "general.useragent.locale",
@@ -197,26 +195,24 @@ def test_http_proxy_returned_unchanged_no_socks_mutations():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  IT7: profile.fonts reaches prefs as a comma-joined fontlist
+#  IT7: fonts are NOT configured via prefs (the binary is self-contained)
 # ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.integration
-def test_profile_fonts_propagate_to_prefs_fontlist():
-    """IT7 — every font in ``profile.fonts`` appears in the comma-joined
-    ``zoom.stealth.font.fontlist`` pref, in order. The binary applies this
-    list to the native system font allow-list at construction; system-ui is
-    forced to Segoe UI."""
+def test_fonts_are_not_configured_via_prefs():
+    """IT7 - the patched binary is self-contained for fonts: it is always
+    bundle-only (the exposed set IS the bundle), with system-ui + the CSS
+    generics baked in C++. There is no external font customization channel, so
+    the config pipeline must emit NO font prefs. Locks the 2026-07-06
+    self-contained refactor (fonts moved entirely into the binary)."""
     profile = generate_profile(seed=42)
     prefs = translate_profile_to_prefs(profile)
 
-    assert profile.fonts, "fixture seed=42 produced empty fonts list"
-    fontlist = prefs["zoom.stealth.font.fontlist"]
-    assert isinstance(fontlist, str)
-    assert fontlist == ",".join(profile.fonts)
-    for font in profile.fonts:
-        assert font in fontlist
-    assert prefs["zoom.stealth.font.system_ui"] == "Segoe UI"
+    assert "zoom.stealth.font.fontlist" not in prefs
+    assert "zoom.stealth.font.system_ui" not in prefs
+    assert not any(k.startswith("zoom.stealth.font.") for k in prefs)
+    assert not any(k.startswith("font.name-list.") for k in prefs)
 
 
 # ──────────────────────────────────────────────────────────────────────
