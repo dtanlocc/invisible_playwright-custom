@@ -207,18 +207,18 @@ def test_build_env_caller_env_override_wins(monkeypatch):
 
 
 @pytest.mark.unit
-def test_build_env_injects_font_list_and_system_ui():
-    # The binary reads these at the gfxPlatformFontList constructor (process
-    # start); Playwright delivers firefox_user_prefs over juggler AFTER start, so
-    # the env var is the only at-construction channel. Without it host fonts leak
-    # on Linux/macOS (the wrapper's pref-only delivery was a cross-OS gap).
+def test_build_env_never_injects_font_env():
+    # The patched binary is self-contained for fonts (always bundle-only; the
+    # exposed set IS the bundle, system-ui + generics baked in C++). The wrapper
+    # must NOT inject any STEALTHFOX_FONTLIST/SYSTEMUI env — even if legacy font
+    # prefs are passed — so there is no external font customization channel.
     ip = InvisiblePlaywright(seed=42)
     env = ip._build_env({
         "zoom.stealth.font.fontlist": "arial,calibri,segoe ui",
         "zoom.stealth.font.system_ui": "Segoe UI",
     })
-    assert env["STEALTHFOX_FONTLIST"] == "arial,calibri,segoe ui"
-    assert env["STEALTHFOX_SYSTEMUI"] == "Segoe UI"
+    assert "STEALTHFOX_FONTLIST" not in env
+    assert "STEALTHFOX_SYSTEMUI" not in env
 
 
 @pytest.mark.unit

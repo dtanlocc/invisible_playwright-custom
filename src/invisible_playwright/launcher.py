@@ -382,24 +382,14 @@ class InvisiblePlaywright:
         a synthetic srflx candidate matching the proxy egress IP, avoiding
         the StaticPref IPC propagation timing issue between parent and
         socket processes.
-        ``STEALTHFOX_FONTLIST`` / ``STEALTHFOX_SYSTEMUI`` carry the font
-        allow-list + system-ui family for the SAME reason: the binary reads
-        them at the gfxPlatformFontList constructor (process start), but
-        Playwright delivers firefox_user_prefs over the juggler protocol
-        AFTER start — too late for the font list ctor. The env var is present
-        at start and inherited by content processes, so the allow-list is
-        applied on every host (without it, host fonts leak on Linux/macOS).
+        Fonts need NO env: the patched binary is self-contained (always
+        bundle-only, exposing exactly the bundled standard-Windows families;
+        system-ui + generics baked in C++). No external font list / allow-list.
         """
         import os as _os
         env = _os.environ.copy()
         if self._timezone:
             env["TZ"] = _tz_env(self._timezone)
-        fontlist = prefs.get("zoom.stealth.font.fontlist")
-        if fontlist:
-            env["STEALTHFOX_FONTLIST"] = fontlist
-        system_ui = prefs.get("zoom.stealth.font.system_ui")
-        if system_ui:
-            env["STEALTHFOX_SYSTEMUI"] = system_ui
         # WebRTC srflx override: feed nICEr's nr_stealth_bridge the proxy egress
         # IP so the srflx candidate matches the proxy (not the real host the
         # UDP STUN would otherwise leak). An explicit env var set by the caller

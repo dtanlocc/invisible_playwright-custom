@@ -227,16 +227,8 @@ class InvisiblePlaywright:
         env = _os.environ.copy()
         if self._timezone:
             env["TZ"] = _tz_env(self._timezone)
-        # Font allow-list + system-ui via env (read at the gfxPlatformFontList
-        # constructor, process start) — Playwright delivers firefox_user_prefs
-        # over the juggler protocol after start, too late for the font list ctor,
-        # so without this host fonts leak on Linux/macOS. See sync launcher.
-        fontlist = prefs.get("zoom.stealth.font.fontlist")
-        if fontlist:
-            env["STEALTHFOX_FONTLIST"] = fontlist
-        system_ui = prefs.get("zoom.stealth.font.system_ui")
-        if system_ui:
-            env["STEALTHFOX_SYSTEMUI"] = system_ui
+        # Fonts need NO env: the patched binary is self-contained (always
+        # bundle-only). No external font list / allow-list / system-ui.
         # WebRTC srflx override: feed nICEr's nr_stealth_bridge the proxy egress
         # IP (caller's explicit env var wins, else the IP auto-discovered in
         # __aenter__) and drop IPv6 from gathering behind a proxy.
