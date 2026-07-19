@@ -194,5 +194,5 @@ This project is for educational purposes only. It is provided as-is, with no war
 
 <p align="center">
   Built by <a href="https://it.linkedin.com/in/federico-elia-5199951b6">Federico Elia</a>
-  &nbsp;<a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="https://img.shields.io/badge/LinkedIn-Federico%20Elia-0A66C2?logo=linkedin&logoColor=white" alt="LinkedIn"></a>
+  &nbsp;<a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="docs/badges/linkedin.svg" alt="LinkedIn"></a>
 </p>
