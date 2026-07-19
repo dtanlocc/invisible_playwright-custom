@@ -2,7 +2,7 @@
   <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
-  <a href="https://github.com/feder-cr/invisible_playwright/releases"><img src="https://img.shields.io/github/v/release/feder-cr/invisible_playwright.svg" alt="GitHub release"></a>
+  <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases"><img src="https://img.shields.io/badge/Firefox-150.0.1-FF7139?logo=firefox&logoColor=white" alt="Firefox 150.0.1"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://img.shields.io/github/stars/feder-cr/invisible_playwright" alt="GitHub stars"></a>
   <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases/tag/usage-counter"><img src="https://img.shields.io/github/downloads/feder-cr/firefox_antidetect_patch/usage-counter/total?label=browser%20launches&color=blue" alt="browser launches"></a>
 </p>
