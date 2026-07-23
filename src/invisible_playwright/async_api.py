@@ -244,6 +244,14 @@ class InvisiblePlaywright:
     def _resolve_headless(self) -> bool:
         if not self._headless:
             return False
+        # Opt-in TRUE headless. The default headful+cloak path intermittently
+        # hangs launch_persistent_context ~40% on Windows (window/compositor
+        # race with a persistent profile). True headless applies the IDENTICAL
+        # fingerprint prefs (screen/viewport/canvas/webgl spoofed the same) and
+        # is 100% reliable (~2.3s). Gated by env so other callers are unaffected.
+        import os as _os
+        if _os.environ.get("INVPW_TRUE_HEADLESS") == "1":
+            return True
         vd = make_virtual_display()
         # Linux: Xvfb to start. Windows/macOS: make_virtual_display() returns
         # None (the binary self-cloaks via cloak_prefs injected in __aenter__),

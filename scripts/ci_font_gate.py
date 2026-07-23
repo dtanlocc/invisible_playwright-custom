@@ -74,6 +74,28 @@ GENERICS = {
     "system-ui": "Segoe UI",
 }
 
+# Families that live inside a .ttc TrueType Collection (several faces packed in
+# one file). Being *listed* is not enough: without a per-face index the table
+# lookup reads the first font of the collection, so every other face silently
+# falls back to a default one. That is invisible to the presence probe below
+# (the family is registered either way) but wrecks the persona for CJK text.
+# The FF150->151 rebase dropped exactly that fix and only 7 of these loaded.
+#
+# Calibrated on firefox-17, the known-good release: these are the families that
+# demonstrably render the CJK sample with their own face there. Deliberately
+# NOT listed: "SimSun-ExtB" (covers Unicode Ext-B, not the BMP characters in
+# the sample, so it legitimately falls back) and the "... UI" variants of YaHei
+# and JhengHei (they already fall back on firefox-17, so requiring them would
+# fail the known-good build). Keep this list as a regression detector, not an
+# aspiration: everything here loads on firefox-17 and must keep loading.
+TTC_FAMILIES = [
+    "Microsoft YaHei", "Microsoft JhengHei",
+    "MS Gothic", "MS PGothic", "MS UI Gothic",
+    "SimSun", "NSimSun",
+    "Yu Gothic", "Yu Gothic UI", "Malgun Gothic",
+    "MingLiU-ExtB", "PMingLiU-ExtB",
+]
+
 # Width+height probe (the offsetWidth method real detectors use): a family is
 # "present" if styling text in it renders at a different size than the three CSS
 # base generics. For the generics, return the measured size of each generic and
@@ -97,8 +119,17 @@ DETECT_JS = r"""(arg) => {
   for (const g of arg.generics) gen[g] = size(g);
   const genref = {};
   for (const w of arg.targets) genref[w] = size("'" + w + "'");
+  // .ttc face-loading probe: render CJK glyphs, which only the family's own
+  // face can draw. If the size matches a nonexistent-font fallback, the face
+  // never loaded and the text is being drawn by a default face instead.
+  sp.textContent = arg.cjk;
+  const fb = size("'__NoSuchFontXYZ__'");
+  const ttcload = {};
+  for (const f of arg.ttc) {
+    ttcload[f] = size("'" + f + "','__NoSuchFontXYZ__'") !== fb;
+  }
   document.body.removeChild(sp);
-  return { present, gen, genref };
+  return { present, gen, genref, ttcload };
 }"""
 
 # Suppress the new-tab machinery so the launch is quiet (mirrors ci_drive_gate).
@@ -118,6 +149,8 @@ def main(exe: str) -> int:
         "cands": cands,
         "generics": list(GENERICS.keys()),
         "targets": list(GENERICS.values()),
+        "ttc": TTC_FAMILIES,
+        "cjk": "中文字体測試あア漢字",
     }
     with sync_playwright() as p:
         browser = p.firefox.launch(executable_path=exe, headless=True,
@@ -152,11 +185,17 @@ def main(exe: str) -> int:
         print(f"[font-gate] HOST LEAK (block-at-birth did not run!): {leaked_host}")
     if gen_bad:
         print(f"[font-gate] GENERIC MISMATCH: {gen_bad}")
+    ttc_bad = sorted(f for f in TTC_FAMILIES if not r.get("ttcload", {}).get(f))
+    if ttc_bad:
+        print(f"[font-gate] TTC FACE NOT LOADED (listed but falls back to a "
+              f"default face for CJK): {ttc_bad}")
 
-    ok = not missing and not extra and not leaked_host and not gen_bad
+    ok = (not missing and not extra and not leaked_host and not gen_bad
+          and not ttc_bad)
     if ok:
         print(f"FONT GATE OK - exactly the {n} Windows families, host-leak 0, "
-              f"generics map to Windows (serif/sans/mono/system-ui).")
+              f"generics map to Windows (serif/sans/mono/system-ui), "
+              f"{len(TTC_FAMILIES)}/{len(TTC_FAMILIES)} .ttc faces load.")
         return 0
     print("FONT GATE FAILED - the exposed set does not match the Windows "
           "persona on this OS (see the diff above).")

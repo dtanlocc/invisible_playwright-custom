@@ -101,9 +101,15 @@ def test_archive_name_rejects_unsupported_arches(machine):
 @pytest.mark.parametrize("machine", ["arm64", "aarch64"])
 def test_archive_name_arm64_supported(machine):
     """ARM64 is shipped now (issue #6): both Linux aarch64 and macOS arm64.
-    ARCHIVE_NAME must map both machine spellings to the canonical -arm64 asset."""
-    assert ARCHIVE_NAME("linux", machine) == "firefox-150.0.1-stealth-linux-arm64.tar.gz"
-    assert ARCHIVE_NAME("darwin", machine) == "firefox-150.0.1-stealth-macos-arm64.tar.gz"
+    ARCHIVE_NAME must map both machine spellings to the canonical -arm64 asset.
+
+    The version comes from BINARY_BASENAME rather than a literal: what this test
+    is about is the arch/platform mapping, and a hardcoded version turns every
+    upstream bump into a mechanical test edit - which is how a stale expectation
+    gets "fixed" without anyone checking the asset actually exists.
+    """
+    assert ARCHIVE_NAME("linux", machine) == f"{BINARY_BASENAME}-linux-arm64.tar.gz"
+    assert ARCHIVE_NAME("darwin", machine) == f"{BINARY_BASENAME}-macos-arm64.tar.gz"
 
 
 @pytest.mark.unit
