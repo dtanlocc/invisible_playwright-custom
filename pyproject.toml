@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "invisible-playwright"
-version = "0.3.4"
+version = "0.3.5"
 description = "Playwright wrapper for a patched Firefox with deterministic stealth profile."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,11 +27,11 @@ dependencies = [
     # Pinned to the Juggler client we actually test against (scripts/playwright_pin.txt,
     # 1.55.x). Playwright 1.61 added an isMobile field to Browser.setDefaultViewport that
     # the FF150 Juggler does not accept, which breaks the session (issue #48).
-    "playwright>=1.40,<=1.61.0",
+    "playwright>=1.55,<=1.61.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-mock>=3", "responses>=0.24", "build>=1", "pytest-rerunfailures>=14", "playwright>=1.40,<=1.61.0"]
+dev = ["pytest>=7", "pytest-mock>=3", "responses>=0.24", "build>=1", "pytest-rerunfailures>=14", "playwright>=1.55,<=1.61.0"]
 
 [tool.pytest.ini_options]
 markers = [
