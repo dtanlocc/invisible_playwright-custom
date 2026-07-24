@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this when something detects the browser (Fingerprint Pro, CreepJS, BotD, reCAPTCHA, Cloudflare, sannysoft, etc).
+        Use this when something detects the browser (Fingerprint Pro, CreepJS, BotD, reCAPTCHA, sannysoft, etc).
         Bugs in operations (clicks, navigation) go to the site/action template.
         Browser failing to start goes to the launch failure template.
 

@@ -3,8 +3,8 @@
 Consumes the Bayesian-sampled `browsing_history` from the persona Profile
 (see `_fpforge/_sampler.py:derive_browsing_history`). For each visited
 site, builds 1-5 realistic cookies whose composition is chosen by the
-site's `cookie_profile` tag (analytics-only / consent / cloudflare-bot-
-management / etc.). All values seeded deterministically from the persona
+site's `cookie_profile` tag (analytics-only / consent / bot-defense
+/ etc.). All values seeded deterministically from the persona
 seed, so a given persona always presents the SAME cookies across sessions.
 
 In addition, always seeds 5 cookies on .google.com (NID, CONSENT, SOCS,
