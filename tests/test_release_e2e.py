@@ -54,6 +54,12 @@ from pathlib import Path
 
 import pytest
 
+# Version the shipped binary reports, derived from the same constant the wrapper
+# uses so these assertions can never drift from what actually ships (they were
+# hardcoded to "150" and went red the moment firefox-18 / FF151 landed).
+from invisible_playwright.constants import FIREFOX_UPSTREAM_VERSION
+
+_FX_MAJOR = FIREFOX_UPSTREAM_VERSION.split(".")[0]
 
 REPO_URL = "https://github.com/feder-cr/invisible_playwright.git"
 REV = os.environ.get("INVPW_E2E_REV", "main")
@@ -214,9 +220,9 @@ def test_binary_executes_after_fetch(clean_venv: Path, isolated_cache_env: dict)
     r = subprocess.run([str(binary_path), "--version"],
                        capture_output=True, text=True, timeout=30)
     text = (r.stdout + r.stderr).lower()
-    assert "firefox" in text and "150." in text, (
-        f"binary --version didn't report Firefox 150: rc={r.returncode} "
-        f"out={r.stdout!r} err={r.stderr!r}"
+    assert "firefox" in text and FIREFOX_UPSTREAM_VERSION in text, (
+        f"binary --version didn't report Firefox {FIREFOX_UPSTREAM_VERSION}: "
+        f"rc={r.returncode} out={r.stdout!r} err={r.stderr!r}"
     )
 
 
@@ -246,8 +252,8 @@ def test_playwright_launch_against_real_site(clean_venv: Path,
     assert "TITLE=Example Domain" in out.stdout, (
         f"page.title() didn't return expected text:\n{out.stdout[-1000:]}"
     )
-    assert "UA=" in out.stdout and "Firefox/150" in out.stdout, (
-        "navigator.userAgent doesn't report Firefox/150 — UA spoofing "
+    assert "UA=" in out.stdout and f"Firefox/{_FX_MAJOR}" in out.stdout, (
+        f"navigator.userAgent doesn't report Firefox/{_FX_MAJOR} - UA spoofing "
         f"regression?\n{out.stdout[-1000:]}"
     )
 
