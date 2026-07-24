@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Playwright pin moved to `>=1.55,<1.62` (was `>=1.55,<1.56`). The `firefox-18` binary rebases onto Firefox 151, which is what the latest Playwright (1.61) pairs with, so 1.61 now drives the binary natively - no more pinning to an older client. Both ends of the range were tested against the new binary (full browser suite on 1.61; drift-free protocol on 1.55). `scripts/playwright_pin.txt` -> 1.61.0.
+
 ### Added
 - `timezone="auto"`: the browser timezone is auto-derived from the egress IP. By default (no explicit timezone) it ALWAYS resolves — from the proxy egress when a proxy is set, otherwise from the host's own public IP — so the zone can never disagree with the IP (the classic `timezone_mismatch` signal). An explicit `"Area/City"` is the only way to force a specific zone. On failure: with a proxy the launch raises (no silent host-TZ fallback behind a foreign proxy); without a proxy it falls back to the host TZ so a transient lookup can't break the launch.
 - The egress IP is mapped to its IANA zone with an offline mmdb (`daijro/geoip-all-in-one`). It always tracks the upstream weekly rebuild: on every launch the current latest release tag is resolved from the `releases/latest/download` permalink (no GitHub API → no rate limit) and pulled only if newer than the cache, older copies pruned. Offline → the cached copy is reused; never a pinned tag (daijro prunes old releases, so a pin eventually 404s). `STEALTHFOX_GEOIP_MMDB` points at your own `.mmdb` to skip the download.
