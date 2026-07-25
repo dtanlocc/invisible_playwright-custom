@@ -119,7 +119,7 @@ def test_public_import_matches_direct_import():
 
 def test_ensure_binary_is_callable_via_public_namespace():
     """ensure_binary is re-exported and stays callable from the package root."""
-    # We don't invoke it (would trigger a network download in CI) — just
+    # We don't invoke it (would trigger a network download in CI) - just
     # verify the public attribute is the same callable as the underlying.
     from invisible_playwright.download import ensure_binary as _direct_eb
     assert ensure_binary is _direct_eb

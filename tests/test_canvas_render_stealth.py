@@ -4,7 +4,7 @@ Guards a patched-binary behaviour that must never regress, needed for the
 fingerprint to look like a real Windows browser to FOSS detectors (CreepJS,
 FingerprintJS, BrowserLeaks) and fixed-hash reference checks:
 
-  Solid WebGL readback purity under render-noise — a fixed solid-colour WebGL
+  Solid WebGL readback purity under render-noise - a fixed solid-colour WebGL
   readback (which reference checks hash against a universal constant) must stay
   byte-exact even with per-seed render-noise enabled, while high-entropy
   renders stay noised. (C++: render-noise skips near-uniform WebGL readbacks.)
@@ -64,4 +64,4 @@ def test_solid_webgl_readback_stays_pure_under_noise(noised_page):
 
 # NOTE: "high-entropy WebGL still noised" is covered by test_webgl_noise_active.py
 # (kept separate: it launches its own browsers, so it must not run while this
-# module's shared `noised_page` browser is open — the sync API cannot nest).
+# module's shared `noised_page` browser is open - the sync API cannot nest).

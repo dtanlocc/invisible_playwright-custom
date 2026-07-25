@@ -69,7 +69,7 @@ body:
     attributes:
       label: Detector name and URL
       description: Exact site / service / product that flagged us.
-      placeholder: Fingerprint Pro — https://demo.fingerprint.com/playground
+      placeholder: Fingerprint Pro - https://demo.fingerprint.com/playground
     validations:
       required: true
 

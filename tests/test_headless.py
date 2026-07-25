@@ -2,7 +2,7 @@
 
 ``make_virtual_display`` is pure platform routing:
 - Linux: a ``_LinuxVirtualDisplay`` (Xvfb) object the launcher start()s/stop()s.
-- Windows / macOS: ``None`` — the patched binary self-cloaks its chrome windows
+- Windows / macOS: ``None`` - the patched binary self-cloaks its chrome windows
   via ``cloak_prefs()`` (injected by the launcher), so nothing host-side spawns.
 - Anything else: a clear ``RuntimeError`` naming the platform.
 
@@ -31,14 +31,14 @@ def test_make_virtual_display_returns_none_on_win32(monkeypatch):
 
 @pytest.mark.unit
 def test_make_virtual_display_returns_none_on_darwin(monkeypatch):
-    """macOS is now supported — it hides via the same in-binary cloak pref."""
+    """macOS is now supported - it hides via the same in-binary cloak pref."""
     monkeypatch.setattr(headless.sys, "platform", "darwin")
     assert make_virtual_display() is None
 
 
 @pytest.mark.unit
 def test_make_virtual_display_returns_linux_xvfb_on_linux(monkeypatch):
-    """``__init__`` of ``_LinuxVirtualDisplay`` does no I/O — only ``start()``
+    """``__init__`` of ``_LinuxVirtualDisplay`` does no I/O - only ``start()``
     spawns Xvfb. Exercising the dispatcher here is safe on any host."""
     monkeypatch.setattr(headless.sys, "platform", "linux")
     assert isinstance(make_virtual_display(), _LinuxVirtualDisplay)
@@ -79,7 +79,7 @@ def test_cloak_prefs_enables_cloak_and_disables_occlusion():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  _LinuxVirtualDisplay — construction-only smoke tests. ``start()`` is
+#  _LinuxVirtualDisplay - construction-only smoke tests. ``start()`` is
 #  E2E because it spawns Xvfb; ``stop()`` is safe to call when no Xvfb
 #  was ever started, so we exercise that path explicitly.
 # ──────────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ def test_cloak_prefs_enables_cloak_and_disables_occlusion():
 
 @pytest.mark.unit
 def test_linux_virtual_display_initial_state_is_clean():
-    """Construction must not spawn Xvfb or mutate the environment — only
+    """Construction must not spawn Xvfb or mutate the environment - only
     ``start()`` does. Mirrors the Windows construction-state test."""
     vd = _LinuxVirtualDisplay()
     assert vd._proc is None
@@ -97,7 +97,7 @@ def test_linux_virtual_display_initial_state_is_clean():
 
 @pytest.mark.unit
 def test_linux_virtual_display_geometry_default():
-    """Default geometry is 1920x1080x24 — matches the profile sampler's
+    """Default geometry is 1920x1080x24 - matches the profile sampler's
     default screen and avoids the Xvfb default of 1280x1024 which the
     fingerprint pipeline never produces."""
     vd = _LinuxVirtualDisplay()
@@ -114,7 +114,7 @@ def test_linux_virtual_display_custom_geometry():
 
 @pytest.mark.unit
 def test_linux_virtual_display_stop_without_start_is_safe():
-    """``stop()`` before ``start()`` must be a no-op — supports the
+    """``stop()`` before ``start()`` must be a no-op - supports the
     ``__exit__`` path on a launcher that failed before Xvfb was spawned.
     Verifies no AttributeError on env restore (saved_env is empty)."""
     vd = _LinuxVirtualDisplay()

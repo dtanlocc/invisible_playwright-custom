@@ -1,4 +1,4 @@
-"""Backward-compat shim — spostato in invisible_core._fpforge (alias completo).
+"""Backward-compat shim - spostato in invisible_core._fpforge (alias completo).
 
 Aliasa il package E i suoi submodule agli stessi oggetti del core, cosi'
 ``from invisible_playwright._fpforge.profile import Profile`` e

@@ -2,7 +2,7 @@
 
 These exercise the FULL user install path against the LIVE GitHub release.
 They are slow (download a ~110 MB binary, launch Firefox) and require network
-access — marked `e2e` so they're excluded from the default suite. Run them
+access - marked `e2e` so they're excluded from the default suite. Run them
 BEFORE announcing a release:
 
     pytest tests/test_release_e2e.py -m e2e -v
@@ -23,7 +23,7 @@ What each test verifies and why it exists:
     After the install, runs `python -m invisible_playwright fetch --force`,
     which downloads the live tarball + checksums.txt for the pinned
     BINARY_VERSION from the production GitHub release. This is THE test that
-    would have caught LostBoxArt's #15 — the checksums.txt parser bug only
+    would have caught LostBoxArt's #15 - the checksums.txt parser bug only
     manifested against the real binary-mode format the release ships, not
     against unit-test mocks.
 
@@ -144,7 +144,7 @@ def test_clean_install_from_git_main(clean_venv: Path):
     pin = (Path(__file__).resolve().parents[1] / "scripts" / "playwright_pin.txt").read_text().strip()
     _run([str(clean_venv), "-m", "pip", "install", f"playwright=={pin}", "--quiet"], timeout=180)
 
-    # Importability check — catches missing __init__ exports, broken syntax,
+    # Importability check - catches missing __init__ exports, broken syntax,
     # missing runtime deps.
     out = _run(
         [str(clean_venv), "-c",
@@ -189,7 +189,7 @@ def test_fetch_against_live_release(clean_venv: Path, isolated_cache_env: dict):
         f"Output:\n{output[-2000:]}"
     )
     assert "SHA256 mismatch" not in output, (
-        "Tarball SHA doesn't match the published checksums.txt — "
+        "Tarball SHA doesn't match the published checksums.txt - "
         "either the upload was corrupted or the release was re-packed "
         "without updating checksums.txt."
     )
@@ -214,7 +214,7 @@ def test_binary_executes_after_fetch(clean_venv: Path, isolated_cache_env: dict)
     # platforms (Win shows nothing on stdout, Linux prints to stdout).
     # On Linux invoke via WSL when running from Windows.
     if os.name == "nt" and binary_path.suffix == "":
-        # Linux binary path on Windows host — skip launch, the previous
+        # Linux binary path on Windows host - skip launch, the previous
         # ensure_binary() already proved cache landed correctly.
         pytest.skip("Cross-platform binary launch from Windows requires WSL.")
     r = subprocess.run([str(binary_path), "--version"],
@@ -263,7 +263,7 @@ def test_playwright_launch_against_real_site(clean_venv: Path,
 
 @pytest.mark.e2e
 def test_e2e_marker_is_excluded_by_default():
-    """Sanity check on pyproject.toml's `addopts = '-m not e2e'` — this test
+    """Sanity check on pyproject.toml's `addopts = '-m not e2e'` - this test
     only runs when `-m e2e` is passed explicitly. If you're reading this in
     a normal pytest run, the addopts filter is broken."""
     assert True

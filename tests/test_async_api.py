@@ -3,7 +3,7 @@
 The async API mirrors the sync launcher (same prefs pipeline, same
 profile generation, same proxy handling). The only async-specific
 surface is ``__aenter__`` / ``__aexit__`` and an awaitable ``new_page``
-patch — both require a real Firefox binary to exercise meaningfully and
+patch - both require a real Firefox binary to exercise meaningfully and
 are covered by the sync E2E tests via parity arguments.
 
 What we test here without launching a browser: the constructor builds
@@ -42,7 +42,7 @@ def test_async_random_seed_varies_across_instances():
 
 @pytest.mark.unit
 def test_async_profile_built_eagerly_in_constructor():
-    """Pin validation must fire before ``__aenter__`` — otherwise a user
+    """Pin validation must fire before ``__aenter__`` - otherwise a user
     only learns their pin is wrong when the browser launch starts."""
     ip = AsyncIP(seed=42)
     assert ip._profile is not None
@@ -68,7 +68,7 @@ def test_async_and_sync_share_seed_for_same_input():
 
 @pytest.mark.unit
 def test_async_seed_coerced_from_float():
-    """``int(seed)`` truncation — matches sync clamping behaviour."""
+    """``int(seed)`` truncation - matches sync clamping behaviour."""
     ip = AsyncIP(seed=42.9)
     assert ip.seed == 42
 

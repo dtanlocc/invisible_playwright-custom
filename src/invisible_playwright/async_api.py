@@ -1,4 +1,4 @@
-"""Async Playwright façade — mirrors sync_api but with async/await."""
+"""Async Playwright façade - mirrors sync_api but with async/await."""
 from __future__ import annotations
 
 import asyncio
@@ -12,8 +12,8 @@ from ._fpforge import Profile, generate_profile
 from ._webgl_personas import forced_gpu_class
 from ._geo import prepare_session_geo
 from ._headless import cloak_prefs, make_virtual_display
+from ._engine import assert_wire_version, resolve_executable
 from ._proxy import configure_proxy as _configure_proxy_shared
-from .download import ensure_binary
 from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H, _tz_env
 from .prefs import translate_profile_to_prefs
 
@@ -37,7 +37,7 @@ def _patch_new_page_sleep(ctx: Any) -> None:
 
 
 class InvisiblePlaywright:
-    """Async context manager — see invisible_playwright.InvisiblePlaywright for the sync variant."""
+    """Async context manager - see invisible_playwright.InvisiblePlaywright for the sync variant."""
 
     def __init__(
         self,
@@ -55,7 +55,7 @@ class InvisiblePlaywright:
         profile_dir: Optional[Union[str, Path]] = None,
         prep_recaptcha: bool = False,
     ) -> None:
-        # See sync launcher: `zoom.stealth.fpp.hw_seed` is int32_t — clamp.
+        # See sync launcher: `zoom.stealth.fpp.hw_seed` is int32_t - clamp.
         self.seed: int = int(seed) if seed is not None else secrets.randbits(31)
         self._pin = pin
         self._headless = headless
@@ -98,7 +98,9 @@ class InvisiblePlaywright:
             self._locale = await asyncio.to_thread(
                 resolve_session_locale, _geo.egress_ip, self._proxy
             )
-        executable = self._binary_path or ensure_binary()
+        # binary_path= never reaches ensure_binary(), so the engine check lives
+        # on the resolved executable rather than inside the fetcher.
+        executable = resolve_executable(self._binary_path)
         prefs = translate_profile_to_prefs(
             self._profile,
             locale=self._locale,
@@ -107,10 +109,10 @@ class InvisiblePlaywright:
             virtual_display=bool(self._headless and _sys.platform == "win32"),
         )
         # Windows & macOS hide the headless window via the binary's own cloak
-        # (DWMWA_CLOAK / NSWindow alpha) — inject the pref so the patched build
+        # (DWMWA_CLOAK / NSWindow alpha) - inject the pref so the patched build
         # cloaks its chrome windows. setdefault: an explicit user override wins.
         # (Mirrors launcher._build_prefs; the sync path always did this, async
-        # didn't — so async headless=True never cloaked AND crashed below.)
+        # didn't - so async headless=True never cloaked AND crashed below.)
         if self._headless and _sys.platform in ("win32", "darwin"):
             for _k, _v in cloak_prefs().items():
                 prefs.setdefault(_k, _v)
@@ -150,6 +152,9 @@ class InvisiblePlaywright:
                 args=self._extra_args,
                 env=env,
             )
+            # See the sync launcher: browser.version comes from the connection
+            # initializer, costs no round trip, and cannot be spoofed by a pref.
+            assert_wire_version(self._browser)
         except BaseException:
             await self._teardown()
             raise
@@ -255,7 +260,7 @@ class InvisiblePlaywright:
         vd = make_virtual_display()
         # Linux: Xvfb to start. Windows/macOS: make_virtual_display() returns
         # None (the binary self-cloaks via cloak_prefs injected in __aenter__),
-        # so there is nothing to start — guarding the None was the missing piece
+        # so there is nothing to start - guarding the None was the missing piece
         # that made async headless=True crash with AttributeError on Windows.
         if vd is not None:
             vd.start()

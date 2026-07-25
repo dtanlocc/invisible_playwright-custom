@@ -1,4 +1,4 @@
-"""Integration tests — multi-module pipelines without a real browser.
+"""Integration tests - multi-module pipelines without a real browser.
 
 These tests verify that the fingerprint sampler, Profile dataclass, prefs
 translation and proxy translation compose correctly. They do NOT launch
@@ -66,7 +66,7 @@ _REQUIRED_PREFS_KEYS = (
 
 @pytest.mark.integration
 def test_generate_profile_then_translate_has_all_required_keys():
-    """IT1 — generate_profile → translate_profile_to_prefs succeeds and the
+    """IT1 - generate_profile → translate_profile_to_prefs succeeds and the
     returned dict contains every key downstream code (Playwright, the C++
     patches) needs to find."""
     profile = generate_profile(seed=42)
@@ -77,13 +77,13 @@ def test_generate_profile_then_translate_has_all_required_keys():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  IT2: SOCKS proxy + prefs — mutates prefs in place, returns None
+#  IT2: SOCKS proxy + prefs - mutates prefs in place, returns None
 # ──────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.integration
 def test_socks5_proxy_mutates_prefs_then_pipeline_still_valid():
-    """IT2 — configure_proxy writes SOCKS auth keys to the profile-derived
+    """IT2 - configure_proxy writes SOCKS auth keys to the profile-derived
     prefs dict; the result is still a valid prefs dict (all required keys
     intact) and the proxy return is ``None`` so Playwright sees no proxy."""
     profile = generate_profile(seed=42)
@@ -119,7 +119,7 @@ def test_socks5_proxy_mutates_prefs_then_pipeline_still_valid():
 
 @pytest.mark.integration
 def test_pin_screen_width_propagates_through_pipeline():
-    """IT3 — a pinned ``screen.width`` shows up in the final prefs dict
+    """IT3 - a pinned ``screen.width`` shows up in the final prefs dict
     under ``zoom.stealth.screen.width``."""
     profile = generate_profile(seed=42, pin={"screen.width": 2560})
     prefs = translate_profile_to_prefs(profile)
@@ -130,7 +130,7 @@ def test_pin_screen_width_propagates_through_pipeline():
 
 @pytest.mark.integration
 def test_multiple_pins_all_visible_in_prefs():
-    """IT3.b — pinning several unrelated fields at once still routes every
+    """IT3.b - pinning several unrelated fields at once still routes every
     one through to the prefs dict."""
     pin = {
         "screen.width": 3840,
@@ -154,7 +154,7 @@ def test_multiple_pins_all_visible_in_prefs():
 
 @pytest.mark.integration
 def test_pipeline_deterministic_for_same_seed():
-    """IT4 — running the full pipeline twice with the same seed produces
+    """IT4 - running the full pipeline twice with the same seed produces
     identical prefs dicts."""
     a = translate_profile_to_prefs(generate_profile(seed=1234))
     b = translate_profile_to_prefs(generate_profile(seed=1234))
@@ -163,7 +163,7 @@ def test_pipeline_deterministic_for_same_seed():
 
 @pytest.mark.integration
 def test_pipeline_varies_across_seeds():
-    """IT5 — different seeds produce different prefs dicts. Compare the
+    """IT5 - different seeds produce different prefs dicts. Compare the
     full dict, not just a sampled field, to catch regressions where a
     single hot field accidentally becomes seed-invariant."""
     a = translate_profile_to_prefs(generate_profile(seed=1))
@@ -178,7 +178,7 @@ def test_pipeline_varies_across_seeds():
 
 @pytest.mark.integration
 def test_http_proxy_returned_unchanged_no_socks_mutations():
-    """IT6 — an HTTP proxy is returned to Playwright unchanged and the
+    """IT6 - an HTTP proxy is returned to Playwright unchanged and the
     SOCKS prefs are never written. Verifies the two proxy paths don't
     cross-pollute the prefs dict."""
     profile = generate_profile(seed=42)
@@ -222,7 +222,7 @@ def test_fonts_are_not_configured_via_prefs():
 
 @pytest.mark.integration
 def test_dark_theme_pipeline_omits_light_palette():
-    """IT8.a — dark_theme=True profile → no light-palette colors in prefs."""
+    """IT8.a - dark_theme=True profile → no light-palette colors in prefs."""
     profile = generate_profile(seed=42, pin={"dark_theme": True})
     prefs = translate_profile_to_prefs(profile)
 
@@ -233,7 +233,7 @@ def test_dark_theme_pipeline_omits_light_palette():
 
 @pytest.mark.integration
 def test_light_theme_pipeline_includes_light_palette():
-    """IT8.b — dark_theme=False profile → full Win10 light palette is
+    """IT8.b - dark_theme=False profile → full Win10 light palette is
     overlaid onto the prefs dict."""
     profile = generate_profile(seed=42, pin={"dark_theme": False})
     prefs = translate_profile_to_prefs(profile)
@@ -250,7 +250,7 @@ def test_light_theme_pipeline_includes_light_palette():
 
 @pytest.mark.integration
 def test_many_seeds_all_produce_valid_prefs():
-    """IT9 — sweep 10 distinct seeds through the full pipeline. Every run
+    """IT9 - sweep 10 distinct seeds through the full pipeline. Every run
     must succeed and yield a prefs dict containing every required key.
     Catches regressions where a rare CPT branch produces a prefs key
     missing/wrong-typed."""
@@ -265,7 +265,7 @@ def test_many_seeds_all_produce_valid_prefs():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  IT10 (extra): Windows-specific pipeline — virtual display + SOCKS
+#  IT10 (extra): Windows-specific pipeline - virtual display + SOCKS
 #
 #  Combines two Windows-specific branches that real callers stack:
 #  headless mode (virtual_display=True) and a SOCKS5 proxy. Catches
@@ -275,7 +275,7 @@ def test_many_seeds_all_produce_valid_prefs():
 
 @pytest.mark.integration
 def test_windows_virtual_display_with_socks_proxy(monkeypatch):
-    """IT10 — Windows + virtual_display=True + SOCKS5 proxy: both branches
+    """IT10 - Windows + virtual_display=True + SOCKS5 proxy: both branches
     land their keys in the prefs dict and don't clobber each other."""
     monkeypatch.setattr(sys, "platform", "win32")
     profile = generate_profile(seed=42)
@@ -289,13 +289,13 @@ def test_windows_virtual_display_with_socks_proxy(monkeypatch):
     assert prefs["network.proxy.type"] == 1          # SOCKS branch
     assert prefs["network.proxy.socks"] == "127.0.0.1"
     # Windows exposes a validated persona renderer (calibrated clean bucket),
-    # not empty/native — see _webgl_personas.
+    # not empty/native - see _webgl_personas.
     assert prefs["zoom.stealth.webgl.renderer"].startswith("ANGLE (")
     assert prefs["zoom.stealth.webgl.renderer"].rstrip().endswith(", D3D11)")
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  IT11 (extra): Linux-specific pipeline — Xvfb workarounds + GPU spoof
+#  IT11 (extra): Linux-specific pipeline - Xvfb workarounds + GPU spoof
 #  + SOCKS5 proxy. The Linux equivalent of IT10. Verifies that the three
 #  Linux-only branches (renderer spoof, Xvfb webrender disable, MSAA
 #  from profile) coexist with proxy mutation in the same prefs dict.
@@ -304,7 +304,7 @@ def test_windows_virtual_display_with_socks_proxy(monkeypatch):
 
 @pytest.mark.integration
 def test_linux_xvfb_workarounds_with_socks_proxy(monkeypatch):
-    """IT11 — Linux + SOCKS5 proxy: Xvfb workarounds applied, GPU renderer
+    """IT11 - Linux + SOCKS5 proxy: Xvfb workarounds applied, GPU renderer
     spoofed from the validated WebGL persona, SOCKS keys written. virtual_display
     is a Windows-only concept so we omit it here; passing ``virtual_display=True``
     on Linux must NOT set ``security.sandbox.gpu.level`` (covered by VD3)."""
@@ -323,7 +323,7 @@ def test_linux_xvfb_workarounds_with_socks_proxy(monkeypatch):
     # Windows-only sandbox key absent on Linux even with virtual_display=True.
     assert "security.sandbox.gpu.level" not in prefs
     # GPU renderer is spoofed from the validated WebGL persona (a coherent Windows
-    # ANGLE GPU whose renderer + params cross-check), applied on every host — NOT the
+    # ANGLE GPU whose renderer + params cross-check), applied on every host - NOT the
     # raw profile.gpu.renderer, which has no coherent param set and is never exposed.
     from invisible_playwright._webgl_personas import select_persona
     _persona = select_persona(profile.seed)
@@ -345,7 +345,7 @@ def test_linux_xvfb_workarounds_with_socks_proxy(monkeypatch):
 
 @pytest.mark.integration
 def test_linux_msaa_pin_propagates_through_pipeline(monkeypatch):
-    """IT12 — pinning MSAA on Linux survives the prefs translation; on
+    """IT12 - pinning MSAA on Linux survives the prefs translation; on
     Windows the same pin is overwritten to 4 (covered by the unit tests)."""
     monkeypatch.setattr(sys, "platform", "linux")
     profile = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})

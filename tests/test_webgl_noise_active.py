@@ -3,7 +3,7 @@
 The near-uniform skip added 2026-06-18 (so fixed-hash reference checks on a solid
 WebGL readback pass) must NOT disable noise on real fingerprint renders. A
 high-entropy WebGL readback (>16 distinct colours) must still differ between two
-seeds — i.e. the per-seed gamma noise is applied. Pairs with
+seeds - i.e. the per-seed gamma noise is applied. Pairs with
 test_canvas_render_stealth.py (solid readback stays pure).
 
 Kept in its own file: it launches its own short-lived browsers, so it must not run
@@ -54,7 +54,7 @@ def _render_hash(firefox_binary, seed: int):
 def test_high_entropy_webgl_still_noised_per_seed(firefox_binary):
     """Two different seeds → two different per-seed gamma curves → the high-entropy
     readback hashes must differ. Identical hashes would mean the noise was skipped
-    on a real (non-uniform) render — a regression of the uniform-skip scope."""
+    on a real (non-uniform) render - a regression of the uniform-skip scope."""
     h1 = _render_hash(firefox_binary, 1)
     h2 = _render_hash(firefox_binary, 2)
     if h1 is None or h2 is None:

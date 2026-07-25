@@ -1,22 +1,22 @@
 <p>
   <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
-  <a href="LICENSE"><img src="docs/badges/license.svg" alt="License: MIT"></a>
-  <a href="https://www.python.org/downloads/"><img src="docs/badges/python.svg" alt="Python 3.11+"></a>
-  <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases"><img src="docs/badges/firefox.svg" alt="Firefox 150.0.1"></a>
-  <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="docs/badges/stars.svg" alt="GitHub stars"></a>
-  <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases/tag/usage-counter"><img src="docs/badges/launches.svg" alt="browser launches"></a>
+  <a href="https://github.com/feder-cr/invisible_playwright/blob/main/LICENSE"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/license.svg" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/python.svg" alt="Python 3.11+"></a>
+  <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/firefox.svg" alt="Firefox 151.0"></a>
+  <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/stars.svg" alt="GitHub stars"></a>
+  <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases/tag/usage-counter"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/launches.svg" alt="browser launches"></a>
 </p>
 
 <div align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
-  <img src="docs/banner-light.png" alt="invisible_playwright" width="620">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/banner-dark.png">
+  <img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/banner-light.png" alt="invisible_playwright" width="620">
 </picture>
 </div>
 
 <h3 align="center">A modified Firefox that passes every bot detection test.</h3>
 
-![invisible_playwright - 5/5 detection suites passed](docs/screenshots/hero.gif)
+![invisible_playwright - 5/5 detection suites passed](https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/screenshots/hero.gif)
 
 ## How it works
 
@@ -46,7 +46,7 @@ Once the browser is handled it stops being the variable. If you are still gettin
 ## Install
 
 ```bash
-pip install git+https://github.com/feder-cr/invisible_playwright.git
+pip install invisible-playwright
 python -m invisible_playwright fetch      # one-time ~100 MB download, SHA256-verified
 ```
 
@@ -155,7 +155,7 @@ with InvisiblePlaywright(
     ...
 ```
 
-Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](docs/pinning.md)**.
+Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](https://github.com/feder-cr/invisible_playwright/blob/main/docs/pinning.md)**.
 
 ---
 
@@ -181,7 +181,7 @@ Related projects that cover similar ground:
 
 ## License
 
-MIT - see [LICENSE](LICENSE). The patched Firefox binary is distributed under the MPL-2.0 (Firefox upstream license). The C++ patches against mozilla-central that produce that binary are at [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
+MIT - see [LICENSE](https://github.com/feder-cr/invisible_playwright/blob/main/LICENSE). The patched Firefox binary is distributed under the MPL-2.0 (Firefox upstream license). The C++ patches against mozilla-central that produce that binary are at [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
 
 ---
 
@@ -194,5 +194,5 @@ This project is for educational purposes only. It is provided as-is, with no war
 
 <p align="center">
   Built by <a href="https://it.linkedin.com/in/federico-elia-5199951b6">Federico Elia</a>
-  &nbsp;<a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="docs/badges/linkedin.svg" alt="LinkedIn"></a>
+  &nbsp;<a href="https://it.linkedin.com/in/federico-elia-5199951b6"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/linkedin.svg" alt="LinkedIn"></a>
 </p>

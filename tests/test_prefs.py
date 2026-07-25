@@ -151,7 +151,7 @@ def test_webgl_extensions_persona_on_windows(monkeypatch):
 
 @pytest.mark.unit
 def test_timezone_set_uses_juggler_pref():
-    # TZ1 — juggler.timezone.override is the sole C++-read timezone pref;
+    # TZ1 - juggler.timezone.override is the sole C++-read timezone pref;
     # the old zoom.stealth.timezone alias (orphan) must NOT be reintroduced.
     p = generate_profile(seed=42)
     prefs = translate_profile_to_prefs(p, timezone="America/New_York")
@@ -193,7 +193,7 @@ def test_extra_prefs_none_value_deletes_key():
 
 @pytest.mark.unit
 def test_extra_prefs_overrides_existing_key():
-    # EP3 — override a real baseline key (hw_seed is the live cross-process seed)
+    # EP3 - override a real baseline key (hw_seed is the live cross-process seed)
     p = generate_profile(seed=42)
     prefs = translate_profile_to_prefs(p, extra_prefs={"zoom.stealth.fpp.hw_seed": 999})
     assert prefs["zoom.stealth.fpp.hw_seed"] == 999
@@ -218,7 +218,7 @@ def test_extra_prefs_empty_dict_is_no_op():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  System colors / dark theme (platform-agnostic — palette is Win10)
+#  System colors / dark theme (platform-agnostic - palette is Win10)
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -354,7 +354,7 @@ def test_lan_ip_seed_zero_has_no_zero_octets():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Linux-specific tests — exercise the branches that only fire when
+#  Linux-specific tests - exercise the branches that only fire when
 #  ``sys.platform.startswith("linux")``. Patched via ``monkeypatch`` so
 #  these run on any host CI environment.
 # ──────────────────────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ def test_gpu_renderer_set_from_profile_on_linux(monkeypatch):
     # PG1: on Linux (as on EVERY host) we apply the camoufox-derived Windows-ANGLE GPU persona,
     # so the page sees a consistent Windows GPU (rule: always look Windows). The C++ WebGL
     # override is platform-independent (SanitizeRenderer is pure string regex), so the same
-    # persona renderer/vendor is presented on Linux too — no more "Generic Renderer".
+    # persona renderer/vendor is presented on Linux too - no more "Generic Renderer".
     monkeypatch.setattr(sys, "platform", "linux")
     from invisible_playwright._webgl_personas import select_persona
     p = generate_profile(seed=42)
@@ -420,7 +420,7 @@ def test_canvas_noise_mask_intel_on_linux(monkeypatch):
 def test_canvas_noise_mask_nvidia_on_linux(monkeypatch):
     # CN2: the canvas-noise mask follows the REAL HOST GPU (the canvas is drawn by real
     # hardware, NOT the exposed persona), so it is the Intel-class 1/16 rate (mask=15) on the
-    # dev/test host even when an NVIDIA persona is exposed — the persona vendor does NOT drive
+    # dev/test host even when an NVIDIA persona is exposed - the persona vendor does NOT drive
     # the noise rate anymore (would over-noise on an Intel host).
     monkeypatch.setattr(sys, "platform", "linux")
     p = generate_profile(

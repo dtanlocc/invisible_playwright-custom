@@ -18,14 +18,88 @@ echo "[pre-push] running unit + integration tests before push..."
 cd "$(dirname "$0")/.."
 
 # Default pyproject addopts skip slow/e2e. That's the gate we want for every
-# push — fast feedback. e2e is reserved for explicit release runs.
+# push, fast feedback. e2e is reserved for explicit release runs.
 if ! python -m pytest -q --tb=short; then
     echo ""
-    echo "[pre-push] TESTS FAILED — push aborted."
+    echo "[pre-push] TESTS FAILED - push aborted."
     echo "[pre-push] Either fix the failure or use 'git push --no-verify' if"
     echo "[pre-push] you really know what you're doing (NOT for release branches)."
     exit 1
 fi
 
-echo "[pre-push] all tests green — push proceeding."
+# The invisible-core== specifier in pyproject.toml must name the version the
+# core checkout actually builds. The core's version is derived from its release
+# seal, so it moves on its own when a new engine is rolled in; this pin does
+# not. Checked here because a wrong pin is not visible to the test suite: it
+# only shows up at install time, on someone else's machine.
+#
+# The checker lives in the local workbench, one level above this checkout, and
+# is not part of this repository. It used to be wrapped in a bare
+# `if [ -f "$PIN_CHECK" ]`, which skipped with NO output and then fell through
+# to a line reading "all tests green - push proceeding". Renaming or moving the
+# workbench, or pushing from a worktree at a different depth, disarmed the gate
+# and printed something that looks exactly like success. A gate that cannot run
+# is now a refusal, and the only way past it is to say so out loud.
+PIN_CHECK="${INVISIBLE_PIN_CHECK:-../../scripts/sync_core_pin.py}"
+PIN_SKIPPED=""
+
+if [ "$INVISIBLE_PIN_CHECK" = "skip" ]; then
+    echo ""
+    echo "[pre-push] ###################################################################"
+    echo "[pre-push] # WARNING: INVISIBLE_PIN_CHECK=skip                               #"
+    echo "[pre-push] # The invisible-core pin was NOT compared against the core. If it #"
+    echo "[pre-push] # is stale, every install of this package resolves a core it was  #"
+    echo "[pre-push] # never tested against, and no test downstream can see it.        #"
+    echo "[pre-push] ###################################################################"
+    echo ""
+    PIN_SKIPPED=yes
+elif [ ! -f "$PIN_CHECK" ]; then
+    echo "" >&2
+    echo "[pre-push] REFUSED - the invisible-core pin gate is not reachable." >&2
+    echo "[pre-push]   looked for: $PIN_CHECK" >&2
+    echo "[pre-push]   from:       $(pwd)" >&2
+    echo "[pre-push] The workbench moved, or this is a clone/worktree at another" >&2
+    echo "[pre-push] depth. Point INVISIBLE_PIN_CHECK at sync_core_pin.py, or push" >&2
+    echo "[pre-push] with INVISIBLE_PIN_CHECK=skip to state on the record that the" >&2
+    echo "[pre-push] pin is going out unchecked." >&2
+    exit 1
+else
+    # The gate's own known-bad cases, before the gate's verdict is trusted. They
+    # live next to it and take about a second. Nothing else in either repo runs
+    # them, so without this they are 18 cases that execute when a human
+    # remembers - which is a runbook note wearing a gate's clothes, the same
+    # shape as the silent skip above.
+    PIN_TESTS="$(dirname "$PIN_CHECK")/test_sync_core_pin.py"
+    if [ ! -f "$PIN_TESTS" ]; then
+        echo "" >&2
+        echo "[pre-push] REFUSED - $PIN_TESTS is missing, so the pin gate is" >&2
+        echo "[pre-push] unverified. A gate that has only ever printed PASS is not a" >&2
+        echo "[pre-push] gate; do not trust this one until its own cases run." >&2
+        exit 1
+    fi
+    echo "[pre-push] running the pin gate's own known-bad cases..."
+    if ! PIN_TEST_OUT="$(python "$PIN_TESTS" 2>&1)"; then
+        echo "$PIN_TEST_OUT" >&2
+        echo "" >&2
+        echo "[pre-push] REFUSED - the pin gate's own test suite is RED, so its" >&2
+        echo "[pre-push] verdict on the pin means nothing. Fix $PIN_TESTS first." >&2
+        exit 1
+    fi
+    echo "[pre-push]   $(echo "$PIN_TEST_OUT" | tail -n 1)"
+
+    echo "[pre-push] checking the invisible-core pin..."
+    if ! python "$PIN_CHECK" --check; then
+        echo ""
+        echo "[pre-push] the invisible-core pin does not match the core - push aborted."
+        echo "[pre-push] Fix it with: python $PIN_CHECK"
+        exit 1
+    fi
+fi
+
+# The closing line never claims more than what actually ran.
+if [ -n "$PIN_SKIPPED" ]; then
+    echo "[pre-push] tests green, PIN GATE SKIPPED - push proceeding (see the warning above)."
+else
+    echo "[pre-push] all tests green, pin matches the core - push proceeding."
+fi
 exit 0

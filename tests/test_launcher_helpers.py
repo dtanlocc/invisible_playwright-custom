@@ -41,7 +41,7 @@ def test_tz_env_central_mountain_pacific_map_to_posix_with_dst():
 @pytest.mark.unit
 def test_tz_env_phoenix_strips_dst():
     """Arizona (outside Navajo Nation) does NOT observe DST. The POSIX
-    form must be ``MST7`` (no second segment) — using ``MST7MDT`` caused
+    form must be ``MST7`` (no second segment) - using ``MST7MDT`` caused
     FP Pro to deduce vpn_origin_timezone=America/Denver from a 60-minute
     offset error in summer. Guard against regression of that mapping.
     """
@@ -56,7 +56,7 @@ def test_tz_env_honolulu_strips_dst():
 
 @pytest.mark.unit
 def test_tz_env_passthrough_for_unmapped_zone():
-    """Zones outside the lookup table fall through to their IANA name —
+    """Zones outside the lookup table fall through to their IANA name -
     glibc on Linux reads /usr/share/zoneinfo directly. Windows MSVCRT
     won't understand them but that's accepted; the mapping covers the
     common residential-proxy zones."""
@@ -67,7 +67,7 @@ def test_tz_env_passthrough_for_unmapped_zone():
 @pytest.mark.unit
 def test_tz_env_empty_string_passes_through():
     """Empty string is never set as ``TZ`` by the caller, but the helper
-    is still defensive — return it unchanged rather than raising."""
+    is still defensive - return it unchanged rather than raising."""
     assert _tz_env("") == ""
 
 
@@ -105,7 +105,7 @@ def test_humanize_int_coerced_to_float():
 
 @pytest.mark.unit
 def test_humanize_small_float_passes_through():
-    """Below the default cap — the user's value wins."""
+    """Below the default cap - the user's value wins."""
     ip = InvisiblePlaywright(seed=42, humanize=0.4)
     assert ip._humanize_max_seconds() == 0.4
 
@@ -152,7 +152,7 @@ def test_default_context_includes_timezone_when_set():
 
 @pytest.mark.unit
 def test_default_context_omits_timezone_when_empty():
-    """Default ``timezone=""`` means "let the host TZ leak through" —
+    """Default ``timezone=""`` means "let the host TZ leak through" -
     Playwright must not receive ``timezone_id`` at all in that case,
     otherwise it overrides to the literal empty string."""
     ip = InvisiblePlaywright(seed=42)
@@ -171,7 +171,7 @@ def test_default_context_omits_locale_when_empty():
     assert "locale" not in ip._default_context_kwargs()
 
 
-# ── InvisiblePlaywright._build_env — WebRTC egress auto-derive ─────────
+# ── InvisiblePlaywright._build_env - WebRTC egress auto-derive ─────────
 # Locks the 2026-06-10 fix: behind a proxy the launcher feeds the discovered
 # egress IP to nICEr (srflx override) + drops IPv6. Without it, a proxied
 # session's WebRTC silently fell back to leaking/blocking. Runs in tests.yml.

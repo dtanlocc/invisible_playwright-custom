@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""CI drive gate — the firefox-N catcher.
+"""CI drive gate - the firefox-N catcher.
 
 A raw `firefox --screenshot` proves nothing about automation: a juggler-less
 binary renders a screenshot just fine and ships broken (firefox-8 did exactly
-that). This DRIVES the binary the way users will — Playwright launches it over
+that). This DRIVES the binary the way users will - Playwright launches it over
 the juggler pipe and exercises real paths.
 
 Two levels (see `--full`):
 
-  SMOKE (default — run on ALL 5 legs, on every binary's native runner):
+  SMOKE (default - run on ALL 5 legs, on every binary's native runner):
     launch over juggler-pipe → navigate a real http://127.0.0.1 page → assert a
     response, the Firefox UA, navigator.webdriver falsy, and a DOM read. This is
     the firefox-8 catcher (a juggler-less binary throws TargetClosedError on
     launch) plus a base stealth + drivability check. It is intentionally LIGHT:
-    the free hosted runners — windows-latest especially — are content-process
+    the free hosted runners - windows-latest especially - are content-process
     unstable under a heavy headless interaction sequence (clicks/moves cascade
     into "context destroyed" / selector-timeout / eval-CSP), so the gate that
     must be GREEN on every leg stays minimal and reliable.
 
-  FULL (`--full` — run on the historically-reliable Linux leg):
+  FULL (`--full` - run on the historically-reliable Linux leg):
     SMOKE plus mouse + keyboard input (firefox-2 / issue #9:
     jugglerSendMouseEvent/synthesizeMouseEvent), canvas determinism (stealth
     seed must be per-session), and navigator-surface tells. The interaction code
@@ -27,11 +27,11 @@ Two levels (see `--full`):
     additionally covered by local pre-release testing.
 
 NOT covered here: WebGL determinism (needs SWGL, false-fails headless) and the
-faithful cross-origin iframe test (issue #20) — both live in the local realness
+faithful cross-origin iframe test (issue #20) - both live in the local realness
 gate. All checks here are headless, no screenshot (GPU-free), loopback-only
 (no external network / proxy / secrets) → safe in public CI.
 
-Robustness: a real loopback HTTP page (NOT data: / about:blank — those get
+Robustness: a real loopback HTTP page (NOT data: / about:blank - those get
 re-normalized / carry an eval-blocking CSP), arrow-function evaluates (never
 eval'd), and up to 2 retries on transient context-destroyed/detached/timeout.
 A genuinely broken binary fails ALL attempts → the gate fails.
@@ -88,7 +88,7 @@ def _start_server():
 
 
 # FF150 + Fission auto-loads about:newtab (TopSitesFeed) ~100ms-1s after a tab's
-# first navigation — a cross-process BC swap that REPLACES the page out from under
+# first navigation - a cross-process BC swap that REPLACES the page out from under
 # the test. The wrapper always disables it (see prefs.py); raw Playwright does not,
 # so the binary's realistic config must set it here too. Without this the drive page
 # can vanish mid-sequence (it loses the race whenever an action adds latency, e.g.
@@ -144,8 +144,8 @@ def _drive(exe: str, url: str, full: bool) -> str:
     assert not webdriver, f"navigator.webdriver leaked True (stealth regression): {webdriver!r}"
 
     if full:
-        assert inter["clicked"] == 1, "page.click() did not fire the click listener — mouse-event synthesis broken (firefox-2 class)"
-        assert inter["moves"] >= 1, "page.mouse.move() produced no mousemove — jugglerSendMouseEvent regression"
+        assert inter["clicked"] == 1, "page.click() did not fire the click listener - mouse-event synthesis broken (firefox-2 class)"
+        assert inter["moves"] >= 1, "page.mouse.move() produced no mousemove - jugglerSendMouseEvent regression"
         assert inter["typed"] == "ok", f"page.keyboard.type() failed: {inter['typed']!r}"
         assert inter["canvas_a"] == inter["canvas_b"], "canvas non-deterministic across identical draws (stealth seed broken → bot tell)"
         assert inter["langs"] and inter["langs"] > 0, "navigator.languages empty (headless tell)"
@@ -167,7 +167,7 @@ def main(exe: str, full: bool) -> int:
                     print(f"(note: drive succeeded on attempt {attempt} after a transient error)")
                 print(f"DRIVE GATE OK [{level}] | UA={ua} | {extras}=ok")
                 return 0
-            except Exception as e:  # noqa: BLE001 — gate: any failure must surface
+            except Exception as e:  # noqa: BLE001 - gate: any failure must surface
                 last = e
                 msg = str(e).lower()
                 if attempt < 3 and any(t in msg for t in _TRANSIENT):

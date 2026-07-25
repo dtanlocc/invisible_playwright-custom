@@ -2,7 +2,7 @@
 
 After extracting the pure config into ``invisible_core`` and turning the moved
 modules into aliasing shims, EVERY import path that external users (and our own
-outreach PRs) rely on must keep working — same objects, same behavior. This test
+outreach PRs) rely on must keep working - same objects, same behavior. This test
 is the contract: if it breaks, we broke someone's install.
 """
 import importlib

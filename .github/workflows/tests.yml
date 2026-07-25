@@ -7,9 +7,26 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  # `pip install -e ".[dev]"` below resolves `invisible-core==N.M.0` from the
+  # package index. The core is published BEFORE this package, so between the
+  # first push of this repo and that upload there is a window in which no
+  # install here can succeed. This gate answers "is it on the index?" and the
+  # unit job depends on the answer: during the window that job is SKIPPED (grey
+  # in the checks list, with the reason written into the run summary), never
+  # faked green; once the core is published it runs exactly as before. Full
+  # reasoning, including why `|| true`, `--no-deps` and a git fallback were all
+  # rejected, is in .github/workflows/core-on-index.yml.
+  core-on-index:
+    uses: ./.github/workflows/core-on-index.yml
+
   unit:
     name: pytest (${{ matrix.os }}, py${{ matrix.python }})
+    needs: core-on-index
+    if: needs.core-on-index.outputs.available == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

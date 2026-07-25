@@ -36,12 +36,12 @@ In scope:
 
 Out of scope:
 
-- Vulnerabilities in the patched Firefox source — report to [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch/security/advisories/new)
-- Upstream Firefox / mozilla-central — report to Mozilla directly
-- Third-party dependencies — report to those projects
+- Vulnerabilities in the patched Firefox source - report to [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch/security/advisories/new)
+- Upstream Firefox / mozilla-central - report to Mozilla directly
+- Third-party dependencies - report to those projects
 
 Not security issues:
 
-- The browser being detected by an anti-bot service — open a regular issue
+- The browser being detected by an anti-bot service - open a regular issue
 - Social engineering
 - DoS requiring physical or local privileged access

@@ -7,20 +7,74 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Changed
-- Playwright pin is now `>=1.55,<=1.61.0` (was `>=1.55,<1.56`). The `firefox-18` binary rebases onto Firefox 151, which is what the latest Playwright (1.61) pairs with, so 1.61 now drives the binary natively - no more pinning to an older client. The upper bound is capped at the exact latest tested version (1.61.0) rather than an open `<1.62`, so a Playwright release we have not validated against this binary cannot be pulled in and break a fresh install; the floor stays at the CI-tested `1.55`. The cap moves forward on purpose, once a newer version is validated. `scripts/playwright_pin.txt` -> 1.61.0.
+- Install is now `pip install invisible-playwright`, from the index. The git URL is gone from the README, the CLI docs and the generated release notes. Nothing about the package changes for someone who was already installing it from git, except that pip can now see what it is holding.
+- `invisible-core` is declared as an exact version specifier (`invisible-core==18.0.0`) instead of a `git+https://...` direct reference. A direct reference carries no version, so there is nothing for `pip check` to compare and a broken environment reports clean; a real specifier is reported, exit 1, and a plain reinstall of this package repairs it. The cost is that a binary bump is now a release of every package that pins the core, which is deliberate.
+
+## [0.3.5] - 2026-07-24
+
+### Changed
+- Playwright pin is back to `>=1.55,<=1.61.0`: the floor drop to `1.40` shipped in 0.3.4 is reverted. The conservative CI-tested floor (1.55) is kept together with the tested upper cap (1.61.0).
+
+## [0.3.4] - 2026-07-24
+
+### Changed
+- Playwright floor lowered to `>=1.40,<=1.61.0`. The `1.55` floor was never a real compatibility bound - it was only the single minor that 0.3.1 had pinned. The `firefox-18` binary was smoke-tested (launch, `new_context`, navigate, evaluate, click) against 1.40, 1.45, 1.50 and 1.54 and passed on all four, so anyone on an older client keeps working; the upper cap stays at the tested 1.61.0. Reverted in 0.3.5.
+
+## [0.3.3] - 2026-07-24
+
+### Changed
+- Playwright pin is now `>=1.55,<=1.61.0` (was `>=1.55,<1.62`). The open upper bound would let an untested version below 1.62 install and break a fresh setup the way 1.61 first did; the cap is now the exact version validated against this binary, 1.61.0. It moves forward on purpose, once a newer Playwright is tested against the binary.
+- The expected Firefox version in the tests is derived from the constant instead of a hardcoded literal, so a binary bump no longer needs the test edited alongside it.
+
+## [0.3.2] - 2026-07-24
+
+### Changed
+- Playwright pin moved to `>=1.55,<1.62` (was `>=1.55,<1.56`). The `firefox-18` binary rebases onto Firefox 151, which is what the latest Playwright (1.61) pairs with, so 1.61 now drives the binary natively - no more pinning to an older client. Both ends of the range were tested against the new binary (full browser suite on 1.61; drift-free protocol on 1.55). `scripts/playwright_pin.txt` -> 1.61.0.
+- README badges are served as SVGs from the repo instead of a third-party badge service, so the header no longer depends on an external endpoint; the dynamic Firefox-version badge, which was the flaky one, is now static.
+
+### Fixed
+- The CI font gate checks that the whitelisted faces actually LOAD, not only that the family enumerates. Enumerating a font is not loading it, so the previous check could pass on a build that could name a family it could not render.
+
+## [0.3.1] - 2026-07-13
+
+### Fixed
+- [#48](https://github.com/feder-cr/invisible_playwright/issues/48): Playwright 1.61 adds an `isMobile` field to the `Browser.setDefaultViewport` Juggler command that the FF150 binary does not accept, which kills the session. The range narrows from `>=1.40,<1.61` to the CI-tested 1.55.x (`>=1.55,<1.56`, single-sourced from `scripts/playwright_pin.txt`) so a fresh install always gets a compatible client. Widened again in 0.3.2, once `firefox-18` rebased onto Firefox 151.
+
+### Changed
+- The patched-Firefox source repo is now `feder-cr/firefox_antidetect_patch` (it was `feder-cr/invisible_firefox`, a name the profile manager took over). Release notes, CI references and the release URLs the download tests mock all point at the new name; the binaries themselves are unchanged.
+- The wrapper no longer injects the font-list / system-UI environment variables at launch: the binary ships its own font bundle and is self-contained on that front. The integration tests were adapted and the font-sampling tests dropped.
 
 ### Added
-- `timezone="auto"`: the browser timezone is auto-derived from the egress IP. By default (no explicit timezone) it ALWAYS resolves — from the proxy egress when a proxy is set, otherwise from the host's own public IP — so the zone can never disagree with the IP (the classic `timezone_mismatch` signal). An explicit `"Area/City"` is the only way to force a specific zone. On failure: with a proxy the launch raises (no silent host-TZ fallback behind a foreign proxy); without a proxy it falls back to the host TZ so a transient lookup can't break the launch.
+- `scripts/ci_font_gate.py`: asserts the Windows font persona on every OS, so a Linux or macOS runner catches a font regression that would otherwise only show up on Windows.
+
+## [0.3.0] - 2026-07-03
+
+### Changed
+- Pure config (seed -> fingerprint -> prefs, binary download, proxy, geo) is split out into a standalone `invisible-core` package with zero Playwright, so a profile manager can reuse it without pulling Playwright in. The wrapper depends on it and replaces the moved modules with full-alias shims: existing imports (public API, submodules, private names) and `isinstance` checks keep working unchanged. `tests/test_backcompat.py` locks that contract with 6 guards.
+- `BINARY_VERSION` walks `firefox-7` -> `firefox-13` across this cycle: `firefox-8`, then `firefox-9` (`firefox-8` was found broken and is refused outright, not merely superseded), `firefox-10`, `firefox-11`, `firefox-12` (the cross-OS render-parity build) and `firefox-13` (geo-aware locale/Intl + the Windows font bundle + the audio gate).
+- Playwright is capped at `<1.61` (`>=1.40,<1.61`) and the pin is single-sourced from `scripts/playwright_pin.txt` instead of being written in two places.
+- WebGL personas: only the GPU buckets that survive the tampering checks are shipped, and the render-noise seed is decoupled from the persona seed.
+- The dead `zoom.stealth.normalize_date_now` baseline pref is dropped.
+- New runtime dependencies: `requests[socks]` (SOCKS egress lookup), `maxminddb` (mmdb reader), `tzdata` (IANA database for `zoneinfo`, which Windows lacks). After the split they arrive transitively through `invisible-core`.
+
+### Added
+- `timezone="auto"`: the browser timezone is auto-derived from the egress IP. By default (no explicit timezone) it ALWAYS resolves - from the proxy egress when a proxy is set, otherwise from the host's own public IP - so the zone can never disagree with the IP (the classic `timezone_mismatch` signal). An explicit `"Area/City"` is the only way to force a specific zone. On failure: with a proxy the launch raises (no silent host-TZ fallback behind a foreign proxy); without a proxy it falls back to the host TZ so a transient lookup can't break the launch.
 - The egress IP is mapped to its IANA zone with an offline mmdb (`daijro/geoip-all-in-one`). It always tracks the upstream weekly rebuild: on every launch the current latest release tag is resolved from the `releases/latest/download` permalink (no GitHub API → no rate limit) and pulled only if newer than the cache, older copies pruned. Offline → the cached copy is reused; never a pinned tag (daijro prunes old releases, so a pin eventually 404s). `STEALTHFOX_GEOIP_MMDB` points at your own `.mmdb` to skip the download.
 - `resolve_session_timezone(timezone, proxy)` and `ensure_geoip_mmdb()` re-exported at the package root (plus `GeoTimezoneError`) so integrations that own their launch can reproduce the resolution.
 - `tests/test_geo.py` (37) + `tests/test_geoip_update.py` (freshness / auto-update / offline fallback) unit tests.
 - Cross-OS render parity (needs `firefox-12`): the same font/canvas/WebGL fingerprint now renders consistently on Windows, Linux and macOS, so a Windows persona looks identical regardless of the host the binary runs on. Each whitelisted font renders a distinct canvas image (font-detection probes that dedup by rendered image keep every name), the standard Windows fonts (Calibri, Franklin Gothic, Gadugi, Javanese Text, Myanmar Text) are always present so the detected font set matches a real Windows install, and the per-seed render-noise leaves a solid-colour reference render byte-exact while still varying real fingerprint renders.
 - GPU persona applied on every platform: Linux/macOS hosts now present a coherent Windows GPU (renderer + WebGL parameters) instead of the host's real adapter; pool re-rooted on a real-device GPU mix.
 - `tests/test_canvas_render_stealth.py`, `tests/test_webgl_noise_active.py` and new `tests/test_sampler.py` cases: regression guards for per-font canvas distinctness, solid-readback purity under render-noise, and the always-present standard-font invariant.
+- macOS support in the wrapper (x86_64 + arm64): the release pipeline builds five targets and the wrapper resolves the archive for the host it runs on.
+- Headless is cloaked on Windows and macOS and runs under Xvfb on Linux, instead of the flagged headless mode; CI carries a cloak guard and a WebGL-masking guard. The cloak applies on the async path too.
+- The e2e suite runs the real detectors offline (BotD, FingerprintJS, fpscanner, CreepJS, vendored under `tests/vendor/`) and a hermetic SOCKS5 auth + routing e2e, all on CI on every push. The 15 hand-rolled BotD imitations are dropped now that the real one runs.
+- `fetch --force` on the CLI, to re-download an archive over a cached one.
 
-### Changed
-- Pins `BINARY_VERSION = firefox-12` (the build with the cross-OS render-parity patches).
-- New runtime dependencies: `requests[socks]` (SOCKS egress lookup), `maxminddb` (mmdb reader), `tzdata` (IANA database for `zoneinfo`, which Windows lacks).
+### Fixed
+- WebRTC behind a proxy ships the validated realness configuration, with CI guards: a fully blocked WebRTC is itself a tell, so the guard asserts the positive form and not merely the absence of a leak.
+- The TLS ClientHello matches stock Firefox again: cipher `0xC009` was being offered and stock Firefox does not offer it.
+- The humanize prefs were written under the wrong namespace.
+- The font pool uses the real Windows 11 family name `franklin gothic medium`; the previous name does not exist on a real install.
 
 ## [0.2.0] - 2026-05-28
 
@@ -37,7 +91,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [0.1.8] - 2026-05-23
 
 ### Fixed
-- [#20](https://github.com/feder-cr/invisible_playwright/issues/20): cross-origin iframes were unreachable from Playwright. `element_handle.content_frame()` returned `None`, `frame.evaluate()` threw cross-origin SOP errors, and `frame_locator(...).click()` timed out even with `force=True`. Root cause: FF150 defaults `fission.webContentIsolationStrategy=1` (`IsolateEverything`), which site-isolates every cross-origin iframe into a separate `webIsolated` content process even when `fission.autostart=False`. The parent's Juggler FrameTree then has a Frame placeholder with no docShell and no URL — every protocol op that needs to enter the iframe fails. Fix: pin `fission.webContentIsolationStrategy=0` (`IsolateNothing`) in the baseline prefs. The setting can be flipped back per session via `extra_prefs={"fission.webContentIsolationStrategy": 1}`.
+- [#20](https://github.com/feder-cr/invisible_playwright/issues/20): cross-origin iframes were unreachable from Playwright. `element_handle.content_frame()` returned `None`, `frame.evaluate()` threw cross-origin SOP errors, and `frame_locator(...).click()` timed out even with `force=True`. Root cause: FF150 defaults `fission.webContentIsolationStrategy=1` (`IsolateEverything`), which site-isolates every cross-origin iframe into a separate `webIsolated` content process even when `fission.autostart=False`. The parent's Juggler FrameTree then has a Frame placeholder with no docShell and no URL - every protocol op that needs to enter the iframe fails. Fix: pin `fission.webContentIsolationStrategy=0` (`IsolateNothing`) in the baseline prefs. The setting can be flipped back per session via `extra_prefs={"fission.webContentIsolationStrategy": 1}`.
 
 ### Added
 - `tests/test_cross_origin_iframe.py`: 4 unit + 5 e2e regression sentinels for cross-origin iframe interaction. The e2e layer runs entirely offline against two local HTTP servers on `127.0.0.1` (two ports = two SOP origins) and covers `page.frames` URL tracking, `content_frame()`, `frame.evaluate()`, `frame_locator(...).locator(...)`, and end-to-end `dispatch_event("click")` for plain, sandboxed and titled iframes. A future FF upgrade or fingerprint A/B that flips the pref back to `1` will fail the suite before shipping.
@@ -72,7 +126,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [0.1.4] - 2026-05-20
 
 ### Fixed
-- [#13](https://github.com/feder-cr/invisible_playwright/issues/13): every page that threw an uncaught JS error (e.g. bunny.net) crashed the Playwright client with `TypeError: Cannot read properties of undefined (reading 'url')`. Root cause: upstream Playwright Juggler added a required `location` field to the `Page.uncaughtError` event in the 2026-05-07 roll ([microsoft/playwright@c8604ec](https://github.com/microsoft/playwright/commit/c8604ecd97)); our fork was carrying the pre-roll schema in every `firefox-N` build. Fix matches upstream — Runtime.js builds the `errorLocation`, PageAgent.js forwards it on both worker and runtime error paths, Protocol.js declares the schema field. Reporter: [@dionorgua](https://github.com/dionorgua).
+- [#13](https://github.com/feder-cr/invisible_playwright/issues/13): every page that threw an uncaught JS error (e.g. bunny.net) crashed the Playwright client with `TypeError: Cannot read properties of undefined (reading 'url')`. Root cause: upstream Playwright Juggler added a required `location` field to the `Page.uncaughtError` event in the 2026-05-07 roll ([microsoft/playwright@c8604ec](https://github.com/microsoft/playwright/commit/c8604ecd97)); our fork was carrying the pre-roll schema in every `firefox-N` build. Fix matches upstream - Runtime.js builds the `errorLocation`, PageAgent.js forwards it on both worker and runtime error paths, Protocol.js declares the schema field. Reporter: [@dionorgua](https://github.com/dionorgua).
 
 ### Changed
 - `BINARY_VERSION` bumped from `firefox-3` to `firefox-4`. JS-only change inside `chrome/juggler/`; `xul.dll` and `firefox.exe` are byte-identical to `firefox-3`.
@@ -80,14 +134,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [0.1.3] - 2026-05-19
 
 ### Changed
-- `BINARY_VERSION` bumped from `firefox-2` to `firefox-3`. The new archives on both Windows and Linux are built from a clean clone of [feder-cr/firefox_antidetect_patch#stealth/150](https://github.com/feder-cr/firefox_antidetect_patch/tree/stealth/150) — the consolidated source-of-truth fork (renamed from `feder-cr/firefox`; the companion `feder-cr/firefox-stealth` patches repo was deleted, all patches now live as commits on top of `mozilla-firefox/firefox`).
+- `BINARY_VERSION` bumped from `firefox-2` to `firefox-3`. The new archives on both Windows and Linux are built from a clean clone of [feder-cr/firefox_antidetect_patch#stealth/150](https://github.com/feder-cr/firefox_antidetect_patch/tree/stealth/150) - the consolidated source-of-truth fork (renamed from `feder-cr/firefox`; the companion `feder-cr/firefox-stealth` patches repo was deleted, all patches now live as commits on top of `mozilla-firefox/firefox`).
 - The patched Firefox archive now ships the **proper C++ implementation** of `windowUtils.jugglerSendMouseEvent`, replacing the JS shim from 0.1.2.
 
 ### C++ fixes landed in this release
 - **C1+C2**: `setDownloadInterceptor` IDL + cpp (re-landed for FF150).
 - **C4**: 5 `nsIDocShell` stealth attributes (`fileInputInterceptionEnabled`, `overrideHasFocus`, `bypassCSPEnabled`, `forceActiveState`, `disallowBFCache`).
-- **C5**: `LauncherProcessWin.cpp` + `nsWindowsWMain.cpp` juggler-pipe handle inheritance — without this, the Playwright pipe disconnects immediately on launch.
-- **C6**: `juggler-navigation-started-renderer` / `-browser` observer notifications in `nsDocShell.cpp` and `CanonicalBrowsingContext.cpp` — without these, `Page.ready` never fires and `ctx.new_page()` hangs.
+- **C5**: `LauncherProcessWin.cpp` + `nsWindowsWMain.cpp` juggler-pipe handle inheritance - without this, the Playwright pipe disconnects immediately on launch.
+- **C6**: `juggler-navigation-started-renderer` / `-browser` observer notifications in `nsDocShell.cpp` and `CanonicalBrowsingContext.cpp` - without these, `Page.ready` never fires and `ctx.new_page()` hangs.
 - **C7 (partial)**: storage stub for `nsIDocShell.languageOverride`. Workaround `InvisiblePlaywright(locale="")` recommended until full BC FIELD port lands.
 
 ### Verified
@@ -96,7 +150,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - SHA256 published in `checksums.txt` on the `firefox-3` release.
 
 ### Notes
-- This is the first release with a native Linux build of the patched binary (previous `firefox-3` draft mentioned shipping the Linux firefox-2 archive byte-for-byte; that no longer applies — Linux now has the full C++ patch series).
+- This is the first release with a native Linux build of the patched binary (previous `firefox-3` draft mentioned shipping the Linux firefox-2 archive byte-for-byte; that no longer applies - Linux now has the full C++ patch series).
 
 ## [0.1.2] - 2026-05-18
 
@@ -110,8 +164,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [0.1.1] - 2026-05-18
 
 ### Fixed
-- **Critical**: every `page.mouse.*`, `page.click(selector)`, `locator.click()`, `page.hover()`, `mouse.wheel()` failed on the patched Firefox 150 binary with `win.windowUtils.jugglerSendMouseEvent is not a function`. The Juggler JS was porting calls to a Playwright-specific C++ method that was never landed in the FF146→FF150 port; replaced with the Mozilla chrome-scope `win.synthesizeMouseEvent` helper which is present in FF150. Six call sites patched across `juggler/protocol/PageHandler.js` and `juggler/content/PageAgent.js`. Reporter: [@trob9](https://github.com/trob9) — [#9](https://github.com/feder-cr/invisible_playwright/issues/9).
-- `_linkedBrowser.scrollRectIntoViewIfNeeded()` is now guarded at both call sites in `PageHandler.js` (`dispatchMouseEvent` and `dispatchWheelEvent`) — the method is not present on the shipped FF150 `<browser>` element, so the unguarded call threw before the mouse event was dispatched.
+- **Critical**: every `page.mouse.*`, `page.click(selector)`, `locator.click()`, `page.hover()`, `mouse.wheel()` failed on the patched Firefox 150 binary with `win.windowUtils.jugglerSendMouseEvent is not a function`. The Juggler JS was porting calls to a Playwright-specific C++ method that was never landed in the FF146→FF150 port; replaced with the Mozilla chrome-scope `win.synthesizeMouseEvent` helper which is present in FF150. Six call sites patched across `juggler/protocol/PageHandler.js` and `juggler/content/PageAgent.js`. Reporter: [@trob9](https://github.com/trob9) - [#9](https://github.com/feder-cr/invisible_playwright/issues/9).
+- `_linkedBrowser.scrollRectIntoViewIfNeeded()` is now guarded at both call sites in `PageHandler.js` (`dispatchMouseEvent` and `dispatchWheelEvent`) - the method is not present on the shipped FF150 `<browser>` element, so the unguarded call threw before the mouse event was dispatched.
 
 ### Added
 - `tests/test_mouse.py`: 12-case regression suite covering every patched code path (mouse.move/click/dblclick/right-click, modifiers, locator.click/hover, wheel, manual mousedown+up, off-viewport move, humanize intermediate moves, scroll-and-click on offscreen element). Test cases inspired by `microsoft/playwright-python/tests/async/test_click.py`.
@@ -119,14 +173,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Notes
 - The Stealthfox humanize Bezier expansion continues to fire intermediate `mousemove` events; the swap to `synthesizeMouseEvent` does not change the human-trajectory behavior (verified by test).
-- The reCAPTCHA v3 score (0.90) and FingerprintPro / CreepJS results documented in the README are unaffected — `synthesizeMouseEvent` is a legitimate Mozilla helper that does not increase the anti-detect surface.
+- The reCAPTCHA v3 score (0.90) and FingerprintPro / CreepJS results documented in the README are unaffected - `synthesizeMouseEvent` is a legitimate Mozilla helper that does not increase the anti-detect surface.
 - A binary refresh of the patched Firefox archive on GitHub Releases is required for users to receive this fix (the Juggler JS is shipped inside the archive). The `BINARY_VERSION` will be bumped to `firefox-2` in that release.
 
 ## [0.1.0] - 2026-05-13
 
 ### Added
 - Initial public release.
-- `InvisiblePlaywright` sync and async context managers — drop-in replacement for `playwright.sync_api.Browser` / `async_api.Browser`.
+- `InvisiblePlaywright` sync and async context managers - drop-in replacement for `playwright.sync_api.Browser` / `async_api.Browser`.
 - StealthFox humanize hook: Bezier-curve mouse trajectories enabled by default.
 - `_fpforge` Bayesian fingerprint sampler with ~400 fields per session.
 - CLI: `invisible-playwright fetch | path | version | clear-cache`.

@@ -26,14 +26,14 @@ def firefox_binary():
     """Locate the patched Firefox binary for E2E tests, or skip cleanly.
 
     Single source of truth for every E2E test (previously each test file had its
-    own copy — and three of them silently ignored INVPW_BINARY_PATH, so they kept
+    own copy - and three of them silently ignored INVPW_BINARY_PATH, so they kept
     testing whatever was in the cache even when you pointed the suite at a
     specific build: a false-confidence trap). Lookup order:
 
-      1. ``INVPW_BINARY_PATH`` env var — point the whole suite at a local build
+      1. ``INVPW_BINARY_PATH`` env var - point the whole suite at a local build
          or a freshly-extracted release (this is how the full-suite gate runs).
       2. Cached binary under ``cache_dir_for_version()`` (post ``fetch``).
-      3. Skip — we never trigger an implicit multi-hundred-MB network download
+      3. Skip - we never trigger an implicit multi-hundred-MB network download
          inside a test run.
     """
     env_path = os.environ.get("INVPW_BINARY_PATH")

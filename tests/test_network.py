@@ -48,7 +48,7 @@ def test_weighted_pick_empty_table_raises():
 def test_weighted_pick_all_zero_probs_uses_uniform_fallback():
     """WP4 [ECP]: total == 0 → falls back to rng.choice (uniform)."""
     table = [{"value": "A", "prob": 0}, {"value": "B", "prob": 0}]
-    # Sample many times — both outcomes must be reachable under uniform choice.
+    # Sample many times - both outcomes must be reachable under uniform choice.
     rng = random.Random(123)
     seen = {_weighted_pick(table, rng) for _ in range(50)}
     assert seen == {"A", "B"}
@@ -121,7 +121,7 @@ def test_topsort_linear_chain():
 
 @pytest.mark.unit
 def test_topsort_diamond():
-    """TS2 [HAPPY]: diamond A→{B,C}→D — A before B,C; B,C before D."""
+    """TS2 [HAPPY]: diamond A→{B,C}→D - A before B,C; B,C before D."""
     a = Node("A")
     b = Node("B", parents=["A"])
     c = Node("C", parents=["A"])

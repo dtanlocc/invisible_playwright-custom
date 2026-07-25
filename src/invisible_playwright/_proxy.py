@@ -1,4 +1,4 @@
-"""Backward-compat shim — spostato in invisible_core._proxy (alias completo)."""
+"""Backward-compat shim - spostato in invisible_core._proxy (alias completo)."""
 import sys as _sys
 from invisible_core import _proxy as _mod
 _sys.modules[__name__] = _mod

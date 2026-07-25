@@ -78,7 +78,7 @@ def test_cold_cache_downloads_latest(cache, monkeypatch):
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  offline resilience (no pinned-tag fallback — the pin rots and 404s)
+#  offline resilience (no pinned-tag fallback - the pin rots and 404s)
 # ──────────────────────────────────────────────────────────────────────
 @pytest.mark.unit
 def test_offline_with_cache_uses_cache(cache, monkeypatch):

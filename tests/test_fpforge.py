@@ -1,4 +1,4 @@
-"""Profile generator — seed reproducibility and basic shape."""
+"""Profile generator - seed reproducibility and basic shape."""
 import pytest
 
 from invisible_playwright._fpforge import (

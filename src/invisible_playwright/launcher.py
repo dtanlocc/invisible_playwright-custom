@@ -11,8 +11,8 @@ from ._fpforge import Profile, generate_profile
 from ._webgl_personas import forced_gpu_class
 from ._geo import prepare_session_geo
 from ._headless import cloak_prefs, make_virtual_display
+from ._engine import assert_wire_version, resolve_executable
 from ._proxy import configure_proxy as _configure_proxy_shared
-from .download import ensure_binary
 from .prefs import translate_profile_to_prefs
 
 
@@ -44,7 +44,7 @@ _TASKBAR_H = 40
 
 # IANA → POSIX TZ mapping. Linux glibc accepts IANA names directly via
 # /usr/share/zoneinfo, but Windows MSVCRT only understands the POSIX form
-# ("EST5EDT") — convert here so ``TZ`` works on both platforms when the
+# ("EST5EDT") - convert here so ``TZ`` works on both platforms when the
 # binary runs on Windows. Common US zones cover the vast majority of
 # residential proxies; everything else falls through to its IANA name.
 _IANA_TO_POSIX_TZ = {
@@ -97,7 +97,7 @@ class InvisiblePlaywright:
         with InvisiblePlaywright(seed=42, pin={"screen.width": 2560}) as browser:
             ...
 
-    After construction, the chosen seed is available as ``self.seed`` — useful
+    After construction, the chosen seed is available as ``self.seed`` - useful
     to reproduce a random run later.
     """
 
@@ -136,15 +136,15 @@ class InvisiblePlaywright:
                 Default ``True`` (~1.5 s max motion). ``False`` disables;
                 a float caps the motion in seconds.
             locale: BCP-47 tag (e.g. ``"en-US"``) or ``"auto"`` (default).
-                ``"auto"`` derives the locale from the egress country — the proxy
-                egress IP, or the host's public IP without a proxy — exactly like
+                ``"auto"`` derives the locale from the egress country - the proxy
+                egress IP, or the host's public IP without a proxy - exactly like
                 ``timezone="auto"``, keeping the browser language consistent with the
                 exit country (a French proxy → ``fr-FR``). Drives
                 ``intl.accept_languages`` → both ``navigator.language``/``languages``
                 AND the q-valued ``Accept-Language`` header (the patched binary builds
                 the header from the pref, never from the raw Playwright locale override,
-                so the two never diverge — see nsHttpHandler STEALTHFOX note).
-            timezone: IANA zone (e.g. ``"America/New_York"``) — used as-is
+                so the two never diverge - see nsHttpHandler STEALTHFOX note).
+            timezone: IANA zone (e.g. ``"America/New_York"``) - used as-is
                 when set, the only way to force a specific zone. ``""``
                 (default) or ``"auto"`` ALWAYS resolves from the egress IP:
                 through the proxy when one is set, otherwise from the host's
@@ -153,23 +153,23 @@ class InvisiblePlaywright:
                 ``timezone_mismatch`` signal); without a proxy it falls back to
                 the host TZ so a transient lookup failure can't break launch.
             extra_prefs: Optional dict of Firefox prefs overlayed on top
-                of the generated profile — useful for niche tweaks
+                of the generated profile - useful for niche tweaks
                 without monkey-patching the package.
             profile_dir: Path to a persistent Firefox profile directory.
                 When set, the session uses ``launch_persistent_context()``
                 so cookies, localStorage, sessionStorage, extensions, cache
                 and prefs are kept on disk between runs. ``__enter__``
-                returns a ``BrowserContext`` (not a ``Browser``) — use it
+                returns a ``BrowserContext`` (not a ``Browser``) - use it
                 directly: ``with InvisiblePlaywright(profile_dir=p) as ctx:
                 page = ctx.new_page()``. First run creates the dir;
                 subsequent runs reuse it. Pair with a stable ``seed=`` to
                 also pin the fingerprint identity across runs.
         """
-        # Constrain to int31 — Firefox's `zoom.stealth.fpp.hw_seed` and
+        # Constrain to int31 - Firefox's `zoom.stealth.fpp.hw_seed` and
         # related stealth prefs are declared as ``int32_t`` in
         # ``StaticPrefList.yaml``. A 32-bit seed risks the high bit being
         # interpreted as negative on the C++ side, where the noise hooks
-        # bail out on ``seed <= 0`` — which produces bit-identical audio
+        # bail out on ``seed <= 0`` - which produces bit-identical audio
         # / canvas fingerprints across half the sessions.
         self.seed: int = int(seed) if seed is not None else secrets.randbits(31)
         self._pin = pin
@@ -182,7 +182,7 @@ class InvisiblePlaywright:
         self._extra_prefs = extra_prefs
         self._binary_path = binary_path
         self._profile_dir: Optional[Path] = Path(profile_dir) if profile_dir else None
-        # reCAPTCHA cookie pre-seed — opt-in. Gated server-side: if a
+        # reCAPTCHA cookie pre-seed - opt-in. Gated server-side: if a
         # persistent profile_dir is in use, respect its existing cookies
         # and DON'T enable pre-seed (the profile owns its own state).
         self._prep_recaptcha = bool(prep_recaptcha) and self._profile_dir is None
@@ -200,7 +200,7 @@ class InvisiblePlaywright:
 
     def __enter__(self) -> Union[Browser, BrowserContext]:
         # Resolve timezone="auto" (and the proxy-set-but-unset default) to a
-        # concrete IANA zone AND discover the proxy egress IP — one round-trip,
+        # concrete IANA zone AND discover the proxy egress IP - one round-trip,
         # before anything reads self._timezone or builds prefs/env. Fail-early
         # if a proxy is set but the egress can't be resolved.
         _geo = prepare_session_geo(self._timezone, self._proxy)
@@ -212,7 +212,9 @@ class InvisiblePlaywright:
         if (self._locale or "").strip().lower() == "auto":
             from ._geo import resolve_session_locale
             self._locale = resolve_session_locale(_geo.egress_ip, self._proxy)
-        executable = self._binary_path or ensure_binary()
+        # binary_path= never reaches ensure_binary(), so the engine check lives
+        # on the resolved executable rather than inside the fetcher.
+        executable = resolve_executable(self._binary_path)
         prefs = self._build_prefs()
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
         pw_headless = self._resolve_headless()
@@ -221,7 +223,7 @@ class InvisiblePlaywright:
         try:
             self._pw = sync_playwright().start()
             if self._profile_dir is not None:
-                # Persistent context — cookies / localStorage / extensions /
+                # Persistent context - cookies / localStorage / extensions /
                 # prefs all live on disk between runs. Stealth prefs are
                 # re-injected via firefox_user_prefs on every launch (Playwright
                 # writes them to user.js, which overrides anything in
@@ -247,8 +249,13 @@ class InvisiblePlaywright:
                 args=self._extra_args,
                 env=env,
             )
+            # Free post-launch wire check: browser.version is a cached property
+            # from the connection initializer, so it costs no round trip and no
+            # pref can spoof it. Inside the try so a refusal tears the browser
+            # down instead of leaking the process we just refused.
+            assert_wire_version(self._browser)
         except BaseException:
-            # Python doesn't call __exit__ when __enter__ raises — clean up
+            # Python doesn't call __exit__ when __enter__ raises - clean up
             # the virtual display + Playwright manually so we don't leak Xvfb
             # / desktop handles into the user's process.
             self._teardown()
@@ -307,7 +314,7 @@ class InvisiblePlaywright:
         # Pass timezone via Playwright's per-realm override (docShell.overrideTimezone
         # → JS::SetRealmTimezoneOverride). The juggler.timezone.override pref path
         # uses JS::SetTimeZoneOverride globally, which is broken on Windows ICU for
-        # no-DST IANA names (America/Phoenix, Pacific/Honolulu, ...) — those silently
+        # no-DST IANA names (America/Phoenix, Pacific/Honolulu, ...) - those silently
         # fall back to the host system TZ. The per-realm path works for every zone.
         if self._timezone:
             kwargs["timezone_id"] = self._timezone
@@ -357,12 +364,12 @@ class InvisiblePlaywright:
             virtual_display=bool(self._headless and _sys.platform == "win32"),
         )
         # Windows & macOS hide the headless window via the binary's own cloak
-        # (DWMWA_CLOAK / NSWindow alpha) — inject the pref so the patched build
+        # (DWMWA_CLOAK / NSWindow alpha) - inject the pref so the patched build
         # cloaks its chrome windows. setdefault: an explicit user override wins.
         if self._headless and _sys.platform in ("win32", "darwin"):
             for _k, _v in cloak_prefs().items():
                 prefs.setdefault(_k, _v)
-        # Pref namespace MUST be stealthfox.* — that's what the binary's Juggler
+        # Pref namespace MUST be stealthfox.* - that's what the binary's Juggler
         # reads (PageHandler.js gates the Bezier mouse path on `stealthfox.humanize`).
         # The old `invisible_playwright.*` name was a dead no-op (nothing read it), so
         # humanize silently never fired and every click teleported the cursor.
@@ -378,7 +385,7 @@ class InvisiblePlaywright:
         ``Date`` / ``Intl.DateTimeFormat`` so the JS-visible timezone
         matches ``self._timezone`` regardless of the host TZ.
         ``STEALTHFOX_WEBRTC_PUBLIC_IP`` is propagated when the calling
-        process has set it — read by nICEr's nr_stealth_bridge to inject
+        process has set it - read by nICEr's nr_stealth_bridge to inject
         a synthetic srflx candidate matching the proxy egress IP, avoiding
         the StaticPref IPC propagation timing issue between parent and
         socket processes.
@@ -395,7 +402,7 @@ class InvisiblePlaywright:
         # UDP STUN would otherwise leak). An explicit env var set by the caller
         # wins; otherwise we use the egress IP auto-discovered in __enter__.
         # Behind a proxy we also drop IPv6 from gathering (the disableIPv6 pref
-        # is dead on FF150 — the bridge filter is the real switch).
+        # is dead on FF150 - the bridge filter is the real switch).
         webrtc_ip = (
             _os.environ.get("STEALTHFOX_WEBRTC_PUBLIC_IP")
             or self._webrtc_egress_ip

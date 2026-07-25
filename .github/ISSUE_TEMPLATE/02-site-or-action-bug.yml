@@ -79,8 +79,8 @@ body:
     id: url
     attributes:
       label: URL
-      description: The exact URL passed to `page.goto`. Not "the homepage" — the literal string.
-      placeholder: https://id.sky.com/
+      description: The exact URL passed to `page.goto`. Not "the homepage", the literal string.
+      placeholder: https://example.com/login
     validations:
       required: true
 

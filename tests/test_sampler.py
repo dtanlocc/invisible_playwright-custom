@@ -86,7 +86,7 @@ def test_classify_gpu_nvidia_vintage_buckets(renderer):
 
 @pytest.mark.unit
 def test_classify_gpu_nvidia_modern_geforce_falls_to_low_end():
-    """CG14 [DT]: GeForce GTX 1060 — sanitized vintage → low_end via fallback."""
+    """CG14 [DT]: GeForce GTX 1060 - sanitized vintage → low_end via fallback."""
     assert classify_gpu(_gpu(
         "ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 Direct3D11)"
     )) == "low_end"
@@ -128,7 +128,7 @@ def test_classify_gpu_amd_radeon_below_mid_range():
 
 @pytest.mark.unit
 def test_classify_gpu_amd_firepro_falls_through_to_fallback():
-    """CG20 [DT]: AMD FirePro W7100 — workstation regex requires
+    """CG20 [DT]: AMD FirePro W7100 - workstation regex requires
     'Radeon' prefix, FirePro alone doesn't match → falls through to
     mid_range fallback. (Plan claimed workstation; actual code path
     only routes Radeon-Pro-prefixed cards into the workstation bucket.)
@@ -203,7 +203,7 @@ def test_screen_tier_empty_context_defaults_to_1080p():
 
 @pytest.mark.unit
 def test_screen_tier_4200x2000_is_ultrawide_via_width_branch():
-    """ST10 [BVA]: w=4200,h=2000 — ratio 2.1 is NOT >2.1 (strict), but
+    """ST10 [BVA]: w=4200,h=2000 - ratio 2.1 is NOT >2.1 (strict), but
     w>3840 also routes to the final ultrawide branch."""
     assert _screen_tier({"screen": {"w": 4200, "h": 2000}}) == "ultrawide"
 

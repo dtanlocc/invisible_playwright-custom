@@ -12,17 +12,25 @@ from invisible_playwright.constants import (
 
 
 @pytest.mark.unit
-def test_broken_versions_excludes_current():
-    """The current BINARY_VERSION must NEVER be in BROKEN_VERSIONS — otherwise
-    every default ensure_binary() call would raise and the wrapper is unusable."""
+def test_broken_versions_is_retired_but_still_importable():
+    """BROKEN_VERSIONS is an empty frozenset by design and stays exported only so
+    an older import site does not break.
+
+    It used to carry firefox-8, published without the juggler and therefore
+    undrivable by Playwright. Two things replaced it, and neither is a list:
+    ensure_binary refuses every tag but the sealed one, and verify_engine refuses
+    any tree with no chrome/juggler/ on every route into a launch. The assertion
+    that a superseded build cannot be handed to a user now lives in
+    invisible_core/tests/test_seal_engine_guard.py::test_tree_without_juggler_is_refused
+    and invisible_core/tests/test_seal_cache.py
+    ::test_pin_to_another_tag_is_refused_without_touching_the_network.
+
+    Kept as an emptiness assertion rather than deleted: a non-empty
+    BROKEN_VERSIONS would mean someone re-introduced a blacklist that nothing
+    reads, which is worse than not having one.
+    """
+    assert BROKEN_VERSIONS == frozenset()
     assert BINARY_VERSION not in BROKEN_VERSIONS
-
-
-@pytest.mark.unit
-def test_firefox_8_is_marked_broken():
-    """firefox-8 shipped without the juggler layer (undrivable by Playwright);
-    it must stay flagged so a stale cache can't silently hand it to a user."""
-    assert "firefox-8" in BROKEN_VERSIONS
 
 
 @pytest.mark.unit
@@ -83,7 +91,7 @@ def test_binary_basename_format():
 def test_archive_name_accepts_case_variations(platform_key, machine, expected_substring):
     """sys.platform / platform.machine() return inconsistent casing across
     OS versions and Python versions. The asset filename must be stable
-    regardless — otherwise the CDN 404s."""
+    regardless - otherwise the CDN 404s."""
     assert ARCHIVE_NAME(platform_key, machine).endswith(expected_substring)
 
 
@@ -91,7 +99,7 @@ def test_archive_name_accepts_case_variations(platform_key, machine, expected_su
 @pytest.mark.parametrize("machine", ["i386", "i686", "ppc64le", "armv7l", "riscv64"])
 def test_archive_name_rejects_unsupported_arches(machine):
     """Unsupported arches must raise NotImplementedError with the bad value
-    in the message — silent fallback to a default arch would download the
+    in the message - silent fallback to a default arch would download the
     wrong binary, run, and fingerprint differently."""
     with pytest.raises(NotImplementedError, match=machine):
         ARCHIVE_NAME("linux", machine)
@@ -124,7 +132,7 @@ def test_archive_name_rejects_unsupported_platforms(platform_key):
 # ---- ARCHIVE_NAME ↔ BINARY_ENTRY_REL invariant ---------------------------- #
 # For every supported platform there MUST be an entry in BINARY_ENTRY_REL,
 # otherwise ensure_binary() will raise NotImplementedError AFTER having
-# already downloaded a 110 MB tarball — terrible UX.
+# already downloaded a 110 MB tarball - terrible UX.
 
 @pytest.mark.unit
 def test_binary_entry_rel_covers_every_supported_platform():
@@ -134,7 +142,7 @@ def test_binary_entry_rel_covers_every_supported_platform():
         ARCHIVE_NAME(plat, "x86_64")  # must not raise
         assert plat in BINARY_ENTRY_REL, (
             f"ARCHIVE_NAME accepts {plat!r} but BINARY_ENTRY_REL has no entry "
-            f"— ensure_binary() will fail late after a 110 MB download."
+            f"- ensure_binary() will fail late after a 110 MB download."
         )
 
 
@@ -165,7 +173,7 @@ def test_release_url_template_has_required_placeholders():
 
 @pytest.mark.unit
 def test_release_url_template_formats_cleanly():
-    """Confirm .format() actually substitutes — catches typos like {tags}."""
+    """Confirm .format() actually substitutes - catches typos like {tags}."""
     url = RELEASE_URL_TEMPLATE.format(tag="firefox-99", asset="thing.zip")
     assert "{" not in url and "}" not in url
     assert "firefox-99" in url
@@ -176,7 +184,7 @@ def test_release_url_template_formats_cleanly():
 def test_release_url_points_at_owned_repo():
     """The template MUST point at an owner/repo the maintainer actually
     controls. A typo here would direct everyone's downloads at a stranger's
-    GitHub account — silent supply-chain risk."""
+    GitHub account - silent supply-chain risk."""
     assert "/feder-cr/firefox_antidetect_patch/" in RELEASE_URL_TEMPLATE, (
         f"RELEASE_URL_TEMPLATE was changed to point elsewhere: "
         f"{RELEASE_URL_TEMPLATE!r}. Update this test only if the move is intentional."
@@ -197,7 +205,7 @@ def test_firefox_upstream_version_is_three_part_semver():
 def test_binary_basename_includes_upstream_version():
     """The basename references the upstream version, so the asset filename
     on the CDN encodes which Firefox was patched. Bumping FIREFOX_UPSTREAM_VERSION
-    without rebuilding would leave stale binaries — this guards against
+    without rebuilding would leave stale binaries - this guards against
     accidentally desyncing the two."""
     assert FIREFOX_UPSTREAM_VERSION in BINARY_BASENAME
 

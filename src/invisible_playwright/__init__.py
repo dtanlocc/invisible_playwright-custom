@@ -1,4 +1,4 @@
-"""invisible_playwright — Playwright wrapper for a patched Firefox with stealth profile.
+"""invisible_playwright - Playwright wrapper for a patched Firefox with stealth profile.
 
 Quickstart:
 
@@ -15,6 +15,30 @@ Quickstart:
         page = browser.new_page()
         page.click("#submit")   # expanded into a Bezier trajectory
 """
+# ── Import-time core assertion, and repair ───────────────────────────────────
+# Runs BEFORE every other import. Two questions, one check: is the installed
+# invisible-core new enough to carry a release seal at all, and is it the exact
+# version this distribution declares in pyproject? The expected version is read
+# back out of our own metadata, so it is written in exactly one place.
+#
+# A mismatch is REPAIRED, not just reported: the declared core is installed and
+# picked up in this process, so the script that just imported us keeps going.
+# That is only sound here, on the first line, while invisible_core has not been
+# imported by anyone yet; _pin.py captures exactly that fact before it imports
+# the core, and the repair refuses itself if the snapshot says otherwise. Every
+# failure of the repair falls back to the message it replaced.
+#
+# The comparison and the repair both live in invisible_core._pin, shared with the
+# profile manager so both products diagnose and fix an environment the same way.
+# Our _pin.py is the floor: it owns the three states a module inside the core
+# cannot report on (core absent, core present but unimportable, core present but
+# too damaged to derive its own version) and delegates everything else.
+from ._pin import enforce_core_pin as _enforce_core_pin
+_enforce_core_pin()
+
+from ._engine import assert_playwright_range as _assert_pw_range
+_assert_pw_range()
+
 from .config import get_default_args, get_default_stealth_prefs
 from .constants import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
 from ._geo import GeoTimezoneError, resolve_session_timezone

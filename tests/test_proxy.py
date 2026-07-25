@@ -9,7 +9,7 @@ from invisible_playwright._proxy import configure_proxy
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  CP1-CP7: no-op cases — return None, do NOT mutate prefs
+#  CP1-CP7: no-op cases - return None, do NOT mutate prefs
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -63,7 +63,7 @@ def test_cp7_direct_scheme_mixed_case_returns_none():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  CP8-CP9: HTTP/HTTPS — passthrough (return proxy unchanged, no mutation)
+#  CP8-CP9: HTTP/HTTPS - passthrough (return proxy unchanged, no mutation)
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -98,7 +98,7 @@ def test_cp8b_http_with_username_password_passthrough():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  CP10-CP13: SOCKS — mutate prefs, return None
+#  CP10-CP13: SOCKS - mutate prefs, return None
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -157,7 +157,7 @@ def test_cp14_socks_without_port_dropped_silently():
     prefs = {}
     result = configure_proxy({"server": "socks5://hostonly"}, prefs)
     assert result is None
-    # Malformed input drops silently — no mutations.
+    # Malformed input drops silently - no mutations.
     assert "network.proxy.type" not in prefs
     assert "network.proxy.socks" not in prefs
 
@@ -183,7 +183,7 @@ def test_cp15b_socks_with_none_credentials_uses_empty_strings():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  CP16: mutation contract — prefs dict mutated in-place
+#  CP16: mutation contract - prefs dict mutated in-place
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -193,7 +193,7 @@ def test_cp16_prefs_mutated_in_place():
     prefs = {"existing.pref": "kept"}
     sentinel = prefs
     configure_proxy({"server": "socks5://host:1080"}, prefs)
-    # Same object identity — mutated, not replaced.
+    # Same object identity - mutated, not replaced.
     assert prefs is sentinel
     # Existing pref preserved.
     assert prefs["existing.pref"] == "kept"
@@ -203,7 +203,7 @@ def test_cp16_prefs_mutated_in_place():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  CP17: boundary — IPv6-style host preserved via rsplit
+#  CP17: boundary - IPv6-style host preserved via rsplit
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -217,7 +217,7 @@ def test_cp17_ipv6_bracketed_host_preserved_via_rsplit():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Recheck additions — branches discovered while re-reading _proxy.py
+#  Recheck additions - branches discovered while re-reading _proxy.py
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -251,7 +251,7 @@ def test_server_key_none_returns_none():
 
 @pytest.mark.unit
 def test_socks_port_coerced_to_int():
-    """Port string is parsed via int() — not a numeric string."""
+    """Port string is parsed via int() - not a numeric string."""
     prefs = {}
     configure_proxy({"server": "socks5://host:443"}, prefs)
     assert prefs["network.proxy.socks_port"] == 443
@@ -260,7 +260,7 @@ def test_socks_port_coerced_to_int():
 
 @pytest.mark.unit
 def test_socks_non_numeric_port_raises_value_error():
-    """Non-numeric port is a programmer error — int() raises."""
+    """Non-numeric port is a programmer error - int() raises."""
     prefs = {}
     with pytest.raises(ValueError):
         configure_proxy({"server": "socks5://host:notaport"}, prefs)

@@ -18,8 +18,18 @@ on:
       - '.github/workflows/firefox-launch-matrix.yml'
 
 jobs:
+  # `pip install .` below resolves `invisible-core==N.M.0` from the package
+  # index, and the core is published BEFORE this package. This gate answers
+  # whether it is there yet; during that window the smoke matrix is SKIPPED
+  # with the reason in the run summary rather than faked green, and once the
+  # core is up it runs unchanged. See .github/workflows/core-on-index.yml.
+  core-on-index:
+    uses: ./.github/workflows/core-on-index.yml
+
   smoke:
     name: launch (${{ matrix.os }}, py${{ matrix.python }})
+    needs: core-on-index
+    if: needs.core-on-index.outputs.available == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

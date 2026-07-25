@@ -1,3 +1,29 @@
+"""The download helpers, still reachable through the wrapper's alias shim.
+
+``invisible_playwright.download`` IS ``invisible_core.download`` (the shim
+replaces the module object), so what is left here covers the helper surface and
+the fact that the shim still exposes it. The ``ensure_binary`` tests that used
+to live here went with the Release Seal, which moved the payload authority off
+the release's own checksums.txt and the cache key off the bare tag:
+
+  cold path / SHA verify / extract / missing entry / unsupported platform
+      -> invisible_core/tests/test_seal_download.py (five legs, per-leg BuildID)
+  cache hit without HTTP
+      -> invisible_core/tests/test_seal_cache.py
+         ::test_stamped_matching_tree_is_served_with_no_network, and
+         ::test_half_extracted_tree_is_never_reused for the predicate that
+         replaced Path.exists()
+  refusing a tag this core is not sealed to (was: BROKEN_VERSIONS)
+      -> invisible_core/tests/test_seal_cache.py
+         ::test_pin_to_another_tag_is_refused_without_touching_the_network, and
+         invisible_core/tests/test_seal_engine_guard.py
+         ::test_tree_without_juggler_is_refused for the undrivable engine itself
+
+The _parse_checksums cases below outlive their caller: ensure_binary no longer
+reads checksums.txt at all, so they now guard the parser for the live-release
+check in test_release_e2e.py and for anything that reads a published
+checksums.txt by hand.
+"""
 import hashlib
 import io
 import tarfile
@@ -7,7 +33,7 @@ import pytest
 import requests
 import responses
 
-from invisible_playwright.constants import BINARY_VERSION, RELEASE_URL_TEMPLATE
+from invisible_playwright.constants import RELEASE_URL_TEMPLATE
 from invisible_playwright.download import (
     _download_file,
     _extract,
@@ -18,18 +44,7 @@ from invisible_playwright.download import (
     _sha256_file,
     cache_dir_for_version,
     cache_root,
-    ensure_binary,
 )
-
-
-def _make_zip(path: Path, inner_name: str, payload: bytes) -> bytes:
-    import zipfile
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr(inner_name, payload)
-    data = buf.getvalue()
-    path.write_bytes(data)
-    return data
 
 
 def _make_targz(path: Path, inner_name: str, payload: bytes) -> bytes:
@@ -41,85 +56,6 @@ def _make_targz(path: Path, inner_name: str, payload: bytes) -> bytes:
     data = buf.getvalue()
     path.write_bytes(data)
     return data
-
-
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_downloads_and_verifies(tmp_path, monkeypatch):
-    """Full path: cache miss -> HTTP GET -> SHA256 check -> extract -> return path."""
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-
-    archive_path = tmp_path / "archive.zip"
-    archive_bytes = _make_zip(archive_path, "firefox.exe", b"PEX!")
-    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("win32", "AMD64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
-                  content_type="application/zip")
-    responses.add(responses.GET, url_sums,
-                  body=f"{archive_sha}  {asset}\n", status=200)
-
-    monkeypatch.setattr("sys.platform", "win32")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "AMD64")
-
-    path = ensure_binary()
-    assert Path(path).exists()
-    assert Path(path).name == "firefox.exe"
-
-
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_rejects_sha_mismatch(tmp_path, monkeypatch):
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-    archive_path = tmp_path / "archive.zip"
-    archive_bytes = _make_zip(archive_path, "firefox.exe", b"PEX!")
-    wrong_sha = "0" * 64
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("win32", "AMD64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
-    responses.add(responses.GET, url_sums, body=f"{wrong_sha}  {asset}\n", status=200)
-
-    monkeypatch.setattr("sys.platform", "win32")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "AMD64")
-
-    with pytest.raises(RuntimeError, match="SHA256"):
-        ensure_binary()
-
-
-# DL1: cache hit returns cached path without HTTP call
-@pytest.mark.unit
-def test_ensure_binary_cache_hit_skips_http(tmp_path, monkeypatch):
-    """When the binary already exists in cache, ensure_binary returns immediately
-    without issuing any HTTP request."""
-    cache = tmp_path / "cache"
-    version_dir = cache / BINARY_VERSION
-    version_dir.mkdir(parents=True)
-    pre_cached = version_dir / "firefox.exe"
-    pre_cached.write_text("cached-content")
-
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-    monkeypatch.setattr("sys.platform", "win32")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "AMD64")
-
-    def _fail_get(*args, **kwargs):
-        raise AssertionError("HTTP must not be called on cache hit")
-    monkeypatch.setattr("invisible_playwright.download.requests.get", _fail_get)
-
-    path = ensure_binary()
-    assert path == pre_cached
-    assert path.read_text() == "cached-content"
 
 
 # DL2: .tar.gz extraction works
@@ -166,7 +102,7 @@ def test_parse_checksums_uses_last_token_as_filename():
     assert "some/nested/file.zip" in out
 
 
-# DL3 regression — issue #15 (LostBoxArt).
+# DL3 regression - issue #15 (LostBoxArt).
 # GNU coreutils `sha256sum` (and `shasum -b`) print filenames in BINARY MODE
 # with a leading `*`: "hash *filename". The parser used parts[-1] verbatim
 # so the key became "*filename" and lookups by bare filename returned None,
@@ -197,7 +133,7 @@ def test_parse_checksums_handles_mixed_binary_and_text_mode():
 @pytest.mark.unit
 def test_parse_checksums_handles_multiple_leading_stars():
     """`.lstrip("*")` strips any run of leading asterisks. Not a real sha256sum
-    format but defensive — guarantees no `*` survives in any key."""
+    format but defensive - guarantees no `*` survives in any key."""
     text = "abc123 **doubled.zip\n"
     out = _parse_checksums(text)
     assert "doubled.zip" in out
@@ -282,42 +218,12 @@ def test_parse_checksums_all_comment_file_returns_empty_dict():
     assert _parse_checksums(text) == {}
 
 
-# DL3 regression — full integration via ensure_binary: confirm the parser
-# bug from #15 cannot regress when the live release format is mimicked exactly.
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_accepts_binary_mode_checksums(tmp_path, monkeypatch):
-    """Reproduce the EXACT format the GitHub release ships:
-        <sha> *<filename>
-    Before the #15 fix this raised
-        RuntimeError: no SHA256 for {asset} in checksums.txt
-    even though the asset and SHA were both present."""
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-
-    archive_path = tmp_path / "archive.zip"
-    archive_bytes = _make_zip(archive_path, "firefox.exe", b"PEX!")
-    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("win32", "AMD64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
-                  content_type="application/zip")
-    # Binary-mode format (note the `*`): regression sentinel for #15.
-    responses.add(
-        responses.GET, url_sums,
-        body=f"{archive_sha} *{asset}\n",
-        status=200,
-    )
-
-    # Force the platform branch the test mocks:
-    monkeypatch.setattr("sys.platform", "win32")
-    out = ensure_binary()
-    # No RuntimeError means the parser accepted the `*`-prefixed key.
-    assert out.exists()
+# DL3 regression - the #15 sentinel that ran the parser through ensure_binary
+# retired with the checksums.txt contract: the fetcher no longer downloads or
+# parses checksums.txt, so there is no integration form of this test left to
+# write. The parser cases above still guard the format, and
+# test_release_e2e.py::test_fetch_against_live_release still hits the live
+# release. What is gone is the unit-level coupling of the two.
 
 
 # DL4: unknown archive format (.rar) raises RuntimeError
@@ -329,36 +235,6 @@ def test_extract_unknown_format_raises(tmp_path):
 
     with pytest.raises(RuntimeError, match="unknown archive format"):
         _extract(archive, dst)
-
-
-# DL5: binary not found after extraction raises RuntimeError
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_missing_entry_after_extract_raises(tmp_path, monkeypatch):
-    """If the archive extracts cleanly but the expected entry isn't present,
-    ensure_binary raises RuntimeError."""
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-
-    archive_path = tmp_path / "archive.zip"
-    # zip without firefox.exe inside
-    archive_bytes = _make_zip(archive_path, "other.bin", b"X")
-    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("win32", "AMD64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
-    responses.add(responses.GET, url_sums, body=f"{archive_sha}  {asset}\n", status=200)
-
-    monkeypatch.setattr("sys.platform", "win32")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "AMD64")
-
-    with pytest.raises(RuntimeError, match="binary not found after extraction"):
-        ensure_binary()
 
 
 # Pure helper: _parse_owner_repo
@@ -409,135 +285,8 @@ def test_github_token_none_when_unset(monkeypatch):
     assert _github_token() is None
 
 
-# Bonus coverage: unsupported platform raises NotImplementedError before any HTTP
-@pytest.mark.unit
-def test_ensure_binary_unsupported_platform_raises(monkeypatch):
-    monkeypatch.setattr("sys.platform", "freebsd")  # win32/linux/darwin are supported
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "AMD64")
-    with pytest.raises(NotImplementedError, match="unsupported platform"):
-        ensure_binary()
-
-
-# ──────────────────────────────────────────────────────────────────────
-#  Linux platform tests — exercise the tar.gz extraction path. Mirrors
-#  the Windows .zip tests above so both archive formats are covered.
-# ──────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_downloads_and_verifies_linux(tmp_path, monkeypatch):
-    """Linux happy path: tar.gz download → SHA256 check → extract → return path."""
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-
-    archive_path = tmp_path / "archive.tar.gz"
-    archive_bytes = _make_targz(archive_path, "firefox", b"ELF!")
-    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("linux", "x86_64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200,
-                  content_type="application/gzip")
-    responses.add(responses.GET, url_sums,
-                  body=f"{archive_sha}  {asset}\n", status=200)
-
-    monkeypatch.setattr("sys.platform", "linux")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
-
-    path = ensure_binary()
-    assert Path(path).exists()
-    assert Path(path).name == "firefox"
-
-
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_rejects_sha_mismatch_linux(tmp_path, monkeypatch):
-    """Linux SHA mismatch must raise — the tar.gz path runs the same
-    verifier as the .zip path, so a corrupted archive is rejected before
-    extraction regardless of platform."""
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-    archive_path = tmp_path / "archive.tar.gz"
-    archive_bytes = _make_targz(archive_path, "firefox", b"ELF!")
-    wrong_sha = "0" * 64
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("linux", "x86_64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
-    responses.add(responses.GET, url_sums, body=f"{wrong_sha}  {asset}\n", status=200)
-
-    monkeypatch.setattr("sys.platform", "linux")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
-
-    with pytest.raises(RuntimeError, match="SHA256"):
-        ensure_binary()
-
-
-@pytest.mark.unit
-def test_ensure_binary_cache_hit_skips_http_linux(tmp_path, monkeypatch):
-    """Linux cache hit short-circuits before any HTTP. Looks for the
-    ``firefox`` entry (not ``firefox.exe``) per ``BINARY_ENTRY_REL``."""
-    cache = tmp_path / "cache"
-    version_dir = cache / BINARY_VERSION
-    version_dir.mkdir(parents=True)
-    pre_cached = version_dir / "firefox"
-    pre_cached.write_text("cached-content")
-
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-    monkeypatch.setattr("sys.platform", "linux")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
-
-    def _fail_get(*args, **kwargs):
-        raise AssertionError("HTTP must not be called on cache hit")
-    monkeypatch.setattr("invisible_playwright.download.requests.get", _fail_get)
-
-    path = ensure_binary()
-    assert path == pre_cached
-    assert path.read_text() == "cached-content"
-
-
-@pytest.mark.unit
-@responses.activate
-def test_ensure_binary_missing_entry_after_extract_raises_linux(tmp_path, monkeypatch):
-    """Linux post-extract sanity check: if the tar.gz lacks a ``firefox``
-    entry, raise rather than returning a non-existent path. Mirrors the
-    Windows test and guards against an upstream release artifact regression."""
-    cache = tmp_path / "cache"
-    monkeypatch.setattr("invisible_playwright.download.cache_root", lambda: cache)
-
-    archive_path = tmp_path / "archive.tar.gz"
-    # tar.gz without ``firefox`` inside
-    archive_bytes = _make_targz(archive_path, "other.bin", b"X")
-    archive_sha = hashlib.sha256(archive_bytes).hexdigest()
-    from invisible_playwright.constants import ARCHIVE_NAME
-    asset = ARCHIVE_NAME("linux", "x86_64")
-
-    url_archive = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset=asset)
-    url_sums = RELEASE_URL_TEMPLATE.format(tag=BINARY_VERSION, asset="checksums.txt")
-
-    responses.add(responses.GET, url_archive, body=archive_bytes, status=200)
-    responses.add(responses.GET, url_sums, body=f"{archive_sha}  {asset}\n", status=200)
-
-    monkeypatch.setattr("sys.platform", "linux")
-    import platform
-    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
-
-    with pytest.raises(RuntimeError, match="binary not found after extraction"):
-        ensure_binary()
-
-
 # ========================================================================== #
-# _resolve_asset_url — public-repo direct URL vs private-repo API resolution
+# _resolve_asset_url - public-repo direct URL vs private-repo API resolution
 # ========================================================================== #
 # This function chooses between two code paths based on whether a GitHub
 # token is set. Both paths produce a downloadable URL but via different
@@ -558,7 +307,7 @@ def test_resolve_asset_url_public_returns_direct_url(monkeypatch):
 def test_resolve_asset_url_public_url_format_is_stable(monkeypatch):
     """The exact URL shape is what GitHub clients have learned to cache.
     Changing it without bumping BINARY_VERSION would 404 on first fetch
-    for every existing user — guard against accidental drift."""
+    for every existing user - guard against accidental drift."""
     monkeypatch.delenv("STEALTHFOX_GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     url = _resolve_asset_url("firefox-4", "abc.tar.gz")
@@ -596,7 +345,7 @@ def test_resolve_asset_url_private_uses_api_with_token(monkeypatch):
 @pytest.mark.unit
 @responses.activate
 def test_resolve_asset_url_private_raises_when_asset_missing(monkeypatch):
-    """If the asset name isn't on the release, raise — better to fail fast
+    """If the asset name isn't on the release, raise - better to fail fast
     with the asset name in the message than to download something else."""
     monkeypatch.setenv("STEALTHFOX_GITHUB_TOKEN", "ghp_fake")
     api_url = (
@@ -616,7 +365,7 @@ def test_resolve_asset_url_private_raises_when_asset_missing(monkeypatch):
 @responses.activate
 def test_resolve_asset_url_private_propagates_api_4xx(monkeypatch):
     """If the API returns 404 (release doesn't exist) or 401 (bad token),
-    don't swallow it silently — raise so the user sees the real reason."""
+    don't swallow it silently - raise so the user sees the real reason."""
     monkeypatch.setenv("STEALTHFOX_GITHUB_TOKEN", "ghp_fake")
     api_url = (
         "https://api.github.com/repos/feder-cr/firefox_antidetect_patch"
@@ -649,7 +398,7 @@ def test_resolve_asset_url_private_sends_auth_header(monkeypatch):
 
 
 # ========================================================================== #
-# _download_file — file streaming + error propagation
+# _download_file - file streaming + error propagation
 # ========================================================================== #
 
 @pytest.mark.unit
@@ -669,7 +418,7 @@ def test_download_file_writes_full_payload_to_disk(tmp_path):
 @pytest.mark.unit
 @responses.activate
 def test_download_file_creates_parent_directories(tmp_path):
-    """The dst's parent may not exist yet — _download_file is expected to
+    """The dst's parent may not exist yet - _download_file is expected to
     mkdir -p before writing. Without this, the first fetch on a clean
     machine raises FileNotFoundError because the cache dir doesn't exist."""
     url = "https://example.com/x.bin"
@@ -684,7 +433,7 @@ def test_download_file_creates_parent_directories(tmp_path):
 @pytest.mark.unit
 @responses.activate
 def test_download_file_propagates_http_404(tmp_path):
-    """404s from the CDN must raise — silent 404 → empty file → SHA mismatch
+    """404s from the CDN must raise - silent 404 → empty file → SHA mismatch
     is a much worse failure mode."""
     url = "https://example.com/missing.bin"
     responses.add(responses.GET, url, status=404)
@@ -707,7 +456,7 @@ def test_download_file_propagates_http_500(tmp_path):
 def test_download_file_adds_auth_for_api_urls(monkeypatch, tmp_path):
     """When downloading from api.github.com (private-repo flow), the
     request MUST include `Authorization: token <...>` and
-    `Accept: application/octet-stream` — otherwise the API returns the
+    `Accept: application/octet-stream` - otherwise the API returns the
     asset JSON instead of the binary."""
     monkeypatch.setenv("STEALTHFOX_GITHUB_TOKEN", "ghp_secret")
     url = "https://api.github.com/repos/x/y/releases/assets/123"
@@ -741,18 +490,18 @@ def test_download_file_does_not_send_auth_for_non_api_urls(monkeypatch, tmp_path
 
     _download_file(url, tmp_path / "out.bin")
     assert captured["auth"] is None, (
-        "Auth header leaked to a public CDN URL — would expose the token "
+        "Auth header leaked to a public CDN URL - would expose the token "
         "in GitHub's access logs."
     )
 
 
 # ========================================================================== #
-# cache_root + cache_dir_for_version — path resolution
+# cache_root + cache_dir_for_version - path resolution
 # ========================================================================== #
 
 @pytest.mark.unit
 def test_cache_root_returns_path():
-    """Must return a Path, not a string — downstream code uses .mkdir() etc."""
+    """Must return a Path, not a string - downstream code uses .mkdir() etc."""
     p = cache_root()
     assert isinstance(p, Path)
 
@@ -774,16 +523,16 @@ def test_cache_dir_for_version_appends_version_segment():
     assert p.parent == cache_root()
 
 
-@pytest.mark.unit
-def test_cache_dir_for_version_defaults_to_current_binary_version():
-    """No-arg call uses the pinned BINARY_VERSION."""
-    p = cache_dir_for_version()
-    assert p.name == BINARY_VERSION
+# The no-arg call no longer names cache_root()/<BINARY_VERSION>: the cache key is
+# content-addressed (tag + base version + the BuildID of this host's leg), so the
+# assertion moved with it, to
+# invisible_core/tests/test_seal_download.py
+# ::test_cache_dir_for_version_no_arg_is_the_sealed_content_key.
 
 
 @pytest.mark.unit
 def test_cache_dir_isolation_between_versions():
-    """firefox-3 and firefox-4 must NEVER share a directory — extraction
+    """firefox-3 and firefox-4 must NEVER share a directory - extraction
     would clobber one with the other and break downgrade."""
     a = cache_dir_for_version("firefox-3")
     b = cache_dir_for_version("firefox-4")
@@ -792,7 +541,7 @@ def test_cache_dir_isolation_between_versions():
 
 
 # ========================================================================== #
-# _parse_owner_repo — more edge cases
+# _parse_owner_repo - more edge cases
 # ========================================================================== #
 
 @pytest.mark.unit
@@ -812,7 +561,7 @@ def test_parse_owner_repo_extracts_from_canonical_template():
     "github.com/x/y/releases/",                 # missing scheme
 ])
 def test_parse_owner_repo_rejects_malformed_urls(bad_template):
-    """Any URL that doesn't match the canonical shape must raise — silent
+    """Any URL that doesn't match the canonical shape must raise - silent
     None/empty extraction would build broken API URLs and confuse the user."""
     with pytest.raises(RuntimeError, match="cannot parse"):
         _parse_owner_repo(bad_template)
@@ -828,9 +577,14 @@ def test_parse_owner_repo_handles_repos_with_dashes_and_underscores():
     assert repo == "my_cool.repo"
 
 
-@pytest.mark.unit
-def test_ensure_binary_refuses_known_broken_version():
-    """A known-broken release (firefox-8, no juggler) must be refused with a
-    clear error BEFORE any download — never silently handed to the user."""
-    with pytest.raises(RuntimeError, match="known-broken"):
-        ensure_binary("firefox-8")
+# BROKEN_VERSIONS is gone: a superseded build is now a build no seal points at,
+# and ensure_binary refuses ANY tag but the sealed one (SealMismatch), so there
+# is no list to keep. The refusal itself is covered in
+# invisible_core/tests/test_seal_cache.py
+# ::test_pin_to_another_tag_is_refused_without_touching_the_network.
+# What the blacklist said and the seal does not: WHY that particular tag is
+# undrivable. For firefox-8 (published without the juggler) the message now
+# suggests installing "the invisible-core sealed to it", which for that tag does
+# not and cannot exist. The engine itself is still refused on every launch route,
+# with a better message, by
+# invisible_core/tests/test_seal_engine_guard.py::test_tree_without_juggler_is_refused.

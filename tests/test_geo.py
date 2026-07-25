@@ -46,7 +46,7 @@ def test_proxy_is_set(proxy, expected):
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  _proxies_for_requests — scheme + credential translation
+#  _proxies_for_requests - scheme + credential translation
 # ──────────────────────────────────────────────────────────────────────
 @pytest.mark.unit
 def test_proxies_socks5_uses_socks5h_remote_dns():
@@ -91,7 +91,7 @@ def test_proxies_no_credentials_has_no_auth_prefix():
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  discover_egress_ip — mocked requests
+#  discover_egress_ip - mocked requests
 # ──────────────────────────────────────────────────────────────────────
 class _FakeResp:
     def __init__(self, text, status=200):
@@ -152,7 +152,7 @@ def test_discover_egress_ip_no_proxy_is_direct(monkeypatch):
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  ip_to_timezone — mocked mmdb reader
+#  ip_to_timezone - mocked mmdb reader
 # ──────────────────────────────────────────────────────────────────────
 class _FakeReader:
     def __init__(self, record):
@@ -202,7 +202,7 @@ def test_ip_to_timezone_invalid_iana_raises(monkeypatch):
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  resolve_session_timezone — the precedence policy
+#  resolve_session_timezone - the precedence policy
 # ──────────────────────────────────────────────────────────────────────
 @pytest.fixture
 def stub_egress(monkeypatch):
@@ -246,7 +246,7 @@ def test_resolve_auto_with_proxy_resolves_from_proxy(stub_egress):
 
 @pytest.mark.unit
 def test_resolve_empty_no_proxy_resolves_from_host(stub_egress):
-    # auto ALWAYS resolves — without a proxy, from the host's own public IP.
+    # auto ALWAYS resolves - without a proxy, from the host's own public IP.
     assert resolve_session_timezone("", None) == "America/New_York"
     assert stub_egress["called"] is True
     assert stub_egress["proxy_arg"] is None  # direct request, no proxy
@@ -278,7 +278,7 @@ def test_resolve_no_proxy_failure_falls_back_to_host(monkeypatch):
 
 @pytest.mark.unit
 def test_resolve_proxy_failure_raises(monkeypatch):
-    # With a proxy set, a failure must raise — never a silent host-TZ fallback.
+    # With a proxy set, a failure must raise - never a silent host-TZ fallback.
     def boom(proxy=None, **kw):
         raise GeoTimezoneError("no egress")
 
@@ -290,7 +290,7 @@ def test_resolve_proxy_failure_raises(monkeypatch):
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  prepare_session_geo — one round-trip for BOTH timezone + the WebRTC
+#  prepare_session_geo - one round-trip for BOTH timezone + the WebRTC
 #  egress IP. The egress feeds the srflx override (only behind a proxy).
 # ──────────────────────────────────────────────────────────────────────
 @pytest.mark.unit
