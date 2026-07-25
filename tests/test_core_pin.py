@@ -310,8 +310,29 @@ def test_no_source_file_hardcodes_a_core_version_requirement():
 
 
 def test_pyproject_declares_the_pin_exactly_once():
-    text = PYPROJECT.read_text(encoding="utf-8")
-    assert len(re.findall(r'"invisible-core==[^"]+"', text)) == 1
+    """Counted through the SHARED parser, not a regex of this file's own.
+
+    This assertion used to read `r'"invisible-core==[^"]+"'`, which is a seventh
+    copy of the requirement parsing the consolidation was supposed to have
+    removed - the file's own header says a test that parses the pin its own way
+    tests its own regex. It survived because nothing had exercised it against a
+    spelling it did not anticipate. Declaring the distribution as
+    `invisible_core` did exactly that: the pin was still there, still correct,
+    and this test read zero of it.
+
+    PEP 503 makes `invisible-core`, `invisible_core`, `Invisible.Core` one name;
+    importlib.metadata and pip normalise all of them, so an assertion that only
+    accepts one spelling is asserting a coincidence.
+    """
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    pins = [r for r in data["project"]["dependencies"]
+            if core_pin.normalise_name(core_pin.parse_requirement(r).name)
+            == core_pin.normalise_name(core_pin.CORE_NAME)]
+    assert len(pins) == 1, (
+        f"expected exactly one core requirement, found {len(pins)}: {pins}\n"
+        f"(matched by normalised name, so any legal spelling counts)")
+    assert core_pin.pin_from_requirements(
+        data["project"]["dependencies"], dist_name="invisible_playwright").status == "pinned"
 
 
 def test_pyproject_declares_no_direct_reference_and_no_opt_in_for_one():
