@@ -20,6 +20,9 @@ import time
 import pytest
 
 from invisible_playwright import _reaper
+from invisible_playwright._reaper import (
+    JobObjectGuard, NullGuard, SessionToken, find_processes, guard_for,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -30,11 +33,11 @@ psutil = pytest.importorskip("psutil")
 _SLEEP = 30
 
 
-def _spawn(token: str | None) -> subprocess.Popen:
+def _spawn(token) -> subprocess.Popen:
     env = dict(os.environ)
     env.pop(_reaper.TOKEN_VAR, None)
     if token:
-        env = _reaper.stamp(env, token)
+        env = token.stamp(env)
     return subprocess.Popen(
         [sys.executable, "-c", f"import time; time.sleep({_SLEEP})"], env=env
     )
@@ -51,15 +54,15 @@ def _reap_all(*procs: subprocess.Popen) -> None:
 
 def test_a_token_is_unique_per_session():
     """Two sessions must never share a token, or one reaps the other."""
-    assert len({_reaper.new_token() for _ in range(200)}) == 200
+    assert len({SessionToken.mint() for _ in range(200)}) == 200
 
 
 def test_it_finds_the_process_carrying_the_token():
-    token = _reaper.new_token()
+    token = SessionToken.mint()
     proc = _spawn(token)
     try:
         time.sleep(0.6)
-        found = {p.pid for p in _reaper.find_session_processes(token)}
+        found = {p.pid for p in find_processes(token)}
         assert proc.pid in found
     finally:
         _reap_all(proc)
@@ -71,8 +74,8 @@ def test_a_child_inherits_the_token_and_is_reaped_with_the_parent():
     A grandchild spawned by the marked process carries the same environment,
     so it is found and killed even though nothing ever recorded its pid.
     """
-    token = _reaper.new_token()
-    env = _reaper.stamp(dict(os.environ), token)
+    token = SessionToken.mint()
+    env = token.stamp(os.environ)
     parent = subprocess.Popen(
         [sys.executable, "-c",
          f"import subprocess,sys,time;"
@@ -82,9 +85,9 @@ def test_a_child_inherits_the_token_and_is_reaped_with_the_parent():
     )
     try:
         time.sleep(1.5)
-        pids = {p.pid for p in _reaper.find_session_processes(token)}
+        pids = {p.pid for p in find_processes(token)}
         assert len(pids) >= 2, f"grandchild not found, only {pids}"
-        killed = _reaper.reap(token)
+        killed = guard_for().reap(token)
         assert killed >= 2
         assert _reaper.wait_until_gone(token, timeout=8.0)
     finally:
@@ -98,24 +101,24 @@ def test_it_does_not_touch_a_process_with_a_different_token():
     leave the other running - a leaked browser is a bug, killing someone
     else's is an incident, and only one of the two is recoverable.
     """
-    mine, theirs = _reaper.new_token(), _reaper.new_token()
+    mine, theirs = SessionToken.mint(), SessionToken.mint()
     a, b = _spawn(mine), _spawn(theirs)
     try:
         time.sleep(0.8)
-        assert _reaper.reap(mine) >= 1
+        assert guard_for().reap(mine) >= 1
         assert _reaper.wait_until_gone(mine, timeout=8.0)
         assert b.poll() is None, "reaping one session killed the other's process"
-        assert {p.pid for p in _reaper.find_session_processes(theirs)} == {b.pid}
+        assert {p.pid for p in find_processes(theirs)} == {b.pid}
     finally:
         _reap_all(a, b)
 
 
 def test_it_does_not_touch_an_unmarked_process():
-    token = _reaper.new_token()
+    token = SessionToken.mint()
     marked, plain = _spawn(token), _spawn(None)
     try:
         time.sleep(0.8)
-        _reaper.reap(token)
+        guard_for().reap(token)
         assert _reaper.wait_until_gone(token, timeout=8.0)
         assert plain.poll() is None, "an unmarked process was killed"
     finally:
@@ -125,7 +128,7 @@ def test_it_does_not_touch_an_unmarked_process():
 def test_reaping_nothing_reports_nothing():
     """0 is the answer for a clean session, and it has to be distinguishable
     from the reaper not running at all - which is why reap() returns a count."""
-    assert _reaper.reap(_reaper.new_token()) == 0
+    assert guard_for().reap(SessionToken.mint()) == 0
 
 
 def test_an_empty_token_never_matches_even_a_process_that_carries_an_empty_one():
@@ -151,11 +154,79 @@ def test_an_empty_token_never_matches_even_a_process_that_carries_an_empty_one()
         raise
     try:
         time.sleep(0.8)
-        assert _reaper.find_session_processes("") == []
-        assert _reaper.reap("") == 0
+        assert find_processes(SessionToken()) == []
+        assert guard_for().reap(SessionToken()) == 0
         assert empty.poll() is None, "an empty token reaped a live process"
     finally:
         _reap_all(victim, empty)
+
+
+def test_the_platform_is_tested_in_exactly_one_place():
+    """guard_for is the seam. Every caller takes a LifetimeGuard and never asks
+    which one, so no launcher code branches on the operating system."""
+    assert isinstance(guard_for("posix"), NullGuard)
+    assert isinstance(guard_for("java"), NullGuard)
+    made = guard_for("nt") if os.name == "nt" else None
+    if made is not None:
+        assert isinstance(made, (JobObjectGuard, NullGuard))
+
+
+def test_the_null_guard_says_it_guarantees_nothing_instead_of_implying_it():
+    """A Null Object that silently does nothing is indistinguishable from one
+    that worked. This one answers the question directly, so a caller can tell
+    a platform without the mechanism from a platform where it succeeded."""
+    null = NullGuard()
+    assert null.guaranteed is False
+    assert null.bind(SessionToken.mint()) == 0
+    assert JobObjectGuard.guaranteed is True
+
+
+def test_the_null_guard_still_reaps_because_that_part_needs_no_kernel():
+    """Immediate cleanup is inherited, not stubbed out. A browser that refuses
+    to close should not have to wait for this process to exit, on any OS."""
+    token = SessionToken.mint()
+    proc = _spawn(token)
+    try:
+        time.sleep(0.8)
+        assert NullGuard().reap(token) >= 1
+        assert _reaper.wait_until_gone(token, timeout=8.0)
+    finally:
+        _reap_all(proc)
+
+
+def test_a_token_is_a_value_not_a_string():
+    """Equality is by value and an empty token is falsy, which is what stops
+    a failed session from sweeping the machine."""
+    a = SessionToken("abc")
+    assert a == SessionToken("abc") and a != SessionToken("abd")
+    assert bool(a) and not bool(SessionToken())
+    assert len({SessionToken("x"), SessionToken("x")}) == 1
+    assert a.stamp({"PATH": "/usr"})[_reaper.TOKEN_VAR] == "abc"
+    assert a.stamp({"PATH": "/usr"})["PATH"] == "/usr", "stamp dropped the env"
+
+
+def test_an_empty_token_matches_nothing_at_the_matcher_itself():
+    """Isolates SessionToken.matches rather than going through find_processes.
+
+    find_processes ALSO refuses an empty token, so a test that went through it
+    stayed green with this guard removed - the two checks covered for each
+    other and neither was actually verified. Belt and braces are fine; a belt
+    nothing tests is not.
+    """
+    class CarriesEmpty:
+        def environ(self):
+            return {_reaper.TOKEN_VAR: ""}
+
+    assert SessionToken().matches(CarriesEmpty()) is False
+    assert SessionToken("real").matches(CarriesEmpty()) is False
+
+
+def test_stamping_does_not_mutate_the_environment_it_was_given():
+    """The launcher builds env once and passes it on; a stamp that mutated in
+    place would leak this session's token into whatever else holds that dict."""
+    original = {"PATH": "/usr"}
+    SessionToken.mint().stamp(original)
+    assert original == {"PATH": "/usr"}
 
 
 @pytest.mark.skipif(os.name != "nt", reason="job objects are a Windows mechanism")
@@ -178,11 +249,11 @@ def test_the_tree_dies_when_this_process_is_KILLED_not_merely_closed():
          "import subprocess,sys,time;"
          "sys.path.insert(0, r'" + os.path.dirname(os.path.dirname(
              os.path.abspath(_reaper.__file__))) + "');"
-         "from invisible_playwright import _reaper;"
-         "tok=_reaper.new_token();"
-         "env=_reaper.stamp(dict(__import__('os').environ), tok);"
+         "from invisible_playwright._reaper import SessionToken, guard_for;"
+         "tok=SessionToken.mint();"
+         "env=tok.stamp(__import__('os').environ);"
          f"kid=subprocess.Popen([sys.executable,'-c','import time; time.sleep({_SLEEP})'],env=env);"
-         "n=_reaper.bind_tree_to_this_process(tok);"
+         "n=guard_for().bind(tok);"
          "print(kid.pid, n, flush=True);"
          f"time.sleep({_SLEEP})"],
         stdout=subprocess.PIPE, text=True,
@@ -214,7 +285,7 @@ def test_binding_reports_zero_rather_than_claiming_a_guarantee_it_lacks():
     An empty token cannot identify anything, so there is nothing to bind. The
     honest answer is 0, not a silently successful no-op.
     """
-    assert _reaper.bind_tree_to_this_process("", wait=0.5) == 0
+    assert guard_for().bind(SessionToken(), wait=0.5) == 0
 
 
 def test_a_process_whose_environment_cannot_be_read_is_left_alone():
@@ -228,4 +299,4 @@ def test_a_process_whose_environment_cannot_be_read_is_left_alone():
         def environ(self):
             raise psutil.AccessDenied(pid=1)
 
-    assert _reaper._carries(Unreadable(), "anything") is False
+    assert SessionToken('anything').matches(Unreadable()) is False

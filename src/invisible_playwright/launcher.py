@@ -20,7 +20,7 @@ from ._geo import prepare_session_geo
 from ._headless import cloak_prefs, make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from ._proxy import configure_proxy as _configure_proxy_shared
-from . import _reaper
+from ._reaper import SessionToken, guard_for
 from .prefs import translate_profile_to_prefs
 
 
@@ -213,11 +213,12 @@ class InvisiblePlaywright:
         self._browser: Optional[Browser] = None
         self._persistent_context: Optional[BrowserContext] = None
         self._virtual_display: Any = None
-        # Minted per session in __enter__ and stamped into the browser
-        # environment. Declared here so that _teardown - which runs on the
-        # failure path too, before __enter__ has got anywhere - always finds
-        # the attribute rather than raising over a missing one.
-        self._session_token: str = ""
+        # Identity for this session's browser tree, and the guard that ties
+        # that tree to this process's lifetime. Declared here rather than in
+        # __enter__ so that _teardown - which runs on the failure path too,
+        # before __enter__ has got anywhere - always finds them.
+        self._session_token = SessionToken()
+        self._lifetime_guard = guard_for()
         # Proxy egress IP, discovered at launch (see __enter__). Feeds the
         # WebRTC srflx override so the candidate matches the proxy IP, not the
         # real host IP. None when no proxy is set.
@@ -243,7 +244,7 @@ class InvisiblePlaywright:
         prefs = self._build_prefs()
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
         pw_headless = self._resolve_headless()
-        self._session_token = _reaper.new_token()
+        self._session_token = SessionToken.mint()
         env = self._build_env(prefs)
 
         try:
@@ -310,7 +311,7 @@ class InvisiblePlaywright:
         behaviour rather than breaking a launch that is otherwise fine.
         """
         try:
-            _reaper.bind_tree_to_this_process(self._session_token)
+            self._lifetime_guard.bind(self._session_token)
         except Exception:
             pass
 
@@ -425,10 +426,10 @@ class InvisiblePlaywright:
         # silence. Only processes positively identified as ours are touched.
         if self._session_token:
             try:
-                _reaper.reap(self._session_token)
+                self._lifetime_guard.reap(self._session_token)
             except Exception:
                 pass
-            self._session_token = ""
+            self._session_token = SessionToken()
 
     # ── helpers ─────────────────────────────────────────────────────────
 
@@ -500,8 +501,7 @@ class InvisiblePlaywright:
         # it entirely; children inherit the environment, so every process in the
         # tree carries the token. See _reaper for why this is a token and not a
         # search over "firefox processes that look like ours".
-        env = _reaper.stamp(env, self._session_token)
-        return env
+        return self._session_token.stamp(env)
 
     def _resolve_headless(self) -> bool:
         """Translate the user's ``headless`` flag.
