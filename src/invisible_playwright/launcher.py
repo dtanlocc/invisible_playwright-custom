@@ -20,6 +20,7 @@ from ._geo import prepare_session_geo
 from ._headless import cloak_prefs, make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from ._proxy import configure_proxy as _configure_proxy_shared
+from . import _reaper
 from .prefs import translate_profile_to_prefs
 
 
@@ -212,6 +213,11 @@ class InvisiblePlaywright:
         self._browser: Optional[Browser] = None
         self._persistent_context: Optional[BrowserContext] = None
         self._virtual_display: Any = None
+        # Minted per session in __enter__ and stamped into the browser
+        # environment. Declared here so that _teardown - which runs on the
+        # failure path too, before __enter__ has got anywhere - always finds
+        # the attribute rather than raising over a missing one.
+        self._session_token: str = ""
         # Proxy egress IP, discovered at launch (see __enter__). Feeds the
         # WebRTC srflx override so the candidate matches the proxy IP, not the
         # real host IP. None when no proxy is set.
@@ -237,6 +243,7 @@ class InvisiblePlaywright:
         prefs = self._build_prefs()
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
         pw_headless = self._resolve_headless()
+        self._session_token = _reaper.new_token()
         env = self._build_env(prefs)
 
         try:
@@ -259,6 +266,7 @@ class InvisiblePlaywright:
                     **self._persistent_context_kwargs(),
                 )
                 _patch_sync_new_page_sleep(self._persistent_context)
+                self._bind_process_tree()
                 self._arm_cursor_engine(self._persistent_context)
                 return self._persistent_context
             self._browser = self._pw.firefox.launch(
@@ -274,6 +282,7 @@ class InvisiblePlaywright:
             # pref can spoof it. Inside the try so a refusal tears the browser
             # down instead of leaking the process we just refused.
             assert_wire_version(self._browser)
+            self._bind_process_tree()
         except BaseException:
             # Python doesn't call __exit__ when __enter__ raises - clean up
             # the virtual display + Playwright manually so we don't leak Xvfb
@@ -283,6 +292,27 @@ class InvisiblePlaywright:
         self._patch_new_context_defaults(self._browser)
         self._arm_cursor_engine(self._browser)
         return self._browser
+
+    def _bind_process_tree(self) -> None:
+        """Tie the browser tree to this process's lifetime, at the OS level.
+
+        MEASURED before being written, because the first attempt at this fixed
+        a path that was not broken: an exception out of the `with` block does
+        NOT leak - __exit__ runs and Playwright cleans up, zero survivors over
+        an interleaved A/B. The leak is the killed-runner path, where __exit__
+        never executes at all: launch, kill the runner, and eight processes
+        were still alive; twelve on the second attempt. Nothing written inside
+        _teardown can reach that, so the guarantee comes from a Windows job
+        object that the kernel empties when this process's handle closes,
+        however this process ends.
+
+        Best-effort by construction: a failure here leaves the pre-existing
+        behaviour rather than breaking a launch that is otherwise fine.
+        """
+        try:
+            _reaper.bind_tree_to_this_process(self._session_token)
+        except Exception:
+            pass
 
     def _arm_cursor_engine(self, owner: Any) -> None:
         """Register this session so its pages move through the Python generator.
@@ -388,6 +418,17 @@ class InvisiblePlaywright:
             except Exception:
                 pass
             self._virtual_display = None
+        # Last, and unconditionally: whatever Playwright's close() did or did
+        # not manage, nothing carrying this session's token may outlive it. Each
+        # step above is individually wrapped in `except: pass`, so before this
+        # existed a browser that refused to close was swallowed and leaked in
+        # silence. Only processes positively identified as ours are touched.
+        if self._session_token:
+            try:
+                _reaper.reap(self._session_token)
+            except Exception:
+                pass
+            self._session_token = ""
 
     # ── helpers ─────────────────────────────────────────────────────────
 
@@ -453,6 +494,13 @@ class InvisiblePlaywright:
         if webrtc_ip:
             env["STEALTHFOX_WEBRTC_PUBLIC_IP"] = webrtc_ip
             env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] = "1"
+        # Stamp this session so teardown can find its own browser tree and only
+        # its own. On Windows firefox.exe is a stub that spawns the real browser
+        # and exits, so the tree is re-parented and Playwright's close() can lose
+        # it entirely; children inherit the environment, so every process in the
+        # tree carries the token. See _reaper for why this is a token and not a
+        # search over "firefox processes that look like ours".
+        env = _reaper.stamp(env, self._session_token)
         return env
 
     def _resolve_headless(self) -> bool:

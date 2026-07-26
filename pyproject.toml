@@ -57,6 +57,17 @@ dependencies = [
     # _engine.assert_playwright_range(), so widening it no longer needs a
     # wrapper release; this bound only keeps a fresh install in the ballpark.
     "playwright>=1.55,<=1.61.0",
+    # Reading another process's environment block is the only way to identify
+    # THIS session's browser tree exactly, and it is the identification that
+    # makes reaping safe: on a fleet, several sessions start on the same binary
+    # within the same second, so any heuristic ("a firefox that appeared after
+    # we did") eventually kills a healthy browser belonging to someone else.
+    #
+    # A hard dependency rather than an optional one, deliberately. The leak it
+    # closes appears exactly when teardown did NOT run cleanly - a timeout, an
+    # exception, a killed runner - so an optional reaper would be absent on
+    # precisely the machines that need it, and absent silently.
+    "psutil>=5.9",
 ]
 
 [project.optional-dependencies]
