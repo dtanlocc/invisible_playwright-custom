@@ -129,30 +129,74 @@ def isolated_cache_env(workspace: Path) -> dict:
 
 
 @pytest.mark.e2e
-def test_clean_install_from_git_main(clean_venv: Path):
-    """The package installs cleanly from git+HTTPS in a pristine venv."""
-    url = f"git+{REPO_URL}@{REV}"
-    _run([str(clean_venv), "-m", "pip", "install", url], timeout=600)
+def test_clean_install_the_way_a_user_does_it(clean_venv: Path):
+    """`pip install invisible-playwright`, from the index, into an empty venv.
 
-    # Pin Playwright to the version the shipped binary's Juggler is built for.
-    # The wrapper's dependency is an open range, so an unpinned install in this
-    # venv silently drifts onto whatever pip resolves to. Upstream Playwright
-    # releases ship Juggler-protocol changes (e.g. Browser.setDefaultViewport in
-    # 1.61) the published binary does not speak, which breaks new_context. Force
-    # the blessed pin so this venv (reused by the launch test) tests the version
-    # users are expected to run, not a future incompatible release.
-    pin = (Path(__file__).resolve().parents[1] / "scripts" / "playwright_pin.txt").read_text().strip()
-    _run([str(clean_venv), "-m", "pip", "install", f"playwright=={pin}", "--quiet"], timeout=180)
+    THIS USED TO INSTALL FROM A GIT URL, and that stopped being anybody's
+    install path on 2026-07-26 when the three packages went to PyPI. A test
+    that exercises a route no user takes cannot fail in the way users fail: the
+    index resolves `invisible-core==X.Y.Z` and a git install does not resolve
+    it at all, so the entire pin mechanism - the thing most likely to break a
+    release - was outside what this file covered.
 
-    # Importability check - catches missing __init__ exports, broken syntax,
-    # missing runtime deps.
+    Set ``INVPW_E2E_SOURCE=git`` to test an unpublished commit instead; that is
+    a pre-release check, not the default, and it says so in the failure.
+    """
+    source = os.environ.get("INVPW_E2E_SOURCE", "index")
+    if source == "git":
+        target = f"git+{REPO_URL}@{REV}"
+    else:
+        target = "invisible-playwright"
+    _run([str(clean_venv), "-m", "pip", "install", "--no-cache-dir", target],
+         timeout=900)
+
+    # NOT followed by a manual `pip install playwright==<pin>`. It used to be,
+    # and that line was hiding the thing this test exists to find: if the
+    # declared range resolves to a client the shipped Juggler cannot speak,
+    # installing the blessed pin afterwards repairs the venv and the test goes
+    # green while every real user is broken. What a user gets is what pip
+    # resolves from the declaration, so that is what is asserted.
     out = _run(
         [str(clean_venv), "-c",
          "import invisible_playwright as ip; "
-         "print('OK', ip.__name__)"],
-        timeout=30,
+         "from importlib.metadata import version; "
+         "print('OK', ip.__name__, version('invisible-core'), version('playwright'))"],
+        timeout=60,
     )
-    assert "OK invisible_playwright" in out.stdout
+    assert "OK invisible_playwright" in out.stdout, out.stdout
+
+    # pip's own consistency check. It is only meaningful because the core is
+    # declared as an exact version rather than a direct URL: a direct reference
+    # carries no version, so there is nothing here to compare and this reports
+    # clean on a broken environment.
+    _run([str(clean_venv), "-m", "pip", "check"], timeout=120)
+
+
+@pytest.mark.e2e
+def test_the_resolved_playwright_is_inside_the_range_the_package_declares(
+        clean_venv: Path):
+    """What pip resolves, not what we would have chosen.
+
+    The wrapper declares a bounded range because 1.61 added a protocol field an
+    older Juggler rejects. A range whose upper end drifts past what the shipped
+    binary speaks breaks `new_context` for every fresh install, and the only
+    place that shows up is here - the developer's own environment has the
+    blessed pin in it already.
+    """
+    from packaging.requirements import Requirement
+    from packaging.version import Version
+
+    got = _run([str(clean_venv), "-c",
+                "from importlib.metadata import version, requires; "
+                "print(version('playwright')); "
+                "print([r for r in requires('invisible-playwright') "
+                "if r.startswith('playwright')][0])"], timeout=60)
+    resolved, declaration = got.stdout.strip().splitlines()[:2]
+    spec = Requirement(declaration).specifier
+    assert Version(resolved) in spec, (
+        f"pip resolved playwright {resolved}, which the package's own "
+        f"declaration ({declaration}) does not allow - the two disagree and "
+        f"the user gets the resolver's answer")
 
 
 @pytest.mark.e2e
