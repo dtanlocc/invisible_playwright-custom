@@ -99,10 +99,10 @@ jobs:
         run: |
           set -o pipefail   # or the tee below would swallow pytest's exit code
           if [ "${{ runner.os }}" = "Linux" ]; then
-            xvfb-run -a python -m pytest tests/test_release_e2e.py -m e2e \
+            xvfb-run -a python -m pytest tests/test_release_e2e.py tests/test_upgrade_e2e.py -m e2e \
               -o addopts="" -v -rs | tee e2e-report.txt
           else
-            python -m pytest tests/test_release_e2e.py -m e2e \
+            python -m pytest tests/test_release_e2e.py tests/test_upgrade_e2e.py -m e2e \
               -o addopts="" -v -rs | tee e2e-report.txt
           fi
 
@@ -124,8 +124,8 @@ jobs:
           text = report.read_text(encoding="utf-8", errors="ignore")
           m = re.search(r"(\d+) passed", text)
           passed = int(m.group(1)) if m else 0
-          if passed < 3:
-              print(f"only {passed} test(s) actually ran - a suite that skipped "
+          if passed < 6:
+              print(f"only {passed} test(s) actually ran (expected at least 6) - a suite that skipped "
                     f"itself is not a pass", file=sys.stderr)
               sys.exit(1)
           print(f"{passed} tests ran")
