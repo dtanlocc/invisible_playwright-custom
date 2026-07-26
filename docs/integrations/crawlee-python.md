@@ -20,6 +20,27 @@ The patched Firefox binary is downloaded on first launch and cached, so the firs
 run is slow and every later one is not. Nothing else to install: the package brings
 its own engine and drives it with stock Playwright.
 
+## Two routes, and they are not equivalent
+
+Crawlee exposes `default_browser_path` in its `Configuration` (env
+`CRAWLEE_DEFAULT_BROWSER_PATH`), passed straight to `browser_type.launch` as
+`executable_path`. So the one-liner works:
+
+```python
+from crawlee.configuration import Configuration
+
+Configuration.get_global_configuration().default_browser_path = str(ensure_binary())
+```
+
+**That gets you the patched engine and not the profile.** The binary is only half of
+it: the fingerprint lives in the `firefox_user_prefs` that the profile generates from
+a seed, and `default_browser_path` has no way to pass them. You get a browser that is
+harder to fingerprint than stock Firefox and that still reports whatever the build
+defaults to, with no seeding and no reproducibility.
+
+Use the one-liner if you only want the engine. Use the plugin below if you want the
+thing this package is actually for.
+
 ## The plugin
 
 Crawlee's extension point is `PlaywrightBrowserPlugin`. Override `new_browser`,
