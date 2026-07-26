@@ -413,54 +413,98 @@ class Waypoint:
     t_ms: float
 
 
-def _plan(
-    rng: random.Random,
-    from_x: float,
-    from_y: float,
-    to_x: float,
-    to_y: float,
-    st: MotionStyle,
-    *,
-    with_jitter: bool = True,
-          target_w: float | None = None,
-) -> list[Waypoint]:
-    """Build one path. ``rng`` supplies every per-movement draw.
+@dataclass(frozen=True)
+class _Axis:
+    """The straight line from start to end, and the frame built on it.
 
-    ``with_jitter=False`` returns the same path with the tremor switched off and
-    nothing else changed - same control polygon, same schedule, same overshoot:
-    every other draw happens before the tremor loop, so the two runs share an
-    rng stream and can be differenced point by point. That is how the zero-mean
-    property and the tremor covariance are measured.
+    Every stage below places points as "so far along the travel, so far to the
+    side of it", so the unit tangent and normal are computed once here rather
+    than being threaded through six signatures as four loose floats.
     """
-    dx = to_x - from_x
-    dy = to_y - from_y
-    dist = math.hypot(dx, dy)
 
-    # Sub-pixel move: a single event at the target. Anything else would emit
-    # several mousemoves that all land on the same device pixel.
-    if dist < _EPS or (round(from_x) == round(to_x) and round(from_y) == round(to_y)):
-        return [Waypoint(float(to_x), float(to_y), 0.0, 0.0)]
+    from_x: float
+    from_y: float
+    to_x: float
+    to_y: float
+    dist: float
+    ux: float
+    uy: float
+    nx: float
+    ny: float
 
-    ux, uy = dx / dist, dy / dist
-    nx, ny = -uy, ux  # unit normal of the start->end axis
+    @classmethod
+    def between(cls, from_x: float, from_y: float,
+                to_x: float, to_y: float) -> "_Axis":
+        dx, dy = to_x - from_x, to_y - from_y
+        dist = math.hypot(dx, dy)
+        ux, uy = dx / dist, dy / dist
+        return cls(float(from_x), float(from_y), float(to_x), float(to_y),
+                   dist, ux, uy, -uy, ux)
 
-    # --- control polygon -------------------------------------------------
-    # Knots sit near their per-seed axial positions, displaced perpendicular to
-    # the travel. How far, and on which side, is mostly decided by the session's
-    # arm geometry: a stroke swinging about a joint at ``pivot_angle`` bows away
-    # from that joint, so the same two endpoints give one session a left-hand
-    # arc and another a right-hand one. That is deterministic given the
-    # direction of travel, which is exactly why it separates sessions instead of
-    # averaging out over movements.
-    swing = -(math.cos(st.pivot_angle) * nx + math.sin(st.pivot_angle) * ny)
-    amp_scale = st.bow_frac * dist + st.bow_abs_px * dist / (dist + st.bow_knee_px)
+    def at(self, along: float, across: float) -> tuple[float, float]:
+        return (self.from_x + self.ux * along + self.nx * across,
+                self.from_y + self.uy * along + self.ny * across)
 
-    n_knots = 1 if dist < st.short_move_px else st.knots
+
+@dataclass(frozen=True)
+class _Overshoot:
+    """A reach that lands past its target and is pulled back.
+
+    A hump added to the position, mostly along the travel: it rises after
+    ``u0``, peaks past the target, and returns to zero at u = 1, so the
+    endpoint stays exact while the axial coordinate genuinely goes backwards on
+    the way in. ``amp == 0`` means this movement did not overshoot.
+    """
+
+    amp: float = 0.0
+    perp: float = 0.0
+    u0: float = 1.0
+    shape: float = 1.0
+
+    def weight_at(self, u: float) -> float:
+        """How much of the hump applies at fraction ``u``; 0 outside it.
+
+        The WEIGHT, not the displacement. The caller multiplies in the same
+        grouping the original expression used - see the note in
+        ``_control_polygon`` about float multiplication not being associative;
+        returning ``amp * w`` here and multiplying by the unit vector there
+        regroups it and shifts the result in the last bit.
+        """
+        if self.amp <= 0.0 or u <= self.u0:
+            return 0.0
+        return math.sin(math.pi * (u - self.u0) / (1.0 - self.u0)) ** self.shape
+
+
+# ── the stages, in the order _plan calls them ─────────────────────────────
+#
+# THE ORDER IS PART OF THE CONTRACT. Every stage draws from the same rng, so
+# moving one past another changes every path for every seed - and `with_jitter`
+# differencing depends specifically on the tremor being LAST among the drawing
+# stages, so that switching it off leaves the rest of the stream untouched and
+# the two runs can be subtracted point by point. Extracting these was checked
+# against 576 recorded cases and 16135 waypoints for bit-identical output.
+
+def _control_polygon(rng: random.Random, axis: _Axis,
+                     st: MotionStyle) -> list[tuple[float, float]]:
+    """Knots near their per-seed axial positions, displaced across the travel.
+
+    How far, and on which side, is mostly decided by the session's arm
+    geometry: a stroke swinging about a joint at ``pivot_angle`` bows away from
+    that joint, so the same two endpoints give one session a left-hand arc and
+    another a right-hand one. That is deterministic given the direction of
+    travel, which is exactly why it separates sessions instead of averaging out
+    over movements.
+    """
+    swing = -(math.cos(st.pivot_angle) * axis.nx + math.sin(st.pivot_angle) * axis.ny)
+    amp_scale = (st.bow_frac * axis.dist
+                 + st.bow_abs_px * axis.dist / (axis.dist + st.bow_knee_px))
+
+    n_knots = 1 if axis.dist < st.short_move_px else st.knots
     axial = sorted(
         _clamp(st.knot_base[j] + rng.gauss(0.0, st.knot_wobble), 0.04, 0.96)
         for j in range(n_knots)
     )
-    ctrl: list[tuple[float, float]] = [(float(from_x), float(from_y))]
+    ctrl = [(axis.from_x, axis.from_y)]
     for j, u in enumerate(axial):
         mag = st.bow_base[j]
         amp = amp_scale * (
@@ -468,26 +512,55 @@ def _plan(
             + (1.0 - st.pivot_strength) * rng.gauss(st.bow_bias, 1.0) * mag
         )
         amp = _clamp(amp, -st.bow_cap_px, st.bow_cap_px)
-        ctrl.append((from_x + ux * dist * u + nx * amp, from_y + uy * dist * u + ny * amp))
-    ctrl.append((float(to_x), float(to_y)))
+        # Written as (ux * dist) * u, NOT ux * (dist * u), and not via
+        # ``axis.at``. Floating-point multiplication is not associative, so the
+        # two group differently in the last bit - which is enough to change a
+        # rounded pixel and, through it, every downstream draw. Caught by a
+        # 576-case golden comparison during the extraction of these stages,
+        # having looked exactly like a safe tidy-up.
+        ctrl.append((axis.from_x + axis.ux * axis.dist * u + axis.nx * amp,
+                     axis.from_y + axis.uy * axis.dist * u + axis.ny * amp))
+    ctrl.append((axis.to_x, axis.to_y))
+    return ctrl
 
-    # --- duration and sampling grid --------------------------------------
-    # Fitts needs the WIDTH of the thing being hit, and the generator cannot
-    # derive it from two points. Until 2026-07-26 it always used the per-seed
-    # default, so a stroke to a 20 px control and one to a 200 px control took
-    # the same time - the law was implemented and then fed a constant. The
-    # planner knows the box; passing it is giving the model a fact, not taking
-    # over its pacing.
+
+def _movement_duration(rng: random.Random, axis: _Axis, st: MotionStyle,
+                       target_w: float | None) -> float:
+    """Fitts, fed the WIDTH of the thing being hit.
+
+    The generator cannot derive that width from two points. Until 2026-07-26 it
+    always used the per-seed default, so a stroke to a 20 px control and one to
+    a 200 px control took the same time - the law was implemented and then fed
+    a constant. The planner knows the box; passing it is giving the model a
+    fact, not taking over its pacing.
+    """
     w = float(target_w) if target_w and target_w > 0 else st.target_w_px
-    bits = math.log2(dist / w + 1.0)
-    # Log-normal spread, not Gaussian-with-a-floor: it is strictly positive so
-    # it needs no clamp (a clamp piles probability mass on one exact value), and
+    bits = math.log2(axis.dist / w + 1.0)
+    # Log-normal spread, not Gaussian-with-a-floor: strictly positive so it
+    # needs no clamp (a clamp piles probability mass on one exact value), and
     # measured human movement times are right-skewed anyway.
     duration = (st.fitts_a_ms + st.fitts_b_ms * bits) * math.exp(
-        rng.gauss(0.0, st.dur_jitter)
-    )
-    duration = _clamp(duration, MIN_DURATION_MS, MAX_DURATION_MS)
+        rng.gauss(0.0, st.dur_jitter))
+    return _clamp(duration, MIN_DURATION_MS, MAX_DURATION_MS)
 
+
+def _sample_times(rng: random.Random, duration: float,
+                  st: MotionStyle) -> list[float]:
+    """When each sample is taken, never closer together than a device can report.
+
+    PHYSICAL FLOOR. The increments are log-normal with no lower bound, so the
+    tail lands under any real sampling interval: measured 2026-07-26, 8.64% of
+    emitted gaps were below 8 ms and the smallest was 3.52 ms, i.e. 284 Hz,
+    while the per-seed nominal interval was a sane 9.7-17.9 ms. A mouse reports
+    at 125 Hz (8 ms) and the browser coalesces on top of that, so a gap under
+    that is not fast sampling - it is a rate no device produces, and it is
+    measurable on the wire without any statistics.
+
+    DROPPED, not compressed. Squeezing the gap back up would move every later
+    point and change the movement's duration; dropping the offending sample
+    keeps the schedule and the endpoint exactly as drawn. Same choice the
+    dispatcher makes for the time cap: fewer events, never faster ones.
+    """
     n_steps = int(round(duration / st.step_ms))
     n_steps = max(MIN_STEPS, min(MAX_STEPS, n_steps))
 
@@ -501,98 +574,103 @@ def _plan(
         times.append(duration * acc / total_inc)
     times[-1] = duration
 
-    # PHYSICAL FLOOR. The increments above are log-normal with no lower bound,
-    # so the tail lands under any real sampling interval: measured 2026-07-26,
-    # 8.64% of emitted gaps were below 8 ms and the smallest was 3.52 ms, i.e.
-    # 284 Hz, while the per-seed nominal interval was a sane 9.7-17.9 ms. A
-    # mouse reports at 125 Hz (8 ms) and the browser coalesces on top of that,
-    # so a gap under that is not fast sampling - it is a rate no device
-    # produces, and it is measurable on the wire without any statistics.
-    #
-    # DROPPED, not compressed. Squeezing the gap back up would move every later
-    # point and change the movement's duration; dropping the offending sample
-    # keeps the schedule and the endpoint exactly as drawn. Same choice the
-    # dispatcher makes for the time cap: fewer events, never faster ones.
-    if len(times) > 2:
-        kept = [times[0]]
-        for tm in times[1:-1]:
-            if tm - kept[-1] >= SAMPLE_FLOOR_MS:
-                kept.append(tm)
-        # The endpoint always survives; if the drop left it too close to its
-        # new predecessor, that predecessor goes instead - a movement that
-        # stops short is a worse defect than one sample fewer.
-        if len(kept) > 1 and duration - kept[-1] < SAMPLE_FLOOR_MS:
-            kept.pop()
-        kept.append(duration)
-        times = kept
+    if len(times) <= 2:
+        return times
+    kept = [times[0]]
+    for tm in times[1:-1]:
+        if tm - kept[-1] >= SAMPLE_FLOOR_MS:
+            kept.append(tm)
+    # The endpoint always survives; if the drop left it too close to its new
+    # predecessor, that predecessor goes instead - a movement that stops short
+    # is a worse defect than one sample fewer.
+    if len(kept) > 1 and duration - kept[-1] < SAMPLE_FLOOR_MS:
+        kept.pop()
+    kept.append(duration)
+    return kept
 
-    # --- velocity profile, redrawn per movement --------------------------
-    ea = rng.uniform(st.ease_a_lo, st.ease_a_hi)
-    eb = ea * rng.uniform(st.ease_r_lo, st.ease_r_hi)
-    prof = _profile_table(ea, eb)
 
-    # --- overshoot, drawn per movement -----------------------------------
-    # A reach that lands past its target and is pulled back. Modelled as a hump
-    # added to the position, mostly along the travel: it rises after ``over_u0``,
-    # peaks past the target, and returns to zero at u = 1, so the endpoint stays
-    # exact while the axial coordinate genuinely goes backwards on the way in.
-    over_amp = 0.0
-    over_perp = 0.0
-    over_u0 = 1.0
-    if dist >= st.overshoot_min_px and rng.random() < st.overshoot_p:
-        over_amp = _clamp(
-            st.overshoot_frac * dist * math.exp(rng.gauss(0.0, 0.35)),
-            0.0,
-            st.overshoot_cap_px,
-        )
-        over_perp = over_amp * rng.gauss(0.0, 0.40)
-        over_u0 = rng.uniform(st.over_start_lo, st.over_start_hi)
+def _draw_overshoot(rng: random.Random, axis: _Axis,
+                    st: MotionStyle) -> _Overshoot:
+    if axis.dist < st.overshoot_min_px or rng.random() >= st.overshoot_p:
+        return _Overshoot()
+    amp = _clamp(st.overshoot_frac * axis.dist * math.exp(rng.gauss(0.0, 0.35)),
+                 0.0, st.overshoot_cap_px)
+    return _Overshoot(amp=amp,
+                      perp=amp * rng.gauss(0.0, 0.40),
+                      u0=rng.uniform(st.over_start_lo, st.over_start_hi),
+                      shape=st.over_shape)
 
-    # --- sample the curve by arc length ----------------------------------
-    n_arc = max(24, min(240, int(dist / 3.0) + 8))
+
+def _sample_curve(ctrl: list[tuple[float, float]], times: list[float],
+                  duration: float, axis: _Axis, prof: Any,
+                  over: _Overshoot) -> list[tuple[float, float, float]]:
+    """Walk the curve by ARC LENGTH, not by parameter.
+
+    Sampling a Bezier at even parameter steps clusters points where the curve
+    is tightly wound; the velocity profile is only a velocity profile if the
+    distance covered follows it.
+    """
+    n_arc = max(24, min(240, int(axis.dist / 3.0) + 8))
     ts, cum = _arc_table(ctrl, n_arc)
     length = cum[-1]
 
     raw: list[tuple[float, float, float]] = []
+    last = len(times) - 1
     for i, tm in enumerate(times):
         if i == 0:
-            raw.append((float(from_x), float(from_y), 0.0))
+            raw.append((axis.from_x, axis.from_y, 0.0))
             continue
-        if i == len(times) - 1:
-            raw.append((float(to_x), float(to_y), tm))
+        if i == last:
+            raw.append((axis.to_x, axis.to_y, tm))
             continue
         u = tm / duration
-        t_curve = _t_at_arclen(ts, cum, _profile_at(prof, u) * length)
-        px, py = _bezier_point(ctrl, t_curve)
-        if over_amp > 0.0 and u > over_u0:
-            w = math.sin(math.pi * (u - over_u0) / (1.0 - over_u0)) ** st.over_shape
-            px += ux * over_amp * w + nx * over_perp * w
-            py += uy * over_amp * w + ny * over_perp * w
+        px, py = _bezier_point(ctrl, _t_at_arclen(ts, cum,
+                                                  _profile_at(prof, u) * length))
+        w = over.weight_at(u)
+        if w:
+            px += axis.ux * over.amp * w + axis.nx * over.perp * w
+            py += axis.uy * over.amp * w + axis.ny * over.perp * w
         raw.append((px, py, tm))
+    return raw
 
-    # --- tremor: two independent components, on every interior waypoint ---
-    if with_jitter:
-        gain = min(1.0, math.sqrt(dist / st.tremor_full_px))
-        across_px = st.tremor_across_px * gain
-        along_px = across_px * st.tremor_aniso
-        for i in range(1, len(raw) - 1):
-            px, py, tm = raw[i]
-            w = math.sin(math.pi * (tm / duration)) ** st.tremor_shape
-            a_off = rng.gauss(0.0, along_px)
-            c_off = rng.gauss(0.0, across_px)
-            if rng.random() < st.tremor_burst_p:
-                a_off += rng.gauss(0.0, along_px * st.tremor_burst_mult)
-                c_off += rng.gauss(0.0, across_px * st.tremor_burst_mult)
-            a_off *= w
-            c_off *= w
-            raw[i] = (px + ux * a_off + nx * c_off, py + uy * a_off + ny * c_off, tm)
 
-    # --- reporting: bounded runs of repeated device pixels ----------------
-    # Keeping a repeat sometimes is the point (see the module docstring); what
-    # must not happen is the long run of identical tail events a fixed ease-out
-    # produces, so a run is cut at ``dup_run_max``. The final waypoint always
-    # carries the exact endpoint, whether it repeats a pixel or replaces the
-    # point that would have.
+def _apply_tremor(rng: random.Random, raw: list[tuple[float, float, float]],
+                  axis: _Axis, st: MotionStyle, duration: float) -> None:
+    """Two independent components on every interior waypoint, in place.
+
+    LAST among the drawing stages, deliberately: `with_jitter=False` skips only
+    this, so both runs share an rng stream up to here and can be differenced
+    point by point. That is how the zero-mean property and the tremor
+    covariance are measured at all.
+    """
+    gain = min(1.0, math.sqrt(axis.dist / st.tremor_full_px))
+    across_px = st.tremor_across_px * gain
+    along_px = across_px * st.tremor_aniso
+    for i in range(1, len(raw) - 1):
+        px, py, tm = raw[i]
+        w = math.sin(math.pi * (tm / duration)) ** st.tremor_shape
+        a_off = rng.gauss(0.0, along_px)
+        c_off = rng.gauss(0.0, across_px)
+        if rng.random() < st.tremor_burst_p:
+            a_off += rng.gauss(0.0, along_px * st.tremor_burst_mult)
+            c_off += rng.gauss(0.0, across_px * st.tremor_burst_mult)
+        a_off *= w
+        c_off *= w
+        raw[i] = (px + axis.ux * a_off + axis.nx * c_off,
+                  py + axis.uy * a_off + axis.ny * c_off, tm)
+
+
+def _collapse_duplicate_pixels(rng: random.Random,
+                               raw: list[tuple[float, float, float]],
+                               st: MotionStyle) -> list[Waypoint]:
+    """Bounded runs of repeated device pixels.
+
+    Keeping a repeat sometimes is the point (see the module docstring); what
+    must not happen is the long run of identical tail events a fixed ease-out
+    produces, so a run is cut at ``dup_run_max``. The final waypoint always
+    carries the exact endpoint, whether it repeats a pixel or replaces the
+    point that would have.
+    """
     out: list[Waypoint] = []
     keys: list[tuple[int, int]] = []
     prev_t = 0.0
@@ -602,8 +680,7 @@ def _plan(
         last = i == len(raw) - 1
         if keys and key == keys[-1]:
             run += 1
-            keep = run <= st.dup_run_max and rng.random() < st.dup_keep_p
-            if not keep:
+            if not (run <= st.dup_run_max and rng.random() < st.dup_keep_p):
                 if not last:
                     continue
                 # The endpoint is not negotiable: drop the point it repeats.
@@ -617,6 +694,47 @@ def _plan(
         keys.append(key)
         prev_t = tm
     return out
+
+
+def _plan(
+    rng: random.Random,
+    from_x: float,
+    from_y: float,
+    to_x: float,
+    to_y: float,
+    st: MotionStyle,
+    *,
+    with_jitter: bool = True,
+    target_w: float | None = None,
+) -> list[Waypoint]:
+    """Build one path, as a pipeline of the stages above.
+
+    ``rng`` supplies every per-movement draw, and the stage order is the draw
+    order - see the note above the stages before reordering anything.
+
+    ``with_jitter=False`` returns the same path with the tremor switched off
+    and nothing else changed: same control polygon, same schedule, same
+    overshoot.
+    """
+    # Sub-pixel move: a single event at the target. Anything else would emit
+    # several mousemoves that all land on the same device pixel.
+    if (math.hypot(to_x - from_x, to_y - from_y) < _EPS
+            or (round(from_x) == round(to_x) and round(from_y) == round(to_y))):
+        return [Waypoint(float(to_x), float(to_y), 0.0, 0.0)]
+
+    axis = _Axis.between(from_x, from_y, to_x, to_y)
+
+    ctrl = _control_polygon(rng, axis, st)
+    duration = _movement_duration(rng, axis, st, target_w)
+    times = _sample_times(rng, duration, st)
+    ease_a = rng.uniform(st.ease_a_lo, st.ease_a_hi)
+    prof = _profile_table(ease_a, ease_a * rng.uniform(st.ease_r_lo, st.ease_r_hi))
+    over = _draw_overshoot(rng, axis, st)
+
+    raw = _sample_curve(ctrl, times, duration, axis, prof, over)
+    if with_jitter:
+        _apply_tremor(rng, raw, axis, st, duration)
+    return _collapse_duplicate_pixels(rng, raw, st)
 
 
 class CursorMotion:

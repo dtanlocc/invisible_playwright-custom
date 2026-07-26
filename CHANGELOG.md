@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-07-26
+
+### Changed
+- The lifetime guard is a strategy object instead of a module of flags. `SessionToken` (a value object), `find_processes` (the only place psutil appears) and `LifetimeGuard` with a `JobObjectGuard` / `NullGuard` pair: `os.name` is tested in exactly one place, so no launcher code branches on the platform, and the Null implementation reports that it guarantees nothing rather than doing nothing while looking successful. Behaviour unchanged.
+- The stroke planner is six named stages instead of one 203-line function, and the idle planner is a table of episodes instead of an if/elif chain with the weights written as bare literals in the branch conditions. Both verified byte-identical against recorded output, which caught two float-associativity regressions that no other test could see - `a * b * c` and `a * (b * c)` differ in the last bit, and that is enough to change a rounded pixel and every draw after it. A permanent fingerprint test now covers 576 cases and 16135 waypoints.
+
+## [0.4.0] - 2026-07-26
+
+### Added
+- Pointer movement is generated in this package, from the session seed, instead of by the engine. Existing code gets it with no edit: the six internal funnels every pointer action already goes through are wrapped, so a `page.click` written a year ago moves through the new generator. A plain `sync_playwright()` browser in the same process is untouched.
+- Movement between actions: drift while reading, motion while the wheel turns, overshoot and correction, and movements that end on nothing. If every movement ends on something clickable, the set of endpoints is itself a signature however good each path is.
+- `INVPW_CURSOR_ENGINE` selects the generator: `python` (default), `binary` (the previous behaviour) or `off`.
+- The browser process tree is tied to this process's lifetime on Windows, so it cannot outlive a runner that was killed. Measured: eight survivors on the first attempt and twelve on the second before, zero after. `psutil` becomes a dependency for this - an optional reaper is absent exactly on the machines that need it, and silently.
+
+### Changed
+- Requires `invisible-core>=18.2.0`, which bounds the timezone lookup as a step rather than only per request.
+
+### Fixed
+- `hover()` no longer fails intermittently on Windows. The approach now completes before the automation layer's hit-target check is installed, so the only event inside its window is that layer's own move, on target. Measured on a page whose target needs a scroll: 3 failures out of 3 before, 0 out of 3 after.
+
 ## [Unreleased]
 
 ### Changed

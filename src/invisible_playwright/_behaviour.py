@@ -508,6 +508,129 @@ def _in_viewport(p: Point, viewport: Point, margin: float = 3.0) -> Point:
     return (_clamp(p[0], margin, w - margin), _clamp(p[1], margin, h - margin))
 
 
+
+# ── idle episodes ─────────────────────────────────────────────────────────
+#
+# What the pointer does during a "read". These were an if/elif chain inside
+# plan_idle with the weights written as bare cumulative literals in the branch
+# conditions - 0.46, 0.80, 0.94 - so the split a detector could measure was
+# spread across four places and readable in none of them. As a table the
+# weights are data, the ordering is checked below rather than assumed, and each
+# episode is small enough to read whole.
+#
+# THE DRAW ORDER IS THE CONTRACT: plan_idle draws the pause, then the roll, then
+# the chosen episode's own values. Reordering any of it changes every idle plan
+# for every seed. Checked against 80 recorded cases and 603 steps.
+
+
+@dataclass(frozen=True)
+class _IdleContext:
+    """Everything an episode needs, and the only way it changes the plan.
+
+    ``get_pos`` rather than a position: a settle emits several twitches and each
+    one starts where the last ended, so the episode has to see the cursor move
+    as it emits.
+    """
+
+    persona: PointerPersona
+    rng: random.Random
+    viewport: Point
+    render: Renderer
+    pause_ms: float
+    get_pos: Callable[[], Point]
+    emit: Callable[[List[Step]], None]
+
+    def nudge(self, amp: float) -> Point:
+        """A destination ``amp`` px away in a uniformly random direction."""
+        ang = self.rng.uniform(0.0, 2.0 * math.pi)
+        pos = self.get_pos()
+        return _in_viewport(
+            (pos[0] + amp * math.cos(ang), pos[1] + amp * math.sin(ang)),
+            self.viewport,
+        )
+
+
+def _idle_settle(c: _IdleContext) -> None:
+    """1-3 near-invisible adjustments, a pixel or two.
+
+    The hand is resting on the mouse; [lit] 8-12 Hz tremor plus the fact that
+    mouse friction swallows most of it.
+    """
+    lead = c.pause_ms
+    for _ in range(c.rng.randint(1, 3)):
+        dest = c.nudge(c.persona.tremor_px * c.rng.uniform(1.0, 3.5))
+        # A settle is a single small twitch, ~40-120 ms. [judg]
+        seg = _leg(c.persona, c.rng, c.get_pos(), dest, kind="settle",
+                   render=c.render,
+                   duration_ms=c.rng.uniform(40.0, 120.0) * c.persona.fidget_scale,
+                   bounds=c.viewport, lead_ms=lead)
+        lead = c.rng.uniform(60.0, 400.0)  # [judg] gap between twitches
+        c.emit(seg)
+
+
+def _idle_drift(c: _IdleContext) -> None:
+    """A slow, small displacement of a few to a few tens of px.
+
+    Not an aimed movement - a hand relaxing - so it is slow for its amplitude.
+    [judg] 200-900 ms, persona-scaled and capped so a very fidgety persona
+    still cannot creep for seconds.
+    """
+    dest = c.nudge(c.persona.drift_px * c.rng.uniform(0.4, 2.2))
+    c.emit(_leg(c.persona, c.rng, c.get_pos(), dest, kind="drift",
+                render=c.render,
+                duration_ms=min(c.rng.uniform(200.0, 900.0)
+                                * c.persona.fidget_scale, 1600.0),
+                bounds=c.viewport, lead_ms=c.pause_ms))
+
+
+def _idle_park(c: _IdleContext) -> None:
+    """Parking the cursor somewhere else entirely - out of the paragraph being
+    read, towards a scrollbar, off to one side. Ends NOWHERE by construction.
+
+    ``target_w`` huge: parking is not aimed at anything, so it is fast for its
+    distance - the opposite end of Fitts from a click.
+    """
+    dest = c.nudge(c.persona.reposition_px * c.rng.uniform(0.35, 1.6))
+    c.emit(_leg(c.persona, c.rng, c.get_pos(), dest, kind="park",
+                render=c.render, target_w=420.0, bounds=c.viewport,
+                lead_ms=c.pause_ms))
+
+
+def _idle_trace(c: _IdleContext) -> None:
+    """A slow mostly-horizontal sweep, the cursor loosely following a line."""
+    span = c.rng.uniform(60.0, 340.0) * (1 if c.rng.random() < 0.5 else -1)
+    pos = c.get_pos()
+    dest = _in_viewport((pos[0] + span, pos[1] + c.rng.gauss(0.0, 8.0)),
+                        c.viewport)
+    c.emit(_leg(c.persona, c.rng, pos, dest, kind="trace", render=c.render,
+                duration_ms=abs(span) * c.rng.uniform(2.2, 5.0),
+                target_w=420.0, bounds=c.viewport, lead_ms=c.pause_ms))
+
+
+@dataclass(frozen=True)
+class _IdleEpisode:
+    name: str
+    upto: float          # cumulative weight; the roll picks the first one under it
+    plan: Callable[[_IdleContext], None]
+
+
+#: [judg] small fidgets dominate, deliberate repositioning is occasional. The
+#: point is the shape, not the exact split - and every amplitude scales with the
+#: session's persona, so the split a detector could measure is not the same
+#: split in the next session.
+_IDLE_EPISODES: tuple[_IdleEpisode, ...] = (
+    _IdleEpisode("settle", 0.46, _idle_settle),
+    _IdleEpisode("drift", 0.80, _idle_drift),
+    _IdleEpisode("park", 0.94, _idle_park),
+    _IdleEpisode("trace", 1.01, _idle_trace),   # > 1: the roll cannot fall past it
+)
+
+assert all(a.upto < b.upto for a, b in zip(_IDLE_EPISODES, _IDLE_EPISODES[1:])), (
+    "cumulative weights must increase, or an episode is unreachable")
+assert _IDLE_EPISODES[-1].upto > 1.0, (
+    "the last episode must catch every roll, or plan_idle can emit nothing")
+
+
 def plan_idle(
     seed: int,
     persona: PointerPersona,
@@ -568,61 +691,13 @@ def plan_idle(
         before = elapsed
 
         roll = r.random()
-        if roll < 0.46:                     # [judg] settle - the common case
-            kind = "settle"
-            n_micro = r.randint(1, 3)
-            lead = pause
-            for _ in range(n_micro):
-                amp = persona.tremor_px * r.uniform(1.0, 3.5)
-                ang = r.uniform(0.0, 2.0 * math.pi)
-                dest = _in_viewport(
-                    (pos[0] + amp * math.cos(ang), pos[1] + amp * math.sin(ang)),
-                    viewport,
-                )
-                # A settle is a single small twitch, ~40-120 ms. [judg]
-                seg = _leg(persona, r, pos, dest, kind=kind, render=render,
-                           duration_ms=r.uniform(40.0, 120.0)
-                           * persona.fidget_scale,
-                           bounds=viewport, lead_ms=lead)
-                lead = r.uniform(60.0, 400.0)  # [judg] gap between twitches
-                emit(seg)
-        elif roll < 0.80:                   # [judg] drift
-            kind = "drift"
-            amp = persona.drift_px * r.uniform(0.4, 2.2)
-            ang = r.uniform(0.0, 2.0 * math.pi)
-            dest = _in_viewport(
-                (pos[0] + amp * math.cos(ang), pos[1] + amp * math.sin(ang)),
-                viewport,
-            )
-            # A drift is not an aimed movement - it is a hand relaxing - so it
-            # is slow for its amplitude. [judg] 200-900 ms, persona-scaled and
-            # capped so a very fidgety persona still cannot creep for seconds.
-            seg = _leg(persona, r, pos, dest, kind=kind, render=render,
-                       duration_ms=min(r.uniform(200.0, 900.0)
-                                       * persona.fidget_scale, 1600.0),
-                       bounds=viewport, lead_ms=pause)
-            emit(seg)
-        elif roll < 0.94:                   # [judg] reposition / park
-            amp = persona.reposition_px * r.uniform(0.35, 1.6)
-            ang = r.uniform(0.0, 2.0 * math.pi)
-            dest = _in_viewport(
-                (pos[0] + amp * math.cos(ang), pos[1] + amp * math.sin(ang)),
-                viewport,
-            )
-            # target_w huge: parking is not aimed at anything, so it is fast
-            # for its distance - the opposite end of Fitts from a click.
-            seg = _leg(persona, r, pos, dest, kind="park", render=render,
-                       target_w=420.0, bounds=viewport, lead_ms=pause)
-            emit(seg)
-        else:                               # [judg] trace along a text line
-            span = r.uniform(60.0, 340.0) * (1 if r.random() < 0.5 else -1)
-            dest = _in_viewport(
-                (pos[0] + span, pos[1] + r.gauss(0.0, 8.0)), viewport
-            )
-            seg = _leg(persona, r, pos, dest, kind="trace", render=render,
-                       duration_ms=abs(span) * r.uniform(2.2, 5.0),
-                       target_w=420.0, bounds=viewport, lead_ms=pause)
-            emit(seg)
+        ctx = _IdleContext(persona=persona, rng=r, viewport=viewport,
+                           render=render, pause_ms=pause,
+                           get_pos=lambda: pos, emit=emit)
+        for episode in _IDLE_EPISODES:
+            if roll < episode.upto:
+                episode.plan(ctx)
+                break
 
         if elapsed == before:
             # The episode produced no event at all (a sub-pixel destination).

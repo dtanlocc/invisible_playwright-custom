@@ -120,6 +120,7 @@ import random
 import sys
 import time
 import warnings
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 from weakref import WeakKeyDictionary
 
@@ -1269,83 +1270,124 @@ async def _approach(frame: Any, args: Sequence[Any], kwargs: dict,
     cursor.busy = True
     cursor.action += 1
     try:
-        handle, box = await _element_box(frame, selector)
-        if handle is None or box is None:
+        aim = await _choose_landing(frame, cursor, selector, args, kwargs)
+        if aim is None:
             return None
-        try:
-            w, h = _viewport(page)
-            position = kwargs.get("position")
-            explicit = isinstance(position, dict) and "x" in position and "y" in position
-            if explicit:
-                landing = (box["x"] + float(position["x"]),
-                           box["y"] + float(position["y"]))
-                override = None
-            else:
-                landing = _behaviour.landing_point(
-                    (box["x"], box["y"], box["width"], box["height"]),
-                    cursor.rng("cursor:landing"),
-                    spread=_LANDING_SPREAD, keep=_LANDING_KEEP,
-                )
-                override = None
-                if (
-                    landing_enabled()
-                    and _may_override(args, kwargs)
-                    and box["width"] >= _LANDING_MIN_BOX_PX
-                    and box["height"] >= _LANDING_MIN_BOX_PX
-                    and await _hits(handle, landing[0], landing[1])
-                ):
-                    override = _landing_override(box, landing)
-                else:
-                    landing = (box["x"] + box["width"] / 2.0,
-                               box["y"] + box["height"] / 2.0)
-        finally:
-            await _dispose(handle)
 
-        if not _inside(landing[0], landing[1], w, h):
+        w, h = _viewport(page)
+        if not _inside(aim.landing[0], aim.landing[1], w, h):
             # The element is off-screen; the action is about to scroll it into
             # view and we would be aiming at where it used to be. Let the
             # action place the cursor itself this once.
             return None
 
-        async def raw(x: float, y: float) -> None:
-            await move(mouse, x, y)
-
-        bounds = _bounds(page)
-        budget = cursor.max_seconds
-        fidget = _plan_fidget(cursor, page, timer)
-        if fidget:
-            # The fidget spends its own share of the budget and hands the rest
-            # to the approach, which is the part that has to work. The floor
-            # keeps a pathological share from leaving the approach no time.
-            spent = min(sum(s.delay_ms for s in fidget) / 1000.0,
-                        budget * _IDLE_BUDGET_FRAC)
-            await _run_steps(cursor, fidget, raw, budget_s=spent, timer=timer)
-            budget = max(budget - spent, 0.2)
-
-        steps = _behaviour.plan_approach(
-            cursor.seed, cursor.persona, cursor.here(page),
-            (box["x"], box["y"], box["width"], box["height"]), bounds,
-            nonce=cursor.action, landing=landing,
-            render=cursor.renderer(bounds),
-        )
-        if steps:
-            # ``emit_last=False``: the final hop onto the landing point is left
-            # to the action itself. That is the whole hover fix restated - the
-            # only event inside the hit-target window is the automation layer's
-            # own move, and it is on target - and it also removes what would
-            # otherwise be a zero-displacement event immediately before every
-            # mousedown, since the action moves to the point we just landed on.
-            await _run_steps(cursor, steps, raw, budget_s=budget, timer=timer,
-                             emit_last=False)
-        else:
-            # Sub-pixel approach: the pointer is already standing on the
-            # target. Emitting a move to where it already is would be a
-            # zero-displacement event, so the action's own move is left to do
-            # the whole of it.
-            cursor.x, cursor.y = landing
-        return override
+        await _walk_onto(cursor, page, aim, move, mouse, timer)
+        return aim.override
     finally:
         cursor.busy = False
+
+
+@dataclass
+class _Aim:
+    """Where this action is going, and how the caller must be adjusted for it.
+
+    ``override`` is the kwargs change that tells the action to click the point
+    we walked to rather than the element's centre; None means the action is
+    left exactly as the caller wrote it.
+    """
+
+    box: Dict[str, float]
+    landing: tuple
+    override: Optional[Dict[str, Any]]
+
+    @property
+    def rect(self) -> tuple:
+        return (self.box["x"], self.box["y"],
+                self.box["width"], self.box["height"])
+
+
+async def _choose_landing(frame: Any, cursor: Any, selector: str,
+                          args: Sequence[Any], kwargs: dict) -> Optional[_Aim]:
+    """Pick the point on the element this action will land on.
+
+    Split out of ``_approach`` so the element handle's lifetime is one small
+    scope with one ``finally`` in it, rather than a nested try inside a
+    function that also spends a time budget and dispatches events.
+    """
+    handle, box = await _element_box(frame, selector)
+    if handle is None or box is None:
+        return None
+    try:
+        position = kwargs.get("position")
+        if isinstance(position, dict) and "x" in position and "y" in position:
+            # The caller aimed explicitly. Honour it exactly and override
+            # nothing: choosing our own point here would silently move a click
+            # the caller had every reason to think was pinned.
+            return _Aim(box, (box["x"] + float(position["x"]),
+                              box["y"] + float(position["y"])), None)
+
+        landing = _behaviour.landing_point(
+            (box["x"], box["y"], box["width"], box["height"]),
+            cursor.rng("cursor:landing"),
+            spread=_LANDING_SPREAD, keep=_LANDING_KEEP,
+        )
+        if (
+            landing_enabled()
+            and _may_override(args, kwargs)
+            and box["width"] >= _LANDING_MIN_BOX_PX
+            and box["height"] >= _LANDING_MIN_BOX_PX
+            and await _hits(handle, landing[0], landing[1])
+        ):
+            return _Aim(box, landing, _landing_override(box, landing))
+        # The off-centre point missed the element (it is not a rectangle, or it
+        # is too small for the spread to be safe). Fall back to the centre and
+        # do NOT override: an override naming a point that misses would turn a
+        # working click into a failing one.
+        return _Aim(box, (box["x"] + box["width"] / 2.0,
+                          box["y"] + box["height"] / 2.0), None)
+    finally:
+        await _dispose(handle)
+
+
+async def _walk_onto(cursor: Any, page: Any, aim: _Aim, move: Any,
+                     mouse: Any, timer: Any) -> None:
+    """Spend the time budget getting the pointer to ``aim``."""
+
+    async def raw(x: float, y: float) -> None:
+        await move(mouse, x, y)
+
+    bounds = _bounds(page)
+    budget = cursor.max_seconds
+
+    fidget = _plan_fidget(cursor, page, timer)
+    if fidget:
+        # The fidget spends its own share of the budget and hands the rest to
+        # the approach, which is the part that has to work. The floor keeps a
+        # pathological share from leaving the approach no time.
+        spent = min(sum(s.delay_ms for s in fidget) / 1000.0,
+                    budget * _IDLE_BUDGET_FRAC)
+        await _run_steps(cursor, fidget, raw, budget_s=spent, timer=timer)
+        budget = max(budget - spent, 0.2)
+
+    steps = _behaviour.plan_approach(
+        cursor.seed, cursor.persona, cursor.here(page), aim.rect, bounds,
+        nonce=cursor.action, landing=aim.landing,
+        render=cursor.renderer(bounds),
+    )
+    if steps:
+        # ``emit_last=False``: the final hop onto the landing point is left to
+        # the action itself. That is the whole hover fix restated - the only
+        # event inside the hit-target window is the automation layer's own
+        # move, and it is on target - and it also removes what would otherwise
+        # be a zero-displacement event immediately before every mousedown,
+        # since the action moves to the point we just landed on.
+        await _run_steps(cursor, steps, raw, budget_s=budget, timer=timer,
+                         emit_last=False)
+    else:
+        # Sub-pixel approach: the pointer is already standing on the target.
+        # Emitting a move to where it already is would be a zero-displacement
+        # event, so the action's own move is left to do the whole of it.
+        cursor.x, cursor.y = aim.landing
 
 
 def _wrap_mouse_move(original: Callable[..., Any]) -> Callable[..., Any]:
