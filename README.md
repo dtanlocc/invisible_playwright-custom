@@ -47,7 +47,7 @@ Once the browser is handled it stops being the variable. If you are still gettin
 
 ```bash
 pip install invisible-playwright
-python -m invisible_playwright fetch      # one-time ~100 MB download, SHA256-verified
+python -m invisible_playwright fetch      # one-time ~238 MB download (~544 MB unpacked), sha256-verified
 ```
 
 Supported platforms: **Windows x86_64**, **Linux x86_64 / arm64**, **macOS arm64 / x86_64**. On macOS the app is ad-hoc signed (not notarized): if Gatekeeper complains, clear the quarantine flag once with `xattr -dr com.apple.quarantine` on the cached `Firefox.app`.
@@ -161,13 +161,42 @@ Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and
 
 ## CLI
 
+The installed command is `invisible-playwright`, with a hyphen. `python -m
+invisible_playwright` works identically and needs nothing on PATH.
+
 ```bash
-invisible_playwright fetch          # download the binary if missing
-invisible_playwright fetch --force  # re-download even if cached
-invisible_playwright path           # print the absolute path to the cached binary
-invisible_playwright version        # wrapper and binary versions
-invisible_playwright clear-cache    # remove all cached binaries
+invisible-playwright fetch          # download the engine if missing
+invisible-playwright fetch --force  # re-download even if cached
+invisible-playwright path           # absolute path to the cached engine (downloads it if absent)
+invisible-playwright version        # wrapper, core and engine versions
+invisible-playwright clear-cache    # remove cached engine trees
+invisible-playwright doctor         # check every cached engine against the seal
 ```
+
+### Where the engine lives, and how big it is
+
+The first launch downloads one archive for your platform - **238 MB on Windows,
+217-232 MB elsewhere** - and unpacks it to about **544 MB** on disk. It is
+verified against a sha256 shipped inside `invisible-core`, so a truncated or
+substituted download is refused rather than used.
+
+It is cached, so this happens once per engine version. Set
+`INVISIBLE_PLAYWRIGHT_CACHE_DIR` to put it somewhere else - a different drive,
+a shared location, a path your CI already caches:
+
+```bash
+export INVISIBLE_PLAYWRIGHT_CACHE_DIR=/mnt/big/engines
+```
+
+Other environment variables you may want:
+
+| variable | what it does |
+|---|---|
+| `INVISIBLE_PLAYWRIGHT_CACHE_DIR` | where engines are cached |
+| `INVPW_BINARY_PATH` | use a specific binary and skip the download entirely |
+| `STEALTHFOX_GITHUB_TOKEN` | authenticate the download, for rate-limited or corporate networks |
+| `INVISIBLE_PLAYWRIGHT_SKEW=allow` | run a Playwright outside the tested range anyway |
+| `INVPW_CURSOR_ENGINE` | `python` (default), `binary`, or `off` |
 
 ## Related projects
 
