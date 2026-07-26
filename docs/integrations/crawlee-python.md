@@ -1,0 +1,146 @@
+# Using invisible_playwright with Crawlee for Python
+
+Crawlee drives browsers through a plugin, so a different browser backend is a
+subclass rather than a fork. This page is the integration guide for
+`invisible_playwright`, hosted here rather than in Crawlee's own documentation,
+which is where Crawlee asks third-party integrations to live.
+
+Written against `crawlee` on `master` as of 2026-07-27, `invisible-playwright`
+0.4.2 and `invisible-core` 18.2.0. If Crawlee changes
+`PlaywrightBrowserPlugin.new_browser`, this page is the thing that goes stale, so
+check the signature before blaming the engine.
+
+## What you need
+
+```bash
+pip install crawlee[playwright] invisible-playwright
+```
+
+The patched Firefox binary is downloaded on first launch and cached, so the first
+run is slow and every later one is not. Nothing else to install: the package brings
+its own engine and drives it with stock Playwright.
+
+## The plugin
+
+Crawlee's extension point is `PlaywrightBrowserPlugin`. Override `new_browser`,
+launch whatever browser you want, and hand it back in a
+`PlaywrightBrowserController`. The subclass below keeps every other behaviour of
+the base plugin, including incognito pages and the persistent-profile path.
+
+```python
+import asyncio
+
+from crawlee.browsers import (
+    BrowserPool,
+    PlaywrightBrowserController,
+    PlaywrightBrowserPlugin,
+    PlaywrightPersistentBrowser,
+)
+from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
+from invisible_playwright import (
+    ensure_binary,
+    get_default_args,
+    get_default_stealth_prefs,
+)
+from typing_extensions import override
+
+
+class InvisiblePlaywrightPlugin(PlaywrightBrowserPlugin):
+    """Launches the patched Firefox, keeps the rest of PlaywrightBrowserPlugin."""
+
+    def __init__(self, *args, seed: int | None = None, **kwargs) -> None:
+        # browser_type is forced: this plugin only knows how to launch Firefox.
+        kwargs['browser_type'] = 'firefox'
+        super().__init__(*args, **kwargs)
+        self._seed = seed
+
+    @override
+    async def new_browser(self) -> PlaywrightBrowserController:
+        if not self._playwright:
+            raise RuntimeError('Playwright browser plugin is not initialized.')
+
+        options = dict(self._browser_launch_options)
+        options.pop('executable_path', None)
+        options.pop('firefox_user_prefs', None)
+        options['executable_path'] = str(ensure_binary())
+        options['args'] = [*options.get('args', []), *get_default_args()]
+        options['firefox_user_prefs'] = get_default_stealth_prefs(
+            seed=self._seed,
+            humanize=True,
+        )
+
+        if self._use_incognito_pages:
+            browser = await self._playwright.firefox.launch(**options)
+        else:
+            browser = PlaywrightPersistentBrowser(
+                self._playwright.firefox, self._user_data_dir, options
+            )
+
+        return PlaywrightBrowserController(
+            browser,
+            use_incognito_pages=self._use_incognito_pages,
+            max_open_pages_per_browser=self._max_open_pages_per_browser,
+            # The fingerprint is compiled into the engine, so Crawlee's own
+            # generator would be a second, disagreeing opinion. Leave it off.
+            fingerprint_generator=None,
+        )
+
+
+async def main() -> None:
+    crawler = PlaywrightCrawler(
+        max_requests_per_crawl=10,
+        # seed=None gives a fresh identity per run. Pass an int to reproduce one.
+        browser_pool=BrowserPool(plugins=[InvisiblePlaywrightPlugin(seed=1)]),
+    )
+
+    @crawler.router.default_handler
+    async def request_handler(context: PlaywrightCrawlingContext) -> None:
+        context.log.info(f'Processing {context.request.url} ...')
+        await context.push_data({'url': context.request.url})
+        await context.enqueue_links()
+
+    await crawler.run(['https://quotes.toscrape.com/'])
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+## Three things that will bite you otherwise
+
+**`fingerprint_generator=None` is not optional.** Crawlee can generate a fingerprint
+and matching headers, on the assumption that it controls the browser's identity.
+Here it does not: the identity is compiled into the engine and derived from the
+seed. Leaving the generator on produces two independent opinions about who this
+browser is, and the disagreement between them is exactly what detectors read.
+
+**The seed decides whether a failure is debuggable.** With `seed=None` every run is
+a different machine, so a failing run tells you nothing: you cannot separate the
+site changing from the identity changing. Pass an integer and the navigator, screen,
+GPU, fonts, canvas and audio surfaces are identical every time. Change it when you
+want a different machine, not when you want a different outcome.
+
+**Do not set a user agent on the Crawlee side.** Same reason. The user agent comes
+from the engine's real version and from the same seeded profile as everything else;
+overriding only that string is the classic way to build a browser whose stated
+identity and observable behaviour disagree.
+
+## Proxies
+
+Pass them the way Crawlee already expects, through the launch options the plugin
+receives. SOCKS5 goes through the patched proxy path inside the engine, HTTP and
+HTTPS go through Playwright's own `proxy=` argument.
+
+If you use one, leave locale and timezone on their defaults. They resolve from the
+exit IP rather than from the host machine, which is what keeps the JS timezone, the
+language list and the IP in agreement. Setting them by hand to your own machine's
+values is how a session ends up claiming one country while leaving from another.
+
+## When this is the wrong tool
+
+If the target needs Chromium, this is the wrong engine and no amount of patching
+changes it. Some sites serve different code to Firefox and some need Chrome-specific
+behaviour. A clean Firefox is still a Firefox.
+
+The binary is also a few hundred megabytes, cached per machine. Fine on a
+workstation, worth thinking about in a container image you rebuild often.
