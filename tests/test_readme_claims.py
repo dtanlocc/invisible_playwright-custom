@@ -129,14 +129,25 @@ def test_documented_environment_variables_are_read_somewhere(name):
     """A documented knob that nothing reads is worse than an undocumented one:
     the reader sets it, sees no effect, and distrusts the rest of the page."""
     assert name in _readme(), f"{name} is no longer documented"
+
+    # Two of these four are read by the CORE, not by this package. The first
+    # version looked for them in `_REPO.parent / "invisible_core" / "src"` - a
+    # SIBLING CHECKOUT, which exists on the workbench and nowhere else. On CI,
+    # where only this repo is checked out and the core arrives as a wheel, that
+    # path is missing, the list comprehension yields nothing, and the test
+    # reported that the README documents a variable no module reads. It was
+    # reading the developer's directory layout.
+    #
+    # The INSTALLED package is the right thing to ask either way: it is what a
+    # user's environment actually contains, editable checkout or wheel.
+    import invisible_core
+
+    roots = [_REPO / "src", pathlib.Path(invisible_core.__file__).parent]
     hits = [
         path
-        for path in (_REPO / "src").rglob("*.py")
-        if name in path.read_text(encoding="utf-8", errors="ignore")
-    ] + [
-        path
-        for path in (_REPO.parent / "invisible_core" / "src").rglob("*.py")
-        if (_REPO.parent / "invisible_core").is_dir()
+        for root in roots
+        for path in root.rglob("*.py")
+        if "__pycache__" not in path.as_posix()
         and name in path.read_text(encoding="utf-8", errors="ignore")
     ]
     assert hits, f"the README documents {name}, which no shipped module reads"

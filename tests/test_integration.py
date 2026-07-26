@@ -23,9 +23,25 @@ from invisible_playwright.prefs import (
 )
 
 
-# Keys every Profile-derived prefs dict MUST carry. Sourced from
-# ``translate_profile_to_prefs`` direct writes (not from _BASELINE) plus
-# a couple of baseline keys that callers commonly read.
+# Keys every Profile-derived prefs dict MUST carry.
+#
+# CAREFUL: this list is a DUPLICATE of a contract that belongs to another
+# package. `invisible_playwright.prefs` is a pure alias shim for
+# `invisible_core.prefs`, so this file tests the CORE's function through an
+# alias - against whichever core version pip resolved, which on CI is the
+# PUBLISHED one and locally is the checkout.
+#
+# That difference made CI red on 2026-07-27. Two codec prefs were renamed to
+# their real Firefox spellings (`media.webm.enabled` / `media.mp4.enabled`) in
+# the core's checkout; the pinned release does not emit them yet, so this list
+# asserted a contract the declared dependency does not meet. That is a NORMAL
+# state between releases, and a gate that is red for a normal state is a gate
+# people learn to ignore.
+#
+# The two keys are asserted in the core's own suite
+# (`invisible_core/tests/test_prefs_surface.py`), which is where the change
+# lives and where the assertion moves with it. Nothing is lost by not repeating
+# them here. Only add a key to this list once the PINNED core emits it.
 _REQUIRED_PREFS_KEYS = (
     "zoom.stealth.screen.width",
     "zoom.stealth.screen.height",
@@ -38,8 +54,6 @@ _REQUIRED_PREFS_KEYS = (
     "zoom.stealth.audio.max_channel_count",
     "media.av1.enabled",
     "media.encoder.webm.enabled",
-    "media.webm.enabled",
-    "media.mp4.enabled",
     "ui.systemUsesDarkTheme",
     "intl.accept_languages",
     "general.useragent.locale",
@@ -86,6 +100,7 @@ def test_socks5_proxy_mutates_prefs_then_pipeline_still_valid():
     intact) and the proxy return is ``None`` so Playwright sees no proxy."""
     profile = generate_profile(seed=42)
     prefs = translate_profile_to_prefs(profile)
+    before = dict(prefs)
 
     pw_proxy = configure_proxy(
         {
@@ -106,6 +121,13 @@ def test_socks5_proxy_mutates_prefs_then_pipeline_still_valid():
     assert prefs["network.proxy.socks_remote_dns"] is True
 
     # Profile-derived keys must still be present after proxy mutation.
+    #
+    # Compared against the dict as it was BEFORE the call, not against the
+    # literal list above. Strictly stronger - it catches the loss of any key,
+    # including ones nobody thought to list - and it is version-independent, so
+    # it says the same thing whichever core is installed.
+    lost = sorted(set(before) - set(prefs))
+    assert not lost, f"proxy mutation dropped {len(lost)} pref(s): {lost}"
     for k in _REQUIRED_PREFS_KEYS:
         assert k in prefs, f"proxy mutation dropped required key {k!r}"
 
