@@ -8,6 +8,13 @@ from typing import Any, Dict, Optional, Union
 
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 
+from ._cursor import (
+    ENGINE_PYTHON,
+    enable_for as _enable_cursor_engine,
+    humanize_prefs as _humanize_prefs,
+    max_seconds_for as _cursor_max_seconds,
+    resolve_cursor_engine,
+)
 from ._fpforge import Profile, generate_profile
 from ._webgl_personas import forced_gpu_class
 from ._geo import prepare_session_geo
@@ -62,6 +69,10 @@ class InvisiblePlaywright:
         self._proxy = proxy
         self._extra_args = list(extra_args or [])
         self._humanize = humanize
+        # See the sync launcher: who draws the cursor path (this package by
+        # default, the browser under INVPW_CURSOR_ENGINE=binary, nobody when
+        # humanize is falsy). Decided here because the prefs depend on it.
+        self._cursor_engine = resolve_cursor_engine(humanize)
         self._locale = locale
         self._timezone = timezone
         self._extra_prefs = extra_prefs
@@ -116,11 +127,11 @@ class InvisiblePlaywright:
         if self._headless and _sys.platform in ("win32", "darwin"):
             for _k, _v in cloak_prefs().items():
                 prefs.setdefault(_k, _v)
-        # stealthfox.* is the namespace the binary's Juggler reads (see launcher.py note).
-        prefs["stealthfox.humanize"] = bool(self._humanize)
-        if self._humanize:
-            cap = 1.5 if self._humanize is True else float(self._humanize)
-            prefs["stealthfox.humanize.maxTime"] = str(cap)
+        # stealthfox.* is the namespace the binary's Juggler reads (see launcher.py
+        # note). The pref now selects WHICH generator runs, not whether motion is
+        # on: it must be false while the wrapper draws the path, or every waypoint
+        # we send would itself be expanded into a whole path.
+        prefs.update(_humanize_prefs(self._cursor_engine, self._humanize))
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
         pw_headless = self._resolve_headless()
         env = self._build_env(prefs)
@@ -143,6 +154,7 @@ class InvisiblePlaywright:
                     **self._default_context_kwargs(),
                 )
                 _patch_new_page_sleep(self._persistent_context)
+                self._arm_cursor_engine(self._persistent_context)
                 return self._persistent_context
             self._browser = await self._pw.firefox.launch(
                 executable_path=str(executable),
@@ -159,7 +171,22 @@ class InvisiblePlaywright:
             await self._teardown()
             raise
         self._patch_new_context_defaults(self._browser)
+        self._arm_cursor_engine(self._browser)
         return self._browser
+
+    def _arm_cursor_engine(self, owner: Any) -> None:
+        """Register this session so its pages move through the Python generator.
+
+        Same wiring as the sync launcher, and the same single hook point: the
+        wrappers live on the shared implementation objects, so arming a session
+        here covers ``await page.click(...)``, ``await locator.hover(...)`` and
+        ``await page.mouse.move(...)`` without a second implementation.
+        """
+        if self._cursor_engine != ENGINE_PYTHON:
+            return
+        _enable_cursor_engine(
+            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
+        )
 
     def _patch_new_context_defaults(self, browser: Browser) -> None:
         original = browser.new_context

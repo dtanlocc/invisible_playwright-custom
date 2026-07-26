@@ -7,6 +7,13 @@ from typing import Any, Dict, Optional, Union
 
 from playwright.sync_api import Browser, BrowserContext, Playwright, sync_playwright
 
+from ._cursor import (
+    ENGINE_PYTHON,
+    enable_for as _enable_cursor_engine,
+    humanize_prefs as _humanize_prefs,
+    max_seconds_for as _cursor_max_seconds,
+    resolve_cursor_engine,
+)
 from ._fpforge import Profile, generate_profile
 from ._webgl_personas import forced_gpu_class
 from ._geo import prepare_session_geo
@@ -87,9 +94,11 @@ class InvisiblePlaywright:
         with InvisiblePlaywright(seed=42) as browser:
             ...
 
-        # human-like cursor motion (Bezier trajectory on every mousemove)
+        # human-like cursor motion, on by default: the ordinary Playwright
+        # pointer calls move the cursor along a path drawn from `seed`
         with InvisiblePlaywright(humanize=True) as browser:
-            ...
+            page = browser.new_page()
+            page.click("#submit")   # the pointer travels there, it does not jump
 
     Optional ``pin`` forces specific fingerprint fields while the rest still
     varies with ``seed``::
@@ -131,10 +140,15 @@ class InvisiblePlaywright:
                 ``nsProtocolProxyService``; ``http(s)://`` go through
                 Playwright's own ``proxy=`` kwarg.
             extra_args: Extra command-line args forwarded to Firefox.
-            humanize: Every mouse move is expanded by the patched Juggler
-                into a Bezier trajectory with ~10 ms between waypoints.
-                Default ``True`` (~1.5 s max motion). ``False`` disables;
-                a float caps the motion in seconds.
+            humanize: Move the pointer along a curved, paced path instead of
+                teleporting it. Applies to ``page.click`` / ``page.hover`` /
+                ``locator.click`` / ``page.mouse.move`` and the rest of the
+                ordinary Playwright pointer API - there is nothing new to
+                call. Default ``True`` (~1.5 s cap per movement); ``False``
+                disables; a float caps a movement in seconds. The path is
+                drawn from ``seed``, so the same seed replays the same motion.
+                Set ``INVPW_CURSOR_ENGINE=binary`` to go back to letting the
+                browser draw it, or ``=off`` to disable motion process-wide.
             locale: BCP-47 tag (e.g. ``"en-US"``) or ``"auto"`` (default).
                 ``"auto"`` derives the locale from the egress country - the proxy
                 egress IP, or the host's public IP without a proxy - exactly like
@@ -177,6 +191,11 @@ class InvisiblePlaywright:
         self._proxy = proxy
         self._extra_args = list(extra_args or [])
         self._humanize = humanize
+        # Who draws the cursor path: this package (default), the browser
+        # (``INVPW_CURSOR_ENGINE=binary``, the way back for anyone depending on
+        # the old behaviour), or nobody (``humanize=False``). Resolved once,
+        # here, because the prefs handed to the browser depend on the answer.
+        self._cursor_engine = resolve_cursor_engine(humanize)
         self._locale = locale
         self._timezone = timezone
         self._extra_prefs = extra_prefs
@@ -240,6 +259,7 @@ class InvisiblePlaywright:
                     **self._persistent_context_kwargs(),
                 )
                 _patch_sync_new_page_sleep(self._persistent_context)
+                self._arm_cursor_engine(self._persistent_context)
                 return self._persistent_context
             self._browser = self._pw.firefox.launch(
                 executable_path=str(executable),
@@ -261,7 +281,25 @@ class InvisiblePlaywright:
             self._teardown()
             raise
         self._patch_new_context_defaults(self._browser)
+        self._arm_cursor_engine(self._browser)
         return self._browser
+
+    def _arm_cursor_engine(self, owner: Any) -> None:
+        """Register this session so its pages move through the Python generator.
+
+        Registered on the browser (or on the persistent context, which is all
+        there is in that mode) rather than on each page: pages appear by
+        several routes we do not control - ``browser.new_page()`` builds its
+        context inside the driver, and a site can open a popup on its own - and
+        every one of them can find its way back to this owner. The seed is the
+        session seed, so a replayed seed replays the cursor exactly as it
+        replays the fingerprint.
+        """
+        if self._cursor_engine != ENGINE_PYTHON:
+            return
+        _enable_cursor_engine(
+            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
+        )
 
     def _persistent_context_kwargs(self) -> Dict[str, Any]:
         """Context-level kwargs accepted by launch_persistent_context.
@@ -370,12 +408,17 @@ class InvisiblePlaywright:
             for _k, _v in cloak_prefs().items():
                 prefs.setdefault(_k, _v)
         # Pref namespace MUST be stealthfox.* - that's what the binary's Juggler
-        # reads (PageHandler.js gates the Bezier mouse path on `stealthfox.humanize`).
+        # reads (it gates its own mouse-path expansion on `stealthfox.humanize`).
         # The old `invisible_playwright.*` name was a dead no-op (nothing read it), so
         # humanize silently never fired and every click teleported the cursor.
-        prefs["stealthfox.humanize"] = bool(self._humanize)
-        if self._humanize:
-            prefs["stealthfox.humanize.maxTime"] = str(self._humanize_max_seconds())
+        #
+        # The pref is now the switch between the two generators, not the switch
+        # for the feature. When the wrapper generates the motion it must be
+        # FALSE, or a single move would be expanded twice - once here into
+        # waypoints, and then once again by the browser for each of those
+        # waypoints. `humanize=` on the constructor keeps its old meaning
+        # exactly; only the place the curve is computed has moved.
+        prefs.update(_humanize_prefs(self._cursor_engine, self._humanize))
         return prefs
 
     def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
@@ -430,7 +473,5 @@ class InvisiblePlaywright:
         return False
 
     def _humanize_max_seconds(self) -> float:
-        if self._humanize is True:
-            return 1.5
-        return float(self._humanize)
+        return _cursor_max_seconds(self._humanize)
 

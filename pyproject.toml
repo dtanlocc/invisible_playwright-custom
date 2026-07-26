@@ -103,4 +103,11 @@ include = ["src/invisible_playwright", "tests", "README.md", "LICENSE", "pyproje
 # Apache-2.0, ~322 files. Redistributing it inside an sdist whose only declared
 # licence is MIT misstates the licence of what is being distributed, and a PyPI
 # filename can never be re-uploaded once published.
-exclude = ["tests/playwright-upstream"]
+#
+# tests/test_naming_guard.py is a MAINTAINER gate, not a user-facing test. It
+# fails closed when STEALTH_EXTRA_LEAK_PATTERNS is unset - deliberately, because
+# a guard that skips when unconfigured guards nothing - and that word list lives
+# outside every public repo. Shipping it would hand every user three red tests
+# they have no way to make green, for a check that is about our release
+# hygiene and not about their install.
+exclude = ["tests/playwright-upstream", "tests/test_naming_guard.py"]

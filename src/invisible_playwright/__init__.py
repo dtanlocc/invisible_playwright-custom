@@ -13,7 +13,13 @@ Quickstart:
 
     with InvisiblePlaywright(humanize=True) as browser:  # human-like cursor motion
         page = browser.new_page()
-        page.click("#submit")   # expanded into a Bezier trajectory
+        page.click("#submit")   # the pointer travels there, it does not jump
+
+``humanize`` is on by default and needs no new API: the ordinary Playwright
+pointer calls - ``page.click`` / ``page.hover`` / ``locator.click`` /
+``page.mouse.move`` - move the cursor along a path drawn from ``seed``, so the
+same seed replays the same motion. ``INVPW_CURSOR_ENGINE=binary`` restores the
+previous behaviour, where the browser drew the path instead.
 """
 # ── Import-time core assertion, and repair ───────────────────────────────────
 # Runs BEFORE every other import. Two questions, one check: is the installed
