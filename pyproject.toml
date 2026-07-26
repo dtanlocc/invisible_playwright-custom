@@ -110,4 +110,4 @@ include = ["src/invisible_playwright", "tests", "README.md", "LICENSE", "pyproje
 # outside every public repo. Shipping it would hand every user three red tests
 # they have no way to make green, for a check that is about our release
 # hygiene and not about their install.
-exclude = ["tests/playwright-upstream", "tests/test_naming_guard.py"]
+exclude = ["tests/playwright-upstream"]
