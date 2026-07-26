@@ -40,12 +40,25 @@ from pathlib import Path
 
 import pytest
 
-# Version the shipped binary reports, derived from the same constant the wrapper
-# uses so these assertions can never drift from what actually ships (they were
-# hardcoded to "150" and went red the moment firefox-18 / FF151 landed).
-from invisible_playwright.constants import FIREFOX_UPSTREAM_VERSION
-
-_FX_MAJOR = FIREFOX_UPSTREAM_VERSION.split(".")[0]
+# NOT imported at module level. This file is collected in an environment that
+# deliberately does NOT have the package installed - the package under test
+# goes into a venv the fixtures build, from the index, and a second copy on the
+# runner's path would mean the assertions read the wrong one. Importing it here
+# made collection fail outright (exit 4, "No module named invisible_playwright")
+# on both CI runners while passing locally, where a checkout is always
+# importable.
+#
+# Reading it from the VENV is also the more honest question: what a user gets
+# is what the installed package says, not what this checkout says.
+def _upstream_version(py: Path) -> str:
+    out = subprocess.run(
+        [str(py), "-c",
+         "from invisible_playwright.constants import FIREFOX_UPSTREAM_VERSION as v; print(v)"],
+        capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0, (
+        "could not read FIREFOX_UPSTREAM_VERSION from the installed package: "
+        + (out.stdout or "") + " " + (out.stderr or ""))
+    return out.stdout.strip().splitlines()[-1]
 
 REPO_URL = "https://github.com/feder-cr/invisible_playwright.git"
 REV = os.environ.get("INVPW_E2E_REV", "main")
@@ -250,8 +263,9 @@ def test_binary_executes_after_fetch(clean_venv: Path, isolated_cache_env: dict)
     r = subprocess.run([str(binary_path), "--version"],
                        capture_output=True, text=True, timeout=30)
     text = (r.stdout + r.stderr).lower()
-    assert "firefox" in text and FIREFOX_UPSTREAM_VERSION in text, (
-        f"binary --version didn't report Firefox {FIREFOX_UPSTREAM_VERSION}: "
+    upstream = _upstream_version(clean_venv)
+    assert "firefox" in text and upstream in text, (
+        f"binary --version didn't report Firefox {upstream}: "
         f"rc={r.returncode} out={r.stdout!r} err={r.stderr!r}"
     )
 
@@ -292,8 +306,9 @@ def test_playwright_launch_against_real_site(clean_venv: Path,
     assert "TITLE=Example Domain" in out.stdout, (
         f"page.title() didn't return expected text:\n{out.stdout[-1000:]}"
     )
-    assert "UA=" in out.stdout and f"Firefox/{_FX_MAJOR}" in out.stdout, (
-        f"navigator.userAgent doesn't report Firefox/{_FX_MAJOR} - UA spoofing "
+    major = _upstream_version(clean_venv).split(".")[0]
+    assert "UA=" in out.stdout and f"Firefox/{major}" in out.stdout, (
+        f"navigator.userAgent doesn't report Firefox/{major} - UA spoofing "
         f"regression?\n{out.stdout[-1000:]}"
     )
 
