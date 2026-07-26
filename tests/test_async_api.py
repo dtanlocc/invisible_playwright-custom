@@ -81,3 +81,77 @@ def test_async_default_context_kwargs_match_sync():
     a = AsyncIP(seed=42, timezone="America/New_York", locale="de-DE")
     s = SyncIP(seed=42, timezone="America/New_York", locale="de-DE")
     assert a._default_context_kwargs() == s._default_context_kwargs()
+
+
+# ── parity with the sync launcher, driven rather than declared ───────────────
+
+def test_the_async_api_stamps_the_session_token_into_the_browser_env():
+    """The gap that shipped a "fixed" leak to half the users.
+
+    The Windows process-leak fix went into 0.4.0 and was described as fixed. It
+    reached the sync launcher only: this module did not import _reaper at all,
+    so the browser tree was never marked, could never be found, and a killed
+    runner left eight to twelve browsers behind for every async user. Nothing
+    was red - no test enters this context manager, and the file's own docstring
+    claimed parity while testing the constructor.
+
+    Asserted on the env the browser would actually receive, because that is the
+    only thing the guard can key on.
+    """
+    from invisible_playwright import _reaper
+    from invisible_playwright.async_api import InvisiblePlaywright as Async
+
+    session = Async(seed=42)
+    session._session_token = _reaper.SessionToken.mint()
+    env = session._build_env({})
+    assert env.get(_reaper.TOKEN_VAR) == session._session_token.value, (
+        "the async API does not stamp INVPW_SESSION_TOKEN, so the reaper can "
+        "never identify its browser tree")
+
+
+def test_both_apis_declare_the_same_lifetime_machinery():
+    """Structural parity, so the next feature cannot land on one side only.
+
+    This is deliberately about NAMES, not behaviour: the behaviour is covered
+    by test_reaper.py, and what failed here was that one module simply never
+    grew the attributes. A test comparing outputs would have passed on two
+    objects that share nothing.
+    """
+    from invisible_playwright import async_api, launcher
+
+    sync_session = launcher.InvisiblePlaywright(seed=1)
+    async_session = async_api.InvisiblePlaywright(seed=1)
+    for attr in ("_session_token", "_lifetime_guard", "_bind_process_tree"):
+        assert hasattr(sync_session, attr), f"sync lost {attr}"
+        assert hasattr(async_session, attr), (
+            f"the async API has no {attr}; the two entry points have drifted "
+            f"and whichever one a user picked decides whether they are covered")
+
+
+def test_the_async_teardown_reaps():
+    """`__aexit__` must reap, not merely close.
+
+    Driven through the real `_teardown` with a recording guard: every close
+    step is individually wrapped in `except: pass`, so a browser that refuses
+    to close is swallowed - the reap is the only thing left that can act.
+    """
+    import asyncio
+
+    from invisible_playwright import _reaper
+    from invisible_playwright.async_api import InvisiblePlaywright as Async
+
+    reaped = []
+
+    class Recording(_reaper.NullGuard):
+        def reap(self, token, *, timeout: float = 5.0) -> int:
+            reaped.append(token.value)
+            return 0
+
+    session = Async(seed=7)
+    session._session_token = _reaper.SessionToken.mint()
+    session._lifetime_guard = Recording()
+    expected = session._session_token.value
+
+    asyncio.run(session._teardown())
+    assert reaped == [expected], (
+        "async teardown did not reap the session's tree")

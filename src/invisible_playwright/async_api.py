@@ -21,6 +21,7 @@ from ._geo import prepare_session_geo
 from ._headless import cloak_prefs, make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from ._proxy import configure_proxy as _configure_proxy_shared
+from ._reaper import SessionToken, guard_for
 from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H, _tz_env
 from .prefs import translate_profile_to_prefs
 
@@ -87,6 +88,17 @@ class InvisiblePlaywright:
         self._browser: Optional[Browser] = None
         self._persistent_context: Optional[BrowserContext] = None
         self._virtual_display: Any = None
+        # Identity for this session's browser tree, and the guard that ties it
+        # to this process's lifetime. Declared here rather than in __aenter__ so
+        # _teardown - which runs on the failure path too - always finds them.
+        #
+        # THIS WAS MISSING ENTIRELY until 2026-07-26. The Windows process-leak
+        # fix shipped in 0.4.0 and was described as fixed; it went to the sync
+        # launcher only. Every async user kept the whole leak - a killed runner
+        # left eight to twelve browsers behind - while the release notes said
+        # otherwise. Nothing was red because no test enters this context manager.
+        self._session_token = SessionToken()
+        self._lifetime_guard = guard_for()
         # Proxy egress IP (WebRTC srflx override); discovered in __aenter__.
         self._webrtc_egress_ip: Optional[str] = None
 
@@ -134,6 +146,7 @@ class InvisiblePlaywright:
         prefs.update(_humanize_prefs(self._cursor_engine, self._humanize))
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
         pw_headless = self._resolve_headless()
+        self._session_token = SessionToken.mint()
         env = self._build_env(prefs)
         try:
             self._pw = await async_playwright().start()
@@ -154,6 +167,7 @@ class InvisiblePlaywright:
                     **self._default_context_kwargs(),
                 )
                 _patch_new_page_sleep(self._persistent_context)
+                self._bind_process_tree()
                 self._arm_cursor_engine(self._persistent_context)
                 return self._persistent_context
             self._browser = await self._pw.firefox.launch(
@@ -167,12 +181,29 @@ class InvisiblePlaywright:
             # See the sync launcher: browser.version comes from the connection
             # initializer, costs no round trip, and cannot be spoofed by a pref.
             assert_wire_version(self._browser)
+            self._bind_process_tree()
         except BaseException:
             await self._teardown()
             raise
         self._patch_new_context_defaults(self._browser)
         self._arm_cursor_engine(self._browser)
         return self._browser
+
+    def _bind_process_tree(self) -> None:
+        """Tie the browser tree to this process's lifetime, at the OS level.
+
+        The same call the sync launcher makes. Its absence here is why the
+        Windows leak survived 0.4.0 on this API: an exception out of the async
+        block runs __aexit__ and Playwright cleans up, but a KILLED runner never
+        reaches either, and only the kernel can act then.
+
+        Best-effort: a failure leaves the pre-existing behaviour rather than
+        breaking a launch that is otherwise fine.
+        """
+        try:
+            self._lifetime_guard.bind(self._session_token)
+        except Exception:
+            pass
 
     def _arm_cursor_engine(self, owner: Any) -> None:
         """Register this session so its pages move through the Python generator.
@@ -253,6 +284,16 @@ class InvisiblePlaywright:
             except Exception:
                 pass
             self._virtual_display = None
+        # Last, and unconditionally: whatever Playwright's close() managed or
+        # did not, nothing carrying this session's token may outlive it. Each
+        # step above is wrapped in `except: pass`, so before this existed a
+        # browser that refused to close was swallowed and leaked in silence.
+        if self._session_token:
+            try:
+                self._lifetime_guard.reap(self._session_token)
+            except Exception:
+                pass
+            self._session_token = SessionToken()
 
     def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
         import os as _os
@@ -271,7 +312,10 @@ class InvisiblePlaywright:
         if webrtc_ip:
             env["STEALTHFOX_WEBRTC_PUBLIC_IP"] = webrtc_ip
             env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] = "1"
-        return env
+        # Stamp this session so teardown can find its own browser tree and only
+        # its own. Children inherit the environment, so every process in the
+        # tree carries it. See _reaper for why this is a token and not a search.
+        return self._session_token.stamp(env)
 
     def _resolve_headless(self) -> bool:
         if not self._headless:
