@@ -98,8 +98,24 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 
 | Key | Type | Example | Notes |
 |-----|------|---------|-------|
-| `fonts` | list[str] | `["Arial", "Segoe UI", ...]` | Complete font allowlist. **Every other font is hidden**. The sampler usually picks 14-24 system fonts. |
 | `dark_theme` | bool | `False` | `prefers-color-scheme: dark`. Real traffic is ~85% light, 15% dark. |
+
+`dark_theme` is the ONLY top-level key. Anything else raises `ValueError: pin key
+'...' is not valid`.
+
+**`fonts` is not one of them, and no longer exists as an axis.** This table used
+to list a per-profile font allowlist ("the sampler usually picks 14-24 system
+fonts"). Passing it raises. The engine stopped varying fonts per profile when it
+moved to a bundled font list: the exposed set is now the same 72 families on
+every install and every OS, built from files the browser carries rather than
+enumerated from the host, and the release gate asserts they are identical across
+all five build legs with zero host fonts leaking. Varying it per profile would
+put back the entropy the bundle exists to remove - so the right pin for fonts is
+no pin.
+
+**`browsing_history` is a profile field but is not pinnable either.** It is
+generated from the seed (18-26 entries of `{name, category, cookie_profile}`),
+so a fixed seed already fixes it. Read it back off the profile; do not pass it.
 
 ## Reading the chosen values back
 
