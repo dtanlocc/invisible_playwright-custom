@@ -102,7 +102,7 @@ def test_msaa_pinned_to_4_on_windows(monkeypatch):
     monkeypatch.setattr(sys, "platform", "win32")
     p = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})
     prefs = translate_profile_to_prefs(p)
-    assert prefs["zoom.stealth.webgl.msaa"] == 4
+    assert prefs["webgl.msaa-samples"] == 4
     assert prefs["webgl.msaa-samples"] == 4
     assert prefs["webgl.msaa-force"] is True
 
@@ -383,7 +383,7 @@ def test_msaa_from_profile_on_linux(monkeypatch):
     monkeypatch.setattr(sys, "platform", "linux")
     p = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})
     prefs = translate_profile_to_prefs(p)
-    assert prefs["zoom.stealth.webgl.msaa"] == 8
+    assert prefs["webgl.msaa-samples"] == 8
     assert prefs["webgl.msaa-samples"] == 8
     assert prefs["webgl.msaa-force"] is True
 
@@ -395,7 +395,7 @@ def test_msaa_zero_disables_force_on_linux(monkeypatch):
     monkeypatch.setattr(sys, "platform", "linux")
     p = generate_profile(seed=42, pin={"webgl.msaa_samples": 0})
     prefs = translate_profile_to_prefs(p)
-    assert prefs["zoom.stealth.webgl.msaa"] == 0
+    assert prefs["webgl.msaa-samples"] == 0
     assert prefs["webgl.msaa-force"] is False
 
 

@@ -29,9 +29,7 @@ from invisible_playwright.prefs import (
 _REQUIRED_PREFS_KEYS = (
     "zoom.stealth.screen.width",
     "zoom.stealth.screen.height",
-    "zoom.stealth.screen.avail_width",
-    "zoom.stealth.screen.avail_height",
-    "zoom.stealth.screen.dpr",
+    "layout.css.devPixelsPerPx",
     "layout.css.devPixelsPerPx",
     "zoom.stealth.hw_concurrency",
     "zoom.stealth.storage.quota_mb",
@@ -40,8 +38,8 @@ _REQUIRED_PREFS_KEYS = (
     "zoom.stealth.audio.max_channel_count",
     "media.av1.enabled",
     "media.encoder.webm.enabled",
-    "media.mediasource.webm.enabled",
-    "media.mediasource.mp4.enabled",
+    "media.webm.enabled",
+    "media.mp4.enabled",
     "ui.systemUsesDarkTheme",
     "intl.accept_languages",
     "general.useragent.locale",
@@ -50,7 +48,7 @@ _REQUIRED_PREFS_KEYS = (
     "zoom.stealth.webrtc.host_ip",
     "zoom.stealth.webgl.renderer",
     "zoom.stealth.webgl.vendor",
-    "zoom.stealth.webgl.msaa",
+    "webgl.msaa-samples",
     "zoom.stealth.canvas.noise_skip_mask",
     # baseline sanity
     "privacy.resistFingerprinting",
@@ -351,7 +349,7 @@ def test_linux_msaa_pin_propagates_through_pipeline(monkeypatch):
     profile = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})
     prefs = translate_profile_to_prefs(profile)
 
-    assert prefs["zoom.stealth.webgl.msaa"] == 8
+    assert prefs["webgl.msaa-samples"] == 8
     assert prefs["webgl.msaa-samples"] == 8
     assert prefs["webgl.msaa-force"] is True
 
