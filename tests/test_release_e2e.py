@@ -1,47 +1,33 @@
-"""End-to-end release tests.
+"""The install path a stranger takes, driven end to end.
 
-These exercise the FULL user install path against the LIVE GitHub release.
-They are slow (download a ~110 MB binary, launch Firefox) and require network
-access - marked `e2e` so they're excluded from the default suite. Run them
-BEFORE announcing a release:
+A fresh venv, `pip install invisible-playwright` FROM THE INDEX, the engine
+downloaded from the live GitHub release, and a real browser launched against a
+real URL. Slow and network-bound, so marked `e2e` and excluded by default:
 
-    pytest tests/test_release_e2e.py -m e2e -v
+    pytest tests/test_release_e2e.py -m e2e -o addopts="" -v
 
-Or to target a specific git revision (default is current HEAD on origin/main):
+Run by `.github/workflows/user-install.yml` on ubuntu AND windows, daily and on
+release. `INVPW_E2E_SOURCE=git` (with `INVPW_E2E_REV`) reaches an unpublished
+commit instead - a pre-release check, not the default.
 
-    INVPW_E2E_REV=v0.1.5 pytest tests/test_release_e2e.py -m e2e -v
+TWO THINGS THIS FILE USED TO GET WRONG, both kept in the tests that fixed them:
 
-What each test verifies and why it exists:
+  it installed from a GIT URL. That was nobody's install path after 2026-07-26,
+    and a git install never resolves `invisible-core==X.Y.Z`, so the pin - the
+    part most likely to break a release - was outside what this covered;
+  it then installed a blessed `playwright==<pin>` by hand, which REPAIRS the
+    venv. If the declared range resolves to a client the shipped Juggler cannot
+    speak, that line turns the suite green while every fresh install is broken.
 
-  test_clean_install_from_git_main:
-    Spawns a fresh venv and pip-installs the wrapper from git HEAD. Confirms
-    the package has no broken metadata, missing deps, or import errors in a
-    pristine environment. Catches the "works on my machine because I already
-    have the dev deps" class of bug.
+And the launch test was skipped on Windows for a reason that was false -
+"headless launch requires a display server". It does not on Windows, where
+`headless=True` keeps the real rendering pipeline and hides the window through
+the binary's own cloak. The primary target was the one platform this never ran
+on. It runs there now.
 
-  test_fetch_against_live_release:
-    After the install, runs `python -m invisible_playwright fetch --force`,
-    which downloads the live tarball + checksums.txt for the pinned
-    BINARY_VERSION from the production GitHub release. This is THE test that
-    would have caught LostBoxArt's #15 - the checksums.txt parser bug only
-    manifested against the real binary-mode format the release ships, not
-    against unit-test mocks.
-
-  test_version_command_after_fetch:
-    Confirms `python -m invisible_playwright --version` resolves the binary
-    and reports the expected `firefox-N` tag. Sanity check that the binary
-    landed in the cache and the wrapper can find it.
-
-  test_playwright_launch_against_real_site (linux-only by default):
-    Launches the patched Firefox under the wrapper, navigates to a stable
-    public URL, and reads a known DOM property. This is the full stack:
-    wrapper init → Firefox launch → Juggler handshake → page.goto →
-    page.evaluate. If anything along the way regresses (Juggler protocol
-    schema drift, prefs typo, sandbox issue, …) this fails loudly.
-
-The tests use a temp cache dir per run (env var
-`INVISIBLE_PLAYWRIGHT_CACHE_DIR`) so they never poison the developer's real
-cache and never get false positives from a previously-cached binary.
+The cache is a temp dir per run (`INVISIBLE_PLAYWRIGHT_CACHE_DIR`), so these
+never read or poison the developer's real cache - and never pass because
+something was already cached.
 """
 from __future__ import annotations
 
@@ -271,14 +257,24 @@ def test_binary_executes_after_fetch(clean_venv: Path, isolated_cache_env: dict)
 
 
 @pytest.mark.e2e
-@pytest.mark.linux_only
 def test_playwright_launch_against_real_site(clean_venv: Path,
                                              isolated_cache_env: dict):
     """Full stack: launch the patched Firefox via the wrapper, navigate to a
     real URL, evaluate JS. Catches Juggler protocol drift, profile-generation
-    bugs, locale handling regressions, prefs typos."""
-    if sys.platform.startswith("win"):
-        pytest.skip("Headless launch path requires display server (skip on Win).")
+    bugs, locale handling regressions, prefs typos.
+
+    NO LONGER SKIPPED ON WINDOWS, and the reason it was is worth recording:
+    the skip said "headless launch path requires display server". That is not
+    true on Windows and never was - `headless=True` there keeps the real
+    rendering pipeline and hides the window through the binary's own cloak
+    (`zoom.stealth.cloak_windows`), so no display server is involved. Linux is
+    the platform that needs one, and it gets Xvfb.
+
+    So the primary target was the one platform this never ran on, for a stated
+    reason that was false. The two most recent defects in this package were
+    Windows-only by construction - firefox.exe is a launcher stub that spawns
+    the real browser and exits - and neither could have been caught here.
+    """
 
     script = (
         "from invisible_playwright import InvisiblePlaywright\n"
