@@ -71,12 +71,20 @@ def declared_pin_in_pyproject() -> str:
     return declaration.version
 
 
-def stub_core(tmp_path: Path, *, name: str, init_body: str = "") -> Path:
-    """A core on sys.path that does NOT carry invisible_core._pin."""
+def stub_core(tmp_path: Path, *, name: str, init_body: str = "",
+              pin_body: str | None = None) -> Path:
+    """A core on sys.path. ``pin_body=None`` ships no ``invisible_core._pin``.
+
+    ``pin_body`` lets a stub echo back what this package HANDED it, which is
+    the only way to observe the value rather than the plumbing around it - see
+    ``test_the_snapshot_reports_what_was_actually_observed``.
+    """
     root = tmp_path / name
     pkg = root / "invisible_core"
     pkg.mkdir(parents=True)
     (pkg / "__init__.py").write_text(textwrap.dedent(init_body), encoding="utf-8")
+    if pin_body is not None:
+        (pkg / "_pin.py").write_text(textwrap.dedent(pin_body), encoding="utf-8")
     return root
 
 
@@ -436,3 +444,79 @@ def test_the_guard_is_true_when_the_core_was_already_imported():
     module already bound elsewhere in the process, which is the exact situation
     the guard was written to refuse."""
     assert preimport_flag(core_first=True) == "True"
+
+
+def _core_pin_imports() -> list[str]:
+    """Every name this package pulls out of ``invisible_core._pin``.
+
+    Parsed from the source with ``ast`` rather than written down here or matched
+    with a regex: a stub that lags behind that import list kills the child on
+    ImportError, and an ImportError in a subprocess looks exactly like the
+    assertion this test is meant to be making.
+    """
+    import ast
+
+    tree = ast.parse(Path(_pin.__file__).read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "invisible_core._pin":
+            return [a.name for a in node.names]
+    raise AssertionError("this package no longer imports from invisible_core._pin")
+
+
+def test_the_snapshot_reports_what_was_actually_observed(tmp_path):
+    """THE KILLING TEST for ``_CORE_PREIMPORTED``, and until 2026-07-26 this
+    package did not have one.
+
+    Replacing the three-line ``any(name == "invisible_core" or ...)`` with a
+    hardcoded ``False`` left the whole suite green. The two tests that touched
+    the value could not see the difference: one is a source-order scan, and a
+    hardcoded line still sits before the import, so it passed; the other
+    asserts ``seen["core_preimported"] is _pin._CORE_PREIMPORTED``, which is a
+    tautology whatever the value came from.
+
+    It matters because ``_CORE_PREIMPORTED`` is the ENTIRE soundness argument
+    for the in-process repair. ``repair_core()`` refuses to swap the core when
+    it is true and the core-side guard is real, but THIS package computes the
+    input. Degrade it to a constant False and
+    ``import invisible_core; import invisible_playwright`` with a mismatched
+    pin drops ``invisible_core.*`` out of ``sys.modules`` and re-imports it
+    underneath objects the caller already holds - two versions alive in one
+    process, every test still passing.
+
+    The twin already existed next door in the manager and killed the same
+    mutation there; this is that pair ported over. A stub core echoes back what
+    it was handed, imported once in a child that has NOT touched
+    ``invisible_core`` (the answer must be False) and once in a child that has
+    (it must be True). No constant satisfies both.
+    """
+    # The stub has to satisfy the WHOLE `from invisible_core._pin import (...)`
+    # list this package makes, or the child dies on ImportError before the
+    # value is ever printed - and an ImportError in a subprocess looks exactly
+    # like the assertion below failing. Derived from the source, so adding a
+    # name to that import cannot silently disarm this test.
+    stub = "import sys\n" + "".join(
+        f"class {name}:\n    pass\n" if name[0].isupper() else f"{name} = None\n"
+        for name in _core_pin_imports() if name != "enforce_core_pin"
+    ) + textwrap.dedent("""
+        def enforce_core_pin(dist_name, *, core_preimported, stream=None):
+            print("PREIMPORTED:" + repr(core_preimported))
+            sys.stdout.flush()
+    """)
+    root = stub_core(tmp_path, name="snapshot", pin_body=stub)
+
+    clean = subprocess.run(
+        [sys.executable, "-c", textwrap.dedent(f"""
+            import sys
+            sys.path.insert(0, {str(root)!r})
+            import invisible_playwright
+        """)], capture_output=True, text=True, env=child_env())
+    assert "PREIMPORTED:False" in clean.stdout, clean.stdout + clean.stderr
+
+    dirty = subprocess.run(
+        [sys.executable, "-c", textwrap.dedent(f"""
+            import sys
+            sys.path.insert(0, {str(root)!r})
+            import invisible_core
+            import invisible_playwright
+        """)], capture_output=True, text=True, env=child_env())
+    assert "PREIMPORTED:True" in dirty.stdout, dirty.stdout + dirty.stderr
