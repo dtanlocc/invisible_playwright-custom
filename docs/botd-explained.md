@@ -86,7 +86,7 @@ and BotD does not look at them.
 ## Checking your own
 
 BotD is on npm and takes about four lines to run. Do it on the machine that will do
-the work rather than your laptop, and read which detectors fired rather than the
+the work instead of your laptop, and read which detectors fired rather than the
 verdict.
 
 If any of the engine-identity group fires, stop and fix that first: it means the
@@ -100,5 +100,5 @@ which takes the consistency idea considerably further.
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).
-BotD is one of the suites this project gates every release on, which is why the
-detector names and the compared values above are quoted from its source.*
+We gate every release on BotD, so the detector names and the compared values above
+come out of its source and not out of memory.*

@@ -91,7 +91,7 @@ version and from the same seeded profile as everything else.
 
 **Be careful with `New Context` overrides.** `timezoneId`, `locale`, `viewport` and
 `colorScheme` are all available there, and each one you set by hand is a value that
-now has to agree with the profile rather than being derived from it. If you are
+now has to agree with the profile instead of being derived from it. If you are
 using a proxy, setting `timezoneId` to your own machine's zone is the classic way to
 break a session that was otherwise fine.
 
@@ -108,8 +108,8 @@ Same as every route that is not the Python wrapper, and worth stating plainly:
   drawn from the seed by the Python driver. Through Robot Framework the pointer still
   teleports between coordinates.
 - **Timezone and locale from the proxy exit.** The wrapper resolves those at launch
-  against the IP you are actually leaving from. Here you get whatever the prefs were
-  generated with.
+  against the IP you are actually leaving from. The prefs carry whatever they were
+  generated with, and nothing updates them at launch.
 
 For a test suite this is usually the right trade, because a test suite is normally
 not going through a residential proxy and does not need the pointer to be convincing.
@@ -117,8 +117,8 @@ It is the wrong trade if the suite is pointed at something that scores behaviour
 
 ## The other Robot library: SeleniumLibrary
 
-If your suite is on `SeleniumLibrary` rather than `Browser`, both halves are still
-reachable, through two different string-format arguments rather than one keyword:
+If your suite is on `SeleniumLibrary` and not `Browser`, both halves are still
+reachable, through two different string-format arguments instead of one keyword:
 
 ```robotframework
 *** Test Cases ***

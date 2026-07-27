@@ -44,7 +44,7 @@ That works against the check at the top of this page, because the check greps fo
 
 The variables are still there, still on `document`, still a set of three related
 names appearing together, still matching a shape no page author would produce. A
-detector that looks for *the pattern* rather than the prefix, three own properties on
+detector that looks for *the pattern* instead of the prefix, three own properties on
 `document` with a common random-looking stem and typed suffixes, finds them again.
 And because the patch has to preserve length, the shape of the replacement is
 constrained in ways that make it recognisable.
@@ -63,7 +63,7 @@ The options are:
 3. **Do not put it on page objects at all.** Keep the state on the driver side of the
    boundary, or in an execution context the page cannot enumerate.
 
-Option three is the only one that removes the surface rather than obscuring it, and
+Option three is the only one that removes the surface instead of obscuring it, and
 it is a design decision made long before anyone runs a detection test. It is also why
 "which stealth plugin should I use" is often the wrong question: no plugin can move
 state out of the page after the fact.
@@ -71,7 +71,7 @@ state out of the page after the fact.
 ## Where Firefox differs, and where it does not
 
 Firefox's automation does not use ChromeDriver, so `cdc_` does not exist there. That
-is a fact about the protocol rather than a virtue: Firefox's automation surfaces are
+is a fact about the protocol, not a virtue: Firefox's automation surfaces are
 simply different ones.
 
 What Firefox does still do by default is set `navigator.webdriver` to `true` when a
@@ -80,7 +80,7 @@ So a stock Playwright Firefox is trivially detectable too, just by a different
 two-line check, and anyone claiming Firefox is inherently undetected is selling
 something.
 
-The useful difference is architectural rather than moral. Firefox's automation
+The useful difference is architectural, not moral. Firefox's automation
 protocol runs in privileged code with its own execution contexts, so the state a
 driver needs does not have to live where the page can enumerate it. Whether a given
 tool takes advantage of that is a separate question from whether the engine allows
@@ -92,7 +92,7 @@ If you are debugging a detection problem on a Chromium-based stack, check in thi
 order:
 
 1. `Object.getOwnPropertyNames(document)` and the same for `window`, looking for
-   groups of related unfamiliar names rather than for a specific prefix.
+   groups of related unfamiliar names, not one specific prefix.
 2. `navigator.webdriver`, remembering that `false` is not the same answer as
    `undefined`, and a clean browser gives the latter.
 3. Whether anything you loaded has patched a built-in: print

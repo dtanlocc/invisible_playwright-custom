@@ -230,6 +230,7 @@ How any of this works, whether or not you use this project. Full index in [docs/
 - [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) - page, driver, engine, and what each one cannot reach
 - [Detected on one site only: the checklist](docs/playwright-detected-as-bot.md) - in order, with the proxy seventh rather than first
 - [Firefox WebGL renderer strings](docs/webgl-renderer-strings.md) - what ANGLE reports, and the software-rasterizer tell we shipped ourselves
+- [Your renderer string says NVIDIA, your pixels say software](docs/renderer-string-vs-render.md) - a detection flag we chased in the wrong direction, and what a GPU claim cannot fake
 - [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](docs/cdc-variable-explained.md) - why renaming it is not removing it, and what that generalises to

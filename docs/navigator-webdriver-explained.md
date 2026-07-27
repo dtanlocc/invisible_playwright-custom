@@ -14,7 +14,7 @@ accident: the WebDriver spec requires a conforming browser to expose it as `true
 when the session is under automation control. It exists so that a page can know,
 which means a page checking it is using it exactly as intended.
 
-That is the first thing worth internalising. You are not defeating a bug. You are
+Start from that. You are not defeating a bug. You are
 contradicting a value the browser is required to publish about itself.
 
 ## Why setting it to false is worse than leaving it true
@@ -35,7 +35,7 @@ distinct value from what a clean browser reports, so you have swapped one signal
 for another.
 
 **Two.** You left fingerprints on the object itself. The property is now an own
-property of the `navigator` instance rather than living on `Navigator.prototype`
+property of the `navigator` instance instead of living on `Navigator.prototype`
 where it belongs. That is one line to check:
 
 ```js
@@ -121,7 +121,7 @@ remove the flags that set `webdriver` in the first place, stop injecting the
 bindings that automation frameworks leave in the page's global object. Patchright
 is the well-known example on the Chromium side. This removes a whole class of
 tells at the source rather than papering over them, and the property genuinely
-becomes `undefined` rather than `false`, because nothing set it. What it does not
+becomes `undefined` and not `false`, because nothing set it. What it does not
 change is anything about the machine underneath.
 
 **In the browser engine, before it ships.** Change the values in the C++ source

@@ -5,7 +5,7 @@ different one. Or they run it in two tabs and get the same one and assume it is
 tracking something durable. Both reactions come from not knowing how the value is
 made.
 
-It is a hash. That is the whole explanation, and everything follows from it.
+It is a hash. Everything else follows from that one fact.
 
 Read from source on 2026-07-27 (`fingerprintjs/fingerprintjs`, `src/sources/` and
 `src/agent.ts`).
@@ -72,8 +72,8 @@ Two things, and they point in opposite directions from what people assume.
 
 **An ID that changes between runs of your own tool is a signal, not safety.** If your
 setup produces a different visitor ID on every launch of the same configuration, some
-component is being randomised per call rather than per identity. Real machines do not
-do that. A tool adding canvas noise on every read, rather than deriving stable noise
+component is being randomised per call, not per identity. Real machines do not
+do that. A tool adding canvas noise on every read, instead of deriving stable noise
 from a fixed seed, produces exactly this and is detectable by the instability itself.
 
 **An ID that is stable per identity and different per identity is the target.** Not a
@@ -81,7 +81,7 @@ stable ID across all your sessions, which is one machine doing everything, and n
 new ID every request, which is a machine that transforms between page loads. One
 consistent machine per identity, for as long as that identity lives.
 
-That is the practical argument for deriving a fingerprint from a seed. The same seed
+Deriving the fingerprint from a seed is how you get that. The same seed
 gives the same forty-one components, so the same hash, run after run; a different
 seed gives a different hash that is equally ordinary. You can verify it in a minute:
 run FingerprintJS twice with one seed and confirm the ID matches, then change the
@@ -91,7 +91,7 @@ seed and confirm it does not.
 
 The open-source library computes the hash in the browser. Fingerprint Pro adds
 server-side signals and identification that this article does not cover, and it
-deliberately survives some of the changes listed above rather than breaking on them.
+deliberately survives some of the changes listed above instead of breaking on them.
 
 So "I pass the open-source one" and "I pass the commercial one" are separate claims,
 and the second does not follow from the first. Anyone telling you a tool defeats
@@ -104,7 +104,7 @@ Run it twice in the same configuration and compare. Then run it in a fresh profi
 with the same configuration and compare again. Then change one thing you would expect
 to matter, the seed if you have one, and confirm the ID moves.
 
-If it moves when it should not, read the components rather than the ID: the library
+If it moves when it should not, read the components, not the ID: the library
 exposes them, and the one that differs between two runs is your problem.
 
 **See also:** [what BotD detects](botd-explained.md), from the same team but aimed at
@@ -115,4 +115,5 @@ since `fonts` and `font_preferences` are two of the forty-one.
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).
 Both the open-source library and the commercial one are release gates for this
-project, which is why the distinction at the end is drawn rather than glossed.*
+project, and the difference between them cost us enough time to be worth spelling
+out.*

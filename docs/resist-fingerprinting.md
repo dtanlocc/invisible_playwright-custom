@@ -26,7 +26,7 @@ Roughly, with the caveat that the exact list moves between Firefox versions:
   a standard size so the window itself carries no entropy.
 - **The user agent** and `navigator.platform` are generalised, and the minor version
   is dropped.
-- **`hardwareConcurrency`** reports a fixed low number rather than your core count.
+- **`hardwareConcurrency`** reports a fixed low number instead of your core count.
 - **Timer precision** is reduced, which blunts timing side channels.
 - **Canvas reads** are blocked or prompt, so a canvas hash cannot be taken silently.
 - **Locale** is forced toward `en-US` for the APIs that expose it.
@@ -71,7 +71,7 @@ the network you appear to be on.
 
 If your threat model is a website building a profile of a human across visits, RFP is
 a good answer and you should use it. If your problem is a site deciding whether this
-session is a person, RFP hands it an easier question rather than a harder one.
+session is a person, RFP hands it an easier question, not a harder one.
 
 ## What to do instead
 
@@ -80,7 +80,7 @@ Pick a specific machine and be it, completely and consistently.
 That means every surface derives from the same source rather than being set
 independently: the user agent, the platform, the screen, the GPU strings, the font
 set, the audio stack, the timezone, the language list. And it means the timezone and
-locale follow the IP you are actually leaving from, rather than either your host's
+locale follow the IP you are actually leaving from, and not either your host's
 values or a fixed UTC.
 
 It also means not layering. Turning RFP on *and* setting a user agent *and* running a

@@ -64,7 +64,7 @@ Scenario('finds a thing', async ({ I }) => {
 })
 ```
 
-The helper API is unchanged. That is the point of doing it at this layer.
+The helper API does not change, and that is the point of doing it at this layer.
 
 ## Three things to get right
 
@@ -81,12 +81,12 @@ is the opposite of what a test suite is for.
 **`restart` and `keepBrowserState` interact with the profile.** CodeceptJS can keep a
 browser between scenarios. That is fine and usually what you want, but note the
 session then accumulates cookies and storage across tests, which is a correlation
-surface if the suite is pointed at a real site rather than a staging one.
+surface if the suite is pointed at a real site instead of a staging one.
 
 ## What you give up compared to driving it from Python
 
-The same two things every non-Python route gives up, and they are worth knowing
-before you pick this layer:
+The same two things every non-Python route gives up, and you should know them before
+you pick this layer:
 
 - **Humanised pointer motion.** The preference enables it, but the paths are drawn
   by the Python driver from the seed. From CodeceptJS the pointer still teleports.

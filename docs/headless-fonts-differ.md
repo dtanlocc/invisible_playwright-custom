@@ -97,7 +97,7 @@ strongly platform-shaped:
   empty. An empty font set is its own strong signal, because no real desktop has one.
 
 So a browser claiming Windows in its user agent, on a machine whose detected set is
-DejaVu and Liberation, has been caught by a comparison rather than by any single
+DejaVu and Liberation, has been caught by a comparison instead of by any single
 value. This is the same shape as the WebGL renderer problem: the claim and the
 hardware disagree, and the disagreement is what gets read.
 
@@ -128,7 +128,7 @@ For fingerprint consistency, the options are worse than people expect:
   most work of the three by a wide margin, since each operating system has its own
   font backend to intercept.
 
-The honest summary is that fonts are cheap to check and expensive to get right, which
+The short summary is that fonts are cheap to check and expensive to get right, which
 is exactly why detectors like them.
 
 ## Checking your own

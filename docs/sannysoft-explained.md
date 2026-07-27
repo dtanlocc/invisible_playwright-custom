@@ -1,10 +1,10 @@
 # What bot.sannysoft.com actually checks, row by row
 
 Everyone in browser automation ends up on this page, and most people read the colour
-of the rows rather than what they mean. Here is what each group tests, which ones are
+of the rows instead of what they mean. Here is what each group tests, which ones are
 still meaningful in 2026, and the one nobody looks at that is the most interesting.
 
-Read from the live page on 2026-07-27, by its element ids rather than from memory.
+Read from the live page on 2026-07-27, by its element ids, not from memory.
 
 ## Group one: the legacy automation table
 
@@ -96,19 +96,19 @@ exactly what it sounds like.
 
 ## Checking the part that matters
 
-Open the page, then read the canvas section rather than the table. If the in-page and
+Open the page, then read the canvas section instead of the table. If the in-page and
 in-iframe hashes differ, whatever is protecting your canvas is doing it in one
 context only, and that inconsistency is more detectable than the original value would
 have been.
 
 An engine that computes the value below the JavaScript layer does not have this
 problem, because there is no per-context patch to be missing: every context asks the
-same code and gets the same answer. That is the argument for doing it there, and it
-is the same argument as
+same code and gets the same answer. The case for doing it at that layer is exactly
+this, and it is the same case as
 [the three levels page](playwright-stealth-levels.md), seen from the detector's side.
 
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).
-sannysoft is one of the suites this project gates every release on, which is why the
-element ids above are quoted rather than remembered.*
+sannysoft is a release gate here. The element ids above were read off the page, not
+remembered.*

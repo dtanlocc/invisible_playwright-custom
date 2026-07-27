@@ -1,7 +1,7 @@
 # Using invisible_playwright with Crawlee for Python
 
 Crawlee drives browsers through a plugin, so a different browser backend is a
-subclass rather than a fork. This page is the integration guide for
+subclass instead of a fork. This page is the integration guide for
 `invisible_playwright`, hosted here rather than in Crawlee's own documentation,
 which is where Crawlee asks third-party integrations to live.
 
@@ -153,7 +153,7 @@ receives. SOCKS5 goes through the patched proxy path inside the engine, HTTP and
 HTTPS go through Playwright's own `proxy=` argument.
 
 If you use one, leave locale and timezone on their defaults. They resolve from the
-exit IP rather than from the host machine, which is what keeps the JS timezone, the
+exit IP and not from the host machine, which is what keeps the JS timezone, the
 language list and the IP in agreement. Setting them by hand to your own machine's
 values is how a session ends up claiming one country while leaving from another.
 

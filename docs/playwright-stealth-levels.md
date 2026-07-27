@@ -41,7 +41,7 @@ execution-context isolation pattern that leaves observable traces.
 **Tools:** Patchright, the drop-in Playwright fork. `rebrowser-playwright` and the
 rebrowser patches take a similar line.
 
-**What it fixes:** a whole class of tells at the source rather than covering them.
+**What it fixes:** a whole class of tells at the source instead of covering them.
 The difference is real and worth understanding with an example. At level 1 the
 property becomes `false`, which is a value no clean browser reports. At level 2 it
 becomes `undefined`, because nothing ever set it. There is nothing to detect

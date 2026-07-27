@@ -26,7 +26,7 @@ the engine ignored all seven. The tests were green for as long as they existed. 
 test that checks a preference was *set* is not testing anything; the check has to be
 that the browser's observable behaviour changed.
 
-The way to catch it is to read the value back from the page rather than from the
+The way to catch it is to read the value back from the page instead of from the
 profile:
 
 ```js

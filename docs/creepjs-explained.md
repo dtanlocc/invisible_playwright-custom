@@ -5,8 +5,8 @@ your browser is *telling the truth*, which is a different question and a much ha
 one to pass by spoofing.
 
 Read from the source on 2026-07-27 (`abrahamjuliot/creepjs`, `src/lies/index.ts` and
-the module layout) rather than from the rendered page, because the interesting part
-is the method rather than the numbers it prints.
+the module layout) and not from the rendered page, because the interesting part
+is the method instead of the numbers it prints.
 
 ## The shape of it
 
@@ -101,5 +101,5 @@ Two things worth doing when you open it:
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).
-CreepJS is one of the suites this project gates every release on, which is why the
-lie names above are quoted from its source rather than described.*
+CreepJS is a release gate here. The lie names above are quoted from its source and
+not paraphrased, because the exact strings are what you will see in a report.*

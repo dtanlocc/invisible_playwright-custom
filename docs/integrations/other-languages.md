@@ -27,7 +27,7 @@ invisible-playwright fetch     # downloads and caches it, once
 invisible-playwright path      # prints the absolute path
 ```
 
-The preferences do not, and that is a real gap rather than an omission from this
+The preferences do not, and that is a real gap instead of an omission from this
 page: there is no `prefs` subcommand today, so you generate them with a one-liner
 and keep the JSON.
 

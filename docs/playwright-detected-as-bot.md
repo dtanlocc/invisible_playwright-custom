@@ -47,7 +47,7 @@ patching and any header generator the framework offers.
 
 ## 3. Check the machine, not the browser
 
-Open a fingerprinting page and read the report rather than the verdict. The things
+Open a fingerprinting page and read the report instead of the verdict. The things
 that most often give away a server:
 
 - **A software WebGL renderer.** If the GPU string mentions a basic, software or
@@ -115,7 +115,7 @@ cannot tell the site changing from the machine changing. Whatever tool you use, 
 its way to pin the identity across runs, and change it deliberately rather than
 accidentally.
 
-That is the single biggest difference between debugging this and guessing at it, and
+It is the single biggest difference between debugging this and guessing at it, and
 it is why this project derives every surface from one seed: the same seed gives the
 same machine every time, so a bisect is a bisect.
 

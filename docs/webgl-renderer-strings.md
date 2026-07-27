@@ -27,7 +27,7 @@ So on Windows a real Firefox reports a vendor of `Google Inc. (NVIDIA)` or
 that "corrects" this to something Mozilla-branded has made itself unusual in a way no
 real installation is.
 
-The shape is stable and worth knowing by heart:
+The shape is stable, and it pays to know it by heart:
 
 ```
 ANGLE (<vendor>, <device> Direct3D11 vs_<major>_<minor> ps_<major>_<minor>, D3D11)
@@ -58,7 +58,7 @@ Almost nobody browses that way. It correlates with datacenters about as strongly
 anything in a fingerprint does, and no amount of patching elsewhere hides it, because
 it is not a lie you told: it is the truth about where you are.
 
-That is the part worth internalising. Most fingerprinting advice is about hiding
+That is the part people miss. Most fingerprinting advice is about hiding
 automation. This is about hiding a *server*, and the two need different fixes.
 
 ## How a real one gets into a fake profile, from our own logs
@@ -77,7 +77,7 @@ It was worse than 1.4% suggests, because seed 42 was one of the 21, and seed 42 
 the example seed in the class docstring. Anyone copying the quickstart got a browser
 announcing it had no GPU.
 
-The fix was to replace that entry in place rather than delete it, so only the seeds
+The fix was to replace that entry in place instead of deleting it, so only the seeds
 that drew it changed and every other identity stayed stable. It is now zero out of
 1,500, and the share it held moved to an ordinary Intel integrated GPU.
 

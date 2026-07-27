@@ -63,7 +63,7 @@ build changed the version string, this is the step that would break first.
 ## WebdriverIO
 
 The cleanest of the four. `moz:firefoxOptions` is a W3C capability and it takes both
-values directly, so this is standard WebDriver rather than anything runner-specific.
+values directly, so this is standard WebDriver, not anything runner-specific.
 
 ```js
 // wdio.conf.js
@@ -105,7 +105,7 @@ and one of the other three runners will do the job properly.
 
 If you need it anyway, the workaround is the same as everywhere else: write the prefs
 into a profile's `user.js` once and pass that profile's directory. It pins one
-identity for that profile rather than one per session, and it is a workaround rather
+identity for that profile and not one per session, and it is a workaround rather
 than a supported path.
 
 ## Nightwatch
@@ -144,7 +144,7 @@ The two things no route outside the Python wrapper carries:
 - **Humanised pointer motion.** The preference enables it; the paths are drawn from
   the seed by the driver. In all four runners the pointer teleports.
 - **Timezone and locale resolved from the proxy exit.** Computed at launch by the
-  wrapper. Here you get whatever the prefs file was generated with.
+  wrapper. The prefs file is frozen at whatever it was generated with.
 
 For test suites both are usually irrelevant, because a suite normally runs against a
 known environment and does not need to convince anything. Say so out loud when

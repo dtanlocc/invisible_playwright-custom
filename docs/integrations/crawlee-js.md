@@ -1,7 +1,7 @@
 # Using invisible_playwright with Crawlee for JavaScript
 
 Crawlee's JavaScript side takes a browser type and a bag of Playwright launch
-options, so swapping the engine is configuration rather than a subclass. Both halves
+options, so swapping the engine is configuration instead of a subclass. Both halves
 fit: the patched binary and the seeded preferences.
 
 Verified against `apify/crawlee` on `master`
@@ -26,7 +26,7 @@ invisible-playwright path > .browser-path
 python -c "import json;from invisible_playwright import get_default_stealth_prefs;print(json.dumps(get_default_stealth_prefs(seed=1, humanize=True)))" > prefs.json
 ```
 
-Yes, a Python dependency in a Node project. That is the honest cost of this route,
+Yes, a Python dependency in a Node project. That is the real cost of this route,
 and if it is unacceptable, the answer is a Chromium-based tool rather than a
 workaround.
 
@@ -92,9 +92,9 @@ The same two things every non-Python route gives up:
 - **Humanised pointer motion.** The preference enables it, but the paths are drawn
   from the seed by the Python driver, so from Node the pointer teleports.
 - **Timezone and locale resolved from the proxy exit.** The Python wrapper resolves
-  those at launch against the IP you actually leave from. Here you get whatever
-  `prefs.json` was generated with, so if Crawlee is rotating proxies across countries
-  the browser will contradict the exit.
+  those at launch against the IP you actually leave from. What you get instead is
+  whatever `prefs.json` was generated with, so if Crawlee is rotating proxies across
+  countries the browser will contradict the exit.
 
 That second point matters more in Crawlee than in most places, because rotating
 proxies is a normal thing to do here. If your proxy pool spans countries, either

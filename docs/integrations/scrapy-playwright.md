@@ -23,7 +23,7 @@ The patched Firefox is downloaded on first launch and cached. You do not need
 
 `scrapy-playwright` has a `PLAYWRIGHT_BROWSER_PROVIDER` setting and a
 `BrowserProvider` interface. A provider hands back a browser you launched yourself,
-so you can use this package's own class rather than reassembling its parts.
+so you can use this package's own class instead of reassembling its parts.
 
 ```python
 # myproject/providers.py
@@ -82,7 +82,7 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 
 Note what `PLAYWRIGHT_LAUNCH_OPTIONS` means here: with a custom provider it is
 whatever your provider passes on, so in this shape it carries **this package's**
-arguments rather than Playwright's. That is the convention in the upstream example
+arguments rather than Playwright's. It is the convention in the upstream example
 and it is worth knowing before it surprises you.
 
 `launch_persistent_context` is wired too, so `PLAYWRIGHT_CONTEXTS` with a persistent
@@ -147,7 +147,7 @@ inside the page, it is now arguing with an engine that has already answered.
 
 **One seed per identity, not per run.** A fixed seed makes a failure reproducible,
 which is the difference between bisecting a problem and guessing at it. For many
-identities, run several processes with different seeds rather than rerolling inside
+identities, run several processes with different seeds instead of rerolling inside
 one crawl.
 
 ## Proxies

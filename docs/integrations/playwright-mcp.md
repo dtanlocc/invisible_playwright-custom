@@ -52,7 +52,7 @@ where the prefs are generated and applied for you.
 
 ## Making the prefs work anyway
 
-If your client can launch a wrapper script rather than the binary directly, you can
+If your client can launch a wrapper script instead of the binary directly, you can
 have both. Write the prefs into a profile once, then point the MCP server at a
 Firefox that uses it:
 
