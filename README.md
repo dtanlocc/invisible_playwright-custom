@@ -260,6 +260,8 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [Why you should not set the user agent](https://feder-cr.github.io/invisible_playwright/playwright-user-agent.html) - rotating the string does not rotate the browser, it only creates contradictions
 - [browser-use gets detected](https://feder-cr.github.io/invisible_playwright/browser-use-detection.html) - what its BrowserProfile reaches, and the tell specific to agent-driven sessions
 - [AI browser agents and stealth](https://feder-cr.github.io/invisible_playwright/ai-browser-agents-stealth.html) - browser-use, Stagehand, Skyvern, crawl4ai and Maxun checked from source, and what applies whichever you picked
+- [How to test whether your browser is detected](https://feder-cr.github.io/invisible_playwright/how-to-test-bot-detection.html) - what each suite proves, the false pass, and the comparison that replaces the verdict
+- [Client Hints and Sec-Fetch: headers that must agree](https://feder-cr.github.io/invisible_playwright/client-hints-sec-fetch.html) - three copies of one identity, plus the headers that describe how the request was initiated
 - [crawl4ai stealth and custom browser engines](https://feder-cr.github.io/invisible_playwright/crawl4ai-stealth-custom-browser.html) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
