@@ -198,6 +198,35 @@ else
     fi
 fi
 
+# ── publish gate (release tags only) ───────────────────────────────────
+# Until 2026-07-27 this repo had NO gate: a release was a bare `twine upload`
+# of whatever was in a directory. That is how 0.4.4 reached the index built
+# from a tree that predated the fix it was supposed to carry - and a PyPI
+# filename is never re-uploaded, so it is wrong forever.
+#
+# The gate lives in the core, which this package pins exactly, so it is always
+# importable. `publish` builds and uploads WHAT IT JUST BUILT; that is the
+# property that makes the failure above impossible.
+#
+# Only release tags are gated: the gate builds the project twice, and a hook
+# that costs a minute on every push is a hook people delete.
+release_tag=""
+if [ -n "$PUSH_REFS" ]; then
+    release_tag=$(printf '%s
+' "$PUSH_REFS" | awk '
+        $3 ~ /^refs\/tags\/v/ { print $3; exit }')
+fi
+if [ -n "$release_tag" ]; then
+    echo "[pre-push] $release_tag is a release tag, running the publish gate..."
+    if ! python -m invisible_core.release check --verify-index --project-root .; then
+        echo "" >&2
+        echo "[pre-push] REFUSED - see above. A version whose content moved needs a" >&2
+        echo "[pre-push] new version number: a PyPI filename is never re-uploaded," >&2
+        echo "[pre-push] so a wrong artifact stays wrong forever." >&2
+        exit 1
+    fi
+fi
+
 # The closing line never claims more than what actually ran.
 if [ -n "$PIN_SKIPPED" ]; then
     echo "[pre-push] tests green, PIN GATE SKIPPED - push proceeding (see the warning above)."
