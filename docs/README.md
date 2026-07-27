@@ -64,6 +64,8 @@ an advert for it they would not be worth reading.
 | [how-to-test-bot-detection.md](how-to-test-bot-detection.md) | what each public suite proves, why a green result can mean the feature is broken, and the method that catches it |
 | [playwright-proxy-per-context.md](playwright-proxy-per-context.md) | what a context separates, what it cannot, and the timezone mismatch the recommended pattern creates |
 | [permissions-api-consistency.md](permissions-api-consistency.md) | the notification mismatch, the permission set as a fingerprint, and the grant that disables WebRTC masking |
+| [service-workers-storage-partitioning.md](service-workers-storage-partitioning.md) | what partitioning changed, why a worker outlives your cookie clear, and what a context does not separate |
+| [web-workers-fingerprint.md](web-workers-fingerprint.md) | the two-line test that finds any page-level tool ceiling, and why OffscreenCanvas bypasses element hooks |
 | [client-hints-sec-fetch.md](client-hints-sec-fetch.md) | Sec-CH-UA against the user agent against userAgentData, and why Firefox not sending them is correct |
 | [crawl4ai-stealth-custom-browser.md](crawl4ai-stealth-custom-browser.md) | the one missing field, the undocumented adapter seam, and the workaround with its cost |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
