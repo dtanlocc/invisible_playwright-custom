@@ -253,6 +253,7 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [Browser extensions are a fingerprint surface](https://feder-cr.github.io/invisible_playwright/browser-extension-fingerprint.html) - three ways a page finds one, and why a stealth extension argues with a stealth engine
 - [Headless vs headful: what is actually being detected](https://feder-cr.github.io/invisible_playwright/headless-vs-headful.html) - rarely headlessness, usually the machine it runs on, plus the third option nobody mentions
 - [WebGL parameters: the numbers are the same on every GPU](https://feder-cr.github.io/invisible_playwright/webgl-parameters-are-identical.html) - the most repeated advice here is backwards, and randomising them removed us from the report
+- [Playwright persistent profile](https://feder-cr.github.io/invisible_playwright/persistent-profiles.html) - what it fixes, and the stored permission that disables your WebRTC protection
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to

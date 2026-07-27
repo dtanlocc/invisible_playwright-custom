@@ -54,6 +54,7 @@ an advert for it they would not be worth reading.
 | [browser-extension-fingerprint.md](browser-extension-fingerprint.md) | web-accessible resources, what it does to the DOM, and the traces any override leaves |
 | [headless-vs-headful.md](headless-vs-headful.md) | what actually differs between the modes, and running headed but hidden |
 | [webgl-parameters-are-identical.md](webgl-parameters-are-identical.md) | ANGLE clamps to the feature level, so a flagship and an old integrated chip report the same block |
+| [persistent-profiles.md](persistent-profiles.md) | storageState vs a profile, the seed pairing rule, and the permission that undoes WebRTC masking |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
 | [resist-fingerprinting.md](resist-fingerprinting.md) | what Firefox's own mode changes, and why this project turns it off |
 | [cdc-variable-explained.md](cdc-variable-explained.md) | the ChromeDriver variable, and why renaming is not removing |
