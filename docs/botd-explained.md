@@ -1,0 +1,104 @@
+# What BotD actually detects, and why most of it is not about bots
+
+BotD is the open-source bot detector from the FingerprintJS team. It is small, it is
+readable, and reading it changes how you think about this problem, because most of
+its twenty detectors are not looking for automation at all.
+
+They are checking whether your browser is telling the truth about **which browser it
+is**.
+
+Read from source on 2026-07-27 (`fingerprintjs/BotD`, `src/detectors/`).
+
+## The twenty detectors
+
+```
+app_version              distinctive_properties   document_element_keys
+error_trace              eval_length              function_bind
+languages_inconsistency  mime_types_consistence   notification_permissions
+plugins_array            plugins_inconsistency    process
+product_sub              rtt                      user_agent
+webdriver                webgl                    window_external
+window_size
+```
+
+Exactly one of those, `webdriver`, is the check everybody knows. A handful look for
+specific named tools. The rest are engine identity and internal consistency.
+
+## The interesting group: what engine are you really?
+
+Some values are decided by the JavaScript engine and cannot be changed from
+JavaScript without being obvious. BotD reads them, works out which engine you must
+be, and compares that against what your user agent claims.
+
+**`eval_length`.** `eval.toString().length` is a fixed number per engine. The check
+is literally: if the length is 37 and the engine kind is not WebKit or Gecko, that is
+a bot. A Chromium build claiming to be Firefox fails here on a value nobody thinks
+to spoof.
+
+**`product_sub`.** If the browser claims to be Chrome, Safari, Opera or WeChat, then
+`navigator.productSub` must be `20030107`. Firefox reports `20100101`. One
+comparison, no ambiguity.
+
+**`error_trace`.** Stack traces are formatted differently by different engines, and
+the detector matches the string for known tool signatures, PhantomJS among them.
+
+**`function_bind`**, **`window_external`**, **`app_version`**: the same idea on other
+surfaces. `window_external` matches `window.external.toString()` against a known
+commercial crawler's signature.
+
+None of these are secret. They are just values a spoofing layer does not think about,
+because they are not on the list of "things bots are known for".
+
+## The second group: does your story hold together?
+
+**`languages_inconsistency`**, **`mime_types_consistence`**,
+**`plugins_inconsistency`**: the same fact asked in two ways, with the answers
+compared. Not "is this value unusual" but "do these two agree".
+
+**`rtt`**, **`window_size`**: values a real machine and a real window have, and a
+container often does not.
+
+**`document_element_keys`** and **`distinctive_properties`**: attributes and globals
+that specific automation tools leave behind, which is the closest BotD gets to
+looking for bots directly.
+
+## What this means if you are on the other side
+
+Three things follow, and they are the same three that turn up everywhere in this
+area.
+
+**Spoofing a user agent alone is worse than not spoofing it.** Change the string and
+you have to change `productSub`, `eval.toString().length`, the stack-trace format,
+`window.external`, and the plugin and MIME arrays to match, or you have created the
+exact contradiction BotD is built to find. Most user-agent spoofing makes a browser
+easier to detect, not harder.
+
+**Being a real instance of what you claim passes this whole class for free.** A real
+Firefox reporting Firefox has the right `productSub`, the right `eval` length, the
+right stack format and the right plugin array, because they are not claims, they are
+the engine. There is nothing to keep consistent because nothing was changed.
+
+**The remaining risk moves elsewhere.** Passing every one of these twenty says
+nothing about whether your GPU string is plausible, your fonts match your platform,
+or your timezone agrees with your IP. Those are the ones that decide modern outcomes
+and BotD does not look at them.
+
+## Checking your own
+
+BotD is on npm and takes about four lines to run. Do it on the machine that will do
+the work rather than your laptop, and read which detectors fired rather than the
+verdict.
+
+If any of the engine-identity group fires, stop and fix that first: it means the
+browser you are presenting is not the browser you are running, and no amount of work
+on the other surfaces compensates for that.
+
+**See also:** [what sannysoft checks](sannysoft-explained.md), which is the older
+list of the same kind, and [how CreepJS detects tampering](creepjs-explained.md),
+which takes the consistency idea considerably further.
+
+---
+
+*From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).
+BotD is one of the suites this project gates every release on, which is why the
+detector names and the compared values above are quoted from its source.*

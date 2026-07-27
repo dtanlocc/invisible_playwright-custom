@@ -37,6 +37,7 @@ an advert for it they would not be worth reading.
 | [sannysoft-explained.md](sannysoft-explained.md) | row by row, including the canvas-in-iframe test nobody reads |
 | [creepjs-explained.md](creepjs-explained.md) | four ways it detects tampering, and why blocking its probe is recorded |
 | [firefox-prefs-not-applying.md](firefox-prefs-not-applying.md) | why a preference you set is silently ignored, in the order it happens |
+| [botd-explained.md](botd-explained.md) | its twenty detectors, and why most check which engine you really are |
 
 ## Reference
 

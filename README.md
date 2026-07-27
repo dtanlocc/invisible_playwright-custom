@@ -236,6 +236,7 @@ How any of this works, whether or not you use this project. Full index in [docs/
 - [What bot.sannysoft.com actually checks](docs/sannysoft-explained.md) - row by row, and the canvas-in-iframe test nobody reads
 - [How CreepJS decides you are lying](docs/creepjs-explained.md) - four detection techniques, and why blocking the probe is itself recorded
 - [Firefox preferences that silently do nothing](docs/firefox-prefs-not-applying.md) - five reasons, starting with the one that cost us a real bug
+- [What BotD actually detects](docs/botd-explained.md) - twenty detectors, and why most are not about bots at all
 
 ## Related projects
 
