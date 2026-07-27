@@ -222,8 +222,15 @@ if [ -n "$release_tag" ]; then
     # after made argparse exit 2, which this block read as a refusal - so the
     # hook printed REFUSED without the gate ever having run, and the first
     # "verification" of this wiring was itself wrong.
-    python -m invisible_core.release --project-root . check --verify-index
-    gate_rc=$?
+    # `if` rather than a bare call: these hooks run under `set -e`, so a command
+    # exiting non-zero aborts the script BEFORE `$?` can be read - and exit 5
+    # here is a NO-OP, not a failure. The result was a push that died with no
+    # message at all, which is the worst shape a gate can fail in.
+    if python -m invisible_core.release --project-root . check --verify-index; then
+        gate_rc=0
+    else
+        gate_rc=$?
+    fi
     # 5 is ALREADY PUBLISHED and byte-identical: nothing to do, not a refusal.
     # It is what re-pushing or back-filling a release tag legitimately produces,
     # and the gate gives it its own code precisely so a caller can tell it from
