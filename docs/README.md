@@ -1,4 +1,8 @@
-# Documentation
+# Browser fingerprinting and bot detection, explained from the source
+
+Documentation for [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
+plus a set of standalone explainers. Each one is written against the current source of
+the thing it describes, and several of them record something we got wrong first.
 
 ## Running it inside something else
 
