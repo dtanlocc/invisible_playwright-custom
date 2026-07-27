@@ -16,15 +16,15 @@ from ._cursor import (
     max_seconds_for as _cursor_max_seconds,
     resolve_cursor_engine,
 )
-from ._fpforge import Profile, generate_profile
-from ._webgl_personas import forced_gpu_class
-from ._geo import prepare_session_geo
-from ._headless import cloak_prefs, make_virtual_display
+from invisible_core._fpforge import Profile, generate_profile
+from invisible_core import forced_gpu_class
+from invisible_core import prepare_session_geo
+from invisible_core import cloak_prefs, make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
-from ._proxy import configure_proxy as _configure_proxy_shared
+from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
 from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H, _tz_env
-from .prefs import translate_profile_to_prefs
+from invisible_core import translate_profile_to_prefs
 
 
 def _patch_new_page_sleep(ctx: Any) -> None:
@@ -118,7 +118,7 @@ class InvisiblePlaywright:
         # the egress IP just discovered), like timezone="auto". Keeps the browser language
         # consistent with the proxy's country instead of a fixed en-US.
         if (self._locale or "").strip().lower() == "auto":
-            from ._geo import resolve_session_locale
+            from invisible_core import resolve_session_locale
             self._locale = await asyncio.to_thread(
                 resolve_session_locale, _geo.egress_ip, self._proxy
             )

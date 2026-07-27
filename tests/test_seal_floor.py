@@ -17,7 +17,7 @@ carries a seal and is still the wrong version - an install that skipped
 resolution (--no-deps, a lockfile), or a partial install whose files moved but
 whose dist-info did not.
 
-THE STUB CORES BELOW CARRY THE REAL _pin.py AND _version.py. Since the
+THE STUB CORES BELOW CARRY THE REAL pin.py AND _version.py. Since the
 comparison moved into invisible_core, a stub without them cannot reach the
 comparison at all: it would only ever produce the prelude's "core missing or too
 old" message, and every assertion here would be about the wrong code path. So
@@ -41,7 +41,7 @@ from pathlib import Path
 
 import pytest
 
-import invisible_core._pin as core_pin
+import invisible_core.pin as core_pin
 from invisible_playwright import _pin
 
 # The remedy is a projection of the pin declared in pyproject, exactly as the
@@ -101,6 +101,11 @@ def stub_core(tmp_path: Path, *, with_seal: bool, version: str | None = None,
         "from .seal import active_seal  # noqa: F401\n"
         "from ._version import __version__  # noqa: F401\n",
         encoding="utf-8")
+    # BOTH: the implementation is `pin.py` since 2026-07-27 and `_pin.py` is a
+    # two-line `sys.modules[__name__] = pin` alias for consumers published
+    # before the rename. A stub carrying one of them is not a shape any real
+    # install has.
+    shutil.copy2(CORE_PKG / "pin.py", pkg / "pin.py")
     shutil.copy2(CORE_PKG / "_pin.py", pkg / "_pin.py")
     text = (CORE_PKG / "_version.py").read_text(encoding="utf-8")
     text = re.sub(r"(?m)^CORE_REVISION\s*=\s*\d+", f"CORE_REVISION = {minor}", text)
@@ -133,7 +138,7 @@ def test_the_stub_actually_shadows_the_installed_core(tmp_path):
     code = textwrap.dedent(f"""
         import sys, json
         sys.path.insert(0, {str(root)!r})
-        import invisible_core, invisible_core._pin as p
+        import invisible_core, invisible_core.pin as p
         print(json.dumps({{"pkg": invisible_core.__file__, "pin": p.__file__}}))
     """)
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,

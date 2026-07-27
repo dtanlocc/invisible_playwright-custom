@@ -151,3 +151,50 @@ def test_the_gate_sees_an_import_however_it_is_spelled(tmp_path):
     probe.write_text("from invisible_playwright.launcher import "
                      "InvisiblePlaywright\n", encoding="utf-8")
     assert not _imported_shims(probe, shims), "a real wrapper import was flagged"
+
+
+# --------------------------------------------- and the SOURCE, not just tests
+
+_SRC_ALLOWED = {"__init__.py"}          # nothing yet; see the test below
+
+
+def test_no_shipped_module_reaches_the_core_through_its_own_shim():
+    """The shims exist for USERS, not for us.
+
+    Measured 2026-07-27: twenty imports in this package's own source went
+    `from .prefs import ...`, `from ._geo import ...` and so on - through the
+    four-line aliases kept alive so that somebody's `from invisible_playwright
+    import prefs` keeps working. `launcher.py` and `async_api.py` were the worst.
+
+    Two costs. The shims can never be deleted without touching production code,
+    which is the opposite of what a back-compat layer is for. And it is the same
+    confusion that put 322 tests in this suite instead of the core's: an import
+    that resolves is not an import that says what it depends on.
+
+    They name `invisible_core.<mod>` now, which is where the code is.
+    """
+    shims = shim_modules()
+    offenders = {}
+    for path in sorted(_SRC.rglob("*.py")):
+        if path.stem in shims or path.parent.name in shims:
+            continue                    # a shim may of course import its target
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        hits = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.level:
+                head = (node.module or "").split(".")[0]
+                if head in shims:
+                    hits.append(f"L{node.lineno}: from .{node.module} import ...")
+        if hits:
+            offenders[str(path.relative_to(_SRC))] = hits
+
+    assert not offenders, (
+        "this package's own code reaches invisible_core through its back-compat "
+        "shims:\n  " +
+        "\n  ".join(f"{f}: {', '.join(h)}" for f, h in offenders.items()) +
+        "\n\nImport `invisible_core.<module>` instead. The shims are for users "
+        "who wrote `from invisible_playwright import prefs` before the split; "
+        "production code depending on them means they can never be removed.")

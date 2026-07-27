@@ -5,10 +5,10 @@ import argparse
 import sys
 
 from . import __version__
-from .constants import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
+from invisible_core import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
 # cache_root is unused here since clear-cache stopped wiping the shared root,
 # but it stays imported: it has been part of this module's surface since 0.1.
-from .download import cache_root, ensure_binary  # noqa: F401
+from invisible_core.download import cache_root, ensure_binary  # noqa: F401
 
 from ._pin import (
     declared_core_pin as _declared_core_pin,

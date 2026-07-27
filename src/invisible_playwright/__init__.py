@@ -34,7 +34,7 @@ previous behaviour, where the browser drew the path instead.
 # the core, and the repair refuses itself if the snapshot says otherwise. Every
 # failure of the repair falls back to the message it replaced.
 #
-# The comparison and the repair both live in invisible_core._pin, shared with the
+# The comparison and the repair both live in invisible_core.pin, shared with the
 # profile manager so both products diagnose and fix an environment the same way.
 # Our _pin.py is the floor: it owns the three states a module inside the core
 # cannot report on (core absent, core present but unimportable, core present but
@@ -45,10 +45,10 @@ _enforce_core_pin()
 from ._engine import assert_playwright_range as _assert_pw_range
 _assert_pw_range()
 
-from .config import get_default_args, get_default_stealth_prefs
-from .constants import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
-from ._geo import GeoTimezoneError, resolve_session_timezone
-from .download import ensure_binary, ensure_geoip_mmdb
+from invisible_core import get_default_args, get_default_stealth_prefs
+from invisible_core import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
+from invisible_core import GeoTimezoneError, resolve_session_timezone
+from invisible_core import ensure_binary, ensure_geoip_mmdb
 from .launcher import InvisiblePlaywright
 
 from importlib.metadata import PackageNotFoundError, version as _pkg_version

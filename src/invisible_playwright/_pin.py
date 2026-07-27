@@ -1,6 +1,6 @@
 """Prelude for the core-pin assertion, then delegation to the core.
 
-THE COMPARISON IS NOT HERE. It lives in invisible_core._pin, because the other
+THE COMPARISON IS NOT HERE. It lives in invisible_core.pin, because the other
 consumer of the core (the profile manager) asks the same question and two copies
 of the answer drift: the day the two products disagree about why an environment
 is broken, the check has stopped being a diagnosis. This module is the small
@@ -15,7 +15,7 @@ is the whole floor, and its except branches classify the failure:
 
   * ImportError naming a module under invisible_core - either the core is not
     installed at all, or it is older than this check and ships no
-    invisible_core._pin (or no invisible_core._pin.enforce_core_pin). Those
+    invisible_core.pin (or no invisible_core.pin.enforce_core_pin). Those
     cannot be told apart from here and do not need to be: one remedy fixes all
     of them, `pip install --force-reinstall invisible-playwright`, which makes
     pip resolve the core version from our own Requires-Dist. No version literal
@@ -60,7 +60,7 @@ _CORE_PREIMPORTED = any(
 )
 
 try:  # the floor - see the module docstring for why this is the one local part
-    from invisible_core._pin import (  # noqa: F401
+    from invisible_core.pin import (  # noqa: F401
         CORE_NAME,
         AUTOFIX_ENV,
         SKIP_ENV,
@@ -94,7 +94,7 @@ except ImportError as _e:
         ) from _e
     raise ImportError(
         "invisible-core is missing, or too old for this invisible-playwright: it "
-        "does not carry the release-pin check (invisible_core._pin), so the engine "
+        "does not carry the release-pin check (invisible_core.pin), so the engine "
         "it downloads cannot be matched against the configuration this package "
         "ships.\n"
         f"Run: pip install --force-reinstall {DIST_NAME}"

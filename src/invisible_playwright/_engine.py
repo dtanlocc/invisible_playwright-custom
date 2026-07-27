@@ -13,7 +13,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from pathlib import Path
 from typing import Optional, Union
 
-from invisible_core.download import ensure_binary
+from invisible_core import ensure_binary
 from invisible_core.seal import EngineMismatch, active_seal, verify_engine
 
 
