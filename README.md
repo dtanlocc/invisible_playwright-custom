@@ -213,6 +213,7 @@ How any of this works, whether or not you use this project:
 - [navigator.webdriver is not the tell you think it is](docs/navigator-webdriver-explained.md) - why setting it to `false` is worse than leaving it alone
 - [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) - page, driver, engine, and what each one cannot reach
 - [Detected on one site only: the checklist](docs/playwright-detected-as-bot.md) - in order, with the proxy seventh rather than first
+- [Firefox WebGL renderer strings](docs/webgl-renderer-strings.md) - what ANGLE reports, and the software-rasterizer tell we shipped ourselves
 
 ## Related projects
 
