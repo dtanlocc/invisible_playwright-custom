@@ -119,6 +119,8 @@ That is the single biggest difference between debugging this and guessing at it,
 it is why this project derives every surface from one seed: the same seed gives the
 same machine every time, so a bisect is a bisect.
 
+**See also:** [WebGL renderer strings](webgl-renderer-strings.md) and [why headless renders different fonts](headless-fonts-differ.md) for step three, and [what sannysoft actually checks](sannysoft-explained.md) before you trust a green table.
+
 ---
 
 *Written while maintaining [invisible_playwright](https://github.com/feder-cr/invisible_playwright),

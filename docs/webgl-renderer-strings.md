@@ -118,6 +118,8 @@ override to find and the derived values can be made to agree by construction. It
 also considerably more work, and it is why projects in this space end up patching
 engines rather than pages.
 
+**See also:** [why headless renders different fonts](headless-fonts-differ.md), the same class of server tell, and [what sannysoft checks](sannysoft-explained.md), where two of the eleven rows are these strings.
+
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright),

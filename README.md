@@ -224,7 +224,7 @@ Running it inside something else:
 - [Cypress, WebdriverIO, TestCafe](docs/integrations/test-runners.md) - and which of the three cannot carry the profile
 - [All of them, and the ones it does not fit](docs/integrations/) - including why, by name
 
-How any of this works, whether or not you use this project:
+How any of this works, whether or not you use this project. Full index in [docs/](docs/):
 
 - [navigator.webdriver is not the tell you think it is](docs/navigator-webdriver-explained.md) - why setting it to `false` is worse than leaving it alone
 - [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) - page, driver, engine, and what each one cannot reach

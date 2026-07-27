@@ -134,6 +134,8 @@ patch for that property. It is somewhere in the consistency of everything else,
 and the fastest way to find it is to run one of the open test suites against your
 setup and read the whole report rather than the headline verdict.
 
+**See also:** [the three levels a stealth tool can work at](playwright-stealth-levels.md), [what CreepJS does to catch an override](creepjs-explained.md), and [the ChromeDriver `cdc_` variable](cdc-variable-explained.md) for the same problem in a different place.
+
 ---
 
 *I maintain `invisible_playwright`, an MIT-licensed Firefox patched at the C++

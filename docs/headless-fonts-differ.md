@@ -97,6 +97,8 @@ Then compare the font set your browser reports against what the platform in your
 agent would have. That single comparison catches more misconfigured setups than any
 other check in this area, and it costs one page load.
 
+**See also:** [WebGL renderer strings](webgl-renderer-strings.md), which is the same shape of problem on different hardware, and [the checklist for one site failing](playwright-detected-as-bot.md), where fonts are step three.
+
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright),

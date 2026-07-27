@@ -128,6 +128,8 @@ published comparisons in this space are mostly written by companies selling a
 managed alternative, and the ones that are not are usually a single run on a single
 machine from a single IP. Your setup is not their setup.
 
+**See also:** [how CreepJS detects tampering](creepjs-explained.md), which explains why level one has a ceiling, and [WebGL renderer strings](webgl-renderer-strings.md) for a surface no level reaches by lying.
+
 ---
 
 *I maintain `invisible_playwright`, MIT, on PyPI: a Firefox patched at the C++ level

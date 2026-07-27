@@ -101,6 +101,8 @@ The advice here is narrow: it applies when the thing on the other side is asking
 whether you are a browser and a person, and where being unusual costs you more than
 being identifiable.
 
+**See also:** [how CreepJS decides you are lying](creepjs-explained.md), whose `resistance` module exists to identify this mode, and [the three levels](playwright-stealth-levels.md).
+
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).

@@ -104,6 +104,8 @@ order:
 Number four catches more sessions than one to three combined, and it is the one
 nobody checks first.
 
+**See also:** [why setting `navigator.webdriver` to false is worse than leaving it alone](navigator-webdriver-explained.md), and [the three levels a stealth tool can work at](playwright-stealth-levels.md), since where the state lives is a level-two decision.
+
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
