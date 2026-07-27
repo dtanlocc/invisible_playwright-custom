@@ -1,0 +1,136 @@
+# Three ways to make Playwright undetected, and what each one actually patches
+
+Every few months someone posts a list of stealth tools for Playwright, and the list
+is always flat: eight names, a table of stars, a recommendation. That framing hides
+the only thing that matters, which is that these tools do not do the same kind of
+thing at all. They operate at three different levels, and the level determines what
+they can and cannot fix.
+
+Here is the map I wish I had when I started.
+
+## Level 1: patch the page
+
+The oldest approach. Before the site's own JavaScript runs, inject a script that
+redefines the things that give automation away. `navigator.webdriver`, the plugin
+array, the permissions API, the WebGL vendor strings.
+
+**Tools:** `playwright-stealth` and its forks on the Python side, the
+`puppeteer-extra-plugin-stealth` lineage on the Node side.
+
+**What it fixes:** the obvious property checks, and it fixes them in about four
+lines of setup. If you are being blocked by something naive, this is often enough
+and you should try it first.
+
+**Where it stops:** everything you redefine is a JavaScript object living in the
+same runtime as the code inspecting it. A redefined property is an own property
+where a native one would be inherited. A replacement getter is a function whose
+source you can print. Patch `Function.prototype.toString` to hide that, and the
+patched `toString` is now itself the anomaly. You are in a race inside the
+opponent's runtime, and the opponent gets to look at everything you did.
+
+It also does nothing about the machine. Fonts, GPU, timezone, audio stack, TLS
+handshake: all still the real ones.
+
+## Level 2: patch the driver
+
+Instead of lying about the automation, stop announcing it. Strip the command-line
+flags that make the browser set `navigator.webdriver` at all, remove the bindings
+the automation framework injects into the page's global scope, stop using the
+execution-context isolation pattern that leaves observable traces.
+
+**Tools:** Patchright, the drop-in Playwright fork. `rebrowser-playwright` and the
+rebrowser patches take a similar line.
+
+**What it fixes:** a whole class of tells at the source rather than covering them.
+The difference is real and worth understanding with an example. At level 1 the
+property becomes `false`, which is a value no clean browser reports. At level 2 it
+becomes `undefined`, because nothing ever set it. There is nothing to detect
+because there is no override.
+
+**Where it stops:** at the browser binary. The engine still reports the GPU it is
+actually running on, the fonts actually installed, the screen actually attached. If
+you are on a server, that reads like a server. Level 2 makes your automation look
+like a normal browser on that machine, which only helps if that machine looks
+normal.
+
+## Level 3: patch the engine and rebuild
+
+Change the values in the browser's C++ source, compile, and ship the binary.
+
+**Tools:** Camoufox, and `invisible_playwright`, which I maintain. Both are patched
+Firefox builds.
+
+**What it fixes:** the distinction between a spoofed value and a real one
+disappears, because the engine reports through the same native code path a normal
+build uses. `Function.prototype.toString` says `[native code]` because it is native
+code. More importantly, it reaches surfaces that JavaScript cannot: what the font
+subsystem enumerates, what the WebGL implementation reports, how the audio pipeline
+rounds, what the network layer sends.
+
+That reach is the actual argument for level 3. Not "it is harder to detect", but
+"there are entire surfaces the other two levels cannot touch at all".
+
+**Where it stops, and the honest costs:**
+
+- You maintain a browser fork against upstream. Every Firefox release is work.
+- The binary is hundreds of megabytes and has to be downloaded and cached.
+- You are locked to one engine. Both current level-3 tools are Firefox, and some
+  sites genuinely serve different code to Firefox, or need Chrome-specific
+  features. If your target is one of those, the cleanest possible Firefox is the
+  wrong tool.
+- The build is a fingerprint too. A patched engine that reports values no real
+  build ever reported is worse than an unpatched one.
+
+That last point deserves more attention than it gets. A stealth build is only as
+good as the plausibility of what it claims. If the GPU string it reports is a
+software rasterizer, the browser has just announced it is running on a machine with
+no graphics hardware, and no amount of C++ patching elsewhere undoes that. I know
+because I found exactly that in my own persona pool: a small share of seeds were
+handing out the Windows software renderer as if it were a graphics card. Real data
+sampled from real users contains servers, and if you sample naively you inherit
+them.
+
+## The axis nobody puts in the comparison tables
+
+Determinism.
+
+Most of these tools generate a random fingerprint per launch. That is fine for
+blending in, and useless for debugging. When a run fails, you cannot tell whether
+the site changed, the proxy changed, or you drew a different machine this time.
+
+Seeding the fingerprint fixes that. Same seed, same navigator, same screen, same
+GPU, same fonts, same canvas output, run after run. It turns "it worked yesterday"
+into something you can bisect. It is also the only way to run a fair A/B between
+two tools, because otherwise the variance between draws is larger than the
+difference you are trying to measure.
+
+If you are evaluating tools in this space, ask whether the fingerprint is
+reproducible before you ask what its detection rate is. A number without
+reproducibility is an anecdote.
+
+## How to actually choose
+
+Not by star count. By this order of questions:
+
+1. **Does your target need Chromium?** If yes, level 3 is out today and you are
+   choosing between levels 1 and 2. Take level 2.
+2. **Are you running on a machine that looks like a normal desktop?** If not, level
+   2 will not save you, because the machine is the problem and level 2 does not
+   touch the machine.
+3. **Do you need to reproduce a session?** If yes, you need a seeded fingerprint,
+   and that narrows the field fast.
+4. **Can you afford a large binary and a fork's maintenance?** If not, be honest
+   about it. Level 1 shipped today beats level 3 abandoned in three months.
+
+And whichever you pick, measure it yourself. Run one of the open test suites,
+CreepJS or BotD or sannysoft, and read the whole report instead of the headline. The
+published comparisons in this space are mostly written by companies selling a
+managed alternative, and the ones that are not are usually a single run on a single
+machine from a single IP. Your setup is not their setup.
+
+---
+
+*I maintain `invisible_playwright`, MIT, on PyPI: a Firefox patched at the C++ level
+and driven by stock Playwright, with a seeded deterministic fingerprint. I am
+obviously not neutral, so the costs of level 3 above are written from the inside
+rather than the outside.*
