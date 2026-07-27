@@ -227,6 +227,7 @@ How any of this works, whether or not you use this project:
 - [Detected on one site only: the checklist](docs/playwright-detected-as-bot.md) - in order, with the proxy seventh rather than first
 - [Firefox WebGL renderer strings](docs/webgl-renderer-strings.md) - what ANGLE reports, and the software-rasterizer tell we shipped ourselves
 - [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, and why the fix is not installing more fonts
+- [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
 
 ## Related projects
 
