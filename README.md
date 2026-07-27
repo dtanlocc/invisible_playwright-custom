@@ -234,6 +234,7 @@ How any of this works, whether or not you use this project:
 - [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](docs/cdc-variable-explained.md) - why renaming it is not removing it, and what that generalises to
 - [What bot.sannysoft.com actually checks](docs/sannysoft-explained.md) - row by row, and the canvas-in-iframe test nobody reads
+- [How CreepJS decides you are lying](docs/creepjs-explained.md) - four detection techniques, and why blocking the probe is itself recorded
 
 ## Related projects
 
