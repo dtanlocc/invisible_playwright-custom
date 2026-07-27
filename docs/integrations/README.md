@@ -14,7 +14,7 @@ signature changes.
 | CodeceptJS | [codeceptjs.md](codeceptjs.md) | a `firefox` block, forwarded verbatim |
 | Robot Framework Browser | [robot-framework.md](robot-framework.md) | both halves as named keyword arguments |
 | Crawlee for JavaScript | [crawlee-js.md](crawlee-js.md) | a launcher and Playwright's own launch options |
-| Cypress, WebdriverIO, TestCafe | [test-runners.md](test-runners.md) | two carry both halves, one carries only the engine |
+| Cypress, WebdriverIO, TestCafe, Nightwatch | [test-runners.md](test-runners.md) | three carry both halves, one carries only the engine |
 
 ## The distinction every one of these turns on
 

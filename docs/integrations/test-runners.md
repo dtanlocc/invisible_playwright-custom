@@ -1,7 +1,7 @@
-# Using invisible_playwright with Cypress, WebdriverIO and TestCafe
+# Using invisible_playwright with Cypress, WebdriverIO, TestCafe and Nightwatch
 
 Four test runners, four mechanisms, and they do not all carry the same amount.
-Verified from source on 2026-07-27. None of the three mentions this project, so
+Verified from source on 2026-07-27. None of the four mentions this project, so
 nothing here is a correction of somebody else's page.
 
 | Runner | Engine | Seeded prefs | Mechanism |
@@ -11,7 +11,7 @@ nothing here is a correction of somebody else's page.
 | TestCafe | yes | **no** | the `path:` browser provider |
 | Nightwatch | yes | **yes** | `firefox_binary` plus `moz:firefoxOptions.prefs` |
 
-Get the two values first, the same way for all three:
+Get the two values first, the same way for all four:
 
 ```bash
 pip install invisible-playwright
@@ -62,7 +62,7 @@ build changed the version string, this is the step that would break first.
 
 ## WebdriverIO
 
-The cleanest of the three. `moz:firefoxOptions` is a W3C capability and it takes both
+The cleanest of the four. `moz:firefoxOptions` is a W3C capability and it takes both
 values directly, so this is standard WebDriver rather than anything runner-specific.
 
 ```js
@@ -101,7 +101,7 @@ than a seeded profile.
 That means every run of the same build looks identical, on every machine that runs
 it. For a test suite pointed at your own staging environment, that is fine and you
 should not care. For anything where the identity matters, this is the wrong layer,
-and one of the other two runners will do the job properly.
+and one of the other three runners will do the job properly.
 
 If you need it anyway, the workaround is the same as everywhere else: write the prefs
 into a profile's `user.js` once and pass that profile's directory. It pins one
