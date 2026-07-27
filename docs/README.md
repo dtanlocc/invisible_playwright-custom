@@ -48,6 +48,7 @@ an advert for it they would not be worth reading.
 | [playwright-docker-detection.md](playwright-docker-detection.md) | the container starts fine and still gets a different page, in six places at once |
 | [hardware-concurrency-device-memory.md](hardware-concurrency-device-memory.md) | three one-line reads, checked against each other and from a worker |
 | [tostring-native-code-detection.md](tostring-native-code-detection.md) | every override is a function, and every function carries its source |
+| [recaptcha-v3-score.md](recaptcha-v3-score.md) | why a fresh profile scores badly, and why a deprecated cookie is worse than a missing one |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
 | [resist-fingerprinting.md](resist-fingerprinting.md) | what Firefox's own mode changes, and why this project turns it off |
 | [cdc-variable-explained.md](cdc-variable-explained.md) | the ChromeDriver variable, and why renaming is not removing |

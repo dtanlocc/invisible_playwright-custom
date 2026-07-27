@@ -247,6 +247,7 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [Playwright in Docker: it runs and still gets blocked](https://feder-cr.github.io/invisible_playwright/playwright-docker-detection.html) - six things a container says about itself, and why the official image is a cohort
 - [hardwareConcurrency, deviceMemory and storage quota](https://feder-cr.github.io/invisible_playwright/hardware-concurrency-device-memory.html) - three numbers about the machine, and the worker check that catches page-level spoofing
 - [Function.prototype.toString and the [native code] check](https://feder-cr.github.io/invisible_playwright/tostring-native-code-detection.html) - why every JavaScript override carries its own source, and the four ways that is found
+- [reCAPTCHA v3 score: why a fresh browser scores badly](https://feder-cr.github.io/invisible_playwright/recaptcha-v3-score.html) - the score is about history, and a fresh profile has none
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to
