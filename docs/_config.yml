@@ -1,10 +1,14 @@
-# The GitHub Pages defaults already do the important part: each page's <title>
-# comes from its own first heading, and relative .md links are rewritten to the
-# built .html, so the same links work here and on github.com. Verified live on
-# 2026-07-27 before this file existed. Do not add a theme here without checking
-# the render again; the default one works.
+# Site config for https://feder-cr.github.io/invisible_playwright/
 #
-# This file adds only what the defaults leave out.
+# DELIBERATELY NO FRONT MATTER ON THE PAGES. GitHub Pages always runs
+# jekyll-titles-from-headings, which sets each page's title from its own first
+# heading, and jekyll-seo-tag turns that into the <title>. That is the whole
+# reason this site exists: on github.com a page's title tag is GitHub's, not
+# ours. Adding `title:` front matter would take the title tag over, and a
+# sidebar-length title is not a search-length title. It would also make
+# github.com render a metadata table above every page.
+#
+# So: sidebar labels come from the same headings, and the theme is pinned.
 
 title: invisible_playwright
 description: >-
@@ -15,5 +19,41 @@ description: >-
 url: https://feder-cr.github.io
 baseurl: /invisible_playwright
 
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+
 plugins:
   - jekyll-sitemap
+
+logo: "/invisible_playwright-logo.png"
+favicon_ico: "/invisible_playwright-logo.png"
+
+color_scheme: dark
+
+# Lunr index, built at page-build time. No extra service, no key.
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+
+heading_anchors: true
+back_to_top: true
+back_to_top_text: "Back to top"
+
+aux_links:
+  "GitHub":
+    - "https://github.com/feder-cr/invisible_playwright"
+  "PyPI":
+    - "https://pypi.org/project/invisible-playwright/"
+aux_links_new_tab: true
+
+footer_content: >-
+  MIT licensed. Every page here is written against the current source of the thing
+  it describes, and several record something we got wrong first.
+
+exclude:
+  - _config.yml
