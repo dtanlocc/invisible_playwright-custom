@@ -35,17 +35,6 @@ Anti-bots ask two questions. invisible_playwright answers yes to both.
 
 Driven by the standard Playwright API. Full breakdown: [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
 
-### If you got here from a search
-
-You are probably looking for one of these, and this is the same category:
-
-- a **stealth Firefox for Playwright**, where the fingerprint is in the engine rather than in an injected script
-- an **undetected browser automation** library for **Python**, as an alternative to `undetected-chromedriver` or `nodriver`
-- an **anti-detect browser** you can drive from code instead of clicking around a GUI
-- something to try when **Playwright is detected as a bot** on one site and works everywhere else
-
-The nearest open-source neighbours are [Camoufox](https://github.com/daijro/camoufox), which also patches Firefox, and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) and [nodriver](https://github.com/ultrafunkamsterdam/nodriver), which take the Chromium side. [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) explains what each approach can and cannot reach, including the costs of this one.
-
 ---
 
 ## Still seeing captchas or anti-bot? It's the proxy.
@@ -278,11 +267,22 @@ How any of this works, whether or not you use this project. [Full index](https:/
 
 ## Related projects
 
-Related projects that cover similar ground:
+The open-source neighbours, and what each one is for.
 
-- **[arkenfox/user.js](https://github.com/arkenfox/user.js)** - Firefox privacy hardening via prefs. invisible_playwright patches C++ where prefs are insufficient.
-- **[LibreWolf](https://librewolf.net)** - Firefox fork with privacy defaults. LibreWolf ships a configured binary; invisible_playwright ships source patches + automation wrapper.
-- **[Camoufox](https://github.com/daijro/camoufox)** - open-source anti-detect Firefox. Patches a wider surface and ships its own fingerprint database; invisible_playwright uses a Bayesian sampler.
+**On the Firefox side**
+
+- **[Camoufox](https://github.com/daijro/camoufox)** - an anti-detect Firefox that also patches at the C++ level. It covers a wider surface and ships its own fingerprint database; this project derives a fingerprint from a seed with a Bayesian sampler, so one number reproduces one machine.
+- **[LibreWolf](https://librewolf.net)** - a Firefox fork with privacy defaults. It ships a configured binary for people to browse with; this ships source patches plus an automation wrapper.
+- **[arkenfox/user.js](https://github.com/arkenfox/user.js)** - Firefox hardening through preferences. Where a preference is enough, use it; this project patches C++ where one is not.
+
+**On the Chromium side**
+
+- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork, so the stealth work lands in the driver rather than in the browser binary.
+- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - the successor to `undetected-chromedriver`, driving Chrome over CDP directly and removing the WebDriver-flavoured tells.
+
+Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) works through what each layer can and cannot reach, including what this one costs.
+
+If you are picking between engines rather than tools, note that a large share of AI agent frameworks drive Chromium over CDP, which decides the question for you: [AI browser agents and stealth](https://feder-cr.github.io/invisible_playwright/ai-browser-agents-stealth.html).
 
 ---
 
