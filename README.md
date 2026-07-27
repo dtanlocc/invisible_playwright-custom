@@ -239,6 +239,8 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [speechSynthesis.getVoices() returns an empty array](https://feder-cr.github.io/invisible_playwright/speech-synthesis-voices.html) - the async gotcha, and the reason the list is a statement about your operating system
 - [AudioContext fingerprinting](https://feder-cr.github.io/invisible_playwright/audiocontext-fingerprinting.html) - the seven values that have to agree, and the measurement that made us turn our own noise off
 - [Playwright timezone does not match the proxy IP](https://feder-cr.github.io/invisible_playwright/timezone-proxy-mismatch.html) - nine values that have to agree, and why the environment variable does not work on Windows
+- [Playwright SOCKS5 proxy with authentication](https://feder-cr.github.io/invisible_playwright/playwright-socks5-proxy-authentication.html) - the credentials are documented for HTTP proxies only, and the upstream request has been open since 2021
+- [JA3 and JA4 TLS fingerprints](https://feder-cr.github.io/invisible_playwright/ja3-ja4-tls-fingerprint.html) - decided before any JavaScript exists, so no stealth layer can reach it
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to
