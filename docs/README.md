@@ -55,6 +55,10 @@ an advert for it they would not be worth reading.
 | [headless-vs-headful.md](headless-vs-headful.md) | what actually differs between the modes, and running headed but hidden |
 | [webgl-parameters-are-identical.md](webgl-parameters-are-identical.md) | ANGLE clamps to the feature level, so a flagship and an old integrated chip report the same block |
 | [persistent-profiles.md](persistent-profiles.md) | storageState vs a profile, the seed pairing rule, and the permission that undoes WebRTC masking |
+| [css-media-query-fingerprinting.md](css-media-query-fingerprinting.md) | what media features expose, and the system-colour palette that gives away the host OS |
+| [codec-fingerprinting.md](codec-fingerprinting.md) | codec support identifies the build and platform; powerEfficient identifies the machine |
+| [bfcache-pageshow-persisted.md](bfcache-pageshow-persisted.md) | why persisted is always false under automation, and what turning it back on costs |
+| [playwright-user-agent.md](playwright-user-agent.md) | what the string has to agree with, and why rotation links sessions instead of separating them |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
 | [resist-fingerprinting.md](resist-fingerprinting.md) | what Firefox's own mode changes, and why this project turns it off |
 | [cdc-variable-explained.md](cdc-variable-explained.md) | the ChromeDriver variable, and why renaming is not removing |

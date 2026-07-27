@@ -254,6 +254,10 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [Headless vs headful: what is actually being detected](https://feder-cr.github.io/invisible_playwright/headless-vs-headful.html) - rarely headlessness, usually the machine it runs on, plus the third option nobody mentions
 - [WebGL parameters: the numbers are the same on every GPU](https://feder-cr.github.io/invisible_playwright/webgl-parameters-are-identical.html) - the most repeated advice here is backwards, and randomising them removed us from the report
 - [Playwright persistent profile](https://feder-cr.github.io/invisible_playwright/persistent-profiles.html) - what it fixes, and the stored permission that disables your WebRTC protection
+- [CSS fingerprinting without JavaScript](https://feder-cr.github.io/invisible_playwright/css-media-query-fingerprinting.html) - media queries and system colours identify a machine with no script, so no page-level layer applies
+- [Codec fingerprinting: canPlayType and MediaCapabilities](https://feder-cr.github.io/invisible_playwright/codec-fingerprinting.html) - three surfaces in one API, including whether your machine has a hardware decoder
+- [BFCache and pageshow.persisted under automation](https://feder-cr.github.io/invisible_playwright/bfcache-pageshow-persisted.html) - drivers disable the back/forward cache, so every back navigation is a full reload
+- [Why you should not set the user agent](https://feder-cr.github.io/invisible_playwright/playwright-user-agent.html) - rotating the string does not rotate the browser, it only creates contradictions
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to

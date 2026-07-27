@@ -1,9 +1,9 @@
 ---
-title: "Playwright persistent profile: what it fixes and what it breaks"
+title: "Playwright persistent profile: what it fixes and breaks"
 description: "A persistent user data directory keeps logins, and carries three traps: a seed that must not move, a stored camera permission that disables WebRTC address protection, and an age that has to be consistent."
 ---
 
-# Playwright persistent profile: what it fixes and what it breaks
+# Playwright persistent profile: what it fixes and breaks
 
 A persistent profile solves a real problem: logging in once instead of every run. It
 also carries three traps, one of which silently switches off protection you believe you
