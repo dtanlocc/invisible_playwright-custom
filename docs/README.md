@@ -42,6 +42,9 @@ an advert for it they would not be worth reading.
 | [timezone-proxy-mismatch.md](timezone-proxy-mismatch.md) | timezone set and still flagged: the nine surfaces, and deriving it from the exit |
 | [playwright-socks5-proxy-authentication.md](playwright-socks5-proxy-authentication.md) | the credentials are for HTTP proxies, the SOCKS request is still open upstream, and the DNS half nobody mentions |
 | [ja3-ja4-tls-fingerprint.md](ja3-ja4-tls-fingerprint.md) | what the ClientHello gives away, why JA3 decayed, and why no page-level layer can touch it |
+| [human-mouse-movement.md](human-mouse-movement.md) | Bezier paths are the visible half; what a page reads is whether the event says it came from a device |
+| [canvas-fingerprint-noise.md](canvas-fingerprint-noise.md) | per-call randomisation is caught by reading twice, and there is a second check almost nobody knows |
+| [screen-size-headless-tells.md](screen-size-headless-tells.md) | a headless browser has no display, so every screen value it reports was decided by something else |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
 | [resist-fingerprinting.md](resist-fingerprinting.md) | what Firefox's own mode changes, and why this project turns it off |
 | [cdc-variable-explained.md](cdc-variable-explained.md) | the ChromeDriver variable, and why renaming is not removing |
