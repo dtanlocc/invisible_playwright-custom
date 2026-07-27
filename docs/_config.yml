@@ -1,0 +1,32 @@
+title: invisible_playwright
+description: >-
+  Undetected Playwright automation on a stealth-patched Firefox. Notes on browser
+  fingerprinting and bot detection, written from the source of the detectors and
+  from our own release gates.
+
+url: https://feder-cr.github.io
+baseurl: /invisible_playwright
+
+theme: jekyll-theme-cayman
+
+plugins:
+  - jekyll-relative-links
+  - jekyll-titles-from-headings
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Rewrites the relative .md links between these pages to their built .html
+# targets, so the same links work on github.com and on the site.
+relative_links:
+  enabled: true
+  collections: true
+
+# Takes each page's <title> from its first heading. Without this every page
+# would inherit the site title, which is the whole reason this file exists.
+titles_from_headings:
+  enabled: true
+  strip_title: false
+  collections: true
+
+exclude:
+  - _config.yml
