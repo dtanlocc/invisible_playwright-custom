@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2026-07-27
+
+### Changed
+- This package can no longer be published without a gate. A release used to be a bare `twine upload` of whatever happened to be in a directory - which is how 0.4.4 reached the index built from a tree that predated the fix it was meant to carry. The gate is `invisible_core.release`, one implementation for all three packages, and the pre-push hook runs it on a release tag. What makes it work is that `publish` builds and uploads *what it just built*, so a stale directory cannot be what ships.
+- `PUBLISHED.json` records what actually reached the index, back-filled from the artifacts themselves.
+- Requires `invisible-core==18.6.0`.
+
 ## [0.4.5] - 2026-07-27
 
 ### Fixed
@@ -234,3 +241,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.0]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.1.0
 [0.4.4]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.4
 [0.4.5]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.5
+[0.4.6]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.6
