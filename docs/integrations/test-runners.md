@@ -1,4 +1,4 @@
-# Using invisible_playwright with Cypress, WebdriverIO, TestCafe and Nightwatch
+# Cypress, WebdriverIO, TestCafe and Nightwatch integration
 
 Four test runners, four mechanisms, and they do not all carry the same amount.
 Verified from source on 2026-07-27. None of the four mentions this project, so

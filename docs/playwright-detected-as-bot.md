@@ -1,4 +1,4 @@
-# Playwright works everywhere except one site: the checklist before you blame the proxy
+# Playwright detected as a bot on one site: a checklist
 
 A troubleshooting order for when automation gets a different page than a human does.
 It is written for Playwright but almost none of it is Playwright-specific.

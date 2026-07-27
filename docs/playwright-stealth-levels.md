@@ -1,4 +1,4 @@
-# Three ways to make Playwright undetected, and what each one actually patches
+# Three ways to make Playwright undetected
 
 Every few months someone posts a list of stealth tools for Playwright, and the list
 is always flat: eight names, a table of stars, a recommendation. That framing hides

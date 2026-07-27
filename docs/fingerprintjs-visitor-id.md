@@ -1,4 +1,4 @@
-# Why a FingerprintJS visitor ID changes, and what a stable one actually means
+# Why a FingerprintJS visitor ID changes
 
 People run FingerprintJS, get a `visitorId`, run it again a week later and get a
 different one. Or they run it in two tabs and get the same one and assume it is

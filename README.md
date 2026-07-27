@@ -44,7 +44,7 @@ You are probably looking for one of these, and this is the same category:
 - an **anti-detect browser** you can drive from code instead of clicking around a GUI
 - something to try when **Playwright is detected as a bot** on one site and works everywhere else
 
-The nearest open-source neighbours are [Camoufox](https://github.com/daijro/camoufox), which also patches Firefox, and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) and [nodriver](https://github.com/ultrafunkamsterdam/nodriver), which take the Chromium side. [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) explains what each approach can and cannot reach, including the costs of this one.
+The nearest open-source neighbours are [Camoufox](https://github.com/daijro/camoufox), which also patches Firefox, and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) and [nodriver](https://github.com/ultrafunkamsterdam/nodriver), which take the Chromium side. [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) explains what each approach can and cannot reach, including the costs of this one.
 
 ---
 
@@ -167,7 +167,7 @@ with InvisiblePlaywright(
     ...
 ```
 
-Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](https://github.com/feder-cr/invisible_playwright/blob/main/docs/pinning.md)**.
+Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](https://feder-cr.github.io/invisible_playwright/pinning.html)**.
 
 ---
 
@@ -212,35 +212,39 @@ Other environment variables you may want:
 
 ## Guides and explainers
 
+All of it reads better, and is searchable, at
+**[feder-cr.github.io/invisible_playwright](https://feder-cr.github.io/invisible_playwright/)**.
+Same pages, same repo, with a search box.
+
 Running it inside something else:
 
-- [Scrapy, via scrapy-playwright](docs/integrations/scrapy-playwright.md) - two settings, engine and profile both
-- [Crawlee for Python](docs/integrations/crawlee-python.md) - a browser plugin, or one line for the engine alone
-- [Playwright MCP](docs/integrations/playwright-mcp.md) - two flags on Microsoft's own MCP server
-- [Go, Java, C#, Ruby, Rust](docs/integrations/other-languages.md) - the engine is not Python
-- [CodeceptJS](docs/integrations/codeceptjs.md) - a `firefox` block in the helper config
-- [Robot Framework Browser](docs/integrations/robot-framework.md) - `executablePath` and `firefoxUserPrefs` are keyword arguments
-- [Crawlee for JavaScript](docs/integrations/crawlee-js.md) - a launcher swap, plus `useFingerprints: false`
-- [Cypress, WebdriverIO, TestCafe, Nightwatch](docs/integrations/test-runners.md) - and which of the four cannot carry the profile
-- [All of them, and the ones it does not fit](docs/integrations/) - including why, by name
+- [Scrapy, via scrapy-playwright](https://feder-cr.github.io/invisible_playwright/integrations/scrapy-playwright.html) - two settings, engine and profile both
+- [Crawlee for Python](https://feder-cr.github.io/invisible_playwright/integrations/crawlee-python.html) - a browser plugin, or one line for the engine alone
+- [Playwright MCP](https://feder-cr.github.io/invisible_playwright/integrations/playwright-mcp.html) - two flags on Microsoft's own MCP server
+- [Go, Java, C#, Ruby, Rust](https://feder-cr.github.io/invisible_playwright/integrations/other-languages.html) - the engine is not Python
+- [CodeceptJS](https://feder-cr.github.io/invisible_playwright/integrations/codeceptjs.html) - a `firefox` block in the helper config
+- [Robot Framework Browser](https://feder-cr.github.io/invisible_playwright/integrations/robot-framework.html) - `executablePath` and `firefoxUserPrefs` are keyword arguments
+- [Crawlee for JavaScript](https://feder-cr.github.io/invisible_playwright/integrations/crawlee-js.html) - a launcher swap, plus `useFingerprints: false`
+- [Cypress, WebdriverIO, TestCafe, Nightwatch](https://feder-cr.github.io/invisible_playwright/integrations/test-runners.html) - and which of the four cannot carry the profile
+- [All of them, and the ones it does not fit](https://feder-cr.github.io/invisible_playwright/integrations/) - including why, by name
 
-How any of this works, whether or not you use this project. Full index in [docs/](docs/):
+How any of this works, whether or not you use this project. [Full index](https://feder-cr.github.io/invisible_playwright/):
 
-- [navigator.webdriver is not the tell you think it is](docs/navigator-webdriver-explained.md) - why setting it to `false` is worse than leaving it alone
-- [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) - page, driver, engine, and what each one cannot reach
-- [Detected on one site only: the checklist](docs/playwright-detected-as-bot.md) - in order, with the proxy seventh rather than first
-- [Firefox WebGL renderer strings](docs/webgl-renderer-strings.md) - what ANGLE reports, and the software-rasterizer tell we shipped ourselves
-- [Your renderer string says NVIDIA, your pixels say software](docs/renderer-string-vs-render.md) - a detection flag we chased in the wrong direction, and what a GPU claim cannot fake
-- [WebRTC leaks with a proxy](docs/webrtc-leak-proxy.md) - why disabling WebRTC is the wrong fix, and the dead preference everyone still recommends
-- [speechSynthesis.getVoices() returns an empty array](docs/speech-synthesis-voices.md) - the async gotcha, and the reason the list is a statement about your operating system
-- [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
-- [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
-- [The ChromeDriver cdc_ variable](docs/cdc-variable-explained.md) - why renaming it is not removing it, and what that generalises to
-- [What bot.sannysoft.com actually checks](docs/sannysoft-explained.md) - row by row, and the canvas-in-iframe test nobody reads
-- [How CreepJS decides you are lying](docs/creepjs-explained.md) - four detection techniques, and why blocking the probe is itself recorded
-- [Firefox preferences that silently do nothing](docs/firefox-prefs-not-applying.md) - five reasons, starting with the one that cost us a real bug
-- [What BotD actually detects](docs/botd-explained.md) - twenty detectors, and why most are not about bots at all
-- [Why a FingerprintJS visitor ID changes](docs/fingerprintjs-visitor-id.md) - it is a hash of 41 components, so one moving moves all of it
+- [navigator.webdriver is not the tell you think it is](https://feder-cr.github.io/invisible_playwright/navigator-webdriver-explained.html) - why setting it to `false` is worse than leaving it alone
+- [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) - page, driver, engine, and what each one cannot reach
+- [Detected on one site only: the checklist](https://feder-cr.github.io/invisible_playwright/playwright-detected-as-bot.html) - in order, with the proxy seventh rather than first
+- [Firefox WebGL renderer strings](https://feder-cr.github.io/invisible_playwright/webgl-renderer-strings.html) - what ANGLE reports, and the software-rasterizer tell we shipped ourselves
+- [Your renderer string says NVIDIA, your pixels say software](https://feder-cr.github.io/invisible_playwright/renderer-string-vs-render.html) - a detection flag we chased in the wrong direction, and what a GPU claim cannot fake
+- [WebRTC leaks with a proxy](https://feder-cr.github.io/invisible_playwright/webrtc-leak-proxy.html) - why disabling WebRTC is the wrong fix, and the dead preference everyone still recommends
+- [speechSynthesis.getVoices() returns an empty array](https://feder-cr.github.io/invisible_playwright/speech-synthesis-voices.html) - the async gotcha, and the reason the list is a statement about your operating system
+- [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
+- [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
+- [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to
+- [What bot.sannysoft.com actually checks](https://feder-cr.github.io/invisible_playwright/sannysoft-explained.html) - row by row, and the canvas-in-iframe test nobody reads
+- [How CreepJS decides you are lying](https://feder-cr.github.io/invisible_playwright/creepjs-explained.html) - four detection techniques, and why blocking the probe is itself recorded
+- [Firefox preferences that silently do nothing](https://feder-cr.github.io/invisible_playwright/firefox-prefs-not-applying.html) - five reasons, starting with the one that cost us a real bug
+- [What BotD actually detects](https://feder-cr.github.io/invisible_playwright/botd-explained.html) - twenty detectors, and why most are not about bots at all
+- [Why a FingerprintJS visitor ID changes](https://feder-cr.github.io/invisible_playwright/fingerprintjs-visitor-id.html) - it is a hash of 41 components, so one moving moves all of it
 
 ## Related projects
 

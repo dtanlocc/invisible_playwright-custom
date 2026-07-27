@@ -1,4 +1,4 @@
-# Firefox WebGL renderer strings: what ANGLE reports, and why a plausible one is harder than a random one
+# Firefox WebGL renderer strings: what ANGLE reports
 
 Two strings decide more than people expect:
 

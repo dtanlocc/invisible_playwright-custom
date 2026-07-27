@@ -1,4 +1,4 @@
-# What privacy.resistFingerprinting actually does, and why an automation tool turns it off
+# What privacy.resistFingerprinting actually does
 
 Firefox ships an anti-fingerprinting mode. It is one preference away:
 

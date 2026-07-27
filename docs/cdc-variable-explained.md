@@ -1,4 +1,4 @@
-# The ChromeDriver `cdc_` variable: what it is, why renaming it is not removing it
+# The ChromeDriver `cdc_` variable, and why renaming it fails
 
 If you have automated Chrome with Selenium and been detected, you have probably met
 this check:

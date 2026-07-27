@@ -1,4 +1,4 @@
-# What BotD actually detects, and why most of it is not about bots
+# What BotD actually detects, and what it does not
 
 BotD is the open-source bot detector from the FingerprintJS team. It is small, it is
 readable, and reading it changes how you think about this problem, because most of

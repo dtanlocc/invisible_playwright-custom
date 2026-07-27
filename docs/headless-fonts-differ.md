@@ -1,4 +1,4 @@
-# Why headless browsers render different fonts, and why that is a fingerprint
+# Why headless browsers render different fonts
 
 Run the same page headless and headful on the same machine and the text is not
 identical. Different widths, different antialiasing, sometimes a different typeface

@@ -1,4 +1,4 @@
-# Using invisible_playwright with Scrapy, through scrapy-playwright
+# Using invisible_playwright with scrapy-playwright
 
 There are two ways in, and they are not equivalent. Take the first one.
 

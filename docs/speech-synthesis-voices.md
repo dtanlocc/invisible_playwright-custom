@@ -1,4 +1,4 @@
-# speechSynthesis.getVoices() returns an empty array: the two different reasons
+# speechSynthesis.getVoices() returns an empty array
 
 There are two separate problems hiding behind the same symptom, and the fixes have
 nothing to do with each other.

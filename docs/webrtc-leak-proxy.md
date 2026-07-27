@@ -1,4 +1,4 @@
-# WebRTC leak with a proxy in Playwright and Selenium: why disabling WebRTC is the wrong fix
+# WebRTC leak with a proxy in Playwright and Selenium
 
 "My browser leaks my real IP while using a proxy." "Playwright leaks IP with proxy."
 "How do I prevent WebRTC leaks in Selenium?" Every answer to those questions ends the
