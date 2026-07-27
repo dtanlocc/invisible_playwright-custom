@@ -49,15 +49,23 @@ def test_the_gate_recognises_THIS_project_and_not_the_core():
 
 @pytest.mark.skipif(not _HOOK.exists(), reason="not a source checkout")
 def test_the_pre_push_hook_gates_release_tags():
-    text = _HOOK.read_text(encoding="utf-8")
-    assert "invisible_core.release" in text, (
-        "the pre-push hook does not run the publish gate, so a release tag can "
-        "be pushed - and published - with no check at all")
-    # The slashes are escaped inside the awk pattern, so strip backslashes
-    # before looking. Asserting the raw form failed against a hook that was
-    # perfectly correct - a test reading the implementation's punctuation.
-    assert "/tags/v" in text.replace("\\", ""), (
-        "the hook does not recognise a release tag")
+    """Driven, not read.
+
+    This used to grep the hook for `invisible_core.release` and for a tag
+    pattern, and it was wrong twice for the same reason: it was a copy of the
+    shell it was checking. It went red when the hook swapped a glob for an awk
+    regex, and again when the policy moved out of the shell into
+    `invisible_core.hooks` - both times against a hook that was correct, and
+    both times leaving the actual property unasserted.
+
+    The helper pushes a release tag through the real policy with a recording
+    runner and checks the gate was invoked FOR THIS PROJECT, then pushes a
+    branch and checks it was not. Its write-up lives once, in the core, because
+    all three repos make the same claim.
+    """
+    from invisible_core.testing import assert_pre_push_policy_is_wired
+
+    assert_pre_push_policy_is_wired(_REPO)
 
 
 @pytest.mark.skipif(not (_REPO / "PUBLISHED.json").exists(),
@@ -76,3 +84,19 @@ def test_the_ledger_records_what_actually_shipped():
             f"entry {entry['version']} names a wheel from another version: "
             f"{entry['wheel_filename']}")
         assert entry["wheel"]["files"], f"{entry['version']}: no file table"
+
+
+# ------------------------------------------------------- the clone is armed
+
+def test_the_hooks_are_armed_in_this_clone():
+    """A checked-in hook directory does nothing until core.hooksPath points at
+    it, and git will not do that for you.
+
+    Until 2026-07-27 both the installer and this reminder lived in the core, so
+    THIS repo shipped a hook that nothing armed and nothing checked was armed:
+    a fresh clone pushed with the tests, the pin, the name scan and the publish
+    gate all skipped, and said nothing about it.
+    """
+    from invisible_core.testing import assert_hooks_are_armed
+
+    assert_hooks_are_armed(_REPO)

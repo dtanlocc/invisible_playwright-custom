@@ -120,3 +120,16 @@ include = ["src/invisible_playwright", "tests", "README.md", "LICENSE", "pyproje
 # public repo, so as a shipped test it handed every user three red tests they
 # could not make green. It is a workbench gate now, run by the pre-push hook.
 exclude = ["tests/playwright-upstream"]
+
+# Which pre-push gates this repository wants. `.githooks/pre-push` is a stub;
+# the policy is invisible_core.hooks, and this block is the only per-repo part
+# of it. Declared rather than defaulted on purpose: the wrong default silently
+# skips a gate, and a skipped gate reads exactly like a passed one.
+#
+# `pin = true`: the invisible-core== specifier below must name the version the
+# core checkout actually builds. No test here can see a stale pin - it only
+# shows up at install time, on someone else's machine.
+[tool.invisible.hooks]
+pytest = true
+pin = true
+release_tags = ["v"]
