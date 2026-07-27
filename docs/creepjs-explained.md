@@ -96,6 +96,25 @@ Two things worth doing when you open it:
    If your fingerprint moves between reloads, something is adding noise per call
    rather than per identity, and that is its own signature.
 
+## Short answers to the questions that lead here
+
+**What does the CreepJS score actually mean?** Not "your fingerprint is rare". It means
+nothing here contradicts anything else here, and nothing looks tampered with.
+
+**Why does it detect my stealth plugin?** Four ways, and each is cheap: a pristine copy
+of the built-ins from a fresh iframe, stack-trace inspection, descriptor and prototype
+walking, and recording a blocked probe as a lie.
+
+**Should I block CreepJS from creating its iframes?** No. Blocking is written down as a
+lie, by name, in its source. Suppressing a signal is a signal.
+
+**Why does more patching score worse?** Because every override is another candidate for
+those four techniques. A page with many detected lies scores worse than one with an
+unusual but honest fingerprint.
+
+**What passes it?** Not lying in JavaScript at all. If the value is decided below the
+JavaScript layer there is no override to find and no seam to detect.
+
 **See also:** [what sannysoft checks](sannysoft-explained.md), whose canvas-in-iframe test is the same idea in miniature, [the three levels](playwright-stealth-levels.md), and [AudioContext fingerprinting](audiocontext-fingerprinting.md), where its silent-buffer check is worked through in detail.
 
 ---

@@ -138,6 +138,28 @@ It is the single biggest difference between debugging this and guessing at it, a
 it is why this project derives every surface from one seed: the same seed gives the
 same machine every time, so a bisect is a bisect.
 
+## Short answers to the questions that lead here
+
+**Why does Playwright work on every site except one?** Because that site checks
+something the others do not, and it is usually about the machine rather than the
+automation. Work the list above in order.
+
+**Is it the proxy?** It is seventh on the list for a reason. It is the expensive fix
+and the least likely single cause, and people buy a better proxy before checking the
+free things.
+
+**How do I tell detection from a normal failure?** Compare the response against what a
+human browser gets on the same URL. A different page, a challenge, or a body that is
+suspiciously short are detection. A timeout is often just a timeout.
+
+**Does headless mode itself get detected?** Less than people think. What gets detected
+is what tends to come with it: no GPU, no fonts, no audio device, a screen size nobody
+has.
+
+**Should I randomise the user agent?** No. It has to agree with the engine, the
+platform, the fonts and everything else. Randomising it alone creates contradictions
+rather than hiding anything.
+
 **See also:** [WebGL renderer strings](webgl-renderer-strings.md) and [why headless renders different fonts](headless-fonts-differ.md) for step three, and [what sannysoft actually checks](sannysoft-explained.md) before you trust a green table.
 
 ---

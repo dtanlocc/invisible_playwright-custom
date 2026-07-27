@@ -128,6 +128,26 @@ published comparisons in this space are mostly written by companies selling a
 managed alternative, and the ones that are not are usually a single run on a single
 machine from a single IP. Your setup is not their setup.
 
+## Short answers to the questions that lead here
+
+**Does `playwright-stealth` support Firefox?** No. The evasion modules target Chromium
+APIs. This is the single most common surprise for people who need Firefox.
+
+**What is the difference between patching the page, the driver and the engine?** Where
+the lie lives. In the page it is a script the page can find. In the driver it is
+outside the page but still above the browser. In the engine there is nothing to find,
+because no lie was told.
+
+**Is engine-level always better?** It is more thorough and much more expensive. You
+maintain a browser build against upstream. Level one shipped today beats level three
+abandoned in three months.
+
+**Can I combine two stealth tools?** Do not. Two layers rewriting the same properties
+argue with each other, and the disagreement is easier to detect than either one alone.
+
+**Which level do I actually need?** Whichever one clears your target. Test before
+choosing, because the honest answer is usually lower than the marketing suggests.
+
 **See also:** [how CreepJS detects tampering](creepjs-explained.md), which explains why level one has a ceiling, and [WebGL renderer strings](webgl-renderer-strings.md) for a surface no level reaches by lying.
 
 ---

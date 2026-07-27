@@ -140,6 +140,26 @@ Then compare the font set your browser reports against what the platform in your
 agent would have. That single comparison catches more misconfigured setups than any
 other check in this area, and it costs one page load.
 
+## Short answers to the questions that lead here
+
+**Why do headless browsers render different fonts?** Because font rendering comes from
+the operating system, and a headless container usually has a different, much smaller
+font set than a desktop. The browser is not doing anything different.
+
+**Will installing more fonts fix it?** No, and it can make things worse. The set has to
+match the platform you claim, not simply be larger.
+
+**What fonts does a real Windows machine have?** A recognisable core set that ships
+with the OS, plus whatever applications added. A Linux container typically has DejaVu
+and Liberation and little else, which is a one-line check against a Windows user agent.
+
+**Can fonts be spoofed from JavaScript?** The enumeration can be filtered. The metrics
+cannot, because measuring text is the OS doing the work, and measurement is what
+serious checks use.
+
+**Does this matter if I am not hiding automation?** Yes, if you claim a platform you
+are not on. It says nothing about automation and everything about where you run.
+
 **See also:** [WebGL renderer strings](webgl-renderer-strings.md), which is the same shape of problem on different hardware, [why the speech voice list is empty](speech-synthesis-voices.md), which is the same problem again on a surface nobody checks, and [the checklist for one site failing](playwright-detected-as-bot.md), where fonts are step three.
 
 ---

@@ -6,7 +6,7 @@ binary and the seeded preferences.
 
 Written against CodeceptJS 4.x (`lib/helper/Playwright.js`,
 `_getOptionsForBrowser` returns `{ ...config[config.browser] }`) and
-`invisible-playwright` 0.4.2.
+`invisible-playwright` 0.4.6.
 
 CodeceptJS's own [Playwright docs](https://github.com/codeceptjs/CodeceptJS/blob/4.x/docs/playwright.md)
 already mention this project as an example of pointing at a custom executable. This
@@ -106,3 +106,26 @@ WebGL renderer. The user agent should say Firefox and the version should match
 `invisible-playwright version`. If the renderer comes back as a software or basic
 renderer, either the prefs did not load or the machine has no GPU, and both are worth
 knowing before the suite reports green.
+
+## Short answers to the questions that lead here
+
+**Does CodeceptJS support a custom Firefox executable?** Yes. Anything under the
+`firefox` key in the Playwright helper config is spread straight into Playwright's
+launch options, so `executablePath` and `firefoxUserPrefs` both arrive.
+
+**Where exactly does the config go?** Under `helpers.Playwright.firefox`, not at the
+helper's top level. At the top level it is a CodeceptJS option; one level down it is a
+Playwright one.
+
+**Can I set a proxy?** Yes, in the same block, as Playwright's `proxy` object.
+
+**Why should I not set `userAgent` here?** Because CodeceptJS puts it right next to the
+options above, which makes it easy to set by accident, and it is the one value that has
+to come from the engine rather than from you.
+
+**Do my existing tests need changes?** No. The helper API is the same. This is a
+launch-time swap and nothing else.
+
+**Does `keepBrowserState` cause problems?** Not by itself, but the session then
+accumulates cookies and storage across scenarios, which is a correlation surface if the
+suite points at a real site instead of a staging one.

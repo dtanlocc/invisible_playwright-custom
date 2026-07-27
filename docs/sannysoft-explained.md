@@ -107,6 +107,25 @@ same code and gets the same answer. The case for doing it at that layer is exact
 this, and it is the same case as
 [the three levels page](playwright-stealth-levels.md), seen from the detector's side.
 
+## Short answers to the questions that lead here
+
+**Is passing bot.sannysoft.com enough?** No. It is a useful smoke test that catches
+obvious mistakes. Serious detection reads far more than these rows.
+
+**What is the canvas-in-iframe row for?** It runs the same canvas test in the page and
+in an iframe and compares them. A patch applied to one context and not the other shows
+up here, and most people never look at it.
+
+**Why are some rows green on a real browser and red on mine?** Because the page reads
+values a real browser answers plainly, and a spoofed one sometimes answers strangely.
+Compare against a stock browser before assuming a red row is a bug.
+
+**Should I aim for all green?** Aim for the same colours a stock browser produces.
+All green is not the target; matching is.
+
+**What does it not check?** Behaviour, the network layer, the TLS handshake, and
+whether your hardware is plausible. All of those decide more than this table does.
+
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).

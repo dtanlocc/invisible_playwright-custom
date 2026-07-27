@@ -1,6 +1,11 @@
 # Firefox WebGL renderer strings: what ANGLE reports
 
-Two strings decide more than people expect:
+`UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` name your graphics hardware in
+plain text, and they decide more than people expect. This is what Firefox reports on
+each platform, why it says ANGLE and Google Inc. on Windows, and why a software
+renderer is the hardest thing on this list to explain away.
+
+Two strings, read like this:
 
 ```js
 const gl = document.createElement('canvas').getContext('webgl');
@@ -117,6 +122,28 @@ Setting these values in the browser's own source avoids that, since there is no
 override to find and the derived values can be made to agree by construction. It is
 also considerably more work, and it is why projects in this space end up patching
 engines rather than pages.
+
+## Short answers to the questions that lead here
+
+**Why does Firefox report `ANGLE` and `Google Inc.`?** Because on Windows it renders
+through ANGLE, Google's OpenGL-to-Direct3D translation layer, exactly as Chrome does.
+A profile that "corrects" this to something Mozilla-branded is unusual in a way no real
+installation is.
+
+**What does `Microsoft Basic Render Driver` mean?** No working GPU driver, which is the
+normal state of a virtual machine or a bare server. It is the browser announcing where
+it runs.
+
+**What are `llvmpipe` and `SwiftShader`?** The same thing on Linux: software renderers.
+Same signal.
+
+**Can I spoof the renderer string from JavaScript?** You can override `getParameter`.
+It survives a check that asks once and believes the answer, and not much else, because
+the value can be cross-checked against the extension list, the texture limits and the
+actual pixels.
+
+**What should the string look like?** Consumer hardware someone could buy, with a
+shader model plausible for its generation, and consistent with the platform you claim.
 
 **See also:** [why headless renders different fonts](headless-fonts-differ.md), the same class of server tell, and [what sannysoft checks](sannysoft-explained.md), where two of the eleven rows are these strings.
 

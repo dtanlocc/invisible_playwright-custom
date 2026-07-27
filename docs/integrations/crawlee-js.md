@@ -12,7 +12,7 @@ launcher?: BrowserType;                 // "pass it by this property as e.g. req
 launchOptions?: LaunchOptions & ...;    // Playwright's own LaunchOptions
 ```
 
-Written against `invisible-playwright` 0.4.2.
+Written against `invisible-playwright` 0.4.6.
 
 ## The two values, from a JavaScript project
 
@@ -116,3 +116,25 @@ The user agent should say Firefox at the version `invisible-playwright version`
 reports. The renderer should be consumer hardware; if it says basic or software, the
 prefs did not apply or the machine has no GPU, and both are worth knowing before you
 trust a run.
+
+## Short answers to the questions that lead here
+
+**Can I use a patched Firefox with Crawlee in Node without Python?** Not for the setup
+step. The engine and the preferences are produced by the Python package. Once you have
+the binary path and `prefs.json`, the crawler itself is pure Node.
+
+**Why `useFingerprints: false`?** Because Crawlee's fingerprint generator and the
+engine both want to decide who this browser is, and their answers will not match. The
+disagreement is a stronger signal than either value being unusual on its own.
+
+**Does `launcher: firefox` mean the stock Firefox?** It means Playwright's Firefox
+*class*, which is the thing that knows how to speak to a Firefox. `executablePath`
+decides which binary it actually starts.
+
+**Can I use persistent profiles?** Yes, through `launchOptions` and a `userDataDir`.
+Pair a stable profile with a stable seed, or the session's history and its hardware
+disagree about how long it has existed.
+
+**What breaks if my proxy pool spans countries?** The timezone and the locale, which
+are frozen into `prefs.json` when it is generated. Produce one per region and select
+it per session, or accept the mismatch.

@@ -107,6 +107,27 @@ to matter, the seed if you have one, and confirm the ID moves.
 If it moves when it should not, read the components, not the ID: the library
 exposes them, and the one that differs between two runs is your problem.
 
+## Short answers to the questions that lead here
+
+**Why does my FingerprintJS visitor ID keep changing?** Because it is a hash of many
+components, so any one of them moving changes the whole value. It is not tracking you
+less, it is being fed different input.
+
+**Is a changing ID good for privacy?** Less than it sounds. An ID that changes every
+single request describes a machine that transforms between page loads, which no real
+machine does, and that pattern is itself detectable.
+
+**What makes the ID stable?** The same components answering the same way every time.
+Deriving them from a fixed seed does that by construction.
+
+**Does the open-source version equal the commercial one?** No. The commercial one adds
+signals the library does not have and deliberately survives some of the changes that
+break the open-source ID.
+
+**Does canvas noise help?** Only if it is stable per identity. Noise added per call
+makes two reads in one session disagree, which is the cheapest tampering check there
+is.
+
 **See also:** [which fingerprint fields can be pinned](pinning.md), if you want
 specific components held still while the rest stays seed-derived,
 [what BotD detects](botd-explained.md), from the same team but aimed at

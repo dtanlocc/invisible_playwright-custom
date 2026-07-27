@@ -1,7 +1,11 @@
 # The ChromeDriver `cdc_` variable, and why renaming it fails
 
 If you have automated Chrome with Selenium and been detected, you have probably met
-this check:
+the `cdc_` variable: a property ChromeDriver leaves on the document, whose presence
+is a one-line test for automation. This is what it is, why renaming it in the binary
+does not remove it, and what that generalises to.
+
+The check looks like this:
 
 ```js
 Object.getOwnPropertyNames(document).find(k => k.startsWith('cdc_'))
@@ -103,6 +107,26 @@ order:
 
 Number four catches more sessions than one to three combined, and it is the one
 nobody checks first.
+
+## Short answers to the questions that lead here
+
+**What is the `cdc_` variable?** A property ChromeDriver injects into the document,
+whose name starts with `cdc_` followed by a random-looking string. Its presence is a
+one-line check for Selenium automation.
+
+**Does renaming it in the binary work?** Against a check that greps for the exact
+prefix, yes. Against a check looking for the *pattern*, three unexpected own properties
+on `document`, no, because renaming does not remove them.
+
+**How do I find it?** Enumerate `document`'s own properties and look for entries no
+normal document has.
+
+**Does Playwright have an equivalent?** Not this one, because it does not use
+ChromeDriver. Every automation stack has its own artefacts, and the lesson generalises
+past this variable.
+
+**What is the real fix?** Do not add the properties at all, which means the automation
+layer has to be built differently rather than patched afterwards.
 
 **See also:** [why setting `navigator.webdriver` to false is worse than leaving it alone](navigator-webdriver-explained.md), and [the three levels a stealth tool can work at](playwright-stealth-levels.md), since where the state lives is a level-two decision.
 

@@ -87,3 +87,21 @@ WebGL renderer. If the user agent says Firefox and the renderer is a consumer GP
 rather than a software rasterizer, the engine is live. If the renderer comes back as
 a basic or software renderer, you are on a machine with no GPU and that is worth
 knowing before you trust the session.
+
+## Short answers to the questions that lead here
+
+**Is there an MCP server for this project?** No, and there does not need to be.
+Microsoft's own `playwright-mcp` accepts `--browser firefox` together with
+`--executable-path`, which is both halves of what this engine needs.
+
+**Can an MCP client drive a stealth browser at all?** Yes, as long as the client lets
+you set the launch arguments. If it does, you can point it at any binary.
+
+**How do I get the preferences in?** Through a wrapper script that the client launches
+instead of the binary directly, so the profile is applied before the browser starts.
+
+**Does this give me humanised pointer motion?** No. That is drawn by the Python driver,
+so an MCP session moves the pointer the way any automation does.
+
+**Is this useful for AI agents?** It is the practical route when an agent framework
+already speaks MCP and rewriting it around a Python wrapper is not on the table.

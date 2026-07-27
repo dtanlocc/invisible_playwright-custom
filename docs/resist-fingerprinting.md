@@ -1,6 +1,8 @@
 # What privacy.resistFingerprinting actually does
 
-Firefox ships an anti-fingerprinting mode. It is one preference away:
+Firefox ships an anti-fingerprinting mode, and turning it on is one preference away.
+This is what `privacy.resistFingerprinting` actually changes, what it breaks, and why
+an automation tool is better off leaving it switched off.
 
 ```
 privacy.resistFingerprinting = true
@@ -100,6 +102,26 @@ automation library is a substitute for it.
 The advice here is narrow: it applies when the thing on the other side is asking
 whether you are a browser and a person, and where being unusual costs you more than
 being identifiable.
+
+## Short answers to the questions that lead here
+
+**Should I turn on `privacy.resistFingerprinting` for automation?** No. It makes you
+uniform with other users of that mode, which is a small and recognisable population,
+and detectors identify the mode itself.
+
+**What does it actually change?** Timezone forced to UTC, a rounded viewport, a
+reduced timer precision, a fixed `hardwareConcurrency`, canvas and WebGL readings
+altered, and a restricted font set, among others.
+
+**So it is useless?** Not at all. It is the right tool for a person who wants privacy
+from ad networks, and Tor Browser builds on it. It is the wrong tool for looking like
+an ordinary user.
+
+**Why does it break sites?** Because it lies to the page about things the page uses for
+layout and timing. That is the trade it exists to make.
+
+**What does this project do instead?** Sets the values to a plausible, consistent
+machine derived from a seed, and leaves the mode off.
 
 **See also:** [how CreepJS decides you are lying](creepjs-explained.md), whose `resistance` module exists to identify this mode, and [the three levels](playwright-stealth-levels.md).
 

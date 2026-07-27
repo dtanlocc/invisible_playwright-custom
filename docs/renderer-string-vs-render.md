@@ -108,6 +108,27 @@ If you are debugging something like this, the order that would have saved us tim
 4. **Ask whether the signal is a value or an output.** Values you can set. Outputs
    you have to actually produce, and that is a different and much harder job.
 
+## Short answers to the questions that lead here
+
+**Why am I flagged as tampering when every value looks right?** Because one of the
+signals is not a value, it is an output. A renderer string can be set. The pixels a
+rasterizer draws cannot be, and the two can contradict each other.
+
+**Does this only happen on Linux?** It happens wherever there is no GPU, which is most
+servers and containers. It showed up for us on headless Linux and came back clean on
+Windows with a real GPU.
+
+**Will a better GPU string fix it?** No. Claiming a better card harder makes the
+contradiction larger, not smaller.
+
+**What are my options?** A machine with a real GPU, a claim that matches the software
+render, or work on making the software output resemble the claimed hardware. All three
+are imperfect and the first is the only easy one.
+
+**How do I test for it?** Sweep several identities before blaming one, change one axis
+at a time, and include the host operating system as an axis. That is what took us from
+the wrong answer to the right one.
+
 **See also:** [WebGL renderer strings](webgl-renderer-strings.md), for what those
 strings encode and the software-rasterizer entry we shipped in our own persona pool,
 and [why headless renders different fonts](headless-fonts-differ.md), which is the

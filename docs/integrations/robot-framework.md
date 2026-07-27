@@ -16,7 +16,7 @@ def new_browser(
 )
 ```
 
-Written against `invisible-playwright` 0.4.2.
+Written against `invisible-playwright` 0.4.6.
 
 ## The two values
 
@@ -164,3 +164,25 @@ The engine is the patched one
 The second assertion is the one people skip and should not: a basic or software
 renderer means the machine has no GPU, and that is a stronger signal than anything
 the automation itself leaks.
+
+## Short answers to the questions that lead here
+
+**Does Robot Framework Browser support a custom browser binary?** Yes. `New Browser`
+takes `executablePath` and `firefoxUserPrefs` as documented named arguments, which
+makes it the cleanest fit of any framework here.
+
+**Do I need to say `firefox`?** Yes, as the first argument. `New Browser` defaults to
+Chromium, and pointing `executablePath` at a Firefox build while the keyword still
+thinks it is launching Chromium fails in a way that is hard to read.
+
+**Can I do this with SeleniumLibrary instead?** Yes, through `options=binary_location`
+and `ff_profile_dir=set_preference(...)`. Generate that string rather than typing it: a
+profile carries several hundred preferences.
+
+**How do I load the preferences without shipping a JSON file?** Call the Python
+function from `Evaluate`. The prefs then cannot drift from the installed package, which
+is the failure mode a checked-in file eventually produces.
+
+**Why should I not set `timezoneId` in `New Context`?** Because it then has to agree
+with the address you are leaving from. Setting it to your own machine's zone is the
+classic way to break a session that was otherwise fine.

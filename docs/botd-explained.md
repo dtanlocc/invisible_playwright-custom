@@ -93,6 +93,25 @@ If any of the engine-identity group fires, stop and fix that first: it means the
 browser you are presenting is not the browser you are running, and no amount of work
 on the other surfaces compensates for that.
 
+## Short answers to the questions that lead here
+
+**What is BotD?** The open-source bot detector from the FingerprintJS team. It runs in
+the page and returns a verdict rather than a fingerprint.
+
+**Is BotD the same as FingerprintJS?** No. FingerprintJS identifies a visitor across
+sessions. BotD answers a different question: is this automation.
+
+**Why does most of it not look like bot detection?** Because most detectors check which
+browser engine you really are, by testing behaviours that differ between engines. A
+browser claiming one engine and behaving like another is the finding.
+
+**Can I pass it by setting `navigator.webdriver` to undefined?** No. That is one
+detector out of roughly twenty.
+
+**Does passing BotD mean I am undetected?** It means one open-source detector found
+nothing. Commercial systems combine far more, including things no in-page script can
+see.
+
 **See also:** [what sannysoft checks](sannysoft-explained.md), which is the older
 list of the same kind, and [how CreepJS detects tampering](creepjs-explained.md),
 which takes the consistency idea considerably further.

@@ -1,6 +1,9 @@
 # Using the engine from Go, Java, C#, Ruby and Rust
 
-The package is Python. The engine is not.
+The package is Python. The engine is not, and you can drive this patched Firefox from
+Go, Java, C#, Ruby or Rust, because every
+official Playwright binding exposes the two launch options it needs. Python is how
+you obtain and configure the browser, not a requirement for driving it.
 
 Every official Playwright binding exposes the same two launch options, because they
 all mirror the same API: `executablePath` and `firefoxUserPrefs`. Those are exactly
@@ -121,3 +124,23 @@ The user agent should say Firefox and the version should match
 `invisible-playwright version`. If the renderer comes back as a software or basic
 renderer, the prefs did not apply, or the machine has no GPU, and either way that is
 worth knowing before you trust the session.
+
+## Short answers to the questions that lead here
+
+**Can I use this from Go, Java, C# or Ruby?** Yes. Every official Playwright binding
+exposes `executablePath` and `firefoxUserPrefs`, because they all mirror the same API,
+and those two options are the whole contract.
+
+**Do I still need Python?** Only to obtain the binary and to generate the preferences
+once. The automation itself does not.
+
+**Is there a CLI for the preferences?** Not today. There is `fetch` and `path` for the
+binary; the preferences come from a one-line Python call whose JSON you keep.
+
+**How often do I regenerate `prefs.json`?** Whenever you upgrade the package. The
+preference set moves with the engine, and an old file paired with a new binary is a
+mismatch that nothing warns you about.
+
+**What do I lose outside Python?** Humanised pointer motion, timezone and locale
+resolved from the proxy exit, and the pin check that refuses a binary which does not
+match the config that produced the prefs.

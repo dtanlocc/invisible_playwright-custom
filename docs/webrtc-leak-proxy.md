@@ -103,7 +103,7 @@ pass a suppression-based test.
 This one is worth stating plainly, because the preference is still recommended in a
 lot of places.
 
-We searched for it in the ICE gathering path of the Firefox 150 source. It is not
+We searched for it in the ICE gathering path of the Firefox 151 source. It is not
 read there. What exists is `RESOLVE_DISABLE_IPV6` for DNS and a `DISABLE_IPV6` flag
 on TCP sockets. Neither is consulted when candidates are gathered.
 

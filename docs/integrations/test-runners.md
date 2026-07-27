@@ -150,3 +150,25 @@ For test suites both are usually irrelevant, because a suite normally runs again
 known environment and does not need to convince anything. Say so out loud when
 choosing: the reason to use this engine in a test runner is a realistic rendering and
 font stack, not evasion.
+
+## Short answers to the questions that lead here
+
+**Can Cypress use a custom Firefox binary?** Yes, with `--browser <path>`, and the
+preferences go through the `before:browser:launch` hook into
+`launchOptions.preferences`.
+
+**Why must I not set `userAgent` in Cypress?** Cypress writes it into
+`general.useragent.override`, which silently wins over the profile's own user agent and
+produces a browser whose stated identity disagrees with everything else it reports.
+
+**Does WebdriverIO support Firefox preferences?** Yes. `moz:firefoxOptions` is a W3C
+capability taking both `binary` and `prefs`, so this is standard WebDriver and not
+anything runner-specific.
+
+**Can TestCafe carry the profile?** No. It runs any browser by path, but a search of
+its source finds no supported way to inject Firefox preferences, so you get the build's
+own defaults. Fine for a staging suite, wrong wherever identity matters.
+
+**Does Nightwatch work?** Yes, through `firefox_binary` plus `moz:firefoxOptions.prefs`.
+The binary can be given at `webdriver.firefox_binary` or as a top-level setting; the
+code checks both, in that order.

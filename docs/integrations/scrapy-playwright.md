@@ -1,8 +1,10 @@
 # Using invisible_playwright with scrapy-playwright
 
-There are two ways in, and they are not equivalent. Take the first one.
+There are two ways to run a patched Firefox inside a Scrapy spider, and they are not
+equivalent: a browser provider, which carries the engine and the seeded profile, or
+launch settings alone, which carry less than people assume. Take the first one.
 
-Written against `scrapy-playwright` 0.0.48, `invisible-playwright` 0.4.2. Both routes
+Written against `scrapy-playwright` 0.0.48, `invisible-playwright` 0.4.6. Both routes
 below are in that released version; the first needs 0.0.48 or newer.
 
 `scrapy-playwright`'s own documentation already names this project in
@@ -166,3 +168,29 @@ proxy is involved at all.
 If the target needs Chromium, use a Chromium backend. If a page does not need
 JavaScript, plain Scrapy is an order of magnitude faster and no fingerprint is
 involved at all.
+
+## Short answers to the questions that lead here
+
+**Can Scrapy use a custom Firefox binary?** Not by itself. Scrapy does not launch a
+browser. `scrapy-playwright` does, and it passes `PLAYWRIGHT_LAUNCH_OPTIONS` into
+Playwright's `launch()`, where `executable_path` lives.
+
+**How do I set `firefox_user_prefs` in Scrapy?** Through `PLAYWRIGHT_LAUNCH_OPTIONS`
+on route two, or inside your provider on route one. There is no Scrapy setting for it,
+because it is a Playwright launch option and not a Scrapy concept.
+
+**Does `HttpProxyMiddleware` work with scrapy-playwright?** No. The browser makes the
+request, so Scrapy's proxy middleware never sees it. Pass the proxy in the launch
+options instead.
+
+**Why is my `USER_AGENT` setting ignored, or worse, not ignored?** It applies to
+Scrapy's own requests, and it can reach the browser too. That is the problem: it
+overwrites a user agent that was consistent with the rest of the profile. Leave it
+unset.
+
+**Do I need `playwright install firefox`?** No. This package downloads and caches its
+own engine on first launch.
+
+**Can I run several identities in one crawl?** Not in one process with one launch. Run
+several processes with different seeds, or use `PLAYWRIGHT_CONTEXTS` with separate
+persistent paths and accept that they share one engine configuration.

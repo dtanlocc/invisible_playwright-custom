@@ -162,6 +162,30 @@ patch for that property. It is somewhere in the consistency of everything else,
 and the fastest way to find it is to run one of the open test suites against your
 setup and read the whole report rather than the headline verdict.
 
+## Short answers to the questions that lead here
+
+**How do I remove `navigator.webdriver`?** You cannot remove it from the page. You can
+delete the override so the property is genuinely `undefined`, which is what a real
+browser reports, but that has to happen where the browser decides, not in a script the
+page can read.
+
+**Does `Object.defineProperty(navigator, 'webdriver', {get: () => false})` work?** It
+changes the value and creates two new tells: the property moves from the prototype to
+the instance, and `false` is not what a real browser says. Real browsers say
+`undefined`.
+
+**What should `navigator.webdriver` be?** `undefined` in a normal browser.
+`true` under automation. `false` almost nowhere, which is why setting it to `false` is
+worse than leaving it alone.
+
+**Is `--disable-blink-features=AutomationControlled` enough?** It hides this one flag
+in Chromium. It says nothing about the twenty other things a detector reads, and it is
+itself a recognisable launch configuration.
+
+**Why do I get detected even with `navigator.webdriver` undefined?** Because it is the
+cheapest check, not the important one. Everything else on your machine is still
+answering honestly.
+
 **See also:** [the three levels a stealth tool can work at](playwright-stealth-levels.md), [what CreepJS does to catch an override](creepjs-explained.md), and [the ChromeDriver `cdc_` variable](cdc-variable-explained.md) for the same problem in a different place.
 
 ---

@@ -102,6 +102,26 @@ worth paying: the same binary can be any machine, and changing what it claims do
 not mean rebuilding it. A tool that hardcodes its fingerprint has none of these
 failure modes and cannot vary at all.
 
+## Short answers to the questions that lead here
+
+**Why is my Firefox preference ignored?** Usually because it is read once at startup,
+because something writes it after you do, because it is the wrong file, because the
+preference no longer exists, or because it exists but nothing reads it.
+
+**How do I check whether a preference actually applied?** Read the value back from the
+page, not from the profile. The profile records your intent; the page shows the result.
+
+**What is the difference between `user.js` and `prefs.js`?** `user.js` is applied at
+every start and overrides. `prefs.js` is written by the browser and can be rewritten
+under you.
+
+**Does `about:config` show the truth?** It shows the current value in the parent
+process, which is not always what a content process or a given realm is using.
+
+**Why would a documented preference do nothing?** Because it was removed upstream and
+left in place, or it was never wired to anything. A preference existing is not evidence
+that anything reads it.
+
 **See also:** [what `privacy.resistFingerprinting` changes](resist-fingerprinting.md),
 which is a preference whose effects are large and mostly unwanted here, and
 [the three levels](playwright-stealth-levels.md) for why a preference and a page

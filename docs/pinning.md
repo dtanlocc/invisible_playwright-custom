@@ -157,3 +157,23 @@ pin = {"gpu.class_tier": "low_end"}
 # correctly on the low-end tier.
 ```
 
+## Short answers to the questions that lead here
+
+**What can I pin?** Fields of the generated fingerprint, so specific values stay fixed
+while everything else stays derived from the seed.
+
+**Why pin instead of just choosing a seed?** A seed gives you one whole machine.
+Pinning lets you hold one attribute steady, a locale or a screen size for example,
+while the rest still varies.
+
+**Can I pin anything I like?** No. Some fields are refused deliberately, because
+setting them independently would produce a combination that does not occur on real
+hardware.
+
+**Does pinning make me easier to identify?** It can. Every value you fix is a value you
+share with every other session that fixed it the same way, so pin the minimum you
+actually need.
+
+**What happens when I upgrade?** The rest of the profile can move with the engine while
+pinned fields stay put. Keep a note of what you pinned and why, or a future mismatch is
+hard to explain.

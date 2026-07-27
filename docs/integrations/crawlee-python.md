@@ -6,7 +6,7 @@ subclass instead of a fork. This page is the integration guide for
 which is where Crawlee asks third-party integrations to live.
 
 Written against `crawlee` on `master` as of 2026-07-27, `invisible-playwright`
-0.4.2 and `invisible-core` 18.2.0. If Crawlee changes
+0.4.6 and `invisible-core` 18.2.0. If Crawlee changes
 `PlaywrightBrowserPlugin.new_browser`, this page is the thing that goes stale, so
 check the signature before blaming the engine.
 
@@ -165,3 +165,25 @@ behaviour. A clean Firefox is still a Firefox.
 
 The binary is also a few hundred megabytes, cached per machine. Fine on a
 workstation, worth thinking about in a container image you rebuild often.
+
+## Short answers to the questions that lead here
+
+**Does Crawlee for Python support a custom browser binary?** Yes, through the browser
+plugin interface. The plugin owns the launch, so anything Playwright's `launch()`
+accepts is reachable.
+
+**Do I have to turn off Crawlee's fingerprint generation?** Yes. Crawlee generates a
+fingerprint and matching headers on the assumption that it owns the browser identity.
+Here the engine owns it, and two independent opinions about who this browser is do not
+average out, they contradict each other.
+
+**Can I keep using `PlaywrightCrawler` unchanged?** Yes. Only the launch changes. The
+request handler, the storage and the enqueueing all behave as they normally do.
+
+**How do I rotate identities across a crawl?** One seed is one machine. Rotate at the
+session level with separate seeds, never per request, or the same visitor appears to
+change hardware between two page loads.
+
+**Does the proxy configuration still work?** Yes, but pass it where the browser can
+see it. A proxy set only at the HTTP client layer does not reach a browser that makes
+its own connections.
