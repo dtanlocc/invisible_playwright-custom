@@ -42,43 +42,43 @@ def true_headless_requested(env: Optional[Dict[str, str]] = None) -> bool:
     return (env if env is not None else os.environ).get(TRUE_HEADLESS_ENV) == "1"
 
 
-#: IANA -> POSIX TZ. Linux glibc reads IANA names from /usr/share/zoneinfo, but
-#: Windows MSVCRT only understands the POSIX form, so the conversion has to
-#: happen before `TZ` is set. Common US zones cover the vast majority of
-#: residential proxies; anything else falls through to its IANA name.
-#:
-#: Lived in `launcher.py` until 2026-07-27, which meant `async_api` imported it
-#: FROM the sync module - a dependency that exists for no reason other than that
-#: is where it was first written. `invisible_core.launch` carries a copy too,
-#: with a comment admitting it was "copied verbatim from the wrapper"; folding
-#: those two together needs a core release and is tracked separately.
-_IANA_TO_POSIX_TZ = {
-    "America/New_York":             "EST5EDT",
-    "America/Detroit":              "EST5EDT",
-    "America/Indiana/Indianapolis": "EST5EDT",
-    "America/Kentucky/Louisville":  "EST5EDT",
-    "America/Chicago":              "CST6CDT",
-    "America/Denver":               "MST7MDT",
-    "America/Los_Angeles":          "PST8PDT",
-    # Arizona (outside the Navajo Nation) does NOT observe DST. Mapping it to
-    # MST7MDT made libc apply DST, so getTimezoneOffset() returned -360 in
-    # summer instead of -420, and the identification service deduced a Denver
-    # origin - a timezone_mismatch produced by our own conversion table.
-    "America/Phoenix":              "MST7",
-    "America/Anchorage":            "AKST9AKDT",
-    # Hawaii does not observe DST either.
-    "Pacific/Honolulu":             "HST10",
-}
+#: The IANA -> POSIX conversion comes from the core, which is where the table
+#: lives. It was duplicated here byte-for-byte - ten entries, including the
+#: Phoenix row that exists because mapping Arizona to MST7MDT made libc apply
+#: DST and an identification service deduce a Denver origin. The core's own
+#: comment admitted its copy had been "copied verbatim from the wrapper", so
+#: the two had a documented keep-in-sync obligation and nothing enforcing it.
+#: `tz_env` was made public in the core for exactly this reason. (No version
+#: number here on purpose: the pin lives in pyproject.toml and a test
+#: forbids a second copy of it anywhere in src/, prose included.)
+#
+#: GUARDED, because an import that fails must say WHY. Taking these names
+#: unguarded meant that an environment holding an older core died with
+#: `ImportError: cannot import name 'IANA_TO_POSIX_TZ' from 'invisible_core'` -
+#: a message about a symbol, from a package the user did not choose the version
+#: of, on the browser launch path. The pin machinery exists to explain exactly
+#: this, and a bare module-level import walks straight past it. Reported by a
+#: user within minutes of the change.
+try:
+    from invisible_core import IANA_TO_POSIX_TZ as _IANA_TO_POSIX_TZ, tz_env
+except ImportError as _exc:  # pragma: no cover - exercised by the old-core probe
+    from ._pin import declared_core_pin as _declared_core_pin
+
+    try:
+        _want = _declared_core_pin() or "a newer version"
+    except Exception:
+        _want = "a newer version"
+    raise ImportError(
+        f"invisible-playwright needs invisible-core {_want}: the installed one "
+        f"does not provide the timezone conversion this version imports "
+        f"({_exc}). Upgrade with `pip install -U invisible-playwright`, which "
+        f"pulls the core it was built against."
+    ) from _exc
 
 #: The proxy egress IP fed to nICEr's bridge as the srflx override. An explicit
 #: caller-supplied value wins over the one discovered at launch.
 WEBRTC_IP_ENV = "STEALTHFOX_WEBRTC_PUBLIC_IP"
 WEBRTC_NO_IPV6_ENV = "STEALTHFOX_WEBRTC_DISABLE_IPV6"
-
-
-def tz_env(timezone: str) -> str:
-    """The value to put in ``TZ`` for an IANA zone."""
-    return _IANA_TO_POSIX_TZ.get(timezone, timezone)
 
 
 def build_env(

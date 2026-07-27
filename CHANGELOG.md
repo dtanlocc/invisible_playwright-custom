@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-07-27
+
+### Changed
+- The process-lifetime machinery moved into `invisible-core`, shared with the profile manager. Both packages launch the same browser and both had the same leak; the manager had it a day longer because the fix lived here. `invisible_playwright._reaper` stays as a re-export, so nothing you import changes.
+- The IANA-to-POSIX timezone table is the core's now. This package carried a byte-identical copy of all ten entries, including the Arizona row that exists because mapping it to `MST7MDT` made libc apply DST and an identification service deduce a Denver origin - and the core's own copy carried a comment admitting it had been copied from here. Two copies with a documented keep-in-sync obligation and nothing enforcing it.
+
+### Fixed
+- The lifetime guard counted an attempted job assignment as a successful one, so a process it had failed to adopt was never retried and the count it reported was a number of tries. Measured on the sibling package, that reported eight processes held while eight survived the kill. This package shipped the same accounting.
+
 ## [0.4.3] - 2026-07-27
 
 ### Fixed
@@ -218,3 +227,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.4.3]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.3
 [0.1.1]: https://github.com/feder-cr/invisible_playwright/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.1.0
+[0.4.4]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.4

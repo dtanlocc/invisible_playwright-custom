@@ -283,10 +283,16 @@ def test_forge_constructor_equivalent_to_sample_helper():
 
 
 @pytest.mark.unit
-def test_forge_sample_avail_h_defaults_to_h_minus_40_when_missing(monkeypatch):
-    """FS8 [ECP]: when a screen entry has no 'ah' key, screen_avail_h
-    defaults to screen_h - 48. Real CPT data always provides 'ah', so
-    we monkeypatch the network to return a synthetic bundle."""
+def test_forge_sample_avail_h_defaults_to_h_minus_the_taskbar_when_missing(monkeypatch):
+    """FS8 [ECP]: with no 'ah' key, screen_avail_h defaults to screen_h minus
+    the taskbar height. Real CPT data always provides 'ah', so the network is
+    monkeypatched to return a synthetic bundle.
+
+    The number was 40 here and in all 93 data rows until 2026-07-27, against the
+    engine's 48 (`nsScreen.cpp:114`, "Windows default taskbar at 100% DPI"), so
+    every profile REPORTED a taskbar no browser would produce. The name said 40
+    for a while after the value said 48 - which is its own small lie, and the
+    reason this is renamed rather than just re-numbered."""
     fake_bundle = {
         "gpu": {"renderer": "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11)",
                 "vendor": "Google Inc."},
