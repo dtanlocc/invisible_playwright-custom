@@ -132,7 +132,9 @@ is a common source of an hour's confusion.
 **Is a VPN better than a proxy here?** For this specific problem they are equivalent, as
 long as you resolve the zone from the address you actually exit through.
 
-**See also:** [WebRTC leak with a proxy](webrtc-leak-proxy.md), which is the other half
+**See also:** [Firefox preferences that silently do nothing](firefox-prefs-not-applying.md),
+if you are here because a setting looks ignored,
+[WebRTC leak with a proxy](webrtc-leak-proxy.md), which is the other half
 of "the browser and the network disagree", and
 [the checklist for being detected on one site](playwright-detected-as-bot.md).
 

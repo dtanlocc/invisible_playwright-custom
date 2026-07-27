@@ -107,7 +107,9 @@ to matter, the seed if you have one, and confirm the ID moves.
 If it moves when it should not, read the components, not the ID: the library
 exposes them, and the one that differs between two runs is your problem.
 
-**See also:** [what BotD detects](botd-explained.md), from the same team but aimed at
+**See also:** [which fingerprint fields can be pinned](pinning.md), if you want
+specific components held still while the rest stays seed-derived,
+[what BotD detects](botd-explained.md), from the same team but aimed at
 a different question, and [why headless renders different fonts](headless-fonts-differ.md),
 since `fonts` and `font_preferences` are two of the forty-one.
 

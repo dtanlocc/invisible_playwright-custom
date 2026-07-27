@@ -166,7 +166,9 @@ render that has to look like it came from the device the other six describe.
 device. A headless container often has none, so the values fall back to defaults that
 say so.
 
-**See also:** [why headless browsers render different fonts](headless-fonts-differ.md)
+**See also:** [why a FingerprintJS visitor ID changes](fingerprintjs-visitor-id.md),
+since the audio hash is one of the components that ID is made of,
+[why headless browsers render different fonts](headless-fonts-differ.md)
 and [your renderer string says NVIDIA, your pixels say software](renderer-string-vs-render.md),
 which are the same "the honest answer describes your machine" problem on other
 surfaces, and [how CreepJS decides you are lying](creepjs-explained.md).
