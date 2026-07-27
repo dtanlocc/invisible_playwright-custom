@@ -115,6 +115,38 @@ For a test suite this is usually the right trade, because a test suite is normal
 not going through a residential proxy and does not need the pointer to be convincing.
 It is the wrong trade if the suite is pointed at something that scores behaviour.
 
+## The other Robot library: SeleniumLibrary
+
+If your suite is on `SeleniumLibrary` rather than `Browser`, both halves are still
+reachable, through two different string-format arguments rather than one keyword:
+
+```robotframework
+*** Test Cases ***
+Open the patched Firefox
+    Open Browser    about:blank    Firefox
+    ...    options=binary_location=r"/absolute/path/from/invisible-playwright path"
+    ...    ff_profile_dir=set_preference("privacy.resistFingerprinting", False)
+```
+
+`options=` maps onto Selenium's `FirefoxOptions`, so `binary_location` points at the
+engine. `ff_profile_dir=` accepts a chain of `set_preference("key", "value")` calls,
+which is where the profile goes.
+
+The awkward part is real: there are several hundred preferences in a generated
+profile and this argument takes them as a semicolon-separated string of calls, so
+generate it rather than typing it:
+
+```python
+from invisible_playwright import get_default_stealth_prefs
+
+prefs = get_default_stealth_prefs(seed=1, humanize=True)
+print(';'.join(f'set_preference("{k}", {v!r})' for k, v in prefs.items()))
+```
+
+`Browser` is the better library for this and for most things. This section exists
+because a suite that already uses SeleniumLibrary is not going to be rewritten for a
+browser engine, and it should still be able to use one.
+
 ## Checking it worked
 
 ```robotframework

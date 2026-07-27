@@ -1,6 +1,6 @@
 # Using invisible_playwright with Cypress, WebdriverIO and TestCafe
 
-Three test runners, three mechanisms, and they do not all carry the same amount.
+Four test runners, four mechanisms, and they do not all carry the same amount.
 Verified from source on 2026-07-27. None of the three mentions this project, so
 nothing here is a correction of somebody else's page.
 
@@ -9,6 +9,7 @@ nothing here is a correction of somebody else's page.
 | Cypress | yes | **yes** | `--browser <path>` plus `before:browser:launch` |
 | WebdriverIO | yes | **yes** | `moz:firefoxOptions` with `binary` and `prefs` |
 | TestCafe | yes | **no** | the `path:` browser provider |
+| Nightwatch | yes | **yes** | `firefox_binary` plus `moz:firefoxOptions.prefs` |
 
 Get the two values first, the same way for all three:
 
@@ -107,12 +108,41 @@ into a profile's `user.js` once and pass that profile's directory. It pins one
 identity for that profile rather than one per session, and it is a workaround rather
 than a supported path.
 
-## What all three give up
+## Nightwatch
+
+Nightwatch reads a `firefox_binary` setting and calls `options.setBinary()` with it,
+and builds its `FirefoxOptions` from the declared capabilities
+(`lib/transport/selenium-webdriver/options.js`), so `moz:firefoxOptions.prefs`
+carries the profile. Both halves, through standard WebDriver.
+
+```js
+// nightwatch.conf.js
+const prefs = require('./prefs.json')
+
+module.exports = {
+  test_settings: {
+    default: {
+      desiredCapabilities: {
+        browserName: 'firefox',
+        'moz:firefoxOptions': { prefs, args: ['-headless'] },
+      },
+      webdriver: {
+        firefox_binary: '/absolute/path/from/invisible-playwright path',
+      },
+    },
+  },
+}
+```
+
+The binary can be given either as `webdriver.firefox_binary` or as a top-level
+`firefox_binary` setting: the code checks both, in that order.
+
+## What all four give up
 
 The two things no route outside the Python wrapper carries:
 
 - **Humanised pointer motion.** The preference enables it; the paths are drawn from
-  the seed by the driver. In all three runners the pointer teleports.
+  the seed by the driver. In all four runners the pointer teleports.
 - **Timezone and locale resolved from the proxy exit.** Computed at launch by the
   wrapper. Here you get whatever the prefs file was generated with.
 
