@@ -81,7 +81,7 @@ which it was something else.
 ## What a real audit checks instead
 
 Open any of the public fingerprinting test suites and look at what they collect.
-CreepJS, BotD, sannysoft, fpscanner: they do not stop at one boolean. They build a
+[CreepJS](creepjs-explained.md), [BotD](botd-explained.md), [sannysoft](sannysoft-explained.md), fpscanner: they do not stop at one boolean. They build a
 picture and then check whether the picture is internally consistent.
 
 A rough map of what that picture contains:

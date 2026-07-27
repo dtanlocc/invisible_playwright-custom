@@ -142,8 +142,8 @@ ctx.close();
 - **The three device values describe one plausible device.** A 5.1 channel count with a
   laptop latency is two devices in one answer.
 - **`outputLatency` is not zero and not identical across machines.** A container with no
-  sound device is a real tell here, in the same way that a machine with no GPU is one
-  for WebGL.
+  sound device is a real tell here, in the same way that [a machine with no GPU is one
+  for WebGL](webgl-renderer-strings.md).
 - **Read the rendered sum twice in one session.** It must match. If it does not, your
   noise is per-call, and that is the single cheapest tampering check there is.
 - **Render a silent buffer and confirm it is silent.**

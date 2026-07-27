@@ -119,7 +119,7 @@ the proxy. The equivalent when you are using Python's `requests` is the `socks5h
 scheme rather than `socks5`, where the `h` is exactly this.
 
 It defaults to off. If you configure a SOCKS proxy by hand and skip this line, you have
-a leak that no leak test aimed at the browser will show you.
+a leak that no leak test aimed at the browser will show you, which is the same blind spot [a WebRTC check has](webrtc-leak-proxy.md).
 
 ## Short answers to the questions that lead here
 

@@ -53,7 +53,7 @@ machine. That is why:
 - Spoofing the string alone is not enough, and is arguably worse than leaving it
   honest, because it creates a claim the pixels contradict.
 - The mismatch is invisible in every check that only reads values. Our own
-  release gates read values for a long time before this surfaced.
+  release gates read values for a long time before this surfaced, which is [why they now assert presence rather than absence](how-to-test-bot-detection.md).
 - It is worst exactly where automation usually runs: servers, containers and CI, none
   of which have a GPU.
 

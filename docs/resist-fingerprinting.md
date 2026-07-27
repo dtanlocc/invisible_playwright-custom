@@ -28,7 +28,7 @@ Roughly, with the caveat that the exact list moves between Firefox versions:
   a standard size so the window itself carries no entropy.
 - **The user agent** and `navigator.platform` are generalised, and the minor version
   is dropped.
-- **`hardwareConcurrency`** reports a fixed low number instead of your core count.
+- **[`hardwareConcurrency`](hardware-concurrency-device-memory.md)** reports a fixed low number instead of your core count.
 - **Timer precision** is reduced, which blunts timing side channels.
 - **Canvas reads** are blocked or prompt, so a canvas hash cannot be taken silently.
 - **Locale** is forced toward `en-US` for the APIs that expose it.

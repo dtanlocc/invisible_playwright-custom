@@ -25,7 +25,7 @@ new Date().toLocaleString()                         // month names, order, separ
 Plus two things that are not in JavaScript at all:
 
 - the **`Accept-Language` header** your requests actually carry
-- the **country of the IP** the request left from
+- the **country of the IP** the request left from, which is also what [WebRTC reports independently](webrtc-leak-proxy.md)
 
 Nine values. A mismatch check does not need any of them to be strange. It needs two of
 them to disagree.

@@ -60,7 +60,7 @@ Linux default, has contradicted itself. No property override fixes this, because
 nothing was overridden: the fonts really are the fonts, and the measurement really
 does measure them.
 
-This is the same shape as the software WebGL renderer problem. It is not an
+This is the same shape as [the WebGL renderer string](webgl-renderer-strings.md), and the software WebGL renderer problem. It is not an
 automation tell. It is a *this is a server* tell, and the two need different fixes.
 
 ## What the enumeration actually does, and what each platform's set looks like

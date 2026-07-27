@@ -122,7 +122,7 @@ on `document`, no, because renaming does not remove them.
 normal document has.
 
 **Does Playwright have an equivalent?** Not this one, because it does not use
-ChromeDriver. Every automation stack has its own artefacts, and the lesson generalises
+ChromeDriver. Every automation stack has its own artefacts, and [each one is a function whose source can be printed](tostring-native-code-detection.md), and the lesson generalises
 past this variable.
 
 **What is the real fix?** Do not add the properties at all, which means the automation

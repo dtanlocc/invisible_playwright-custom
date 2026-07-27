@@ -95,7 +95,7 @@ This is the general rule, and it is the most useful thing on this page:
 > A check that only asserts the absence of a bad signal will pass when the feature is
 > broken. Assert the presence of the right signal instead.
 
-The same shape shows up in fonts, in canvas, in audio. Anything you can suppress will
+The same shape shows up in [fonts](headless-fonts-differ.md), in [canvas](canvas-fingerprint-noise.md), in [audio](audiocontext-fingerprinting.md). Anything you can suppress will
 pass a suppression-based test.
 
 ## `media.peerconnection.ice.disableIPv6` does nothing in current Firefox

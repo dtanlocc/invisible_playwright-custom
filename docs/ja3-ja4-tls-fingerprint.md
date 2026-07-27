@@ -58,7 +58,7 @@ server cared, already judged.
 
 This is a different kind of signal from everything else in fingerprinting, and it is
 worth naming the difference. `navigator.webdriver` is a value the browser reports.
-A canvas hash is an output the browser produces. A TLS fingerprint is **a property of
+[A canvas hash](canvas-fingerprint-noise.md) is an output the browser produces. A TLS fingerprint is **a property of
 the program that opened the connection**. You cannot report it differently, because you
 are not the one reporting it.
 

@@ -92,7 +92,7 @@ with InvisiblePlaywright(seed=42, humanize=True) as browser:
 
 Honest limit, since this page is about what things do not fix: humanised motion is a
 behavioural signal and it does nothing for the machine underneath. A convincing
-pointer on a browser announcing a software GPU is still a browser announcing a
+pointer on [a browser announcing a software GPU](webgl-renderer-strings.md) is still a browser announcing a
 software GPU.
 
 ## Checking your own
