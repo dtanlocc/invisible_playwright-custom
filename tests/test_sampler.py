@@ -285,7 +285,7 @@ def test_forge_constructor_equivalent_to_sample_helper():
 @pytest.mark.unit
 def test_forge_sample_avail_h_defaults_to_h_minus_40_when_missing(monkeypatch):
     """FS8 [ECP]: when a screen entry has no 'ah' key, screen_avail_h
-    defaults to screen_h - 40. Real CPT data always provides 'ah', so
+    defaults to screen_h - 48. Real CPT data always provides 'ah', so
     we monkeypatch the network to return a synthetic bundle."""
     fake_bundle = {
         "gpu": {"renderer": "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11)",
@@ -306,7 +306,7 @@ def test_forge_sample_avail_h_defaults_to_h_minus_40_when_missing(monkeypatch):
     monkeypatch.setattr(_sampler._NETWORK, "sample", lambda _rng: fake_bundle)
     out = Forge(42).sample()
     assert out["screen_avail_w"] == 1920    # falls back to w
-    assert out["screen_avail_h"] == 1080 - 40
+    assert out["screen_avail_h"] == 1080 - 48
 
 
 @pytest.mark.unit
