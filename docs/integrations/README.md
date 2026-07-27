@@ -14,6 +14,7 @@ signature changes.
 | CodeceptJS | [codeceptjs.md](codeceptjs.md) | a `firefox` block, forwarded verbatim |
 | Robot Framework Browser | [robot-framework.md](robot-framework.md) | both halves as named keyword arguments |
 | Crawlee for JavaScript | [crawlee-js.md](crawlee-js.md) | a launcher and Playwright's own launch options |
+| Cypress, WebdriverIO, TestCafe | [test-runners.md](test-runners.md) | two carry both halves, one carries only the engine |
 
 ## The distinction every one of these turns on
 
@@ -31,8 +32,7 @@ Each page says which case it is, in those words, rather than leaving you to find
 ## Frameworks that can host this and have no page yet
 
 Verified from source as accepting a custom Firefox binary, but not written up:
-Cypress (`--browser <path>`), ScrapeGraphAI, TestCafe, WebdriverIO and
-Robot Framework's SeleniumLibrary, Nightwatch (`firefox_binary` plus `moz:firefoxOptions.prefs`) and
+ScrapeGraphAI, Nightwatch (`firefox_binary` plus `moz:firefoxOptions.prefs`) and
 BackstopJS (`engineOptions` forwarded verbatim).
 
 If you use one of these and want a page for it, open an issue. If you have already
