@@ -32,7 +32,7 @@ Each page says which case it is, in those words, rather than leaving you to find
 ## Frameworks that can host this and have no page yet
 
 Verified from source as accepting a custom Firefox binary, but not written up:
-ScrapeGraphAI, Nightwatch (`firefox_binary` plus `moz:firefoxOptions.prefs`) and
+Nightwatch (`firefox_binary` plus `moz:firefoxOptions.prefs`) and
 BackstopJS (`engineOptions` forwarded verbatim).
 
 If you use one of these and want a page for it, open an issue. If you have already
@@ -52,3 +52,12 @@ let someone discover it after an hour:
 - **Frameworks with no way to pass a browser path at all.** Several large ones build
   their launch arguments as a fixed dictionary. There is no integration to write
   until that changes upstream, and it is not worth pretending otherwise.
+- **Frameworks that apply their own stealth layer unconditionally.** ScrapeGraphAI
+  forwards `**kwargs` into `firefox.launch()`, so the binary and the preferences do
+  reach it, and then it calls `Malenia.apply_stealth(context)` on every context
+  (`scrapegraphai/docloaders/chromium.py`, lines 252 and 365, with no flag to
+  disable it). That layers `undetected_playwright`'s JavaScript patches on top of an
+  engine that has already answered the same questions natively. Two components
+  independently deciding who this browser is do not average out, they disagree, and
+  the disagreement is the thing detectors look for. The combination is worse than
+  either alone, so there is no guide for it until that call becomes optional.
