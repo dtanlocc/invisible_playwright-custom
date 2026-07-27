@@ -45,6 +45,9 @@ an advert for it they would not be worth reading.
 | [human-mouse-movement.md](human-mouse-movement.md) | Bezier paths are the visible half; what a page reads is whether the event says it came from a device |
 | [canvas-fingerprint-noise.md](canvas-fingerprint-noise.md) | per-call randomisation is caught by reading twice, and there is a second check almost nobody knows |
 | [screen-size-headless-tells.md](screen-size-headless-tells.md) | a headless browser has no display, so every screen value it reports was decided by something else |
+| [playwright-docker-detection.md](playwright-docker-detection.md) | the container starts fine and still gets a different page, in six places at once |
+| [hardware-concurrency-device-memory.md](hardware-concurrency-device-memory.md) | three one-line reads, checked against each other and from a worker |
+| [tostring-native-code-detection.md](tostring-native-code-detection.md) | every override is a function, and every function carries its source |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
 | [resist-fingerprinting.md](resist-fingerprinting.md) | what Firefox's own mode changes, and why this project turns it off |
 | [cdc-variable-explained.md](cdc-variable-explained.md) | the ChromeDriver variable, and why renaming is not removing |
