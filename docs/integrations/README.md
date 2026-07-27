@@ -13,6 +13,7 @@ signature changes.
 | Go, Java, C#, Ruby, Rust | [other-languages.md](other-languages.md) | the two launch options every Playwright binding already has |
 | CodeceptJS | [codeceptjs.md](codeceptjs.md) | a `firefox` block, forwarded verbatim |
 | Robot Framework Browser | [robot-framework.md](robot-framework.md) | both halves as named keyword arguments |
+| Crawlee for JavaScript | [crawlee-js.md](crawlee-js.md) | a launcher and Playwright's own launch options |
 
 ## The distinction every one of these turns on
 
@@ -30,8 +31,7 @@ Each page says which case it is, in those words, rather than leaving you to find
 ## Frameworks that can host this and have no page yet
 
 Verified from source as accepting a custom Firefox binary, but not written up:
-Cypress (`--browser <path>`), Crawlee for JavaScript (`launchContext.launchOptions`),
-ScrapeGraphAI, TestCafe, WebdriverIO and
+Cypress (`--browser <path>`), ScrapeGraphAI, TestCafe, WebdriverIO and
 Robot Framework's SeleniumLibrary, Nightwatch (`firefox_binary` plus `moz:firefoxOptions.prefs`) and
 BackstopJS (`engineOptions` forwarded verbatim).
 

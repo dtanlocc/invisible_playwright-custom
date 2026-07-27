@@ -220,6 +220,7 @@ Running it inside something else:
 - [Go, Java, C#, Ruby, Rust](docs/integrations/other-languages.md) - the engine is not Python
 - [CodeceptJS](docs/integrations/codeceptjs.md) - a `firefox` block in the helper config
 - [Robot Framework Browser](docs/integrations/robot-framework.md) - `executablePath` and `firefoxUserPrefs` are keyword arguments
+- [Crawlee for JavaScript](docs/integrations/crawlee-js.md) - a launcher swap, plus `useFingerprints: false`
 - [All of them, and the ones it does not fit](docs/integrations/) - including why, by name
 
 How any of this works, whether or not you use this project:
