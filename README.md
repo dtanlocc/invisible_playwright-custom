@@ -233,6 +233,7 @@ How any of this works, whether or not you use this project:
 - [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](docs/cdc-variable-explained.md) - why renaming it is not removing it, and what that generalises to
+- [What bot.sannysoft.com actually checks](docs/sannysoft-explained.md) - row by row, and the canvas-in-iframe test nobody reads
 
 ## Related projects
 
