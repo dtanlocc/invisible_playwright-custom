@@ -11,6 +11,7 @@ signature changes.
 | Crawlee for Python | [crawlee-python.md](crawlee-python.md) | a plugin subclass for the full profile, or one line for the engine alone |
 | Playwright MCP | [playwright-mcp.md](playwright-mcp.md) | two flags on Microsoft's own MCP server |
 | Go, Java, C#, Ruby, Rust | [other-languages.md](other-languages.md) | the two launch options every Playwright binding already has |
+| CodeceptJS | [codeceptjs.md](codeceptjs.md) | a `firefox` block, forwarded verbatim |
 
 ## The distinction every one of these turns on
 
@@ -29,7 +30,7 @@ Each page says which case it is, in those words, rather than leaving you to find
 
 Verified from source as accepting a custom Firefox binary, but not written up:
 Cypress (`--browser <path>`), Crawlee for JavaScript (`launchContext.launchOptions`),
-ScrapeGraphAI, CodeceptJS, TestCafe, WebdriverIO, Robot Framework's
+ScrapeGraphAI, TestCafe, WebdriverIO, Robot Framework's
 `robotframework-browser` (which exposes a `firefoxUserPrefs` keyword directly),
 SeleniumLibrary, Nightwatch (`firefox_binary` plus `moz:firefoxOptions.prefs`) and
 BackstopJS (`engineOptions` forwarded verbatim).

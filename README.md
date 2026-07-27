@@ -218,6 +218,7 @@ Running it inside something else:
 - [Crawlee for Python](docs/integrations/crawlee-python.md) - a browser plugin, or one line for the engine alone
 - [Playwright MCP](docs/integrations/playwright-mcp.md) - two flags on Microsoft's own MCP server
 - [Go, Java, C#, Ruby, Rust](docs/integrations/other-languages.md) - the engine is not Python
+- [CodeceptJS](docs/integrations/codeceptjs.md) - a `firefox` block in the helper config
 - [All of them, and the ones it does not fit](docs/integrations/) - including why, by name
 
 How any of this works, whether or not you use this project:
