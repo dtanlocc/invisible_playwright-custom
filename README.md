@@ -258,6 +258,8 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [Codec fingerprinting: canPlayType and MediaCapabilities](https://feder-cr.github.io/invisible_playwright/codec-fingerprinting.html) - three surfaces in one API, including whether your machine has a hardware decoder
 - [BFCache and pageshow.persisted under automation](https://feder-cr.github.io/invisible_playwright/bfcache-pageshow-persisted.html) - drivers disable the back/forward cache, so every back navigation is a full reload
 - [Why you should not set the user agent](https://feder-cr.github.io/invisible_playwright/playwright-user-agent.html) - rotating the string does not rotate the browser, it only creates contradictions
+- [browser-use gets detected](https://feder-cr.github.io/invisible_playwright/browser-use-detection.html) - what its BrowserProfile reaches, and the tell specific to agent-driven sessions
+- [crawl4ai stealth and custom browser engines](https://feder-cr.github.io/invisible_playwright/crawl4ai-stealth-custom-browser.html) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to
