@@ -50,6 +50,34 @@ typed. Every serious stealth layer patches `toString` to hide this, and then the
 patch to `toString` is itself detectable, and so on down. This is the part people
 underestimate: each layer of the disguise is a new surface.
 
+## The timing problem, which is why "it works locally" happens
+
+There is a fourth failure that has nothing to do with the value and everything to do
+with when your code runs.
+
+A patch injected into the page has to execute before the page's own scripts, or the
+page has already read the original. Automation frameworks expose an "on new document"
+or "init script" hook for exactly this, and it is not the same thing as running code
+after `goto` returns.
+
+Two consequences people meet in this order:
+
+**It works when you test it by hand and fails in the crawler.** By the time you open
+a console and check `navigator.webdriver`, your patch has long since run. The page's
+own script ran earlier, read the real value, and may have already sent it.
+
+**A page that keeps a reference wins permanently.** If the first line of a page's
+script does `const w = navigator.webdriver` or captures the descriptor, your later
+redefinition changes nothing for that reference. You cannot un-read a value that was
+already read.
+
+This is also why headed and headless runs can differ for the same code: they do not
+generally change injection order, but they do change timing, and a race you win on a
+warm local machine you can lose on a loaded CI box.
+
+A value decided inside the engine has no race, because there is no moment before
+which it was something else.
+
 ## What a real audit checks instead
 
 Open any of the public fingerprinting test suites and look at what they collect.
