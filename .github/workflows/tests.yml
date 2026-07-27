@@ -67,8 +67,19 @@ jobs:
           text = pathlib.Path("tests-report.txt").read_text(encoding="utf-8", errors="ignore")
           m = re.search(r"(\d+) passed", text)
           passed = int(m.group(1)) if m else 0
-          if passed < 600:
-              print(f"only {passed} test(s) ran (expected 600+) - the selection "
+          # FLOOR, not a target. It exists because a mis-wired selection runs
+          # almost nothing and still exits 0 - the exit code cannot see it.
+          #
+          # Was 600 until 2026-07-27, when 322 tests MOVED to invisible_core:
+          # they covered core modules and reached them through this package's
+          # four-line back-compat shims, so six real breaks in core code were
+          # surviving the core's own suite. Nothing shrank; the tests are in the
+          # package they test. This suite runs ~420 now.
+          #
+          # Keep it a little under the real count. It is a tripwire for "the
+          # selection collapsed", not an assertion about how many tests exist.
+          if passed < 380:
+              print(f"only {passed} test(s) ran (expected 380+) - the selection "
                     f"dropped most of the suite and the exit code cannot see it",
                     file=sys.stderr)
               sys.exit(1)
