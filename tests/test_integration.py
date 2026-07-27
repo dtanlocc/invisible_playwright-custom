@@ -15,9 +15,9 @@ import sys
 
 import pytest
 
-from invisible_playwright._fpforge import generate_profile
-from invisible_playwright._proxy import configure_proxy
-from invisible_playwright.prefs import (
+from invisible_core._fpforge import generate_profile
+from invisible_core._proxy import configure_proxy
+from invisible_core.prefs import (
     _WIN_LIGHT_COLORS,
     translate_profile_to_prefs,
 )
@@ -26,7 +26,7 @@ from invisible_playwright.prefs import (
 # Keys every Profile-derived prefs dict MUST carry.
 #
 # CAREFUL: this list is a DUPLICATE of a contract that belongs to another
-# package. `invisible_playwright.prefs` is a pure alias shim for
+# package. `invisible_core.prefs` is a pure alias shim for
 # `invisible_core.prefs`, so this file tests the CORE's function through an
 # alias - against whichever core version pip resolved, which on CI is the
 # PUBLISHED one and locally is the checkout.
@@ -345,7 +345,7 @@ def test_linux_xvfb_workarounds_with_socks_proxy(monkeypatch):
     # GPU renderer is spoofed from the validated WebGL persona (a coherent Windows
     # ANGLE GPU whose renderer + params cross-check), applied on every host - NOT the
     # raw profile.gpu.renderer, which has no coherent param set and is never exposed.
-    from invisible_playwright._webgl_personas import select_persona
+    from invisible_core._webgl_personas import select_persona
     _persona = select_persona(profile.seed)
     assert _persona, "expected a validated persona for this seed"
     assert prefs["zoom.stealth.webgl.renderer"] == _persona["prefs"]["zoom.stealth.webgl.renderer"]

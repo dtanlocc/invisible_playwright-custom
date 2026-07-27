@@ -220,8 +220,8 @@ def test_mdns_host_is_invisible_to_creep_resolver():
 #  These lock the shipped wrapper config to the manually-validated one so a
 #  future edit / merge can't silently un-ship it. Run in tests.yml.
 # ──────────────────────────────────────────────────────────────────────────
-from invisible_playwright._fpforge import generate_profile  # noqa: E402
-from invisible_playwright.prefs import translate_profile_to_prefs  # noqa: E402
+from invisible_core._fpforge import generate_profile  # noqa: E402
+from invisible_core.prefs import translate_profile_to_prefs  # noqa: E402
 
 
 @pytest.mark.unit

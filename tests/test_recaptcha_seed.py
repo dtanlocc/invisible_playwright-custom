@@ -238,7 +238,7 @@ def test_httponly_on_signed_cookies():
 def test_with_real_fpforge_profile():
     """End-to-end: generate a real Profile, ensure browsing_history is populated
     and build_cookies works against it."""
-    from invisible_playwright._fpforge import generate_profile
+    from invisible_core._fpforge import generate_profile
     prof = generate_profile(seed=42)
     assert isinstance(prof.browsing_history, list)
     # The Bayesian network samples ~15-30 sites per persona
@@ -256,7 +256,7 @@ def test_with_real_fpforge_profile():
 
 def test_same_seed_same_browsing_history_via_fpforge():
     """Profile.browsing_history is deterministic from seed (Bayesian sampler)."""
-    from invisible_playwright._fpforge import generate_profile
+    from invisible_core._fpforge import generate_profile
     a = generate_profile(seed=42).browsing_history
     b = generate_profile(seed=42).browsing_history
     assert a == b

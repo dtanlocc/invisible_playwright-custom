@@ -26,14 +26,14 @@ Marked `e2e`: builds venvs and talks to the index.
 from __future__ import annotations
 
 import json
-import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 import pytest
+
+from invisible_core.testing import make_venv, run_checked, venv_python
 
 pytestmark = pytest.mark.e2e
 
@@ -41,28 +41,16 @@ WRAPPER = "invisible-playwright"
 CORE = "invisible-core"
 
 
-def _run(cmd: list[str], *, timeout: int = 600, check: bool = True,
-         env: dict | None = None) -> subprocess.CompletedProcess:
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                       env=env)
-    if check and r.returncode != 0:
-        raise AssertionError(
-            f"{' '.join(cmd)} exited {r.returncode}\n"
-            f"--- stdout ---\n{r.stdout[-3000:]}\n--- stderr ---\n{r.stderr[-3000:]}")
-    return r
-
-
-def _venv_python(venv: Path) -> Path:
-    return venv / ("Scripts" if os.name == "nt" else "bin") / (
-        "python.exe" if os.name == "nt" else "python")
+# The venv mechanics live in invisible_core.testing - see the note in
+# test_release_e2e.py. This file needs several venvs inside ONE workspace (it
+# installs an old release into one and upgrades it), which is why it builds them
+# individually rather than through `throwaway_venv`.
+_run = run_checked
+_venv_python = venv_python
 
 
 def _fresh_venv(root: Path, name: str) -> Path:
-    _run([sys.executable, "-m", "venv", str(root / name)], timeout=300)
-    py = _venv_python(root / name)
-    _run([str(py), "-m", "pip", "install", "--upgrade", "pip", "--quiet"],
-         timeout=300)
-    return py
+    return make_venv(root / name)
 
 
 def _versions(py: Path) -> dict:

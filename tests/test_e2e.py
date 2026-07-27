@@ -209,8 +209,7 @@ def test_e12_linux_resolve_headless_without_xvfb_raises_clear_error(monkeypatch)
     the early-check path in ``_LinuxVirtualDisplay.start``."""
     import sys as _sys
     monkeypatch.setattr(_sys, "platform", "linux")
-
-    from invisible_playwright import _headless as _h
+    from invisible_core import _headless as _h
     monkeypatch.setattr(_h, "_binary_on_path", lambda name: False)
 
     ip = InvisiblePlaywright(seed=42, headless=True)

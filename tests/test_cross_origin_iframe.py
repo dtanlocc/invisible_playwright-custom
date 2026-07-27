@@ -36,8 +36,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from invisible_playwright._fpforge import generate_profile
-from invisible_playwright.prefs import _BASELINE, translate_profile_to_prefs
+from invisible_core._fpforge import generate_profile
+from invisible_core.prefs import _BASELINE, translate_profile_to_prefs
 
 
 # ────────────────────────────────────────────────────────────────────

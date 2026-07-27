@@ -1,8 +1,8 @@
 """Pin parameter validation and propagation through the fingerprint generator."""
 import pytest
 
-from invisible_playwright._fpforge import generate_profile
-from invisible_playwright.prefs import translate_profile_to_prefs
+from invisible_core._fpforge import generate_profile
+from invisible_core.prefs import translate_profile_to_prefs
 
 
 def test_pin_screen_width_propagates_to_prefs():

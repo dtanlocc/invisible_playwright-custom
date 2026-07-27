@@ -34,11 +34,12 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
+
+from invisible_core.testing import make_venv, run_checked, venv_python
 
 # NOT imported at module level. This file is collected in an environment that
 # deliberately does NOT have the package installed - the package under test
@@ -67,26 +68,13 @@ REV = os.environ.get("INVPW_E2E_REV", "main")
 # ---------- helpers --------------------------------------------------------- #
 
 
-def _run(cmd: list[str], *, env: dict | None = None, cwd: Path | None = None,
-         timeout: int = 300, check: bool = True) -> subprocess.CompletedProcess:
-    """Run a subprocess with full output captured. Fail with both streams shown."""
-    result = subprocess.run(
-        cmd, env=env, cwd=cwd, timeout=timeout,
-        capture_output=True, text=True,
-    )
-    if check and result.returncode != 0:
-        raise AssertionError(
-            f"{' '.join(cmd)} exited {result.returncode}\n"
-            f"--- stdout ---\n{result.stdout[-3000:]}\n"
-            f"--- stderr ---\n{result.stderr[-3000:]}"
-        )
-    return result
-
-
-def _venv_python(venv: Path) -> Path:
-    if os.name == "nt":
-        return venv / "Scripts" / "python.exe"
-    return venv / "bin" / "python"
+# The venv mechanics live in invisible_core.testing. This file, the upgrade
+# e2e next door, and both consumers' install e2e each carried their own `_run`
+# and `_venv_python` - the same two functions, four times, differing only in
+# which optional keyword each had grown. The shared `run_checked` takes the
+# superset, so nothing here loses a parameter.
+_run = run_checked
+_venv_python = venv_python
 
 
 # ---------- fixtures -------------------------------------------------------- #
@@ -103,13 +91,13 @@ def workspace() -> Path:
 
 @pytest.fixture(scope="module")
 def clean_venv(workspace: Path) -> Path:
-    """A fresh venv, pip upgraded. Returns its python executable path."""
-    venv_dir = workspace / "venv"
-    _run([sys.executable, "-m", "venv", str(venv_dir)], timeout=180)
-    py = _venv_python(venv_dir)
-    assert py.exists(), f"venv python not found at {py}"
-    _run([str(py), "-m", "pip", "install", "--upgrade", "pip", "--quiet"], timeout=180)
-    return py
+    """A fresh venv, pip upgraded. Returns its python executable path.
+
+    Inside `workspace` rather than a temp dir of its own: the engine tarball
+    and a private cache dir live there too, and re-downloading 110 MB per test
+    is what the shared workspace exists to avoid.
+    """
+    return make_venv(workspace / "venv")
 
 
 @pytest.fixture(scope="module")
