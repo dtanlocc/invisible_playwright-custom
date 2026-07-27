@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, Union
 
 from playwright.sync_api import Browser, BrowserContext, Playwright, sync_playwright
 
+from . import _session
 from ._cursor import (
     ENGINE_PYTHON,
     enable_for as _enable_cursor_engine,
@@ -50,33 +51,11 @@ _CHROME_W  = 14
 _CHROME_H  = 91
 _TASKBAR_H = 40
 
-# IANA → POSIX TZ mapping. Linux glibc accepts IANA names directly via
-# /usr/share/zoneinfo, but Windows MSVCRT only understands the POSIX form
-# ("EST5EDT") - convert here so ``TZ`` works on both platforms when the
-# binary runs on Windows. Common US zones cover the vast majority of
-# residential proxies; everything else falls through to its IANA name.
-_IANA_TO_POSIX_TZ = {
-    "America/New_York":            "EST5EDT",
-    "America/Detroit":              "EST5EDT",
-    "America/Indiana/Indianapolis": "EST5EDT",
-    "America/Kentucky/Louisville":  "EST5EDT",
-    "America/Chicago":              "CST6CDT",
-    "America/Denver":               "MST7MDT",
-    "America/Los_Angeles":          "PST8PDT",
-    # Arizona (except Navajo Nation) does NOT observe DST. Mapping it to
-    # MST7MDT made libc apply DST → Date.getTimezoneOffset() returned -360
-    # in summer (Denver-like) instead of -420 (true Phoenix), and FP Pro
-    # deduced vpn_origin_timezone="America/Denver" → timezone_mismatch.
-    "America/Phoenix":              "MST7",
-    "America/Anchorage":            "AKST9AKDT",
-    # Hawaii does not observe DST.
-    "Pacific/Honolulu":             "HST10",
-}
-
-
-def _tz_env(timezone: str) -> str:
-    """Return the value to set in ``TZ`` for the given IANA zone."""
-    return _IANA_TO_POSIX_TZ.get(timezone, timezone)
+# The IANA -> POSIX TZ table moved to `_session` on 2026-07-27, so the async
+# class no longer has to import it FROM the sync module. Re-exported under the
+# original names because tests and `async_api` import them from here.
+_IANA_TO_POSIX_TZ = _session._IANA_TO_POSIX_TZ
+_tz_env = _session.tz_env
 
 
 class InvisiblePlaywright:
@@ -434,74 +413,37 @@ class InvisiblePlaywright:
     # ── helpers ─────────────────────────────────────────────────────────
 
     def _build_prefs(self) -> Dict[str, Any]:
-        """Fingerprint prefs plus humanize toggle (always set explicitly)."""
-        import sys as _sys
-        prefs = translate_profile_to_prefs(
-            self._profile,
+        """Fingerprint prefs plus humanize toggle (always set explicitly).
+
+        The body lives in `_session.build_prefs`, which the async class calls
+        too. It used to be twenty lines here and the SAME twenty inlined into
+        `async_api.__aenter__` - identical calls in identical order, differing
+        only in their comments, which is how the two entry points drift.
+        """
+        return _session.build_prefs(
+            profile=self._profile,
             locale=self._locale,
             timezone=self._timezone,
             extra_prefs=self._extra_prefs,
-            virtual_display=bool(self._headless and _sys.platform == "win32"),
+            headless=self._headless,
+            cursor_engine=self._cursor_engine,
+            humanize=self._humanize,
         )
-        # Windows & macOS hide the headless window via the binary's own cloak
-        # (DWMWA_CLOAK / NSWindow alpha) - inject the pref so the patched build
-        # cloaks its chrome windows. setdefault: an explicit user override wins.
-        if self._headless and _sys.platform in ("win32", "darwin"):
-            for _k, _v in cloak_prefs().items():
-                prefs.setdefault(_k, _v)
-        # Pref namespace MUST be stealthfox.* - that's what the binary's Juggler
-        # reads (it gates its own mouse-path expansion on `stealthfox.humanize`).
-        # The old `invisible_playwright.*` name was a dead no-op (nothing read it), so
-        # humanize silently never fired and every click teleported the cursor.
-        #
-        # The pref is now the switch between the two generators, not the switch
-        # for the feature. When the wrapper generates the motion it must be
-        # FALSE, or a single move would be expanded twice - once here into
-        # waypoints, and then once again by the browser for each of those
-        # waypoints. `humanize=` on the constructor keeps its old meaning
-        # exactly; only the place the curve is computed has moved.
-        prefs.update(_humanize_prefs(self._cursor_engine, self._humanize))
-        return prefs
 
     def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
-        """Env vars passed to the Firefox subprocess.
+        """Env for the Firefox subprocess, then stamped with this session's token.
 
-        ``TZ`` tunes the libc clock the content process reads for
-        ``Date`` / ``Intl.DateTimeFormat`` so the JS-visible timezone
-        matches ``self._timezone`` regardless of the host TZ.
-        ``STEALTHFOX_WEBRTC_PUBLIC_IP`` is propagated when the calling
-        process has set it - read by nICEr's nr_stealth_bridge to inject
-        a synthetic srflx candidate matching the proxy egress IP, avoiding
-        the StaticPref IPC propagation timing issue between parent and
-        socket processes.
-        Fonts need NO env: the patched binary is self-contained (always
-        bundle-only, exposing exactly the bundled standard-Windows families;
-        system-ui + generics baked in C++). No external font list / allow-list.
+        The body is `_session.build_env`, shared with the async class - it was
+        written twice, identically, and the WebRTC pair is a contract with the
+        binary, so two landing sites meant two chances to miss a change.
+
+        The token stamp stays here because it is the only genuinely per-session
+        part: children inherit the environment, so every process in the tree
+        carries it and teardown can find its own tree and only its own.
         """
-        import os as _os
-        env = _os.environ.copy()
-        if self._timezone:
-            env["TZ"] = _tz_env(self._timezone)
-        # WebRTC srflx override: feed nICEr's nr_stealth_bridge the proxy egress
-        # IP so the srflx candidate matches the proxy (not the real host the
-        # UDP STUN would otherwise leak). An explicit env var set by the caller
-        # wins; otherwise we use the egress IP auto-discovered in __enter__.
-        # Behind a proxy we also drop IPv6 from gathering (the disableIPv6 pref
-        # is dead on FF150 - the bridge filter is the real switch).
-        webrtc_ip = (
-            _os.environ.get("STEALTHFOX_WEBRTC_PUBLIC_IP")
-            or self._webrtc_egress_ip
-        )
-        if webrtc_ip:
-            env["STEALTHFOX_WEBRTC_PUBLIC_IP"] = webrtc_ip
-            env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] = "1"
-        # Stamp this session so teardown can find its own browser tree and only
-        # its own. On Windows firefox.exe is a stub that spawns the real browser
-        # and exits, so the tree is re-parented and Playwright's close() can lose
-        # it entirely; children inherit the environment, so every process in the
-        # tree carries the token. See _reaper for why this is a token and not a
-        # search over "firefox processes that look like ours".
-        return self._session_token.stamp(env)
+        return self._session_token.stamp(
+            _session.build_env(timezone=self._timezone,
+                               egress_ip=self._webrtc_egress_ip))
 
     def _resolve_headless(self) -> bool:
         """Translate the user's ``headless`` flag.
@@ -514,12 +456,15 @@ class InvisiblePlaywright:
         """
         if not self._headless:
             return False
+        # Opt-in TRUE headless, shared with the async class. It existed on the
+        # async API ONLY until 2026-07-27: a documented env var that worked
+        # depending on which entry point the caller happened to pick, which is
+        # the same drift that shipped the process-leak fix to half the users.
+        if _session.true_headless_requested():
+            return True
         vd = make_virtual_display()
         if vd is not None:
             vd.start()
             self._virtual_display = vd
         return False
-
-    def _humanize_max_seconds(self) -> float:
-        return _cursor_max_seconds(self._humanize)
 

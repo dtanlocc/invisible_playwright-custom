@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from invisible_playwright import InvisiblePlaywright
+from invisible_playwright import InvisiblePlaywright, _cursor
 from invisible_playwright.launcher import (
     _CHROME_H,
     _CHROME_W,
@@ -82,23 +82,29 @@ def test_iana_to_posix_phoenix_and_honolulu_present():
 # ── InvisiblePlaywright._humanize_max_seconds ─────────────────────────
 
 
+# These pinned `InvisiblePlaywright._humanize_max_seconds()` until 2026-07-27.
+# That method had had no caller in `src/` since the cursor engine moved into
+# this package - `_arm_cursor_engine` calls `_cursor.max_seconds_for` directly -
+# so four tests were holding a dead one-line wrapper in place while the live
+# path was uncovered, and would have stayed green whatever the real contract
+# did. The method is deleted; these assert the function itself, and the fifth
+# test below is the one that ties it to the path that runs.
+
+
 @pytest.mark.unit
 def test_humanize_true_defaults_to_one_and_a_half_seconds():
-    ip = InvisiblePlaywright(seed=42, humanize=True)
-    assert ip._humanize_max_seconds() == 1.5
+    assert _cursor.max_seconds_for(True) == 1.5
 
 
 @pytest.mark.unit
 def test_humanize_float_passes_through_as_seconds():
-    ip = InvisiblePlaywright(seed=42, humanize=2.5)
-    assert ip._humanize_max_seconds() == 2.5
+    assert _cursor.max_seconds_for(2.5) == 2.5
 
 
 @pytest.mark.unit
 def test_humanize_int_coerced_to_float():
     """``humanize=3`` is valid (truthy, not ``True``) → float coercion."""
-    ip = InvisiblePlaywright(seed=42, humanize=3)
-    out = ip._humanize_max_seconds()
+    out = _cursor.max_seconds_for(3)
     assert out == 3.0
     assert isinstance(out, float)
 
@@ -106,8 +112,21 @@ def test_humanize_int_coerced_to_float():
 @pytest.mark.unit
 def test_humanize_small_float_passes_through():
     """Below the default cap - the user's value wins."""
-    ip = InvisiblePlaywright(seed=42, humanize=0.4)
-    assert ip._humanize_max_seconds() == 0.4
+    assert _cursor.max_seconds_for(0.4) == 0.4
+
+
+@pytest.mark.unit
+def test_the_cap_reaches_the_live_cursor_arming_path():
+    """The claim the four above cannot make alone: that this value is what the
+    session actually arms the generator with. Without it they are back to
+    pinning a function nothing calls."""
+    import inspect
+
+    from invisible_playwright import launcher
+
+    src = inspect.getsource(launcher.InvisiblePlaywright._arm_cursor_engine)
+    assert "_cursor_max_seconds(self._humanize)" in src, (
+        "the arming path no longer passes the cap through max_seconds_for")
 
 
 # ── InvisiblePlaywright._default_context_kwargs ───────────────────────

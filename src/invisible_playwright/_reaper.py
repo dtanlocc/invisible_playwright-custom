@@ -59,7 +59,7 @@ import os
 import secrets
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Iterable, List, Mapping
+from typing import Any, Iterable, List, Mapping, Optional
 
 # Named in the environment of every process in the tree, read back through
 # psutil. The browser itself never looks at it.
@@ -262,25 +262,53 @@ class JobObjectGuard(LifetimeGuard):
         except Exception:
             return NullGuard()
 
-    def bind(self, token: SessionToken, *, wait: float = 10.0) -> int:
-        """Wait for the tree to appear, then adopt it.
+    def bind(self, token: SessionToken, *, wait: float = 10.0,
+             settle: float = 1.0) -> int:
+        """Wait for the tree to appear, then adopt ALL of it.
 
         The wait exists because the driver spawns the browser asynchronously.
         The token makes it exact rather than a guess about how long that takes.
+
+        WHY IT KEEPS SCANNING AFTER THE FIRST SUCCESS. Until 2026-07-27 this
+        loop did `if bound: break`, so it adopted whatever existed at the first
+        instant anything existed, and returned. Processes appearing a moment
+        later escaped unless Windows added them automatically - which it only
+        does for CHILDREN of a job member, and on Windows `firefox.exe` is a
+        launcher stub that exits, re-parenting the real browser away from
+        anything that was adopted.
+
+        Measured by killing the runner mid-session and counting survivors:
+        four runs gave sync 0/0/0/0 and async 2/0/0/2. Intermittent, ~50% on
+        the async path, 0% on the sync one - not because the two APIs differ
+        here, but because their timing does, which is exactly the shape that
+        makes a race look like a working feature.
+
+        So it now scans until a full pass adds nothing for `settle` seconds,
+        bounded by `wait`. The cost is about a second on launch; the thing it
+        buys is that "the kernel is holding this tree" stops being a coin flip.
         """
         if not token:
             return 0
         deadline = time.monotonic() + wait
         bound = 0
+        quiet_since: Optional[float] = None
         while time.monotonic() < deadline:
+            added = 0
             for proc in find_processes(token):
                 if proc.pid in self._adopted:
                     continue
                 if self._adopt(proc.pid):
-                    bound += 1
+                    added += 1
                 self._adopted.add(proc.pid)
-            if bound:
-                break
+            bound += added
+            now = time.monotonic()
+            if added:
+                quiet_since = None
+            elif bound:
+                if quiet_since is None:
+                    quiet_since = now
+                elif now - quiet_since >= settle:
+                    break
             time.sleep(0.25)
         return bound
 

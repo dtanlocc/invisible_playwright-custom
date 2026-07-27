@@ -119,13 +119,73 @@ def test_both_apis_declare_the_same_lifetime_machinery():
     """
     from invisible_playwright import async_api, launcher
 
-    sync_session = launcher.InvisiblePlaywright(seed=1)
-    async_session = async_api.InvisiblePlaywright(seed=1)
-    for attr in ("_session_token", "_lifetime_guard", "_bind_process_tree"):
-        assert hasattr(sync_session, attr), f"sync lost {attr}"
-        assert hasattr(async_session, attr), (
-            f"the async API has no {attr}; the two entry points have drifted "
-            f"and whichever one a user picked decides whether they are covered")
+    # DERIVED from the sync class, not from a list written here. The version
+    # that let the leak through looped over a hardcoded three-name tuple, so it
+    # could only ever catch the bug that had already happened and was blind by
+    # construction to the fourth feature landing on one side. Three real
+    # divergences existed: the process-leak fix (sync only, shipped as fixed),
+    # INVPW_TRUE_HEADLESS (async only, a documented env var), and _build_prefs
+    # (a method on one side, twenty inline lines on the other).
+    #
+    # Sync-only members, each with its reason. Anything not listed must exist
+    # on both - that is the whole mechanism.
+    sync_only = {
+        # A pass-through returning self._default_context_kwargs(), kept because
+        # three tests pin the persistent-context surface through it. The async
+        # class calls _default_context_kwargs directly, i.e. the same values.
+        "_persistent_context_kwargs",
+    }
+    sync = {n for n in dir(launcher.InvisiblePlaywright(seed=1))
+            if not n.startswith("__")}
+    asyn = {n for n in dir(async_api.InvisiblePlaywright(seed=1))
+            if not n.startswith("__")}
+
+    missing = sorted(sync - asyn - sync_only)
+    assert not missing, (
+        f"the async API is missing {missing}, which the sync API has. Whichever "
+        f"entry point a user picked would decide whether they get it - add it "
+        f"there, or add it to sync_only with the reason")
+
+    stray = sorted(asyn - sync)
+    assert not stray, (
+        f"the async API has {stray} and the sync one does not. Drift is drift "
+        f"in both directions")
+
+
+def test_both_apis_read_the_same_environment_variables():
+    """A documented knob must not depend on which entry point was imported.
+
+    `INVPW_TRUE_HEADLESS` was honoured in `async_api._resolve_headless` and
+    nowhere else, so the same documented variable worked or did not depending
+    on whether the caller wrote `with` or `async with`. Reading the source is
+    deliberate: the alternative is setting each variable and driving a real
+    browser, and this catches the omission where it is made.
+    """
+    import pathlib
+    import re
+
+    from invisible_playwright import _session, async_api, launcher
+
+    pattern = re.compile(r'"(INVPW_[A-Z_]+|STEALTHFOX_[A-Z_]+)"')
+
+    def env_names(module):
+        src = pathlib.Path(module.__file__).read_text(encoding="utf-8")
+        return set(pattern.findall(src))
+
+    # The rule is stronger than "the two sets match", and deliberately so. The
+    # first version of this test compared launcher's set against async_api's,
+    # crediting anything found in `_session` to BOTH - which meant a variable
+    # read directly in one class was masked by the shared module also naming
+    # it, and the mutation that puts INVPW_TRUE_HEADLESS back into async_api
+    # alone SURVIVED. Neither class may name one at all.
+    stray = {m.__name__.rsplit(".", 1)[-1]: sorted(env_names(m))
+             for m in (launcher, async_api) if env_names(m)}
+    assert not stray, (
+        f"environment variables are read inside the entry-point classes: "
+        f"{stray}. Every one belongs in `_session`, which is what makes it "
+        f"impossible for a documented knob to work on one API and not the "
+        f"other - `INVPW_TRUE_HEADLESS` did exactly that for weeks")
+    assert env_names(_session), "_session names no environment variable at all"
 
 
 def test_the_async_teardown_reaps():

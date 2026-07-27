@@ -197,7 +197,9 @@ def test_humanize_false_disables_everything(stub_motion):
 def test_humanize_float_still_means_a_cap_in_seconds(stub_motion):
     ip = InvisiblePlaywright(seed=42, humanize=2.5)
     assert ip._cursor_engine == _cursor.ENGINE_PYTHON
-    assert ip._humanize_max_seconds() == 2.5
+    # Was `ip._humanize_max_seconds()`, a wrapper with no caller in src/. The
+    # live arming path reads the cap straight off this function.
+    assert _cursor.max_seconds_for(ip._humanize) == 2.5
 
 
 @pytest.mark.unit

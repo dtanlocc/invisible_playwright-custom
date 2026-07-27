@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 
+from . import _session
 from ._cursor import (
     ENGINE_PYTHON,
     enable_for as _enable_cursor_engine,
@@ -124,26 +125,7 @@ class InvisiblePlaywright:
         # binary_path= never reaches ensure_binary(), so the engine check lives
         # on the resolved executable rather than inside the fetcher.
         executable = resolve_executable(self._binary_path)
-        prefs = translate_profile_to_prefs(
-            self._profile,
-            locale=self._locale,
-            timezone=self._timezone,
-            extra_prefs=self._extra_prefs,
-            virtual_display=bool(self._headless and _sys.platform == "win32"),
-        )
-        # Windows & macOS hide the headless window via the binary's own cloak
-        # (DWMWA_CLOAK / NSWindow alpha) - inject the pref so the patched build
-        # cloaks its chrome windows. setdefault: an explicit user override wins.
-        # (Mirrors launcher._build_prefs; the sync path always did this, async
-        # didn't - so async headless=True never cloaked AND crashed below.)
-        if self._headless and _sys.platform in ("win32", "darwin"):
-            for _k, _v in cloak_prefs().items():
-                prefs.setdefault(_k, _v)
-        # stealthfox.* is the namespace the binary's Juggler reads (see launcher.py
-        # note). The pref now selects WHICH generator runs, not whether motion is
-        # on: it must be false while the wrapper draws the path, or every waypoint
-        # we send would itself be expanded into a whole path.
-        prefs.update(_humanize_prefs(self._cursor_engine, self._humanize))
+        prefs = self._build_prefs()
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
         pw_headless = self._resolve_headless()
         self._session_token = SessionToken.mint()
@@ -296,26 +278,31 @@ class InvisiblePlaywright:
             self._session_token = SessionToken()
 
     def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
-        import os as _os
-        env = _os.environ.copy()
-        if self._timezone:
-            env["TZ"] = _tz_env(self._timezone)
-        # Fonts need NO env: the patched binary is self-contained (always
-        # bundle-only). No external font list / allow-list / system-ui.
-        # WebRTC srflx override: feed nICEr's nr_stealth_bridge the proxy egress
-        # IP (caller's explicit env var wins, else the IP auto-discovered in
-        # __aenter__) and drop IPv6 from gathering behind a proxy.
-        webrtc_ip = (
-            _os.environ.get("STEALTHFOX_WEBRTC_PUBLIC_IP")
-            or self._webrtc_egress_ip
+        """Same body as the sync class - it always was, character for character.
+
+        The token stamp stays here: it is the one per-session part, and losing
+        it is what made the reaper unable to find this API's browser tree.
+        """
+        return self._session_token.stamp(
+            _session.build_env(timezone=self._timezone,
+                               egress_ip=self._webrtc_egress_ip))
+
+    def _build_prefs(self) -> Dict[str, Any]:
+        """Same body as the sync class, because it is the same body.
+
+        These were twenty identical lines here and twenty in
+        `launcher._build_prefs` - same calls, same order, differing only in
+        their comments. Both delegate to `_session.build_prefs` now.
+        """
+        return _session.build_prefs(
+            profile=self._profile,
+            locale=self._locale,
+            timezone=self._timezone,
+            extra_prefs=self._extra_prefs,
+            headless=self._headless,
+            cursor_engine=self._cursor_engine,
+            humanize=self._humanize,
         )
-        if webrtc_ip:
-            env["STEALTHFOX_WEBRTC_PUBLIC_IP"] = webrtc_ip
-            env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] = "1"
-        # Stamp this session so teardown can find its own browser tree and only
-        # its own. Children inherit the environment, so every process in the
-        # tree carries it. See _reaper for why this is a token and not a search.
-        return self._session_token.stamp(env)
 
     def _resolve_headless(self) -> bool:
         if not self._headless:
@@ -324,9 +311,11 @@ class InvisiblePlaywright:
         # hangs launch_persistent_context ~40% on Windows (window/compositor
         # race with a persistent profile). True headless applies the IDENTICAL
         # fingerprint prefs (screen/viewport/canvas/webgl spoofed the same) and
-        # is 100% reliable (~2.3s). Gated by env so other callers are unaffected.
-        import os as _os
-        if _os.environ.get("INVPW_TRUE_HEADLESS") == "1":
+        # is reliable (~2.3s). Read through `_session` so the sync class gets
+        # it too: until 2026-07-27 this env var was honoured HERE ONLY, so a
+        # documented knob worked or not depending on which entry point the
+        # caller had picked.
+        if _session.true_headless_requested():
             return True
         vd = make_virtual_display()
         # Linux: Xvfb to start. Windows/macOS: make_virtual_display() returns

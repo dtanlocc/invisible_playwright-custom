@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-07-27
+
+### Fixed
+- `async with InvisiblePlaywright(...)` no longer leaves browsers behind when the runner is killed. The lifetime guard added in 0.4.0 reached the sync entry point only, so every async user kept the entire leak while this file said it was closed. If you drive this package with `async with` on Windows, upgrading is the fix.
+- The guard itself stopped adopting the process tree after the first process it found, so part of the tree stayed outside the kernel job even on the sync path. Found by killing the runner mid-session and counting the browsers still carrying that session's token: sync 0/0/0/0, async 2/0/0/2 - the same code on both, differing only in timing, which is what made an intermittent race look like a working feature. After the fix: ten sessions, zero survivors on both.
+- `INVPW_TRUE_HEADLESS` now works on both entry points. It was read in the async class alone, so a documented environment variable applied or did not depending on whether you wrote `with` or `async with`.
+
+### Changed
+- The two entry points share their session logic instead of restating it: prefs, the launch environment and the IANA-to-POSIX timezone table live in one module both call. 80.6% of the async class was the sync class retyped, which is how a fix reaches one of them and a release note describes both.
+- Requires `invisible-core==18.3.0`.
+
 ## [0.4.2] - 2026-07-26
 
 ### Changed
@@ -16,19 +27,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Pointer movement is generated in this package, from the session seed, instead of by the engine. Existing code gets it with no edit: the six internal funnels every pointer action already goes through are wrapped, so a `page.click` written a year ago moves through the new generator. A plain `sync_playwright()` browser in the same process is untouched.
 - Movement between actions: drift while reading, motion while the wheel turns, overshoot and correction, and movements that end on nothing. If every movement ends on something clickable, the set of endpoints is itself a signature however good each path is.
 - `INVPW_CURSOR_ENGINE` selects the generator: `python` (default), `binary` (the previous behaviour) or `off`.
-- The browser process tree is tied to this process's lifetime on Windows, so it cannot outlive a runner that was killed. Measured: eight survivors on the first attempt and twelve on the second before, zero after. `psutil` becomes a dependency for this - an optional reaper is absent exactly on the machines that need it, and silently.
+- The browser process tree is tied to this process's lifetime on Windows, so it cannot outlive a runner that was killed. Measured: eight survivors on the first attempt and twelve on the second before, zero after. `psutil` becomes a dependency for this - an optional reaper is absent exactly on the machines that need it, and silently. **This reached the SYNC entry point only. `async with` kept the whole leak through 0.4.2 - see 0.4.3.**
 
 ### Changed
+- Install is now `pip install invisible-playwright`, from the index. The git URL is gone from the README, the CLI docs and the generated release notes. Nothing about the package changes for someone who was already installing it from git, except that pip can now see what it is holding.
+- `invisible-core` is declared as an exact version specifier (`invisible-core== an exact version`) instead of a `git+https://...` direct reference. A direct reference carries no version, so there is nothing for `pip check` to compare and a broken environment reports clean; a real specifier is reported, exit 1, and a plain reinstall of this package repairs it. The cost is that a binary bump is now a release of every package that pins the core, which is deliberate.
 - Requires `invisible-core>=18.2.0`, which bounds the timezone lookup as a step rather than only per request.
 
 ### Fixed
 - `hover()` no longer fails intermittently on Windows. The approach now completes before the automation layer's hit-target check is installed, so the only event inside its window is that layer's own move, on target. Measured on a page whose target needs a scroll: 3 failures out of 3 before, 0 out of 3 after.
-
-## [Unreleased]
-
-### Changed
-- Install is now `pip install invisible-playwright`, from the index. The git URL is gone from the README, the CLI docs and the generated release notes. Nothing about the package changes for someone who was already installing it from git, except that pip can now see what it is holding.
-- `invisible-core` is declared as an exact version specifier (`invisible-core==18.0.0`) instead of a `git+https://...` direct reference. A direct reference carries no version, so there is nothing for `pip check` to compare and a broken environment reports clean; a real specifier is reported, exit 1, and a plain reinstall of this package repairs it. The cost is that a binary bump is now a release of every package that pins the core, which is deliberate.
 
 ## [0.3.5] - 2026-07-24
 
@@ -208,6 +215,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - SOCKS5 / SOCKS4 / HTTP / HTTPS proxy support with auth.
 - Linux x86_64 and Windows x86_64 binary support.
 
-[Unreleased]: https://github.com/feder-cr/invisible_playwright/compare/v0.1.1...HEAD
+[0.4.3]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.3
 [0.1.1]: https://github.com/feder-cr/invisible_playwright/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.1.0
