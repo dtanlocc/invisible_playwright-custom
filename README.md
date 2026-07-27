@@ -14,7 +14,8 @@
 </picture>
 </div>
 
-<h3 align="center">A modified Firefox that passes every bot detection test.</h3>
+<h3 align="center">Undetected Playwright automation on a stealth-patched Firefox.<br>
+Python, MIT, and it passes every bot detection test.</h3>
 
 ![invisible_playwright - 5/5 detection suites passed](https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/screenshots/hero.gif)
 
@@ -33,6 +34,17 @@ Anti-bots ask two questions. invisible_playwright answers yes to both.
 - Each input is byte-identical to a real mouse: real input source, pressure, trusted events.
 
 Driven by the standard Playwright API. Full breakdown: [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
+
+### If you got here from a search
+
+You are probably looking for one of these, and this is the same category:
+
+- a **stealth Firefox for Playwright**, where the fingerprint is in the engine rather than in an injected script
+- an **undetected browser automation** library for **Python**, as an alternative to `undetected-chromedriver` or `nodriver`
+- an **anti-detect browser** you can drive from code instead of clicking around a GUI
+- something to try when **Playwright is detected as a bot** on one site and works everywhere else
+
+The nearest open-source neighbours are [Camoufox](https://github.com/daijro/camoufox), which also patches Firefox, and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) and [nodriver](https://github.com/ultrafunkamsterdam/nodriver), which take the Chromium side. [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) explains what each approach can and cannot reach, including the costs of this one.
 
 ---
 
