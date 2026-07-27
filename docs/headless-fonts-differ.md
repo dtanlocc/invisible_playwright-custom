@@ -63,6 +63,49 @@ does measure them.
 This is the same shape as the software WebGL renderer problem. It is not an
 automation tell. It is a *this is a server* tell, and the two need different fixes.
 
+## What the enumeration actually does, and what each platform's set looks like
+
+Since there is no API that lists installed fonts, detection works by measurement.
+The technique is the same everywhere:
+
+```js
+// render a string in a candidate font, with a known fallback behind it
+// if the width differs from the fallback alone, the candidate exists
+const probe = (family) => {
+  span.style.fontFamily = `"${family}", monospace`
+  return span.offsetWidth
+}
+```
+
+A script does this for a list of a few hundred candidate families and keeps the ones
+whose width differs from the fallback. The output is a set, and the set is the
+fingerprint.
+
+Which means the answer is decided by what is installed, and installed sets are
+strongly platform-shaped:
+
+- **Windows** ships Segoe UI, Calibri, Cambria, Candara, Consolas, Constantia,
+  Corbel, Tahoma, Verdana, Georgia, Trebuchet MS, Impact, Comic Sans MS, Franklin
+  Gothic, plus a large CJK set. Office adds a further block that most Windows
+  machines have and most non-Windows machines do not.
+- **macOS** ships San Francisco, Helvetica Neue, Menlo, Monaco, Optima, Palatino,
+  Avenir, Geneva, Lucida Grande.
+- **A typical Linux desktop** ships DejaVu, Liberation, Noto and often Ubuntu or
+  Cantarell, and almost none of the above.
+- **A container** frequently ships DejaVu and nothing else, or literally no fonts,
+  in which case every probe returns the fallback width and the detected set is
+  empty. An empty font set is its own strong signal, because no real desktop has one.
+
+So a browser claiming Windows in its user agent, on a machine whose detected set is
+DejaVu and Liberation, has been caught by a comparison rather than by any single
+value. This is the same shape as the WebGL renderer problem: the claim and the
+hardware disagree, and the disagreement is what gets read.
+
+There is one more wrinkle worth knowing. **The order of the resulting list can carry
+information too**, since some implementations report fonts in the order the system
+returns them, which reflects how they were installed. Two machines with identical
+sets can differ in sequence.
+
 ## What actually fixes it
 
 For test flakiness, make the environment explicit rather than hoping it matches: pin
