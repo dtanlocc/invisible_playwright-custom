@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-07-27
+
+### Fixed
+- An environment holding an older `invisible-core` failed on the browser launch path with `ImportError: cannot import name 'IANA_TO_POSIX_TZ' from 'invisible_core'` - a symbol name, from a package whose version the reader did not choose. It now states which core version this build needs, keeps the original error inside the message for whoever is debugging, and ends with the command that fixes it. **0.4.4 has this bug and cannot be corrected in place; a PyPI filename is never re-uploaded. Use 0.4.5.**
+
 ## [0.4.4] - 2026-07-27
 
 ### Changed
@@ -228,3 +233,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.1]: https://github.com/feder-cr/invisible_playwright/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.1.0
 [0.4.4]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.4
+[0.4.5]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.5
