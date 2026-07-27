@@ -218,7 +218,9 @@ the actual difference between a VPN and a proxy here.
 full candidate set. A leak test that reports "no leak" over a browser with WebRTC
 disabled is reporting the absence of a feature, not the presence of protection.
 
-**See also:** [what privacy.resistFingerprinting really does](resist-fingerprinting.md),
+**See also:** [when the timezone does not match the proxy](timezone-proxy-mismatch.md),
+the other half of "the browser and the network disagree",
+[what privacy.resistFingerprinting really does](resist-fingerprinting.md),
 another case where the protective setting is itself visible, and
 [the checklist for being detected on one site](playwright-detected-as-bot.md).
 

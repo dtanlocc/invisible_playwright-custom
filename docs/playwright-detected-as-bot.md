@@ -52,7 +52,9 @@ that most often give away a server:
 
 - **A software WebGL renderer.** If the GPU string mentions a basic, software or
   llvmpipe renderer, the browser has announced it is running somewhere without
-  graphics hardware. No amount of property patching hides that.
+  graphics hardware. No amount of property patching hides that. Worse, and less
+  obvious: the string can say NVIDIA while the pixels are still drawn by a software
+  rasterizer, which is [a mismatch you cannot patch](renderer-string-vs-render.md).
 - **A screen that does not exist.** Odd resolutions, a device pixel ratio that no
   real display has, an available height equal to the full height, meaning no
   taskbar.
@@ -60,6 +62,13 @@ that most often give away a server:
   Linux font set is a one-line check.
 - **Hardware concurrency and device memory** that pair oddly with the claimed
   machine.
+- **No audio device.** Sample rate, output latency and channel count come from real
+  hardware, and a container that has none answers with defaults that say so. See
+  [AudioContext fingerprinting](audiocontext-fingerprinting.md).
+- **An empty speech voice list.** `speechSynthesis.getVoices()` returns what the
+  operating system has installed, so an empty array under a Windows user agent is a
+  server saying it is a desktop. See
+  [why getVoices() comes back empty](speech-synthesis-voices.md).
 
 None of these are automation flags. They are all "this is a datacenter" flags, and
 they survive every stealth plugin ever written because they are not in JavaScript's
@@ -96,12 +105,22 @@ that is not Firefox's is decisive.
 You cannot fix this from JavaScript. Either the browser is real, or the request is
 made by something that impersonates the handshake too.
 
+While you are here, check what the browser says about the network on its own account.
+[WebRTC through a proxy](webrtc-leak-proxy.md) is the common one, and it fails in both
+directions: it can report your real address next to the proxy's, or report nothing at
+all, which is its own signal.
+
 ## 7. Now consider the exit
 
 If everything above is clean and it still fails, the IP is a reasonable next
 suspicion. Datacenter ranges, an ASN with a bad reputation, an exit that a thousand
 other people are using this minute, a country that does not match the rest of the
 session.
+
+That last one is worth separating out, because it is not really about the IP being
+bad. It is about the browser and the exit telling different stories, and it is cheap
+to fix: see [when the timezone does not match the proxy](timezone-proxy-mismatch.md)
+for everything that has to agree.
 
 It is seventh on this list, not first, because it is the expensive fix and the least
 likely single cause.

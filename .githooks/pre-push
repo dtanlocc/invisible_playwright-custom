@@ -218,11 +218,21 @@ if [ -n "$PUSH_REFS" ]; then
 fi
 if [ -n "$release_tag" ]; then
     echo "[pre-push] $release_tag is a release tag, running the publish gate..."
-    if ! python -m invisible_core.release check --verify-index --project-root .; then
+    # --project-root is a TOP-LEVEL option, before the subcommand. Putting it
+    # after made argparse exit 2, which this block read as a refusal - so the
+    # hook printed REFUSED without the gate ever having run, and the first
+    # "verification" of this wiring was itself wrong.
+    python -m invisible_core.release --project-root . check --verify-index
+    gate_rc=$?
+    # 5 is ALREADY PUBLISHED and byte-identical: nothing to do, not a refusal.
+    # It is what re-pushing or back-filling a release tag legitimately produces,
+    # and the gate gives it its own code precisely so a caller can tell it from
+    # "the content changed under an unmoved version", which must stay fatal.
+    if [ "$gate_rc" -ne 0 ] && [ "$gate_rc" -ne 5 ]; then
         echo "" >&2
-        echo "[pre-push] REFUSED - see above. A version whose content moved needs a" >&2
-        echo "[pre-push] new version number: a PyPI filename is never re-uploaded," >&2
-        echo "[pre-push] so a wrong artifact stays wrong forever." >&2
+        echo "[pre-push] REFUSED (gate exit $gate_rc) - see above. A version whose" >&2
+        echo "[pre-push] content moved needs a NEW version number: a PyPI filename is" >&2
+        echo "[pre-push] never re-uploaded, so a wrong artifact stays wrong forever." >&2
         exit 1
     fi
 fi

@@ -96,7 +96,7 @@ Two things worth doing when you open it:
    If your fingerprint moves between reloads, something is adding noise per call
    rather than per identity, and that is its own signature.
 
-**See also:** [what sannysoft checks](sannysoft-explained.md), whose canvas-in-iframe test is the same idea in miniature, and [the three levels](playwright-stealth-levels.md).
+**See also:** [what sannysoft checks](sannysoft-explained.md), whose canvas-in-iframe test is the same idea in miniature, [the three levels](playwright-stealth-levels.md), and [AudioContext fingerprinting](audiocontext-fingerprinting.md), where its silent-buffer check is worked through in detail.
 
 ---
 
