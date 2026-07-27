@@ -62,6 +62,8 @@ an advert for it they would not be worth reading.
 | [browser-use-detection.md](browser-use-detection.md) | Chrome/CDP only, what configuration reaches, and the agent rhythm no fingerprint work fixes |
 | [ai-browser-agents-stealth.md](ai-browser-agents-stealth.md) | five agent frameworks verified from their source, the CDP split, and the tell specific to agent pacing |
 | [how-to-test-bot-detection.md](how-to-test-bot-detection.md) | what each public suite proves, why a green result can mean the feature is broken, and the method that catches it |
+| [playwright-proxy-per-context.md](playwright-proxy-per-context.md) | what a context separates, what it cannot, and the timezone mismatch the recommended pattern creates |
+| [permissions-api-consistency.md](permissions-api-consistency.md) | the notification mismatch, the permission set as a fingerprint, and the grant that disables WebRTC masking |
 | [client-hints-sec-fetch.md](client-hints-sec-fetch.md) | Sec-CH-UA against the user agent against userAgentData, and why Firefox not sending them is correct |
 | [crawl4ai-stealth-custom-browser.md](crawl4ai-stealth-custom-browser.md) | the one missing field, the undocumented adapter seam, and the workaround with its cost |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
