@@ -7,7 +7,7 @@ signature changes.
 
 | Framework | Page | What it takes |
 |---|---|---|
-| Scrapy, via `scrapy-playwright` | [scrapy-playwright.md](scrapy-playwright.md) | two settings, full profile |
+| Scrapy, via `scrapy-playwright` | [scrapy-playwright.md](scrapy-playwright.md) | a browser provider, which reaches the whole wrapper |
 | Crawlee for Python | [crawlee-python.md](crawlee-python.md) | a plugin subclass for the full profile, or one line for the engine alone |
 | Playwright MCP | [playwright-mcp.md](playwright-mcp.md) | two flags on Microsoft's own MCP server |
 | Go, Java, C#, Ruby, Rust | [other-languages.md](other-languages.md) | the two launch options every Playwright binding already has |
