@@ -105,10 +105,26 @@ def test_it_does_not_touch_a_process_with_a_different_token():
     a, b = _spawn(mine), _spawn(theirs)
     try:
         time.sleep(0.8)
+        mine_pids = {p.pid for p in find_processes(mine)}
         assert guard_for().reap(mine) >= 1
         assert _reaper.wait_until_gone(mine, timeout=8.0)
         assert b.poll() is None, "reaping one session killed the other's process"
-        assert {p.pid for p in find_processes(theirs)} == {b.pid}
+
+        # The other session is still THERE, and nothing of the reaped one is.
+        #
+        # This used to assert `== {b.pid}` - exactly one process - which is a
+        # hidden precondition, not the claim. On Windows a venv's `python.exe`
+        # is a redirector that starts the real interpreter as a child, so a
+        # spawn there is TWO processes and both carry the token. It passed on CI
+        # (setup-python hands out a real interpreter) and on a system Python,
+        # and failed the moment the suite was run from a venv - which is a shape
+        # users have, and the shape this package's own e2e tests build.
+        survivors = {p.pid for p in find_processes(theirs)}
+        assert b.pid in survivors, (
+            f"the surviving session is no longer findable by its token: {survivors}")
+        assert not (survivors & mine_pids), (
+            f"a reaped process is still answering to the other session's token: "
+            f"{survivors & mine_pids}")
     finally:
         _reap_all(a, b)
 

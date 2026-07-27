@@ -29,11 +29,47 @@ import json
 import shutil
 import sys
 import tempfile
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
 
-from invisible_core.testing import make_venv, run_checked, venv_python
+
+
+# LOCAL, TEMPORARILY. These three live in `invisible_core.testing` since
+# 2026-07-27 and this file used them from there - but that core is not
+# published, and this package declares `invisible-core==` exactly, so CI
+# resolves the INDEX and got `ImportError: cannot import name 'run_checked'`.
+# Second instance of the same sequencing mistake in one day; the rule is in
+# CLAUDE.md's pre-push gate now.
+#
+# They come back OUT in the same change that moves this package's pin to a core
+# release carrying them. Until then the duplication is what doing it in the
+# wrong order costs.
+def _run(cmd, *, timeout: int = 600, check: bool = True, env=None, cwd=None):
+    r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
+                       timeout=timeout, env=env,
+                       cwd=str(cwd) if cwd is not None else None)
+    if check and r.returncode != 0:
+        raise AssertionError(
+            "{} exited {}\n--- stdout ---\n{}\n--- stderr ---\n{}".format(
+                " ".join(str(c) for c in cmd), r.returncode,
+                r.stdout[-3000:], r.stderr[-3000:]))
+    return r
+
+
+def _venv_python(venv):
+    bindir = "Scripts" if os.name == "nt" else "bin"
+    return Path(venv) / bindir / ("python.exe" if os.name == "nt" else "python")
+
+
+def _make_venv(target):
+    _run([sys.executable, "-m", "venv", target], timeout=300)
+    py = _venv_python(target)
+    assert py.exists(), "no venv python at {}".format(py)
+    _run([py, "-m", "pip", "install", "--upgrade", "pip", "--quiet"], timeout=300)
+    return py
 
 pytestmark = pytest.mark.e2e
 
@@ -45,12 +81,10 @@ CORE = "invisible-core"
 # test_release_e2e.py. This file needs several venvs inside ONE workspace (it
 # installs an old release into one and upgrades it), which is why it builds them
 # individually rather than through `throwaway_venv`.
-_run = run_checked
-_venv_python = venv_python
 
 
 def _fresh_venv(root: Path, name: str) -> Path:
-    return make_venv(root / name)
+    return _make_venv(root / name)
 
 
 def _versions(py: Path) -> dict:

@@ -101,12 +101,17 @@ def stub_core(tmp_path: Path, *, with_seal: bool, version: str | None = None,
         "from .seal import active_seal  # noqa: F401\n"
         "from ._version import __version__  # noqa: F401\n",
         encoding="utf-8")
-    # BOTH: the implementation is `pin.py` since 2026-07-27 and `_pin.py` is a
-    # two-line `sys.modules[__name__] = pin` alias for consumers published
-    # before the rename. A stub carrying one of them is not a shape any real
-    # install has.
-    shutil.copy2(CORE_PKG / "pin.py", pkg / "pin.py")
-    shutil.copy2(CORE_PKG / "_pin.py", pkg / "_pin.py")
+    # Copy whichever shape the INSTALLED core has, because that is the shape a
+    # user's environment has. Cores published before 2026-07-27 carry `_pin.py`
+    # only; newer ones carry `pin.py` plus a two-line `sys.modules` alias at
+    # `_pin.py`. Copying `pin.py` unconditionally made this whole file fail
+    # against the published core - eight tests, and the stub was never built.
+    for name in ("pin.py", "_pin.py"):
+        if (CORE_PKG / name).exists():
+            shutil.copy2(CORE_PKG / name, pkg / name)
+    assert (pkg / "_pin.py").exists(), (
+        f"the installed core at {CORE_PKG} has neither pin.py nor _pin.py, so "
+        f"there is no pin machinery to build a stub from")
     text = (CORE_PKG / "_version.py").read_text(encoding="utf-8")
     text = re.sub(r"(?m)^CORE_REVISION\s*=\s*\d+", f"CORE_REVISION = {minor}", text)
     (pkg / "_version.py").write_text(text, encoding="utf-8")

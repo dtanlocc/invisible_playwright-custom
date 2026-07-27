@@ -35,11 +35,11 @@ import os
 import shutil
 import subprocess
 import tempfile
+import sys
 from pathlib import Path
 
 import pytest
 
-from invisible_core.testing import make_venv, run_checked, venv_python
 
 # NOT imported at module level. This file is collected in an environment that
 # deliberately does NOT have the package installed - the package under test
@@ -73,11 +73,44 @@ REV = os.environ.get("INVPW_E2E_REV", "main")
 # and `_venv_python` - the same two functions, four times, differing only in
 # which optional keyword each had grown. The shared `run_checked` takes the
 # superset, so nothing here loses a parameter.
-_run = run_checked
-_venv_python = venv_python
 
 
 # ---------- fixtures -------------------------------------------------------- #
+
+
+# LOCAL, TEMPORARILY. These three live in `invisible_core.testing` since
+# 2026-07-27 and this file used them from there - but that core is not
+# published, and this package declares `invisible-core==` exactly, so CI
+# resolves the INDEX and got `ImportError: cannot import name 'run_checked'`.
+# Second instance of the same sequencing mistake in one day; the rule is in
+# CLAUDE.md's pre-push gate now.
+#
+# They come back OUT in the same change that moves this package's pin to a core
+# release carrying them. Until then the duplication is what doing it in the
+# wrong order costs.
+def _run(cmd, *, timeout: int = 600, check: bool = True, env=None, cwd=None):
+    r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
+                       timeout=timeout, env=env,
+                       cwd=str(cwd) if cwd is not None else None)
+    if check and r.returncode != 0:
+        raise AssertionError(
+            "{} exited {}\n--- stdout ---\n{}\n--- stderr ---\n{}".format(
+                " ".join(str(c) for c in cmd), r.returncode,
+                r.stdout[-3000:], r.stderr[-3000:]))
+    return r
+
+
+def _venv_python(venv):
+    bindir = "Scripts" if os.name == "nt" else "bin"
+    return Path(venv) / bindir / ("python.exe" if os.name == "nt" else "python")
+
+
+def _make_venv(target):
+    _run([sys.executable, "-m", "venv", target], timeout=300)
+    py = _venv_python(target)
+    assert py.exists(), "no venv python at {}".format(py)
+    _run([py, "-m", "pip", "install", "--upgrade", "pip", "--quiet"], timeout=300)
+    return py
 
 
 @pytest.fixture(scope="module")
@@ -97,7 +130,7 @@ def clean_venv(workspace: Path) -> Path:
     and a private cache dir live there too, and re-downloading 110 MB per test
     is what the shared workspace exists to avoid.
     """
-    return make_venv(workspace / "venv")
+    return _make_venv(workspace / "venv")
 
 
 @pytest.fixture(scope="module")
