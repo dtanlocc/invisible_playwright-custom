@@ -237,6 +237,7 @@ How any of this works, whether or not you use this project. Full index in [docs/
 - [How CreepJS decides you are lying](docs/creepjs-explained.md) - four detection techniques, and why blocking the probe is itself recorded
 - [Firefox preferences that silently do nothing](docs/firefox-prefs-not-applying.md) - five reasons, starting with the one that cost us a real bug
 - [What BotD actually detects](docs/botd-explained.md) - twenty detectors, and why most are not about bots at all
+- [Why a FingerprintJS visitor ID changes](docs/fingerprintjs-visitor-id.md) - it is a hash of 41 components, so one moving moves all of it
 
 ## Related projects
 

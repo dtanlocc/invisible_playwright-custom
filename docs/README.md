@@ -38,6 +38,7 @@ an advert for it they would not be worth reading.
 | [creepjs-explained.md](creepjs-explained.md) | four ways it detects tampering, and why blocking its probe is recorded |
 | [firefox-prefs-not-applying.md](firefox-prefs-not-applying.md) | why a preference you set is silently ignored, in the order it happens |
 | [botd-explained.md](botd-explained.md) | its twenty detectors, and why most check which engine you really are |
+| [fingerprintjs-visitor-id.md](fingerprintjs-visitor-id.md) | why the ID changes, and why an ID that changes every run is a signal |
 
 ## Reference
 
