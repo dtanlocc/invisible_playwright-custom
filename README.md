@@ -198,6 +198,22 @@ Other environment variables you may want:
 | `INVISIBLE_PLAYWRIGHT_SKEW=allow` | run a Playwright outside the tested range anyway |
 | `INVPW_CURSOR_ENGINE` | `python` (default), `binary`, or `off` |
 
+## Guides and explainers
+
+Running it inside something else:
+
+- [Scrapy, via scrapy-playwright](docs/integrations/scrapy-playwright.md) - two settings, engine and profile both
+- [Crawlee for Python](docs/integrations/crawlee-python.md) - a browser plugin, or one line for the engine alone
+- [Playwright MCP](docs/integrations/playwright-mcp.md) - two flags on Microsoft's own MCP server
+- [Go, Java, C#, Ruby, Rust](docs/integrations/other-languages.md) - the engine is not Python
+- [All of them, and the ones it does not fit](docs/integrations/) - including why, by name
+
+How any of this works, whether or not you use this project:
+
+- [navigator.webdriver is not the tell you think it is](docs/navigator-webdriver-explained.md) - why setting it to `false` is worse than leaving it alone
+- [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) - page, driver, engine, and what each one cannot reach
+- [Detected on one site only: the checklist](docs/playwright-detected-as-bot.md) - in order, with the proxy seventh rather than first
+
 ## Related projects
 
 Related projects that cover similar ground:
