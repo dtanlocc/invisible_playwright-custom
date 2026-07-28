@@ -67,7 +67,7 @@ Supported platforms: **Windows x86_64**, **Linux x86_64 / arm64**, **macOS arm64
 + with InvisiblePlaywright() as browser:
 ```
 
-Every session gets a distinct fingerprint (GPU, audio, fonts, screen, ~400 fields) and Bezier-curve mouse motion.
+Every session gets a distinct fingerprint (GPU, audio, fonts, screen, ~200 fields) and Bezier-curve mouse motion.
 
 **Sync**
 ```python

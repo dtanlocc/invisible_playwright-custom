@@ -183,3 +183,160 @@ def test_documented_environment_variables_are_read_somewhere(name):
         f"{_ENV_DOC} documents {name}, which no shipped module reads. Either wire "
         f"it up or take the row out - a knob with no effect makes a reader "
         f"distrust the whole page.")
+
+
+# ---------------- the claims nothing was checking (audited 2026-07-28)
+
+def _seal() -> dict:
+    import json
+
+    import invisible_core
+    return json.loads(
+        pathlib.Path(invisible_core.__file__).with_name("seal.json")
+        .read_text(encoding="utf-8"))
+
+
+def test_the_engine_version_on_the_page_is_the_one_in_the_seal():
+    """The same defect that shipped `firefox-15` in the manager's status bar.
+
+    A version written into a page is a second copy of a number the seal already
+    owns, and it goes stale the next time the engine rolls. Two places carry it
+    here: the badge's `alt` text in the README, and the badge SVG itself, which is
+    a generated file nobody re-reads.
+
+    Found by auditing which README claims had a gate: sizes did, subcommands did,
+    the engine version did not. It said 151.0 and the seal said 151.0, which is
+    exactly how a stale number looks the day before it goes wrong.
+    """
+    upstream = _seal().get("upstream_version")
+    assert upstream, "the seal carries no upstream_version to compare against"
+    text = _readme()
+
+    versions = set(re.findall(r"Firefox\s+(\d+(?:\.\d+)*)", text))
+    assert versions, "the README no longer states a Firefox version at all"
+    wrong = sorted(v for v in versions
+                   if not (v == upstream or upstream.startswith(v + ".")
+                           or v.split(".")[0] == upstream.split(".")[0]))
+    assert not wrong, (
+        f"the README says Firefox {wrong} and the packaged seal says {upstream}. "
+        f"The seal owns this number; a copy on the page survives the next engine "
+        f"roll and tells a user they are getting something they are not.")
+
+    badge = _REPO / "docs" / "badges" / "firefox.svg"
+    if badge.is_file():
+        svg = badge.read_text(encoding="utf-8", errors="ignore")
+        assert upstream in svg, (
+            f"docs/badges/firefox.svg does not mention {upstream}; it is generated "
+            f"and nobody re-reads it, so a stale badge outlives every other copy")
+
+
+def test_the_supported_platforms_are_the_ones_the_seal_actually_ships():
+    """Five archives in the seal, five platforms on the page, and nothing tied
+    them together.
+
+    A platform claimed but not built is a download that 404s for whoever believed
+    the page - which is issue #14's shape, from the other end. A platform built
+    but not claimed is quieter and still wrong: somebody concludes it will not
+    work and uses something else.
+
+    Derived from the asset basenames rather than a written list, so a leg added or
+    dropped in the seal shows up here rather than in a bug report.
+    """
+    assets = " ".join(_seal()["assets"].keys()).lower()
+    text = _readme().lower()
+
+    #: seal token -> the SPECIFIC phrase the page has to carry for it.
+    #:
+    #: The first version accepted a bare family name, so "macos" alone satisfied
+    #: `macos-arm64` AND `macos-x86_64`. Deleting the whole "macOS arm64 / x86_64"
+    #: claim left the gate green, because the word macOS still appears in the
+    #: Gatekeeper note two lines down. A gate that a passing mention satisfies is
+    #: not a gate - measured by deleting exactly that phrase, 2026-07-28.
+    expected = {
+        "win-x86_64": ["windows x86_64"],
+        "linux-x86_64": ["linux x86_64"],
+        "linux-arm64": ["arm64"],
+        "macos-arm64": ["macos arm64"],
+        "macos-x86_64": ["macos arm64 / x86_64", "macos x86_64"],
+    }
+    missing = []
+    for token, spellings in expected.items():
+        if token not in assets:
+            continue                      # the seal does not ship it; nothing to claim
+        if not any(sp in text for sp in spellings):
+            missing.append(
+                f"{token} is in the seal and the page never says {spellings[0]!r}")
+    assert not missing, "\n  ".join(
+        ["the page and the seal disagree about what runs:"] + missing)
+
+    # And the other direction: nothing claimed that is not built.
+    for token in expected:
+        if token in assets:
+            continue
+        family = token.split("-")[0]
+        assert family not in text, (
+            f"the page mentions {family} but the seal ships no {token} archive, so "
+            f"that download does not exist")
+
+
+def test_every_python_example_on_the_page_parses():
+    """Seven fenced python blocks, and nothing had ever compiled one.
+
+    A README example is the first code anybody runs. A stray comma in it costs a
+    reader their first five minutes and reads as "this project does not work".
+    Parsed, not executed - executing would launch a browser.
+    """
+    import ast
+
+    blocks = re.findall(r"```python\n(.*?)```", _readme(), re.DOTALL)
+    assert len(blocks) >= 5, f"only {len(blocks)} python blocks found on the page"
+    broken = []
+    for i, block in enumerate(blocks, 1):
+        try:
+            ast.parse(block)
+        except SyntaxError as exc:
+            broken.append(f"block {i} line {exc.lineno}: {exc.msg}")
+    assert not broken, (
+        "these examples do not parse:\n  " + "\n  ".join(broken))
+
+
+def test_the_stated_field_count_is_in_the_right_order_of_magnitude():
+    """"~400 fields" was written once and never compared to a profile.
+
+    Not pinned to an exact number - the generator's surface moves for good reasons
+    and a test demanding 400 exactly would be edited to whatever it produces,
+    which is not a check. A factor-of-two band is what makes "~400" honest: 200
+    would be an overstatement a reader could measure, and 900 an understatement
+    that undersells the thing.
+    """
+    stated = re.findall(r"~?(\d{2,4})\s*fields", _readme())
+    if not stated:
+        pytest.skip("the page no longer states a field count")
+    import dataclasses
+
+    from invisible_core import generate_profile
+
+    def leaves(obj):
+        """Every scalar in the profile, nested lists and dicts included.
+
+        This is the GENEROUS reading of "fields", and deliberately so: it counts
+        each bundled font name as a field. The stricter readings are smaller -
+        155 prefs emitted, 157 including the stealth baseline - so if the claim
+        fails against this one it fails against all of them.
+        """
+        if dataclasses.is_dataclass(obj):
+            return sum(leaves(getattr(obj, f.name)) for f in dataclasses.fields(obj))
+        if isinstance(obj, dict):
+            return sum(leaves(v) for v in obj.values())
+        if isinstance(obj, (list, tuple)):
+            return sum(leaves(v) for v in obj)
+        return 1
+
+    real = leaves(generate_profile(4242))
+    for claim in (int(s) for s in stated):
+        assert real / 2 <= claim <= real * 2, (
+            f"the page says ~{claim} fields and a profile carries {real} of them "
+            f"on the most generous count. MEASURED 2026-07-28: the page said ~400 "
+            f"against 197 leaves, 155 emitted prefs and 157 including the stealth "
+            f"baseline - an overstatement of about 2x on every reading, written "
+            f"once and never compared to a profile.")
