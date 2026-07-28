@@ -28,6 +28,11 @@ remote_theme: just-the-docs/just-the-docs@v0.12.0
 
 plugins:
   - jekyll-sitemap
+  # Serves docs/README.md at the bare site root. Without this explicitly listed,
+  # the root URL 404s even though every individual page builds fine - found
+  # 2026-07-28 when nothing had ever actually checked the bare domain, only
+  # specific article URLs.
+  - jekyll-readme-index
 
 logo: "/invisible_playwright-logo.png"
 favicon_ico: "/invisible_playwright-logo.png"
