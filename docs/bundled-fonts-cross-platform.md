@@ -8,11 +8,12 @@ nav_order: 6
 
 # How to make Linux and macOS report real Windows fonts
 
+Filtering a host's font list still leaves the host's rendering underneath - the list
+says Windows, the pixels say something else. This page is the fix that actually holds:
+shipping the real font files inside the browser instead, what it took to make that
+hold on three unrelated font backends, and where it still leaks.
 [Why headless browsers render different fonts](headless-fonts-differ.md) covers the
-problem: font enumeration is measurement, not a listable API, and a machine claiming
-Windows on a Linux font set has contradicted itself in a way no property override
-fixes. This page covers the fix we actually shipped, what it took to make it hold on
-three unrelated font backends, and where it still leaks.
+detection side of the same problem, if you want that first.
 
 ## Why filtering the host was never going to be enough
 

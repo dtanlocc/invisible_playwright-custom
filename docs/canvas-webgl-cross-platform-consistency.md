@@ -8,10 +8,12 @@ nav_order: 9
 
 # Canvas and WebGL fingerprints, identical across OSes
 
+A GPU-backed render surface can't be read from or written to directly and safely, so
+the fix intercepts the one place JavaScript can actually see the result instead - the
+same seed then produces a byte-identical canvas and WebGL hash on Windows and Linux.
 [Why headless browsers render different fonts](headless-fonts-differ.md) and
 [how to make Linux and macOS report real Windows fonts](bundled-fonts-cross-platform.md)
-cover this problem for text. This page is the same problem, and the same shape of
-fix, for canvas and WebGL pixels.
+cover the same shape of problem and fix, for text instead of pixels.
 
 ## The surface you can't safely touch is not the surface JavaScript reads
 
