@@ -119,24 +119,53 @@ def test_the_stated_download_size_matches_the_sealed_assets():
         f"no size")
 
 
-@pytest.mark.parametrize("name", [
-    "INVISIBLE_PLAYWRIGHT_CACHE_DIR",
-    "INVPW_BINARY_PATH",
-    "STEALTHFOX_GITHUB_TOKEN",
-    "INVPW_CURSOR_ENGINE",
-])
+#: Where the environment variables are documented for a reader. NOT the README:
+#: the "Environment variables" table was removed from it on 2026-07-28, because
+#: every row described something the package does by itself - it downloads,
+#: verifies a sha256, caches, picks a cursor engine - and none of it is a step
+#: anybody takes. The table was also a THIRD copy, after docs/configuration.md and
+#: docs/installation.md.
+_ENV_DOC = "docs/configuration.md"
+
+#: Prefixes that make a name ours. A knob belonging to Playwright or to the OS is
+#: not this project's to document or to read.
+_ENV_PREFIXES = ("INVISIBLE_PLAYWRIGHT_", "INVPW_", "STEALTHFOX_", "INVISIBLE_CORE_")
+
+
+def _documented_env_names() -> list:
+    """Read the list out of the doc page instead of hardcoding it.
+
+    The hardcoded version named four, and there are more than four - so a fifth
+    knob could be documented and read by nothing without this noticing. Deriving
+    it also means the test follows the page rather than having to be edited
+    alongside it, which is how the four came to be about the README after the
+    README stopped mentioning them.
+    """
+    import re
+
+    path = _REPO / _ENV_DOC
+    assert path.is_file(), f"{_ENV_DOC} is gone; this test has lost its subject"
+    text = path.read_text(encoding="utf-8")
+    names = sorted({m for m in re.findall("[A-Z][A-Z0-9_]{4,}", text)
+                    if m.startswith(_ENV_PREFIXES)})
+    assert len(names) >= 5, (
+        f"only {len(names)} environment variables found in {_ENV_DOC}: {names}. "
+        f"Either the page stopped documenting them - in which case this test is "
+        f"passing over an empty set - or the prefixes above no longer match.")
+    return names
+
+
+@pytest.mark.parametrize("name", _documented_env_names())
 def test_documented_environment_variables_are_read_somewhere(name):
     """A documented knob that nothing reads is worse than an undocumented one:
     the reader sets it, sees no effect, and distrusts the rest of the page."""
-    assert name in _readme(), f"{name} is no longer documented"
-
-    # Two of these four are read by the CORE, not by this package. The first
-    # version looked for them in `_REPO.parent / "invisible_core" / "src"` - a
-    # SIBLING CHECKOUT, which exists on the workbench and nowhere else. On CI,
-    # where only this repo is checked out and the core arrives as a wheel, that
-    # path is missing, the list comprehension yields nothing, and the test
-    # reported that the README documents a variable no module reads. It was
-    # reading the developer's directory layout.
+    # Some of these are read by the CORE, not by this package. The first version
+    # looked for them in `_REPO.parent / "invisible_core" / "src"` - a SIBLING
+    # CHECKOUT, which exists on the workbench and nowhere else. On CI, where only
+    # this repo is checked out and the core arrives as a wheel, that path is
+    # missing, the comprehension yields nothing, and the test reported that a
+    # documented variable is read by no module. It was reading the developer's
+    # directory layout.
     #
     # The INSTALLED package is the right thing to ask either way: it is what a
     # user's environment actually contains, editable checkout or wheel.
@@ -150,4 +179,7 @@ def test_documented_environment_variables_are_read_somewhere(name):
         if "__pycache__" not in path.as_posix()
         and name in path.read_text(encoding="utf-8", errors="ignore")
     ]
-    assert hits, f"the README documents {name}, which no shipped module reads"
+    assert hits, (
+        f"{_ENV_DOC} documents {name}, which no shipped module reads. Either wire "
+        f"it up or take the row out - a knob with no effect makes a reader "
+        f"distrust the whole page.")

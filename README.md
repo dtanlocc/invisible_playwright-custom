@@ -174,25 +174,6 @@ invisible-playwright clear-cache    # remove cached engine trees
 invisible-playwright doctor         # check every cached engine against the seal
 ```
 
-### Environment variables
-
-The engine downloads itself on first use, verifies a sha256 shipped inside
-`invisible-core`, and caches it - the size is on the install line above and it
-happens once per engine version. Nothing here is a required step; each row is
-for a specific situation.
-
-| variable | when you need it |
-|---|---|
-| `INVISIBLE_PLAYWRIGHT_CACHE_DIR` | put the cached engine somewhere else - another drive, a shared location, a path your CI already caches |
-| `INVPW_BINARY_PATH` | point at a binary you already have, and skip the download |
-| `STEALTHFOX_GITHUB_TOKEN` | a rate-limited or corporate network that refuses anonymous GitHub downloads |
-| `INVISIBLE_PLAYWRIGHT_SKEW=allow` | run a Playwright outside the tested range anyway |
-| `INVPW_CURSOR_ENGINE` | `python` (default), `binary`, or `off` |
-
-```bash
-export INVISIBLE_PLAYWRIGHT_CACHE_DIR=/mnt/big/engines
-```
-
 ## Documentation, guides and comparisons
 
 All of it reads better, and is searchable, at
