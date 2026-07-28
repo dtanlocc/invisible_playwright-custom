@@ -41,7 +41,9 @@ two options, it is already decided.
 driver and the browser. This project's target is the browser's own C++, which is a
 different protocol entirely: [Firefox does not speak CDP](firefox-vs-chromium-antidetect.md)
 in the way Chromium does; Playwright drives it through Juggler, an internal Firefox
-protocol we patch directly. Every tell Patchright fixes is specific to the CDP session,
+protocol we patch directly and whose [own compatibility contract with the Playwright
+client breaks in its own specific way](playwright-protocol-drift.md), unrelated to
+anything CDP does. Every tell Patchright fixes is specific to the CDP session,
 which means it is not a tell our project has, and not one this project's patches address
 either, because it does not arise on this engine.
 

@@ -71,6 +71,7 @@ an advert for it they would not be worth reading.
 | [chromium-is-not-chrome.md](chromium-is-not-chrome.md) | what Playwright actually ships, the two capability checks, and why spoofing the UA makes it a provable lie |
 | [vs-camoufox.md](vs-camoufox.md) | rotation against seeded derivation, where Camoufox covers more, and the two things I could not verify |
 | [vs-patchright.md](vs-patchright.md) | engine patch against driver patch, and the CDP-specific tells Firefox never had |
+| [playwright-protocol-drift.md](playwright-protocol-drift.md) | a closed-world wire protocol, the field that took out 97 of 133 tests, and the gate that catches the next one |
 | [vs-nodriver.md](vs-nodriver.md) | two Chrome-only tools with their own API, and what neither claims to fix |
 | [vs-playwright-stealth.md](vs-playwright-stealth.md) | four lines against a browser fork, and why the maintainer calls it a proof-of-concept |
 | [client-hints-sec-fetch.md](client-hints-sec-fetch.md) | Sec-CH-UA against the user agent against userAgentData, and why Firefox not sending them is correct |
