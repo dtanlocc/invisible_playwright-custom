@@ -60,6 +60,17 @@ GPU backends produce different base images, and a small perturbation on top does
 hide that. Substitution removes the underlying image from the equation entirely, so
 there's nothing left for the host to leak into the result.
 
+There's a second, sharper way per-pixel noise fails, found on this exact surface: a
+detector doesn't need two reads to catch it, because the noise itself has a
+statistical shape that a single read can flag. A small random offset applied to a
+fraction of pixels reads as unnaturally high-frequency variation - a masking-detection
+check built to look for exactly that pattern flagged it directly, on the WebGL
+readback specifically, with the rest of the fingerprint surface clean. Replacing it
+with a per-channel remap - which looks like an ordinary colour-profile difference
+between GPUs rather than injected noise - took a measured spike count from roughly
+320 down to near zero on the same probe. Substitution inherits that property too,
+for the same reason: nothing about it resembles noise added on top of a real signal.
+
 ## The proof: byte-identical hashes, not just "looks similar"
 
 Rendered the same seed's canvas (text plus a gradient) and WebGL scene (a
