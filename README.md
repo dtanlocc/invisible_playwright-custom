@@ -265,6 +265,7 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [crawl4ai stealth and custom browser engines](https://feder-cr.github.io/invisible_playwright/crawl4ai-stealth-custom-browser.html) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [How to make Linux and macOS report real Windows fonts](https://feder-cr.github.io/invisible_playwright/bundled-fonts-cross-platform.html) - one manifest, three font backends convinced not to ask the host, and the four seams still open
+- [measureText and TextMetrics as a fingerprinting surface](https://feder-cr.github.io/invisible_playwright/measuretext-textmetrics-fingerprinting.html) - ten-plus numbers from one call needing no permission prompt, and the two mistakes we made fixing it
 - [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
 - [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to
 - [What bot.sannysoft.com actually checks](https://feder-cr.github.io/invisible_playwright/sannysoft-explained.html) - row by row, and the canvas-in-iframe test nobody reads
