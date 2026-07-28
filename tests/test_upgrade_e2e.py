@@ -31,9 +31,56 @@ import sys
 import tempfile
 from pathlib import Path
 
+import os
+
+import subprocess
+
 import pytest
 
-from invisible_core.testing import make_venv, run_checked, venv_python
+# ── venv mechanics, LOCAL ON PURPOSE ────────────────────────────────────────
+# These three live in `invisible_core.testing` and every other suite in the
+# three repos imports them from there. NOT this file. The job that runs it
+# installs pytest on the runner and nothing else, deliberately: what is being
+# tested is what a stranger gets from the index, and a second copy of anything
+# on the runner's path would mean the assertions read the wrong one.
+#
+# So `from invisible_core.testing import ...` here is a COLLECTION error -
+# ModuleNotFoundError, whole job red, nothing tested. It happened on every leg
+# of all three repos on 2026-07-28, the day the helpers were shared, and it
+# passes on any development machine because an editable install is always on
+# the path. The core's suite now parses these files and refuses the import, so
+# the rule does not depend on this comment being read.
+def _run(cmd, *, timeout: int = 600, check: bool = True, env=None, cwd=None):
+    r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
+                       timeout=timeout, env=env,
+                       cwd=str(cwd) if cwd is not None else None)
+    if check and r.returncode != 0:
+        raise AssertionError(
+            "{} exited {}\n--- stdout ---\n{}\n--- stderr ---\n{}".format(
+                " ".join(str(c) for c in cmd), r.returncode,
+                r.stdout[-3000:], r.stderr[-3000:]))
+    return r
+
+
+def _venv_python(venv_dir):
+    bindir = "Scripts" if os.name == "nt" else "bin"
+    name = "python.exe" if os.name == "nt" else "python"
+    return Path(venv_dir) / bindir / name
+
+
+def _make_venv(target, *, upgrade_pip: bool = True):
+    target = Path(target)
+    _run([sys.executable, "-m", "venv", target], timeout=300)
+    py = _venv_python(target)
+    assert py.exists(), "no venv python at {}".format(py)
+    if upgrade_pip:
+        _run([py, "-m", "pip", "install", "--upgrade", "pip", "--quiet"], timeout=300)
+    return py
+
+
+run_checked = _run
+venv_python = _venv_python
+make_venv = _make_venv
 
 
 # The venv mechanics live in `invisible_core.testing`, and they are on the index
