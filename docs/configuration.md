@@ -50,6 +50,23 @@ against each other and against your exit IP, which is why
 [setting `timezone_id` and still getting flagged for a mismatch](timezone-proxy-mismatch.html)
 is common enough to have its own page.
 
+## reCAPTCHA cookie pre-seeding
+
+```python
+with InvisiblePlaywright(seed=42, prep_recaptcha=True) as browser:
+    ctx = browser.new_context()   # cookies auto-injected here
+    page = ctx.new_page()
+    ...
+```
+
+Seeds each new context with a plausible, deterministic set of cookies derived from the
+same persona - a sampled browsing history and the cookies a real visit to those sites
+would leave, plus the cookies a browser normally carries into a reCAPTCHA challenge.
+Same seed, same cookies, every session. Automatically disabled when `profile_dir` is
+set, so it never overwrites a persistent profile's real cookies. The mechanism and its
+limits are covered in
+[reCAPTCHA v3 score: why a fresh browser scores badly](recaptcha-v3-score.html).
+
 ## Environment variables
 
 The engine downloads itself on first use, verifies a sha256 shipped inside

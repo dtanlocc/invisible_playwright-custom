@@ -102,6 +102,36 @@ And the deprecated cookie is deliberately excluded, which is in the code with a 
 saying why, because that is the sort of thing that gets helpfully added back by someone
 reading an old blog post.
 
+Enabled per session:
+
+```python
+with InvisiblePlaywright(seed=42, prep_recaptcha=True) as browser:
+    ctx = browser.new_context()   # cookies auto-injected here
+    page = ctx.new_page()
+    page.goto("https://example.com")
+```
+
+It's automatically forced off when `profile_dir` is set, so a persistent profile's own
+real cookies are never overwritten by a seeded starting point.
+
+## Why this had to be built in Python, not C++
+
+The first attempt was the more obvious one: write the cookies once, in the engine
+itself, before any page loads. It compiled, it linked, and the smoke test showed it
+doing nothing at all. The cookies never reached a launched session.
+
+The reason generalises past this one feature: `browser.new_context()` gives each
+context its own isolated cookie jar, by design - the same isolation
+[a context uses to separate proxies and storage between sessions](playwright-proxy-per-context.md).
+Global browser-level state written before a context exists has nowhere of its own to
+land; it simply isn't there when the jar the page actually reads gets created.
+
+So the seeded cookies are injected at the one point that's actually inside a context's
+own jar - right after `new_context()` is called - built in the wrapper rather than the
+engine. No new binary is needed for this one, and none would have fixed the isolation
+either: the cookies were never going to reach a context from outside it, regardless of
+which layer wrote them.
+
 Honest limits, since this page is about a score and scores invite overclaiming:
 
 - **Cookies are one input.** Behaviour on the page and the reputation of your address
