@@ -6,6 +6,38 @@ grand_parent: "Guides"
 nav_order: 9
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://feder-cr.github.io/invisible_playwright/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Canvas, WebGL, Fonts and Audio",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides-canvas-webgl-fonts-audio.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "Canvas and WebGL fingerprints, identical across OSes"
+    }
+  ]
+}
+</script>
+
 # Canvas and WebGL fingerprints, identical across OSes
 
 A GPU-backed render surface can't be read from or written to directly and safely, so

@@ -6,6 +6,38 @@ grand_parent: "Guides"
 nav_order: 2
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://feder-cr.github.io/invisible_playwright/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Testing and Troubleshooting",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides-testing-troubleshooting.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "Playwright detected as a bot on one site: a checklist"
+    }
+  ]
+}
+</script>
+
 # Playwright detected as a bot on one site: a checklist
 
 A troubleshooting order for when automation gets a different page than a human does.

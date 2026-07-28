@@ -6,6 +6,38 @@ grand_parent: "Guides"
 nav_order: 1
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://feder-cr.github.io/invisible_playwright/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Network, Proxy and WebRTC",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides-network-proxy-webrtc.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "WebRTC leak with a proxy in Playwright and Selenium"
+    }
+  ]
+}
+</script>
+
 # WebRTC leak with a proxy in Playwright and Selenium
 
 "My browser leaks my real IP while using a proxy." "Playwright leaks IP with proxy."

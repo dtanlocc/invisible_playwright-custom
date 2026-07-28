@@ -6,6 +6,38 @@ grand_parent: "Guides"
 nav_order: 1
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://feder-cr.github.io/invisible_playwright/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Canvas, WebGL, Fonts and Audio",
+      "item": "https://feder-cr.github.io/invisible_playwright/guides-canvas-webgl-fonts-audio.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "Canvas fingerprint noise: why per-call randomising fails"
+    }
+  ]
+}
+</script>
+
 # Canvas fingerprint noise: why per-call randomising fails
 
 The standard advice for canvas fingerprinting is to add a little noise to the pixels so

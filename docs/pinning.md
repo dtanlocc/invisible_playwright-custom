@@ -5,6 +5,32 @@ parent: "Documentation"
 nav_order: 4
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://feder-cr.github.io/invisible_playwright/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Documentation",
+      "item": "https://feder-cr.github.io/invisible_playwright/documentation.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Pinning fingerprint fields"
+    }
+  ]
+}
+</script>
+
 # Pinning fingerprint fields
 
 By default, every field of the fingerprint is sampled from a Bayesian network of real-world Firefox telemetry, seeded by an integer. Pass the same `seed` and you get the same fingerprint; omit it and each session is fresh.

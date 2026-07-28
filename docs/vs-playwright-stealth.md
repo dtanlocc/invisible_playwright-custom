@@ -5,6 +5,32 @@ parent: "Comparisons"
 nav_order: 7
 ---
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://feder-cr.github.io/invisible_playwright/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Comparisons",
+      "item": "https://feder-cr.github.io/invisible_playwright/comparisons.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "invisible_playwright vs playwright-stealth: page vs engine"
+    }
+  ]
+}
+</script>
+
 # invisible_playwright vs playwright-stealth: page vs engine
 
 This is the widest gap between any two tools on this site's comparison pages, and the
