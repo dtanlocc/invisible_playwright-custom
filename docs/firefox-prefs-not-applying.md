@@ -85,6 +85,27 @@ redefines the same property will win, because it runs after the browser has alre
 reported the value. Two mechanisms setting the same thing is
 [the recurring theme of these pages](playwright-stealth-levels.md).
 
+## 6. It works in the parent process and is empty in the content process
+
+The one that costs the most time to find, because it produces no error anywhere.
+
+Firefox runs as a tree of processes - one parent, one content process per
+site-isolated origin, plus a handful of others - and a preference set in the parent
+is not automatically visible everywhere. Numeric and boolean preferences generated
+through Firefox's static preference mechanism get baked into a shared snapshot handed
+to every content process at launch, so those propagate for free. **String
+preferences do not go through that snapshot.** A content process asking for one that
+was never explicitly allowed through gets back an empty string - not an error, not a
+fallback to a default, just silence, so this is easy to spend a long time on before
+noticing the value never crosses the process boundary at all.
+
+This matters most for exactly the values people reach for at runtime: a GPU vendor
+string, a spoofed identifier, anything that is text rather than a number or a flag.
+If the string travels through the same static-preference mechanism as a number (with
+a declared default), it gets the same free propagation. If it's read as a plain
+dynamic string preference instead, it needs to be explicitly allowed through, or every
+content process silently sees nothing.
+
 ## A debugging order that works
 
 1. **Read it back from the page, not from the profile.** If `about:config` shows your
