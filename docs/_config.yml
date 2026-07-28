@@ -14,6 +14,14 @@
 # (with 7 sub-categories) / Comparisons / Integrations instead of one flat
 # alphabetical sidebar. See docs/guides.md and docs/documentation.md for the
 # top of each branch.
+#
+# THE SITE ROOT IS docs/index.md, NOT docs/README.md. Tried
+# jekyll-readme-index first (2026-07-28) to serve README.md at the bare
+# domain without a separate index file; the build reported success but the
+# root still 404'd, so it is not actually active under GitHub Pages' safe
+# plugin list here. index.md is the real homepage; README.md is now a short
+# pointer, kept only so the folder still shows something sensible when
+# browsed directly on github.com.
 
 title: invisible_playwright
 description: >-
@@ -28,11 +36,6 @@ remote_theme: just-the-docs/just-the-docs@v0.12.0
 
 plugins:
   - jekyll-sitemap
-  # Serves docs/README.md at the bare site root. Without this explicitly listed,
-  # the root URL 404s even though every individual page builds fine - found
-  # 2026-07-28 when nothing had ever actually checked the bare domain, only
-  # specific article URLs.
-  - jekyll-readme-index
 
 logo: "/invisible_playwright-logo.png"
 favicon_ico: "/invisible_playwright-logo.png"
