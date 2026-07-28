@@ -1,14 +1,19 @@
 # Site config for https://feder-cr.github.io/invisible_playwright/
 #
-# DELIBERATELY NO FRONT MATTER ON THE PAGES. GitHub Pages always runs
-# jekyll-titles-from-headings, which sets each page's title from its own first
-# heading, and jekyll-seo-tag turns that into the <title>. That is the whole
-# reason this site exists: on github.com a page's title tag is GitHub's, not
-# ours. Adding `title:` front matter would take the title tag over, and a
-# sidebar-length title is not a search-length title. It would also make
-# github.com render a metadata table above every page.
+# EVERY PAGE HAS FRONT MATTER (since 2026-07-27), reversing the original
+# no-front-matter decision. jekyll-seo-tag was giving every page the same
+# <meta name="description"> - the repository's own blurb - because with no
+# front matter there was nothing page-specific to read. Front matter costs a
+# rendered metadata table above the file on github.com; the fix keeps `title`
+# identical to the page's own H1 so the sidebar label and the <title> tag
+# stay the same text they always were, and adds `description` purely for the
+# per-page meta tag.
 #
-# So: sidebar labels come from the same headings, and the theme is pinned.
+# Since 2026-07-28 front matter also carries the nav hierarchy: `parent`,
+# `grand_parent` and `has_children` group pages into Documentation / Guides
+# (with 7 sub-categories) / Comparisons / Integrations instead of one flat
+# alphabetical sidebar. See docs/guides.md and docs/documentation.md for the
+# top of each branch.
 
 title: invisible_playwright
 description: >-

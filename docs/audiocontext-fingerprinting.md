@@ -1,6 +1,9 @@
 ---
 title: "AudioContext fingerprinting, and why adding noise backfired"
 description: "Audio fingerprinting is usually beaten by adding noise. We shipped that defence, measured it, and found it made sessions easier to detect, not harder. What the seven audio values are and why noise fails."
+parent: "Canvas, WebGL, Fonts and Audio"
+grand_parent: "Guides"
+nav_order: 8
 ---
 
 # AudioContext fingerprinting, and why adding noise backfired

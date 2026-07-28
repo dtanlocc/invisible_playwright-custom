@@ -1,6 +1,9 @@
 ---
 title: "browser-use gets detected: what you can and cannot change"
 description: "browser-use drives Chrome over CDP, so a Firefox engine cannot be dropped in. What its BrowserProfile actually lets you change, what it cannot reach, and the tell that is specific to AI agents."
+parent: "AI Agents and Frameworks"
+grand_parent: "Guides"
+nav_order: 2
 ---
 
 # browser-use gets detected: what you can and cannot change

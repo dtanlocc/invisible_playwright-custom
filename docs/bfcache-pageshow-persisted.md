@@ -1,6 +1,9 @@
 ---
 title: "BFCache and pageshow.persisted under browser automation"
 description: "Automation drivers disable the back/forward cache, so event.persisted is always false and every back navigation is a full reload. Why that is observable, and what turning it back on costs."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 13
 ---
 
 # BFCache and pageshow.persisted under browser automation

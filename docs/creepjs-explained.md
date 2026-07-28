@@ -1,6 +1,9 @@
 ---
 title: "How CreepJS decides you are lying"
 description: "CreepJS mostly asks whether a browser is telling the truth rather than what it reports. Read from its own source, module by module, for the techniques it uses to catch a lie."
+parent: "Detectors, Explained"
+grand_parent: "Guides"
+nav_order: 2
 ---
 
 # How CreepJS decides you are lying

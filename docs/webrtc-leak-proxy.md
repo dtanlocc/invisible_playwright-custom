@@ -1,6 +1,9 @@
 ---
 title: "WebRTC leak with a proxy in Playwright and Selenium"
 description: "The standard WebRTC leak fix, disabling WebRTC or forcing non-proxied UDP off, passes every leak test and fails at the only thing that matters. What actually leaks through a proxy, and a gate of ours that missed it."
+parent: "Network, Proxy and WebRTC"
+grand_parent: "Guides"
+nav_order: 1
 ---
 
 # WebRTC leak with a proxy in Playwright and Selenium

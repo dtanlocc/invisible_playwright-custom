@@ -1,3 +1,10 @@
+---
+title: "Using invisible_playwright with Crawlee for Python"
+description: "Crawlee for Python drives browsers through a plugin, so a different engine is a subclass rather than a fork. Verified against crawlee on master."
+parent: "Integrations"
+nav_order: 2
+---
+
 # Using invisible_playwright with Crawlee for Python
 
 Crawlee drives browsers through a plugin, so a different browser backend is a

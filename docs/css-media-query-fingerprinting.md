@@ -1,6 +1,9 @@
 ---
 title: "CSS fingerprinting: what media queries reveal"
 description: "Media features and CSS system colours identify a machine with no script at all, which puts them out of reach of every page-level stealth layer. What they expose, and the two consistency traps."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 9
 ---
 
 # CSS fingerprinting: what media queries reveal

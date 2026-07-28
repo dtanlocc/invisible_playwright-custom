@@ -1,6 +1,9 @@
 ---
 title: "Your renderer string says NVIDIA. Your pixels say software."
 description: "A detection flag chased in the wrong direction for a while: you can spoof what a browser says about its GPU, and you cannot spoof what the GPU actually draws. The story of finding that out the hard way."
+parent: "Canvas, WebGL, Fonts and Audio"
+grand_parent: "Guides"
+nav_order: 4
 ---
 
 # Your renderer string says NVIDIA. Your pixels say software.

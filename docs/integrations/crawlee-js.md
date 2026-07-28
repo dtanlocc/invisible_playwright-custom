@@ -1,3 +1,10 @@
+---
+title: "Using invisible_playwright with Crawlee for JavaScript"
+description: "Crawlee for JavaScript takes a browser type and a bag of Playwright launch options, so swapping the engine is configuration, not a subclass."
+parent: "Integrations"
+nav_order: 3
+---
+
 # Using invisible_playwright with Crawlee for JavaScript
 
 Crawlee's JavaScript side takes a browser type and a bag of Playwright launch

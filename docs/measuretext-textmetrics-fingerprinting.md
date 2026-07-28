@@ -1,6 +1,9 @@
 ---
 title: "measureText and TextMetrics as a fingerprinting surface"
 description: "Canvas gets the attention, but measureText is read far more often and needs no permission. What the ten-plus TextMetrics fields expose, why naive per-glyph noise backfired on us, and why the vertical fields need a different fix than the horizontal ones."
+parent: "Canvas, WebGL, Fonts and Audio"
+grand_parent: "Guides"
+nav_order: 7
 ---
 
 # measureText and TextMetrics as a fingerprinting surface

@@ -1,6 +1,9 @@
 ---
 title: "What BotD actually detects, and what it does not"
 description: "BotD's twenty detectors, read from its own source, mostly check whether a browser is telling the truth about which browser it is rather than looking for automation directly."
+parent: "Detectors, Explained"
+grand_parent: "Guides"
+nav_order: 3
 ---
 
 # What BotD actually detects, and what it does not

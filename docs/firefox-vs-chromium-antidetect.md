@@ -1,6 +1,8 @@
 ---
 title: "Firefox or Chromium for anti-detect automation"
 description: "Firefox has no CDP surface and no Client Hints pipeline to keep in sync, and detection heuristics are tuned for Chromium. It is also a small share of real traffic, which is a real cost."
+parent: "Comparisons"
+nav_order: 2
 ---
 
 # Firefox or Chromium for anti-detect automation

@@ -1,3 +1,10 @@
+---
+title: "Using invisible_playwright with Robot Framework Browser"
+description: "The cleanest fit of any framework covered here. Browser's New Browser keyword takes both halves as documented named arguments, no subclassing needed."
+parent: "Integrations"
+nav_order: 5
+---
+
 # Using invisible_playwright with Robot Framework Browser
 
 The cleanest fit of any framework here. `Browser`'s `New Browser` keyword takes both

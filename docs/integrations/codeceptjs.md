@@ -1,3 +1,10 @@
+---
+title: "Using invisible_playwright with CodeceptJS"
+description: "CodeceptJS spreads whatever sits under the browser's own config key straight into Playwright's launch options, so one firefox block carries both the binary and the seeded prefs."
+parent: "Integrations"
+nav_order: 1
+---
+
 # Using invisible_playwright with CodeceptJS
 
 CodeceptJS spreads whatever you put under the browser's own key straight into

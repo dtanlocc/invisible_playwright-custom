@@ -1,6 +1,9 @@
 ---
 title: "How to test whether your browser is detected"
 description: "What each public detection suite actually proves, why a green result can mean the feature is broken rather than working, and the comparison method that catches what verdicts miss."
+parent: "Testing and Troubleshooting"
+grand_parent: "Guides"
+nav_order: 1
 ---
 
 # How to test whether your browser is detected

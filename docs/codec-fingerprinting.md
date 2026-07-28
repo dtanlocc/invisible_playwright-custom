@@ -1,6 +1,9 @@
 ---
 title: "Codec fingerprinting: canPlayType and MediaCapabilities"
 description: "What codecs a browser claims to play identifies the build and the platform, and whether decoding is power efficient identifies the machine. A GPU-less server answers differently from a desktop."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 7
 ---
 
 # Codec fingerprinting: canPlayType and MediaCapabilities

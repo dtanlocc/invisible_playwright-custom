@@ -1,6 +1,9 @@
 ---
 title: "Playwright proxy per context: what it does not isolate"
 description: "One browser with a proxy per context gives every session a different IP and the same canvas, fonts, GPU, audio and timezone. That is one machine appearing from several countries, not several users."
+parent: "Network, Proxy and WebRTC"
+grand_parent: "Guides"
+nav_order: 3
 ---
 
 # Playwright proxy per context: what it does not isolate

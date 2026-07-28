@@ -1,6 +1,9 @@
 ---
 title: "Playwright detected as a bot on one site: a checklist"
 description: "A troubleshooting order for when Playwright gets a different page than a human does, written so you check the free things first instead of buying a better proxy on day one."
+parent: "Testing and Troubleshooting"
+grand_parent: "Guides"
+nav_order: 2
 ---
 
 # Playwright detected as a bot on one site: a checklist

@@ -1,6 +1,9 @@
 ---
 title: "Web Workers: where page-level fingerprint patches fail"
 description: "A worker is a separate realm with its own navigator, and OffscreenCanvas lets a page fingerprint the canvas from inside one. Patches applied to the document never run there."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 15
 ---
 
 # Web Workers: where page-level fingerprint patches fail

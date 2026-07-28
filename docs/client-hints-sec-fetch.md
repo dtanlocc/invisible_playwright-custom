@@ -1,6 +1,9 @@
 ---
 title: "Client Hints and Sec-Fetch: headers that must agree"
 description: "Sec-CH-UA, navigator.userAgentData and the user agent string are generated from one internal state in a real browser. Sec-Fetch describes how a request was initiated. Both are cheap to compare and hard to fake."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 6
 ---
 
 # Client Hints and Sec-Fetch: headers that must agree

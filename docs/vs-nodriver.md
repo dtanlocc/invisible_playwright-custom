@@ -1,6 +1,8 @@
 ---
 title: "invisible_playwright vs nodriver and undetected-chromedriver"
 description: "Both are Chrome-only tools with their own API, not Playwright forks. One patches a chromedriver binary, the successor drops the binary and speaks CDP directly. Neither claims to touch fingerprinting or your IP, and both say so themselves."
+parent: "Comparisons"
+nav_order: 6
 ---
 
 # invisible_playwright vs nodriver and undetected-chromedriver

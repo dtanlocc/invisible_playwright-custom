@@ -1,6 +1,9 @@
 ---
 title: "How to make Linux and macOS report real Windows fonts"
 description: "Filtering a host's font list still leaves the host's rendering underneath. The fix that actually holds is shipping the real font files inside the browser, on all three platforms, from one manifest that keeps three unrelated font backends in agreement."
+parent: "Canvas, WebGL, Fonts and Audio"
+grand_parent: "Guides"
+nav_order: 6
 ---
 
 # How to make Linux and macOS report real Windows fonts

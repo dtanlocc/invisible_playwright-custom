@@ -1,6 +1,9 @@
 ---
 title: "JA3 and JA4: why a TLS fingerprint cannot be patched"
 description: "A TLS fingerprint is decided before your code runs and before a single header is sent, which is why no stealth plugin touches it. What JA3 and JA4 measure, why JA3 decayed, and the two things that change the answer."
+parent: "Network, Proxy and WebRTC"
+grand_parent: "Guides"
+nav_order: 6
 ---
 
 # JA3 and JA4: why a TLS fingerprint cannot be patched

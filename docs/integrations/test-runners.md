@@ -1,3 +1,10 @@
+---
+title: "Cypress, WebdriverIO, TestCafe and Nightwatch integration"
+description: "Cypress, WebdriverIO, TestCafe and Nightwatch: four mechanisms that do not all carry the same amount of the fingerprint, verified from source."
+parent: "Integrations"
+nav_order: 6
+---
+
 # Cypress, WebdriverIO, TestCafe and Nightwatch integration
 
 Four test runners, four mechanisms, and they do not all carry the same amount.

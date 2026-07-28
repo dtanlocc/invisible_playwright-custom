@@ -1,6 +1,9 @@
 ---
 title: "reCAPTCHA v3 score: why a fresh browser scores badly"
 description: "reCAPTCHA v3 returns a number instead of a puzzle, and a clean fresh browser tends to score low anyway. The reason is not the fingerprint, it is that the score is mostly about history, and a new profile has none."
+parent: "Detectors, Explained"
+grand_parent: "Guides"
+nav_order: 5
 ---
 
 # reCAPTCHA v3 score: why a fresh browser scores badly

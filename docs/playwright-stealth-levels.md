@@ -1,6 +1,8 @@
 ---
 title: "Three ways to make Playwright undetected"
 description: "Stealth tools for Playwright get compared as a flat list. They actually operate at three different levels, page, driver and engine, and the level decides what each one can and cannot reach."
+parent: "Comparisons"
+nav_order: 1
 ---
 
 # Three ways to make Playwright undetected

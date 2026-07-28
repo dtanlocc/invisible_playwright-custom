@@ -1,6 +1,8 @@
 ---
 title: "invisible_playwright vs playwright-stealth: page vs engine"
 description: "playwright-stealth injects init scripts before the page loads, in about four lines. That fixes obvious property checks and nothing about the machine. Its own maintainer calls it a proof-of-concept, not a comprehensive fix."
+parent: "Comparisons"
+nav_order: 7
 ---
 
 # invisible_playwright vs playwright-stealth: page vs engine

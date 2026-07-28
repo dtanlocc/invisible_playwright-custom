@@ -1,6 +1,8 @@
 ---
 title: "invisible_playwright vs Camoufox: two patched Firefoxes"
 description: "Both compile Firefox from source and set the fingerprint in C++. The differences are how the identity is produced, how much surface each covers, and whether a failing run can be replayed."
+parent: "Comparisons"
+nav_order: 4
 ---
 
 # invisible_playwright vs Camoufox: two patched Firefoxes

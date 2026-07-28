@@ -1,6 +1,9 @@
 ---
 title: "navigator.webdriver is not the tell you think it is"
 description: "navigator.webdriver is a specified property, not a leak, and patching it alone buys you almost nothing. What it actually tells a detector, and why the property existing at all is by design."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 1
 ---
 
 # navigator.webdriver is not the tell you think it is

@@ -1,3 +1,10 @@
+---
+title: "Using the engine from Go, Java, C#, Ruby and Rust"
+description: "The package is Python; the engine is not. Every official Playwright binding exposes the two launch options this engine needs, in Go, Java, C#, Ruby or Rust."
+parent: "Integrations"
+nav_order: 8
+---
+
 # Using the engine from Go, Java, C#, Ruby and Rust
 
 The package is Python. The engine is not, and you can drive this patched Firefox from

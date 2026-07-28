@@ -1,6 +1,9 @@
 ---
 title: "Why headless browsers render different fonts"
 description: "Headless and headful Firefox render the same page with different fonts, for three causes that also drive canvas fingerprints. Why more fonts is not the fix, and what a self-contained font stack changes."
+parent: "Canvas, WebGL, Fonts and Audio"
+grand_parent: "Guides"
+nav_order: 5
 ---
 
 # Why headless browsers render different fonts

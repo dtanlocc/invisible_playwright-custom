@@ -1,6 +1,9 @@
 ---
 title: "Headless vs headful: what is actually being detected"
 description: "Headlessness is rarely what actually gets detected. What gets detected is the collection of signals that usually accompany it, and a headful browser on the same server still has almost all of them."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 4
 ---
 
 # Headless vs headful: what is actually being detected

@@ -1,3 +1,10 @@
+---
+title: "Integrations"
+description: "How to run invisible_playwright inside frameworks that already drive a browser - Scrapy, Crawlee, Robot Framework, CodeceptJS, test runners, Playwright MCP - and the frameworks it does not fit, by name."
+has_children: true
+nav_order: 5
+---
+
 # Integrations
 
 How to run this engine inside frameworks that already drive a browser, without

@@ -1,6 +1,9 @@
 ---
 title: "What bot.sannysoft.com actually checks, row by row"
 description: "What bot.sannysoft.com's rows actually test, group by group, which ones still mean anything in 2026, read from the live page's own element ids rather than from memory."
+parent: "Detectors, Explained"
+grand_parent: "Guides"
+nav_order: 1
 ---
 
 # What bot.sannysoft.com actually checks, row by row

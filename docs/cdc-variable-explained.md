@@ -1,6 +1,9 @@
 ---
 title: "The ChromeDriver `cdc_` variable, and why renaming it fails"
 description: "The cdc_ variable ChromeDriver leaves on the page is a one-line automation test. Renaming it in the binary does not remove the tell, and the reason generalises well past this one variable."
+parent: "The Automation Layer"
+grand_parent: "Guides"
+nav_order: 2
 ---
 
 # The ChromeDriver `cdc_` variable, and why renaming it fails

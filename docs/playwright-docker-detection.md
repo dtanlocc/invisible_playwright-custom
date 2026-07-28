@@ -1,6 +1,9 @@
 ---
 title: "Playwright in Docker: it runs, and still gets blocked"
 description: "A container that starts perfectly and renders perfectly can still get a different page than your laptop, because it describes a machine that is not a person's, in about six places at once."
+parent: "Network, Proxy and WebRTC"
+grand_parent: "Guides"
+nav_order: 7
 ---
 
 # Playwright in Docker: it runs, and still gets blocked

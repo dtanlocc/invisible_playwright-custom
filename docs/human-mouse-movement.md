@@ -1,6 +1,9 @@
 ---
 title: "Human-like mouse movement: Bezier curves are the easy part"
 description: "A good Bezier curve is the easy half of human-like mouse movement. The half nobody mentions is that every pointer event carries fields saying where it came from, and a perfect curve can still fail that check."
+parent: "The Automation Layer"
+grand_parent: "Guides"
+nav_order: 5
 ---
 
 # Human-like mouse movement: Bezier curves are the easy part

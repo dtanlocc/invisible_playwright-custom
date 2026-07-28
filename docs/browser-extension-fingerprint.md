@@ -1,6 +1,9 @@
 ---
 title: "Browser extensions are a fingerprint surface"
 description: "An installed browser extension is itself a fingerprint surface, checkable three separate ways, and the most common reason to add one is to hide a fingerprint, which is where it turns circular."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 12
 ---
 
 # Browser extensions are a fingerprint surface

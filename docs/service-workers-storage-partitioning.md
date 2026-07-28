@@ -1,6 +1,9 @@
 ---
 title: "Service workers, storage partitioning and automation"
 description: "A service worker is state that survives clearing cookies, and blocking service workers is a capability a real browser has. What partitioning changed, and what a browser context actually separates."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 14
 ---
 
 # Service workers, storage partitioning and automation

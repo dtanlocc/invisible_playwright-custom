@@ -1,6 +1,9 @@
 ---
 title: "Canvas fingerprint noise: why per-call randomising fails"
 description: "Per-call canvas noise beats a detector that reads once and fails a detector that reads twice. The second check almost nobody knows about, and what a consistent alternative has to look like."
+parent: "Canvas, WebGL, Fonts and Audio"
+grand_parent: "Guides"
+nav_order: 1
 ---
 
 # Canvas fingerprint noise: why per-call randomising fails

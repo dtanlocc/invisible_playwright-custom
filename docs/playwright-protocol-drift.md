@@ -1,6 +1,9 @@
 ---
 title: "Why a Playwright upgrade broke 97 of 133 tests overnight"
 description: "A custom Firefox driver speaks a closed-world wire protocol with Playwright's client. When the client adds a field the server never declared, the browser still launches, still loads pages, and one specific API silently stops working."
+parent: "The Automation Layer"
+grand_parent: "Guides"
+nav_order: 6
 ---
 
 # Why a Playwright upgrade broke 97 of 133 tests overnight

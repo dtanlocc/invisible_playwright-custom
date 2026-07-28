@@ -1,6 +1,9 @@
 ---
 title: "Why an attached debugger makes automation detectable"
 description: "A commercial fingerprinting service flagged developer_tools as true with no devtools open. The cause was the automation framework's own attached debugger, and it turned out to be four separate leaks."
+parent: "The Automation Layer"
+grand_parent: "Guides"
+nav_order: 3
 ---
 
 # Why an attached debugger makes automation detectable

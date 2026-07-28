@@ -1,6 +1,9 @@
 ---
 title: "What privacy.resistFingerprinting actually does"
 description: "Firefox's privacy.resistFingerprinting mode is one preference away, and turning it on is usually the wrong move for automation. What it actually changes, what it breaks, and why this project leaves it off."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 10
 ---
 
 # What privacy.resistFingerprinting actually does

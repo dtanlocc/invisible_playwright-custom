@@ -193,70 +193,31 @@ for a specific situation.
 export INVISIBLE_PLAYWRIGHT_CACHE_DIR=/mnt/big/engines
 ```
 
-## Guides and explainers
+## Documentation, guides and comparisons
 
 All of it reads better, and is searchable, at
-**[feder-cr.github.io/invisible_playwright](https://feder-cr.github.io/invisible_playwright/)**.
-Same pages, same repo, with a search box.
+**[feder-cr.github.io/invisible_playwright](https://feder-cr.github.io/invisible_playwright/)**,
+organised into four sections instead of one flat list:
 
-Running it inside something else:
+- **[Documentation](https://feder-cr.github.io/invisible_playwright/documentation.html)** -
+  installation, the two-line switch from plain Playwright, proxy/timezone
+  configuration, pinning specific fields, the CLI.
+- **[Guides](https://feder-cr.github.io/invisible_playwright/guides.html)** - how
+  detection actually works, in seven groups: browser identity, canvas/WebGL/fonts/
+  audio, network and WebRTC, the automation layer, AI agents, the detectors themselves
+  explained from source, and testing.
+- **[Comparisons](https://feder-cr.github.io/invisible_playwright/comparisons.html)** -
+  against Camoufox, Patchright, nodriver and playwright-stealth, and the case for
+  Firefox over Chromium generally.
+- **[Integrations](https://feder-cr.github.io/invisible_playwright/integrations/)** -
+  Scrapy, Crawlee, Robot Framework, CodeceptJS, test runners, Playwright MCP, and the
+  frameworks it does not fit, by name.
 
-- [Scrapy, via scrapy-playwright](https://feder-cr.github.io/invisible_playwright/integrations/scrapy-playwright.html) - two settings, engine and profile both
-- [Crawlee for Python](https://feder-cr.github.io/invisible_playwright/integrations/crawlee-python.html) - a browser plugin, or one line for the engine alone
-- [Playwright MCP](https://feder-cr.github.io/invisible_playwright/integrations/playwright-mcp.html) - two flags on Microsoft's own MCP server
-- [Go, Java, C#, Ruby, Rust](https://feder-cr.github.io/invisible_playwright/integrations/other-languages.html) - the engine is not Python
-- [CodeceptJS](https://feder-cr.github.io/invisible_playwright/integrations/codeceptjs.html) - a `firefox` block in the helper config
-- [Robot Framework Browser](https://feder-cr.github.io/invisible_playwright/integrations/robot-framework.html) - `executablePath` and `firefoxUserPrefs` are keyword arguments
-- [Crawlee for JavaScript](https://feder-cr.github.io/invisible_playwright/integrations/crawlee-js.html) - a launcher swap, plus `useFingerprints: false`
-- [Cypress, WebdriverIO, TestCafe, Nightwatch](https://feder-cr.github.io/invisible_playwright/integrations/test-runners.html) - and which of the four cannot carry the profile
-- [All of them, and the ones it does not fit](https://feder-cr.github.io/invisible_playwright/integrations/) - including why, by name
-
-How any of this works, whether or not you use this project. [Full index](https://feder-cr.github.io/invisible_playwright/):
-
-- [navigator.webdriver is not the tell you think it is](https://feder-cr.github.io/invisible_playwright/navigator-webdriver-explained.html) - why setting it to `false` is worse than leaving it alone
-- [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) - page, driver, engine, and what each one cannot reach
-- [Detected on one site only: the checklist](https://feder-cr.github.io/invisible_playwright/playwright-detected-as-bot.html) - in order, with the proxy seventh rather than first
-- [Firefox WebGL renderer strings](https://feder-cr.github.io/invisible_playwright/webgl-renderer-strings.html) - what ANGLE reports, and the software-rasterizer tell we shipped ourselves
-- [Your renderer string says NVIDIA, your pixels say software](https://feder-cr.github.io/invisible_playwright/renderer-string-vs-render.html) - a detection flag we chased in the wrong direction, and what a GPU claim cannot fake
-- [WebRTC leaks with a proxy](https://feder-cr.github.io/invisible_playwright/webrtc-leak-proxy.html) - why disabling WebRTC is the wrong fix, and the dead preference everyone still recommends
-- [speechSynthesis.getVoices() returns an empty array](https://feder-cr.github.io/invisible_playwright/speech-synthesis-voices.html) - the async gotcha, and the reason the list is a statement about your operating system
-- [AudioContext fingerprinting](https://feder-cr.github.io/invisible_playwright/audiocontext-fingerprinting.html) - the seven values that have to agree, and the measurement that made us turn our own noise off
-- [Playwright timezone does not match the proxy IP](https://feder-cr.github.io/invisible_playwright/timezone-proxy-mismatch.html) - nine values that have to agree, and why the environment variable does not work on Windows
-- [Playwright SOCKS5 proxy with authentication](https://feder-cr.github.io/invisible_playwright/playwright-socks5-proxy-authentication.html) - the credentials are documented for HTTP proxies only, and the upstream request has been open since 2021
-- [JA3 and JA4 TLS fingerprints](https://feder-cr.github.io/invisible_playwright/ja3-ja4-tls-fingerprint.html) - decided before any JavaScript exists, so no stealth layer can reach it
-- [Human-like mouse movement in Playwright](https://feder-cr.github.io/invisible_playwright/human-mouse-movement.html) - the curve is the easy half, the event fields are the half that gets checked
-- [Canvas fingerprint noise](https://feder-cr.github.io/invisible_playwright/canvas-fingerprint-noise.html) - why randomising per call is caught in four lines, and the solid-fill probe nobody knows about
-- [Screen size and viewport tells in headless browsers](https://feder-cr.github.io/invisible_playwright/screen-size-headless-tells.html) - availHeight, outerHeight and the relationships that have to hold
-- [Playwright in Docker: it runs and still gets blocked](https://feder-cr.github.io/invisible_playwright/playwright-docker-detection.html) - six things a container says about itself, and why the official image is a cohort
-- [hardwareConcurrency, deviceMemory and storage quota](https://feder-cr.github.io/invisible_playwright/hardware-concurrency-device-memory.html) - three numbers about the machine, and the worker check that catches page-level spoofing
-- [Function.prototype.toString and the [native code] check](https://feder-cr.github.io/invisible_playwright/tostring-native-code-detection.html) - why every JavaScript override carries its own source, and the four ways that is found
-- [reCAPTCHA v3 score: why a fresh browser scores badly](https://feder-cr.github.io/invisible_playwright/recaptcha-v3-score.html) - the score is about history, and a fresh profile has none
-- [Execution context was destroyed](https://feder-cr.github.io/invisible_playwright/execution-context-destroyed.html) - the ordinary race, and the case where the site navigated you somewhere else
-- [Why an attached debugger makes automation detectable](https://feder-cr.github.io/invisible_playwright/debugger-timing-detection.html) - a debugger disables the JIT, and timing is a fingerprint too
-- [Browser extensions are a fingerprint surface](https://feder-cr.github.io/invisible_playwright/browser-extension-fingerprint.html) - three ways a page finds one, and why a stealth extension argues with a stealth engine
-- [Headless vs headful: what is actually being detected](https://feder-cr.github.io/invisible_playwright/headless-vs-headful.html) - rarely headlessness, usually the machine it runs on, plus the third option nobody mentions
-- [WebGL parameters: the numbers are the same on every GPU](https://feder-cr.github.io/invisible_playwright/webgl-parameters-are-identical.html) - the most repeated advice here is backwards, and randomising them removed us from the report
-- [Playwright persistent profile](https://feder-cr.github.io/invisible_playwright/persistent-profiles.html) - what it fixes, and the stored permission that disables your WebRTC protection
-- [CSS fingerprinting without JavaScript](https://feder-cr.github.io/invisible_playwright/css-media-query-fingerprinting.html) - media queries and system colours identify a machine with no script, so no page-level layer applies
-- [Codec fingerprinting: canPlayType and MediaCapabilities](https://feder-cr.github.io/invisible_playwright/codec-fingerprinting.html) - three surfaces in one API, including whether your machine has a hardware decoder
-- [BFCache and pageshow.persisted under automation](https://feder-cr.github.io/invisible_playwright/bfcache-pageshow-persisted.html) - drivers disable the back/forward cache, so every back navigation is a full reload
-- [Why you should not set the user agent](https://feder-cr.github.io/invisible_playwright/playwright-user-agent.html) - rotating the string does not rotate the browser, it only creates contradictions
-- [browser-use gets detected](https://feder-cr.github.io/invisible_playwright/browser-use-detection.html) - what its BrowserProfile reaches, and the tell specific to agent-driven sessions
-- [AI browser agents and stealth](https://feder-cr.github.io/invisible_playwright/ai-browser-agents-stealth.html) - browser-use, Stagehand, Skyvern, crawl4ai and Maxun checked from source, and what applies whichever you picked
-- [How to test whether your browser is detected](https://feder-cr.github.io/invisible_playwright/how-to-test-bot-detection.html) - what each suite proves, the false pass, and the comparison that replaces the verdict
-- [Playwright proxy per context: what it does not isolate](https://feder-cr.github.io/invisible_playwright/playwright-proxy-per-context.html) - a context isolates storage, not hardware, so five proxies on one browser is one machine in five countries
-- [Permissions API: the two answers that must agree](https://feder-cr.github.io/invisible_playwright/permissions-api-consistency.html) - the two-line headless check, and why granting everything makes a browser nobody has
-- [Service workers and storage partitioning](https://feder-cr.github.io/invisible_playwright/service-workers-storage-partitioning.html) - a registration survives clearing cookies, and blocking them removes a capability every real browser has
-- [Web Workers: where page-level patches fail](https://feder-cr.github.io/invisible_playwright/web-workers-fingerprint.html) - a worker is a separate realm, and OffscreenCanvas fingerprints the canvas from inside one
-- [WebRTC ICE candidate spoofing](https://feder-cr.github.io/invisible_playwright/webrtc-ice-candidate-spoofing.html) - the address is the easy field; the priority, the foundation and the arrival time are the ones that give it away
-- [Firefox or Chromium for anti-detect](https://feder-cr.github.io/invisible_playwright/firefox-vs-chromium-antidetect.html) - no CDP surface and one identity instead of three, against being a small share of real traffic
-- [Chromium is not Chrome](https://feder-cr.github.io/invisible_playwright/chromium-is-not-chrome.html) - Playwright ships Chromium, which has no H.264 and no Widevine, and those are capabilities rather than values
-- [invisible_playwright vs Camoufox](https://feder-cr.github.io/invisible_playwright/vs-camoufox.html) - the same approach on the same engine, so the comparison is about how the identity is produced and who covers more
-- [invisible_playwright vs Patchright](https://feder-cr.github.io/invisible_playwright/vs-patchright.html) - a driver patch on Chromium against an engine patch on Firefox, and the CDP-specific tells Firefox never had
-- [Why a Playwright upgrade broke 97 of 133 tests overnight](https://feder-cr.github.io/invisible_playwright/playwright-protocol-drift.html) - a closed-world wire protocol, the field that took the suite down, and the gate that catches the next one
-- [invisible_playwright vs nodriver and undetected-chromedriver](https://feder-cr.github.io/invisible_playwright/vs-nodriver.html) - two Chrome-only tools with their own API instead of Playwright's, and what neither claims to fix
-- [invisible_playwright vs playwright-stealth](https://feder-cr.github.io/invisible_playwright/vs-playwright-stealth.html) - four lines of init script against a browser fork, and why its own maintainer calls it a proof-of-concept
-- [Client Hints and Sec-Fetch: headers that must agree](https://feder-cr.github.io/invisible_playwright/client-hints-sec-fetch.html) - three copies of one identity, plus the headers that describe how the request was initiated
+If you don't know where to start: [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html)
+is the map most other pages link back to, [Playwright detected as a bot on one site](https://feder-cr.github.io/invisible_playwright/playwright-detected-as-bot.html)
+is the troubleshooting order, and [navigator.webdriver is not the tell you think it is](https://feder-cr.github.io/invisible_playwright/navigator-webdriver-explained.html)
+explains the most famous property in this space and why patching it alone buys you
+almost nothing.
 - [crawl4ai stealth and custom browser engines](https://feder-cr.github.io/invisible_playwright/crawl4ai-stealth-custom-browser.html) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [How to make Linux and macOS report real Windows fonts](https://feder-cr.github.io/invisible_playwright/bundled-fonts-cross-platform.html) - one manifest, three font backends convinced not to ask the host, and the four seams still open

@@ -1,3 +1,10 @@
+---
+title: "Using invisible_playwright with scrapy-playwright"
+description: "Two ways to run this inside a Scrapy spider, and they carry a different amount: a browser provider versus launch settings alone. Verified against scrapy-playwright 0.0.48."
+parent: "Integrations"
+nav_order: 4
+---
+
 # Using invisible_playwright with scrapy-playwright
 
 There are two ways to run a patched Firefox inside a Scrapy spider, and they are not

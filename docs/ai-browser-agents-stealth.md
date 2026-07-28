@@ -1,6 +1,9 @@
 ---
 title: "AI browser agents and stealth: what fits and what does not"
 description: "browser-use, Stagehand, Skyvern, crawl4ai and Maxun, checked from their source. Most drive Chromium over CDP, which decides what a stealth engine can do for them, and what still applies regardless."
+parent: "AI Agents and Frameworks"
+grand_parent: "Guides"
+nav_order: 1
 ---
 
 # AI browser agents and stealth: what fits and what does not

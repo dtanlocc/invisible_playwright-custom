@@ -1,6 +1,9 @@
 ---
 title: "Permissions API: the two answers that must agree"
 description: "Notification.permission and navigator.permissions.query answer the same question through different code, and headless browsers have historically disagreed. The set of permission states is also a fingerprint."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 8
 ---
 
 # Permissions API: the two answers that must agree

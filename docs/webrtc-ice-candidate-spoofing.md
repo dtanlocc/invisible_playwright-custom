@@ -1,6 +1,9 @@
 ---
 title: "WebRTC ICE candidate spoofing: the fields that give it away"
 description: "Replacing the address in a server-reflexive candidate is the easy part. The priority, the foundation and the arrival time are all checkable, and we shipped all three wrong before getting them right."
+parent: "Network, Proxy and WebRTC"
+grand_parent: "Guides"
+nav_order: 2
 ---
 
 # WebRTC ICE candidate spoofing: the fields that give it away

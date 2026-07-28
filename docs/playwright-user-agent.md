@@ -1,6 +1,9 @@
 ---
 title: "Why you should not set the user agent in Playwright"
 description: "Rotating the user agent does not rotate the browser. Everything else keeps answering honestly, so the string you changed now contradicts the fonts, the GPU, the codecs and the TLS handshake."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 5
 ---
 
 # Why you should not set the user agent in Playwright

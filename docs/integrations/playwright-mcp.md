@@ -1,3 +1,10 @@
+---
+title: "Using invisible_playwright with Microsoft's Playwright MCP"
+description: "Microsoft's own playwright-mcp takes a browser and an executable path as arguments, so pointing it at this engine is configuration, not a separate server."
+parent: "Integrations"
+nav_order: 7
+---
+
 # Using invisible_playwright with Microsoft's Playwright MCP
 
 You do not need a separate MCP server. Microsoft's own `playwright-mcp` takes a

@@ -1,6 +1,8 @@
 ---
 title: "Chromium is not Chrome, and detectors know the difference"
 description: "Playwright ships Chromium, which has no H.264, no AAC and no Widevine. Almost nobody browses with it, and those gaps are compiled-in capabilities that no JavaScript patch can fill."
+parent: "Comparisons"
+nav_order: 3
 ---
 
 # Chromium is not Chrome, and detectors know the difference

@@ -1,6 +1,9 @@
 ---
 title: "Playwright SOCKS5 proxy with authentication"
 description: "Playwright's proxy option documents SOCKS5 credentials for HTTP proxies only. What actually happens when you pass a username and password to a socks5:// server, and the routes that work instead."
+parent: "Network, Proxy and WebRTC"
+grand_parent: "Guides"
+nav_order: 4
 ---
 
 # Playwright SOCKS5 proxy with authentication

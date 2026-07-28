@@ -1,6 +1,9 @@
 ---
 title: "Playwright persistent profile: what it fixes and breaks"
 description: "A persistent user data directory keeps logins, and carries three traps: a seed that must not move, a stored camera permission that disables WebRTC address protection, and an age that has to be consistent."
+parent: "The Automation Layer"
+grand_parent: "Guides"
+nav_order: 7
 ---
 
 # Playwright persistent profile: what it fixes and breaks

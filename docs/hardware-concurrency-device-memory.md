@@ -1,6 +1,9 @@
 ---
 title: "hardwareConcurrency, deviceMemory and storage quota"
 description: "hardwareConcurrency, deviceMemory and storage quota are three one-line reads, all routinely wrong on a server, and all checked against each other by a detector rather than on their own."
+parent: "Browser Identity"
+grand_parent: "Guides"
+nav_order: 2
 ---
 
 # hardwareConcurrency, deviceMemory and storage quota

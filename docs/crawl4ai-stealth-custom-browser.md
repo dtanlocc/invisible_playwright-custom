@@ -1,6 +1,9 @@
 ---
 title: "crawl4ai stealth mode and custom browser engines"
 description: "crawl4ai supports browser_type firefox but has no executable_path, so you get Playwright's own build. Where the adapter seam is, what its stealth mode reaches, and what stays out of reach."
+parent: "AI Agents and Frameworks"
+grand_parent: "Guides"
+nav_order: 3
 ---
 
 # crawl4ai stealth mode and custom browser engines

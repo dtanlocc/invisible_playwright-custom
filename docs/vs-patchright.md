@@ -1,6 +1,8 @@
 ---
 title: "invisible_playwright vs Patchright: driver vs engine"
 description: "Patchright patches the Playwright driver and stays on Chromium. This project patches Firefox itself. They fix different tells at different layers, and for some jobs the honest answer is both, on different engines."
+parent: "Comparisons"
+nav_order: 5
 ---
 
 # invisible_playwright vs Patchright: driver vs engine
