@@ -1,3 +1,8 @@
+---
+title: "WebGL parameters: the numbers are the same on every GPU"
+description: "The common advice is to raise WebGL's numeric limits to match a claimed high-end GPU. On Windows that is backwards: ANGLE clamps every card to the same feature-level ceiling, so raising the numbers gets you caught."
+---
+
 # WebGL parameters: the numbers are the same on every GPU
 
 The most repeated advice about WebGL fingerprinting goes like this: if you claim a

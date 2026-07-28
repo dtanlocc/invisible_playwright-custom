@@ -1,3 +1,8 @@
+---
+title: "hardwareConcurrency, deviceMemory and storage quota"
+description: "hardwareConcurrency, deviceMemory and storage quota are three one-line reads, all routinely wrong on a server, and all checked against each other by a detector rather than on their own."
+---
+
 # hardwareConcurrency, deviceMemory and storage quota
 
 Three numbers the browser reports about the machine, all readable in one line each, all

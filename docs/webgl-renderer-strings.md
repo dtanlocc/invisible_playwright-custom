@@ -1,3 +1,8 @@
+---
+title: "Firefox WebGL renderer strings: what ANGLE reports"
+description: "What Firefox's UNMASKED_VENDOR_WEBGL and UNMASKED_RENDERER_WEBGL actually report on each platform, why Windows says ANGLE and Google Inc., and why a software renderer is the hardest string here to explain away."
+---
+
 # Firefox WebGL renderer strings: what ANGLE reports
 
 `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` name your graphics hardware in

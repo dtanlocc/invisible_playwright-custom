@@ -1,3 +1,8 @@
+---
+title: "Playwright timezone does not match the proxy IP"
+description: "Setting timezone_id and still getting flagged for a mismatch happens because timezone and locale are not one value each. They are half a dozen surfaces a detector cross-checks against your exit IP."
+---
+
 # Playwright timezone does not match the proxy IP
 
 You set `timezone_id`. You are still flagged for a timezone mismatch. This page is why

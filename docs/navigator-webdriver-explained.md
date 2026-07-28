@@ -1,3 +1,8 @@
+---
+title: "navigator.webdriver is not the tell you think it is"
+description: "navigator.webdriver is a specified property, not a leak, and patching it alone buys you almost nothing. What it actually tells a detector, and why the property existing at all is by design."
+---
+
 # navigator.webdriver is not the tell you think it is
 
 If you have ever automated a browser and been shown a different page than a human

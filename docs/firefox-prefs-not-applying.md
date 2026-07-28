@@ -1,3 +1,8 @@
+---
+title: "Firefox preferences that silently do nothing"
+description: "A preference you set is silently ignored, with no error and nothing in the log. The full list of reasons, in the order they actually happen, from a project that delivers its entire fingerprint through preferences."
+---
+
 # Firefox preferences that silently do nothing
 
 You set a preference, the browser starts, and the value is not there. No error, no

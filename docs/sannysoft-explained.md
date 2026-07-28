@@ -1,3 +1,8 @@
+---
+title: "What bot.sannysoft.com actually checks, row by row"
+description: "What bot.sannysoft.com's rows actually test, group by group, which ones still mean anything in 2026, read from the live page's own element ids rather than from memory."
+---
+
 # What bot.sannysoft.com actually checks, row by row
 
 Everyone in browser automation ends up on this page, and most people read the colour

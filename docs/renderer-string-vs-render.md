@@ -1,3 +1,8 @@
+---
+title: "Your renderer string says NVIDIA. Your pixels say software."
+description: "A detection flag chased in the wrong direction for a while: you can spoof what a browser says about its GPU, and you cannot spoof what the GPU actually draws. The story of finding that out the hard way."
+---
+
 # Your renderer string says NVIDIA. Your pixels say software.
 
 A story about a detection flag we chased in the wrong direction for a while, and the

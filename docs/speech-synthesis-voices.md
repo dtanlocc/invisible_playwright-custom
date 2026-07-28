@@ -1,3 +1,8 @@
+---
+title: "speechSynthesis.getVoices() returns an empty array"
+description: "An empty speechSynthesis.getVoices() is two unrelated problems wearing the same symptom: an async timing gotcha that hits every browser, and a voice list that describes the wrong operating system."
+---
+
 # speechSynthesis.getVoices() returns an empty array
 
 There are two separate problems hiding behind the same symptom, and the fixes have

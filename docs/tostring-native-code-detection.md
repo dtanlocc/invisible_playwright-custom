@@ -1,3 +1,8 @@
+---
+title: "Function.prototype.toString and the [native code] check"
+description: "Every JavaScript override is a function, and every function carries its own source. That single fact is the ceiling on page-level stealth, and it explains a whole category of detection rather than one check."
+---
+
 # Function.prototype.toString and the [native code] check
 
 Every override you write in JavaScript is a function, and every function carries its

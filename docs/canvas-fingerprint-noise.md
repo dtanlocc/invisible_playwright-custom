@@ -1,3 +1,8 @@
+---
+title: "Canvas fingerprint noise: why per-call randomising fails"
+description: "Per-call canvas noise beats a detector that reads once and fails a detector that reads twice. The second check almost nobody knows about, and what a consistent alternative has to look like."
+---
+
 # Canvas fingerprint noise: why per-call randomising fails
 
 The standard advice for canvas fingerprinting is to add a little noise to the pixels so

@@ -1,3 +1,8 @@
+---
+title: "Screen size and viewport tells in headless browsers"
+description: "A headless browser has no monitor, so every screen and viewport value it reports was decided by something else. Which combinations never occur on a real machine, and the detail that catches almost everyone."
+---
+
 # Screen size and viewport tells in headless browsers
 
 A headless browser has no screen, so every screen-related value it reports was decided

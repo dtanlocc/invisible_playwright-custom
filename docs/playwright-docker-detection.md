@@ -1,3 +1,8 @@
+---
+title: "Playwright in Docker: it runs, and still gets blocked"
+description: "A container that starts perfectly and renders perfectly can still get a different page than your laptop, because it describes a machine that is not a person's, in about six places at once."
+---
+
 # Playwright in Docker: it runs, and still gets blocked
 
 Almost every page about Playwright and Docker is about making it start: install the

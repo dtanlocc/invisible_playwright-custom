@@ -1,3 +1,8 @@
+---
+title: "Pinning fingerprint fields"
+description: "Every fingerprint field is sampled from a seed by default. pin lets you force specific fields, like a GPU model or a screen size, while leaving the rest of the identity seed-derived."
+---
+
 # Pinning fingerprint fields
 
 By default, every field of the fingerprint is sampled from a Bayesian network of real-world Firefox telemetry, seeded by an integer. Pass the same `seed` and you get the same fingerprint; omit it and each session is fresh.

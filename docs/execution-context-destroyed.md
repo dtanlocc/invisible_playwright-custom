@@ -1,3 +1,8 @@
+---
+title: "Execution context was destroyed, and when it means detection"
+description: "Execution context was destroyed is usually a race condition, and sometimes a site deciding mid-visit it does not like you. The two look identical in the stack trace and need entirely different fixes."
+---
+
 # Execution context was destroyed, and when it means detection
 
 ```

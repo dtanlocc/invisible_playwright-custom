@@ -1,3 +1,8 @@
+---
+title: "What BotD actually detects, and what it does not"
+description: "BotD's twenty detectors, read from its own source, mostly check whether a browser is telling the truth about which browser it is rather than looking for automation directly."
+---
+
 # What BotD actually detects, and what it does not
 
 BotD is the open-source bot detector from the FingerprintJS team. It is small, it is

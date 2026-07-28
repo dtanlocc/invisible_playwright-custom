@@ -1,3 +1,8 @@
+---
+title: "Headless vs headful: what is actually being detected"
+description: "Headlessness is rarely what actually gets detected. What gets detected is the collection of signals that usually accompany it, and a headful browser on the same server still has almost all of them."
+---
+
 # Headless vs headful: what is actually being detected
 
 The usual advice is that headless gets caught and headful is safer, so run headful if

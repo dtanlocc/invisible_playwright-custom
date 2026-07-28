@@ -1,3 +1,8 @@
+---
+title: "How CreepJS decides you are lying"
+description: "CreepJS mostly asks whether a browser is telling the truth rather than what it reports. Read from its own source, module by module, for the techniques it uses to catch a lie."
+---
+
 # How CreepJS decides you are lying
 
 Most fingerprinting tests ask what your browser reports. CreepJS mostly asks whether

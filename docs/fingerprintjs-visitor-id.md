@@ -1,3 +1,8 @@
+---
+title: "Why a FingerprintJS visitor ID changes"
+description: "A FingerprintJS visitor ID is a hash of 41 components. Everything about why it changes, or why it stays the same, follows from that one fact."
+---
+
 # Why a FingerprintJS visitor ID changes
 
 People run FingerprintJS, get a `visitorId`, run it again a week later and get a
