@@ -156,7 +156,7 @@ with InvisiblePlaywright(
     ...
 ```
 
-Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](https://feder-cr.github.io/invisible_playwright/pinning.html)**.
+Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](docs/pinning.md)**.
 
 ---
 
@@ -180,36 +180,36 @@ All of it reads better, and is searchable, at
 **[feder-cr.github.io/invisible_playwright](https://feder-cr.github.io/invisible_playwright/)**,
 organised into four sections instead of one flat list:
 
-- **[Documentation](https://feder-cr.github.io/invisible_playwright/documentation.html)** -
+- **[Documentation](docs/documentation.md)** -
   installation, the two-line switch from plain Playwright, proxy/timezone
   configuration, pinning specific fields, the CLI.
-- **[Guides](https://feder-cr.github.io/invisible_playwright/guides.html)** - how
+- **[Guides](docs/guides.md)** - how
   detection actually works, in seven groups: browser identity, canvas/WebGL/fonts/
   audio, network and WebRTC, the automation layer, AI agents, the detectors themselves
   explained from source, and testing.
-- **[Comparisons](https://feder-cr.github.io/invisible_playwright/comparisons.html)** -
+- **[Comparisons](docs/comparisons.md)** -
   against Camoufox, Patchright, nodriver and playwright-stealth, and the case for
   Firefox over Chromium generally.
-- **[Integrations](https://feder-cr.github.io/invisible_playwright/integrations/)** -
+- **[Integrations](docs/integrations/)** -
   Scrapy, Crawlee, Robot Framework, CodeceptJS, test runners, Playwright MCP, and the
   frameworks it does not fit, by name.
 
-If you don't know where to start: [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html)
-is the map most other pages link back to, [Playwright detected as a bot on one site](https://feder-cr.github.io/invisible_playwright/playwright-detected-as-bot.html)
-is the troubleshooting order, and [navigator.webdriver is not the tell you think it is](https://feder-cr.github.io/invisible_playwright/navigator-webdriver-explained.html)
+If you don't know where to start: [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md)
+is the map most other pages link back to, [Playwright detected as a bot on one site](docs/playwright-detected-as-bot.md)
+is the troubleshooting order, and [navigator.webdriver is not the tell you think it is](docs/navigator-webdriver-explained.md)
 explains the most famous property in this space and why patching it alone buys you
 almost nothing.
-- [crawl4ai stealth and custom browser engines](https://feder-cr.github.io/invisible_playwright/crawl4ai-stealth-custom-browser.html) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
-- [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
-- [How to make Linux and macOS report real Windows fonts](https://feder-cr.github.io/invisible_playwright/bundled-fonts-cross-platform.html) - one manifest, three font backends convinced not to ask the host, and the four seams still open
-- [measureText and TextMetrics as a fingerprinting surface](https://feder-cr.github.io/invisible_playwright/measuretext-textmetrics-fingerprinting.html) - ten-plus numbers from one call needing no permission prompt, and the two mistakes we made fixing it
-- [What privacy.resistFingerprinting really does](https://feder-cr.github.io/invisible_playwright/resist-fingerprinting.html) - and why this project sets it to false on purpose
-- [The ChromeDriver cdc_ variable](https://feder-cr.github.io/invisible_playwright/cdc-variable-explained.html) - why renaming it is not removing it, and what that generalises to
-- [What bot.sannysoft.com actually checks](https://feder-cr.github.io/invisible_playwright/sannysoft-explained.html) - row by row, and the canvas-in-iframe test nobody reads
-- [How CreepJS decides you are lying](https://feder-cr.github.io/invisible_playwright/creepjs-explained.html) - four detection techniques, and why blocking the probe is itself recorded
-- [Firefox preferences that silently do nothing](https://feder-cr.github.io/invisible_playwright/firefox-prefs-not-applying.html) - five reasons, starting with the one that cost us a real bug
-- [What BotD actually detects](https://feder-cr.github.io/invisible_playwright/botd-explained.html) - twenty detectors, and why most are not about bots at all
-- [Why a FingerprintJS visitor ID changes](https://feder-cr.github.io/invisible_playwright/fingerprintjs-visitor-id.html) - it is a hash of 41 components, so one moving moves all of it
+- [crawl4ai stealth and custom browser engines](docs/crawl4ai-stealth-custom-browser.md) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
+- [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
+- [How to make Linux and macOS report real Windows fonts](docs/bundled-fonts-cross-platform.md) - one manifest, three font backends convinced not to ask the host, and the four seams still open
+- [measureText and TextMetrics as a fingerprinting surface](docs/measuretext-textmetrics-fingerprinting.md) - ten-plus numbers from one call needing no permission prompt, and the two mistakes we made fixing it
+- [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
+- [The ChromeDriver cdc_ variable](docs/cdc-variable-explained.md) - why renaming it is not removing it, and what that generalises to
+- [What bot.sannysoft.com actually checks](docs/sannysoft-explained.md) - row by row, and the canvas-in-iframe test nobody reads
+- [How CreepJS decides you are lying](docs/creepjs-explained.md) - four detection techniques, and why blocking the probe is itself recorded
+- [Firefox preferences that silently do nothing](docs/firefox-prefs-not-applying.md) - five reasons, starting with the one that cost us a real bug
+- [What BotD actually detects](docs/botd-explained.md) - twenty detectors, and why most are not about bots at all
+- [Why a FingerprintJS visitor ID changes](docs/fingerprintjs-visitor-id.md) - it is a hash of 41 components, so one moving moves all of it
 
 ## Related projects
 
@@ -217,19 +217,19 @@ The open-source neighbours, and what each one is for.
 
 **On the Firefox side**
 
-- **[Camoufox](https://github.com/daijro/camoufox)** - an anti-detect Firefox that also patches at the C++ level. It covers a wider surface and ships its own fingerprint database; this project derives a fingerprint from a seed with a Bayesian sampler, so one number reproduces one machine. [Full comparison](https://feder-cr.github.io/invisible_playwright/vs-camoufox.html).
+- **[Camoufox](https://github.com/daijro/camoufox)** - an anti-detect Firefox that also patches at the C++ level. It covers a wider surface and ships its own fingerprint database; this project derives a fingerprint from a seed with a Bayesian sampler, so one number reproduces one machine. [Full comparison](docs/vs-camoufox.md).
 - **[LibreWolf](https://librewolf.net)** - a Firefox fork with privacy defaults. It ships a configured binary for people to browse with; this ships source patches plus an automation wrapper.
 - **[arkenfox/user.js](https://github.com/arkenfox/user.js)** - Firefox hardening through preferences. Where a preference is enough, use it; this project patches C++ where one is not.
 
 **On the Chromium side**
 
-- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork, so the stealth work lands in the driver rather than in the browser binary. [Full comparison](https://feder-cr.github.io/invisible_playwright/vs-patchright.html).
-- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - the successor to `undetected-chromedriver`, driving Chrome over CDP directly and removing the WebDriver-flavoured tells. [Full comparison](https://feder-cr.github.io/invisible_playwright/vs-nodriver.html).
-- **[playwright-stealth](https://github.com/Mattwmaster58/playwright_stealth)** - an init-script patch applied before the page loads. Its own maintainer calls it a proof-of-concept; [full comparison](https://feder-cr.github.io/invisible_playwright/vs-playwright-stealth.html).
+- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork, so the stealth work lands in the driver rather than in the browser binary. [Full comparison](docs/vs-patchright.md).
+- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - the successor to `undetected-chromedriver`, driving Chrome over CDP directly and removing the WebDriver-flavoured tells. [Full comparison](docs/vs-nodriver.md).
+- **[playwright-stealth](https://github.com/Mattwmaster58/playwright_stealth)** - an init-script patch applied before the page loads. Its own maintainer calls it a proof-of-concept; [full comparison](docs/vs-playwright-stealth.md).
 
-Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) works through what each layer can and cannot reach, including what this one costs.
+Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) works through what each layer can and cannot reach, including what this one costs.
 
-If you are picking between engines rather than tools, note that a large share of AI agent frameworks drive Chromium over CDP, which decides the question for you: [AI browser agents and stealth](https://feder-cr.github.io/invisible_playwright/ai-browser-agents-stealth.html).
+If you are picking between engines rather than tools, note that a large share of AI agent frameworks drive Chromium over CDP, which decides the question for you: [AI browser agents and stealth](docs/ai-browser-agents-stealth.md).
 
 ---
 

@@ -12,12 +12,12 @@ the thing it describes, and several of them record something we got wrong first.
 
 ## Where to go
 
-- **[Documentation](documentation.html)** - install it, the two-line switch from plain
+- **[Documentation](documentation.md)** - install it, the two-line switch from plain
   Playwright, proxy and timezone configuration, pinning specific fields, the CLI.
-- **[Guides](guides.html)** - how detection actually works, in seven groups: browser
+- **[Guides](guides.md)** - how detection actually works, in seven groups: browser
   identity, canvas/WebGL/fonts/audio, network and WebRTC, the automation layer, AI
   agents, the detectors themselves explained from source, and testing.
-- **[Comparisons](comparisons.html)** - against Camoufox, Patchright, nodriver and
+- **[Comparisons](comparisons.md)** - against Camoufox, Patchright, nodriver and
   playwright-stealth, and the case for Firefox over Chromium generally.
 - **[Integrations](integrations/)** - running this inside Scrapy, Crawlee, Robot
   Framework, CodeceptJS, test runners and Playwright MCP, including which frameworks
@@ -27,12 +27,12 @@ the thing it describes, and several of them record something we got wrong first.
 
 Three pages that most other pages here eventually link back to:
 
-- [Three ways to make Playwright undetected](playwright-stealth-levels.html) - the map
+- [Three ways to make Playwright undetected](playwright-stealth-levels.md) - the map
   underneath every comparison on this site: page, driver or engine, and what each
   level cannot reach.
-- [Playwright detected as a bot on one site: a checklist](playwright-detected-as-bot.html) -
+- [Playwright detected as a bot on one site: a checklist](playwright-detected-as-bot.md) -
   a troubleshooting order, so you check the free things before the expensive ones.
-- [navigator.webdriver is not the tell you think it is](navigator-webdriver-explained.html) -
+- [navigator.webdriver is not the tell you think it is](navigator-webdriver-explained.md) -
   the most famous property in this space, and why patching it alone buys you almost
   nothing.
 

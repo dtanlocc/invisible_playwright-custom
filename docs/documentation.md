@@ -7,12 +7,12 @@ nav_order: 2
 
 # Documentation
 
-The product itself, not the browser it's built on. [Installation](installation.html)
-gets the wrapper and the engine on disk, [Quickstart](quickstart.html) is the two-line
-switch from plain Playwright, [Configuration](configuration.html) covers proxies,
-timezone and environment variables, [Pinning fingerprint fields](pinning.html) covers
+The product itself, not the browser it's built on. [Installation](installation.md)
+gets the wrapper and the engine on disk, [Quickstart](quickstart.md) is the two-line
+switch from plain Playwright, [Configuration](configuration.md) covers proxies,
+timezone and environment variables, [Pinning fingerprint fields](pinning.md) covers
 forcing specific values while leaving the rest seed-derived, and the
-[CLI reference](cli-reference.html) covers the command line.
+[CLI reference](cli-reference.md) covers the command line.
 
 If you're here to understand *why* a particular signal matters rather than how to
-configure this package, that's [Guides](guides.html) instead.
+configure this package, that's [Guides](guides.md) instead.

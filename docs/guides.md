@@ -19,21 +19,21 @@ network, then the automation layer driving the browser, then the newer AI-agent
 angle, then the detectors themselves read from source, then how to test any of this
 without fooling yourself.
 
-- [**Browser Identity**](guides-browser-identity.html) - Navigator, screen, headers,
+- [**Browser Identity**](guides-browser-identity.md) - Navigator, screen, headers,
   permissions: the properties a site reads first.
-- [**Canvas, WebGL, Fonts and Audio**](guides-canvas-webgl-fonts-audio.html) - the
+- [**Canvas, WebGL, Fonts and Audio**](guides-canvas-webgl-fonts-audio.md) - the
   highest-entropy surfaces, because they are drawn, not just declared.
-- [**Network, Proxy and WebRTC**](guides-network-proxy-webrtc.html) - everything that
+- [**Network, Proxy and WebRTC**](guides-network-proxy-webrtc.md) - everything that
   happens outside the JS engine: IP, DNS, timezone, TLS.
-- [**The Automation Layer**](guides-automation-layer.html) - the driver itself as a
+- [**The Automation Layer**](guides-automation-layer.md) - the driver itself as a
   surface: what the way a browser is piloted reveals.
-- [**AI Agents and Frameworks**](guides-ai-agents.html) - agents that drive a browser,
+- [**AI Agents and Frameworks**](guides-ai-agents.md) - agents that drive a browser,
   and what applies whichever one you picked.
-- [**Detectors, Explained**](guides-detectors-explained.html) - not how to beat them,
+- [**Detectors, Explained**](guides-detectors-explained.md) - not how to beat them,
   how they actually work, read from their own source.
-- [**Testing and Troubleshooting**](guides-testing-troubleshooting.html) - what to
+- [**Testing and Troubleshooting**](guides-testing-troubleshooting.md) - what to
   check, in what order, before assuming a fix worked.
 
-Looking for a specific tool instead? [Comparisons](comparisons.html) covers Camoufox,
+Looking for a specific tool instead? [Comparisons](comparisons.md) covers Camoufox,
 Patchright, nodriver and playwright-stealth against this project, and the case for
 Firefox over Chromium generally.

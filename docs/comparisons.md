@@ -14,6 +14,6 @@ actually happens at, states plainly where the other tool covers more, and does n
 claim an advantage it could not verify against the other project's own source or
 documentation.
 
-Start with [Three ways to make Playwright undetected](playwright-stealth-levels.html)
+Start with [Three ways to make Playwright undetected](playwright-stealth-levels.md)
 if you want the map before the individual matchups - it's the frame every comparison
 below sits inside.
