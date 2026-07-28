@@ -258,6 +258,9 @@ How any of this works, whether or not you use this project. [Full index](https:/
 - [Firefox or Chromium for anti-detect](https://feder-cr.github.io/invisible_playwright/firefox-vs-chromium-antidetect.html) - no CDP surface and one identity instead of three, against being a small share of real traffic
 - [Chromium is not Chrome](https://feder-cr.github.io/invisible_playwright/chromium-is-not-chrome.html) - Playwright ships Chromium, which has no H.264 and no Widevine, and those are capabilities rather than values
 - [invisible_playwright vs Camoufox](https://feder-cr.github.io/invisible_playwright/vs-camoufox.html) - the same approach on the same engine, so the comparison is about how the identity is produced and who covers more
+- [invisible_playwright vs Patchright](https://feder-cr.github.io/invisible_playwright/vs-patchright.html) - a driver patch on Chromium against an engine patch on Firefox, and the CDP-specific tells Firefox never had
+- [invisible_playwright vs nodriver and undetected-chromedriver](https://feder-cr.github.io/invisible_playwright/vs-nodriver.html) - two Chrome-only tools with their own API instead of Playwright's, and what neither claims to fix
+- [invisible_playwright vs playwright-stealth](https://feder-cr.github.io/invisible_playwright/vs-playwright-stealth.html) - four lines of init script against a browser fork, and why its own maintainer calls it a proof-of-concept
 - [Client Hints and Sec-Fetch: headers that must agree](https://feder-cr.github.io/invisible_playwright/client-hints-sec-fetch.html) - three copies of one identity, plus the headers that describe how the request was initiated
 - [crawl4ai stealth and custom browser engines](https://feder-cr.github.io/invisible_playwright/crawl4ai-stealth-custom-browser.html) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
 - [Why headless browsers render different fonts](https://feder-cr.github.io/invisible_playwright/headless-fonts-differ.html) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
@@ -275,14 +278,15 @@ The open-source neighbours, and what each one is for.
 
 **On the Firefox side**
 
-- **[Camoufox](https://github.com/daijro/camoufox)** - an anti-detect Firefox that also patches at the C++ level. It covers a wider surface and ships its own fingerprint database; this project derives a fingerprint from a seed with a Bayesian sampler, so one number reproduces one machine.
+- **[Camoufox](https://github.com/daijro/camoufox)** - an anti-detect Firefox that also patches at the C++ level. It covers a wider surface and ships its own fingerprint database; this project derives a fingerprint from a seed with a Bayesian sampler, so one number reproduces one machine. [Full comparison](https://feder-cr.github.io/invisible_playwright/vs-camoufox.html).
 - **[LibreWolf](https://librewolf.net)** - a Firefox fork with privacy defaults. It ships a configured binary for people to browse with; this ships source patches plus an automation wrapper.
 - **[arkenfox/user.js](https://github.com/arkenfox/user.js)** - Firefox hardening through preferences. Where a preference is enough, use it; this project patches C++ where one is not.
 
 **On the Chromium side**
 
-- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork, so the stealth work lands in the driver rather than in the browser binary.
-- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - the successor to `undetected-chromedriver`, driving Chrome over CDP directly and removing the WebDriver-flavoured tells.
+- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork, so the stealth work lands in the driver rather than in the browser binary. [Full comparison](https://feder-cr.github.io/invisible_playwright/vs-patchright.html).
+- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - the successor to `undetected-chromedriver`, driving Chrome over CDP directly and removing the WebDriver-flavoured tells. [Full comparison](https://feder-cr.github.io/invisible_playwright/vs-nodriver.html).
+- **[playwright-stealth](https://github.com/Mattwmaster58/playwright_stealth)** - an init-script patch applied before the page loads. Its own maintainer calls it a proof-of-concept; [full comparison](https://feder-cr.github.io/invisible_playwright/vs-playwright-stealth.html).
 
 Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](https://feder-cr.github.io/invisible_playwright/playwright-stealth-levels.html) works through what each layer can and cannot reach, including what this one costs.
 

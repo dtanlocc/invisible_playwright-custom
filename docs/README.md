@@ -70,6 +70,9 @@ an advert for it they would not be worth reading.
 | [firefox-vs-chromium-antidetect.md](firefox-vs-chromium-antidetect.md) | four structural arguments for Firefox, the one serious argument against it, and what neither fixes |
 | [chromium-is-not-chrome.md](chromium-is-not-chrome.md) | what Playwright actually ships, the two capability checks, and why spoofing the UA makes it a provable lie |
 | [vs-camoufox.md](vs-camoufox.md) | rotation against seeded derivation, where Camoufox covers more, and the two things I could not verify |
+| [vs-patchright.md](vs-patchright.md) | engine patch against driver patch, and the CDP-specific tells Firefox never had |
+| [vs-nodriver.md](vs-nodriver.md) | two Chrome-only tools with their own API, and what neither claims to fix |
+| [vs-playwright-stealth.md](vs-playwright-stealth.md) | four lines against a browser fork, and why the maintainer calls it a proof-of-concept |
 | [client-hints-sec-fetch.md](client-hints-sec-fetch.md) | Sec-CH-UA against the user agent against userAgentData, and why Firefox not sending them is correct |
 | [crawl4ai-stealth-custom-browser.md](crawl4ai-stealth-custom-browser.md) | the one missing field, the undocumented adapter seam, and the workaround with its cost |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |
