@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2026-07-28
+
+### Changed
+- Requires `invisible-core==18.8.0`, which carries the work of the last two days: the prefs builder split into fourteen named steps with its output hash-identical across 400 profiles, the GeoIP fetch moved out of `download`, `invisible_core.pin` as a public module, and a publish gate whose index cross-check finally asks about the package it is gating.
+- Nothing in this package's behaviour changed. The imports moved: it asks `invisible_core` for what that package exports instead of reaching into its private modules, and its own back-compat shims are for users again rather than for its own source.
+
+### Fixed
+- The suite could not tell a collapsed selection from a pass in one place and the install e2e imported the package it tests the install of in another; both are CI-only and neither reached a user.
+
 ## [0.4.6] - 2026-07-27
 
 ### Changed
