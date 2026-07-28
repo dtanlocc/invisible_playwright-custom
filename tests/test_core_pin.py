@@ -1,6 +1,6 @@
 """This package's wiring into the core-pin assertion (src/.../_pin.py).
 
-THE COMPARISON IS NOT TESTED HERE ANY MORE. It moved into invisible_core._pin,
+THE COMPARISON IS NOT TESTED HERE ANY MORE. It moved into invisible_core.pin,
 where it is exercised against real site-packages layouts built under tmp_path
 (invisible_core/tests/test_pin.py). That move is the point: the profile manager
 consumes the same core and asks the same question, and two copies of the answer
@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-import invisible_core._pin as core_pin
+import invisible_core.pin as core_pin
 from invisible_playwright import _pin
 
 pytestmark = pytest.mark.unit
@@ -63,7 +63,7 @@ def declared_pin_in_pyproject() -> str:
     A test that parses the pin its own way tests its own regex. This file used to
     carry one of six copies of that parsing, each with a different acceptance
     set, which is the defect the parser consolidation removed; reading the pin
-    here through invisible_core._pin is what keeps the copy from growing back."""
+    here through invisible_core.pin is what keeps the copy from growing back."""
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     declaration = core_pin.pin_from_requirements(
         data["project"]["dependencies"], dist_name="invisible-playwright")
@@ -73,7 +73,7 @@ def declared_pin_in_pyproject() -> str:
 
 def stub_core(tmp_path: Path, *, name: str, init_body: str = "",
               pin_body: str | None = None) -> Path:
-    """A core on sys.path. ``pin_body=None`` ships no ``invisible_core._pin``.
+    """A core on sys.path. ``pin_body=None`` ships no ``invisible_core.pin``.
 
     ``pin_body`` lets a stub echo back what this package HANDED it, which is
     the only way to observe the value rather than the plumbing around it - see
@@ -184,7 +184,7 @@ def test_the_snapshot_of_sys_modules_is_taken_before_the_core_is_imported():
     lines = SHIM.splitlines()
     snapshot_at = next(i for i, ln in enumerate(lines) if "_CORE_PREIMPORTED = " in ln)
     import_at = next(i for i, ln in enumerate(lines)
-                     if "from invisible_core._pin import" in ln)
+                     if "from invisible_core.pin import" in ln)
     assert snapshot_at < import_at, (snapshot_at, import_at)
 
 
@@ -214,14 +214,14 @@ def test_the_cli_surface_of_this_module_is_intact():
 # ── the prelude: the part that cannot be delegated ──────────────────────────
 
 def test_a_core_too_old_to_carry_the_check_is_refused_by_name(tmp_path):
-    """A core with no invisible_core._pin cannot run the comparison, and cannot
+    """A core with no invisible_core.pin cannot run the comparison, and cannot
     say so itself. This is the message that population sees on first upgrade."""
     r = run_import(stub_core(tmp_path, name="ancient"))
     assert r.returncode != 0, r.stdout
     assert "IMPORT-OK" not in r.stdout
     err = " ".join(r.stderr.split())
     assert "ImportError" in err, err
-    assert "invisible_core._pin" in err, err
+    assert "invisible_core.pin" in err, err
     assert REMEDY in err, err
 
 
@@ -381,7 +381,7 @@ def test_a_consumer_with_no_install_record_declares_nothing():
 def test_this_module_never_shells_out_to_pip():
     """The repair exists, but it does NOT live here. There is exactly one place
     in the three distributions where a pip command is built and exactly one place
-    where it can be run, both inside invisible_core._pin behind its seam, and
+    where it can be run, both inside invisible_core.pin behind its seam, and
     that is what the guards there are attached to. A second installer in this
     file would be covered by none of them."""
     assert "subprocess" not in SHIM
@@ -393,7 +393,7 @@ def test_this_module_never_shells_out_to_pip():
 def test_the_only_non_stdlib_import_here_is_the_guarded_core_import():
     """Ordering hazard: an unguarded heavy import at module level would fire
     before the prelude's except branch could explain anything. The one import
-    that is allowed is invisible_core._pin, and it must sit inside the try."""
+    that is allowed is invisible_core.pin, and it must sit inside the try."""
     lines = SHIM.splitlines()
     try_at = next(i for i, ln in enumerate(lines) if ln.startswith("try:"))
     except_at = next(i for i, ln in enumerate(lines) if ln.startswith("except ImportError"))
@@ -404,7 +404,7 @@ def test_the_only_non_stdlib_import_here_is_the_guarded_core_import():
         assert "invisible_core" not in line, (
             "the core import must be indented inside the try block: " + line)
     guarded = "\n".join(lines[try_at:except_at])
-    assert "from invisible_core._pin import" in guarded
+    assert "from invisible_core.pin import" in guarded
 
 
 def test_the_messages_carry_no_em_dashes():
@@ -454,7 +454,7 @@ def test_the_guard_is_true_when_the_core_was_already_imported():
 
 
 def _core_pin_imports() -> list[str]:
-    """Every name this package pulls out of ``invisible_core._pin``.
+    """Every name this package pulls out of ``invisible_core.pin``.
 
     Parsed from the source with ``ast`` rather than written down here or matched
     with a regex: a stub that lags behind that import list kills the child on
@@ -465,9 +465,9 @@ def _core_pin_imports() -> list[str]:
 
     tree = ast.parse(Path(_pin.__file__).read_text(encoding="utf-8"))
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module == "invisible_core._pin":
+        if isinstance(node, ast.ImportFrom) and node.module == "invisible_core.pin":
             return [a.name for a in node.names]
-    raise AssertionError("this package no longer imports from invisible_core._pin")
+    raise AssertionError("this package no longer imports from invisible_core.pin")
 
 
 def test_the_snapshot_reports_what_was_actually_observed(tmp_path):
@@ -496,7 +496,7 @@ def test_the_snapshot_reports_what_was_actually_observed(tmp_path):
     ``invisible_core`` (the answer must be False) and once in a child that has
     (it must be True). No constant satisfies both.
     """
-    # The stub has to satisfy the WHOLE `from invisible_core._pin import (...)`
+    # The stub has to satisfy the WHOLE `from invisible_core.pin import (...)`
     # list this package makes, or the child dies on ImportError before the
     # value is ever printed - and an ImportError in a subprocess looks exactly
     # like the assertion below failing. Derived from the source, so adding a

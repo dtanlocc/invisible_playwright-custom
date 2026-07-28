@@ -34,7 +34,7 @@ previous behaviour, where the browser drew the path instead.
 # the core, and the repair refuses itself if the snapshot says otherwise. Every
 # failure of the repair falls back to the message it replaced.
 #
-# The comparison and the repair both live in invisible_core._pin, shared with the
+# The comparison and the repair both live in invisible_core.pin, shared with the
 # profile manager so both products diagnose and fix an environment the same way.
 # Our _pin.py is the floor: it owns the three states a module inside the core
 # cannot report on (core absent, core present but unimportable, core present but

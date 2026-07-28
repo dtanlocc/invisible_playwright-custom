@@ -29,58 +29,30 @@ import json
 import shutil
 import sys
 import tempfile
-import os
-import subprocess
 from pathlib import Path
 
 import pytest
 
+from invisible_core.testing import make_venv, run_checked, venv_python
 
 
-# LOCAL, TEMPORARILY. These three live in `invisible_core.testing` since
-# 2026-07-27 and this file used them from there - but that core is not
-# published, and this package declares `invisible-core==` exactly, so CI
-# resolves the INDEX and got `ImportError: cannot import name 'run_checked'`.
-# Second instance of the same sequencing mistake in one day; the rule is in
-# CLAUDE.md's pre-push gate now.
+# The venv mechanics live in `invisible_core.testing`, and they are on the index
+# as of the core release this package's pin now names - the pin moved in the same
+# change, which is the order that was got wrong on 2026-07-28 and is written into
+# CLAUDE.md's pre-push gate: publish the core, move the pin, then use the name.
 #
-# They come back OUT in the same change that moves this package's pin to a core
-# release carrying them. Until then the duplication is what doing it in the
-# wrong order costs.
-def _run(cmd, *, timeout: int = 600, check: bool = True, env=None, cwd=None):
-    r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
-                       timeout=timeout, env=env,
-                       cwd=str(cwd) if cwd is not None else None)
-    if check and r.returncode != 0:
-        raise AssertionError(
-            "{} exited {}\n--- stdout ---\n{}\n--- stderr ---\n{}".format(
-                " ".join(str(c) for c in cmd), r.returncode,
-                r.stdout[-3000:], r.stderr[-3000:]))
-    return r
-
-
-def _venv_python(venv):
-    bindir = "Scripts" if os.name == "nt" else "bin"
-    return Path(venv) / bindir / ("python.exe" if os.name == "nt" else "python")
-
-
-def _make_venv(target):
-    _run([sys.executable, "-m", "venv", target], timeout=300)
-    py = _venv_python(target)
-    assert py.exists(), "no venv python at {}".format(py)
-    _run([py, "-m", "pip", "install", "--upgrade", "pip", "--quiet"], timeout=300)
-    return py
+# (No version number above, deliberately. A sibling guard,
+# `test_the_expected_core_version_is_written_only_in_pyproject`, forbids a second
+# copy of it anywhere in this repo - and it caught the first draft of this very
+# comment, which is exactly the behaviour it is for.)
+_run = run_checked
+_venv_python = venv_python
+_make_venv = make_venv
 
 pytestmark = pytest.mark.e2e
 
 WRAPPER = "invisible-playwright"
 CORE = "invisible-core"
-
-
-# The venv mechanics live in invisible_core.testing - see the note in
-# test_release_e2e.py. This file needs several venvs inside ONE workspace (it
-# installs an old release into one and upgrades it), which is why it builds them
-# individually rather than through `throwaway_venv`.
 
 
 def _fresh_venv(root: Path, name: str) -> Path:

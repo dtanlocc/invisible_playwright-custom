@@ -1,6 +1,6 @@
 """Prelude for the core-pin assertion, then delegation to the core.
 
-THE COMPARISON IS NOT HERE. It lives in invisible_core._pin, because the other
+THE COMPARISON IS NOT HERE. It lives in invisible_core.pin, because the other
 consumer of the core (the profile manager) asks the same question and two copies
 of the answer drift: the day the two products disagree about why an environment
 is broken, the check has stopped being a diagnosis. This module is the small
@@ -15,7 +15,7 @@ is the whole floor, and its except branches classify the failure:
 
   * ImportError naming a module under invisible_core - either the core is not
     installed at all, or it is older than this check and ships no
-    invisible_core._pin (or no invisible_core._pin.enforce_core_pin). Those
+    invisible_core.pin (or no invisible_core.pin.enforce_core_pin). Those
     cannot be told apart from here and do not need to be: one remedy fixes all
     of them, `pip install --force-reinstall invisible-playwright`, which makes
     pip resolve the core version from our own Requires-Dist. No version literal
@@ -59,24 +59,23 @@ _CORE_PREIMPORTED = any(
     for name in list(_sys.modules)
 )
 
-# `invisible_core._pin`, NOT `invisible_core.pin`.
+# `invisible_core.pin`, and the ORDER that made it safe to write.
 #
-# The core renamed the module to `pin` on 2026-07-27 and kept `_pin` as an
-# alias - but that rename is in the core's TREE, not on the index, because it
-# carried no version bump. This package declares `invisible-core==` exactly, so
-# pip resolves what is PUBLISHED, and the published core has `_pin.py` only.
+# Nineteen names imported here at module level is a public module whatever the
+# underscore says, so the core renamed `_pin` to `pin`. Moving this import in
+# the SAME change turned both consumers' CI red on every leg -
+# `ModuleNotFoundError: No module named 'invisible_core.pin'` - because the
+# rename carried no version bump and this package declares `invisible-core==`
+# exactly, so pip resolves what the INDEX has. The import floor reported it
+# correctly; the sequencing was wrong.
 #
-# Moving this import first turned both consumers' CI red on every leg with
-# `ModuleNotFoundError: No module named 'invisible_core.pin'`. The import floor
-# reported it correctly, with the right message and the right remedy - the
-# message was fine, the sequencing was not.
-#
-# THE RULE: an exact pin means this package may only use what the index has.
-# It moves to `invisible_core.pin` in the same change that moves the pin to a
-# core release carrying it, never before. A local editable core hides this
-# completely, which is why it passed here and failed on both runners.
+# The rule, now in CLAUDE.md's pre-push gate: publish the core, THEN move the
+# pin, THEN use the name. All three happened in that order, and this line is
+# the third step. A local editable core cannot see this class of failure at
+# all - it IS the working tree - so the check is a bare venv with the index
+# core, which is how it was verified before this landed.
 try:  # the floor - see the module docstring for why this is the one local part
-    from invisible_core._pin import (  # noqa: F401
+    from invisible_core.pin import (  # noqa: F401
         CORE_NAME,
         AUTOFIX_ENV,
         SKIP_ENV,
@@ -110,7 +109,7 @@ except ImportError as _e:
         ) from _e
     raise ImportError(
         "invisible-core is missing, or too old for this invisible-playwright: it "
-        "does not carry the release-pin check (invisible_core._pin), so the engine "
+        "does not carry the release-pin check (invisible_core.pin), so the engine "
         "it downloads cannot be matched against the configuration this package "
         "ships.\n"
         f"Run: pip install --force-reinstall {DIST_NAME}"

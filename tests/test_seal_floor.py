@@ -41,7 +41,7 @@ from pathlib import Path
 
 import pytest
 
-import invisible_core._pin as core_pin
+import invisible_core.pin as core_pin
 from invisible_playwright import _pin
 
 # The remedy is a projection of the pin declared in pyproject, exactly as the
@@ -102,10 +102,11 @@ def stub_core(tmp_path: Path, *, with_seal: bool, version: str | None = None,
         "from ._version import __version__  # noqa: F401\n",
         encoding="utf-8")
     # Copy whichever shape the INSTALLED core has, because that is the shape a
-    # user's environment has. Cores published before 2026-07-27 carry `_pin.py`
+    # user's environment has. Cores published before the rename carry `_pin.py`
     # only; newer ones carry `pin.py` plus a two-line `sys.modules` alias at
     # `_pin.py`. Copying `pin.py` unconditionally made this whole file fail
-    # against the published core - eight tests, and the stub was never built.
+    # against a published core that predated it - eight tests, and the stub was
+    # never built.
     for name in ("pin.py", "_pin.py"):
         if (CORE_PKG / name).exists():
             shutil.copy2(CORE_PKG / name, pkg / name)
@@ -143,7 +144,7 @@ def test_the_stub_actually_shadows_the_installed_core(tmp_path):
     code = textwrap.dedent(f"""
         import sys, json
         sys.path.insert(0, {str(root)!r})
-        import invisible_core, invisible_core._pin as p
+        import invisible_core, invisible_core.pin as p
         print(json.dumps({{"pkg": invisible_core.__file__, "pin": p.__file__}}))
     """)
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,

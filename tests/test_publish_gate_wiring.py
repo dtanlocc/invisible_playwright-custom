@@ -63,17 +63,6 @@ def test_the_pre_push_hook_gates_release_tags():
     branch and checks it was not. Its write-up lives once, in the core, because
     all three repos make the same claim.
     """
-    # The helper lives in `invisible_core.testing`, added 2026-07-27 and NOT yet
-    # published. This package pins the core exactly, so CI resolves the index and
-    # the name is absent there. Skipping rather than failing, with the reason
-    # named: the skip clears itself the moment a core release carrying it lands
-    # and this package's pin moves - and until then a red suite here would be a
-    # suite people stop reading.
-    pytest.importorskip("invisible_core.testing")
-    testing = __import__("invisible_core.testing", fromlist=["x"])
-    if not hasattr(testing, "assert_pre_push_policy_is_wired"):
-        pytest.skip("the installed invisible-core predates assert_pre_push_policy_is_wired; it lands when "
-                    "this package's pin moves to a core release carrying it")
     from invisible_core.testing import assert_pre_push_policy_is_wired
 
     assert_pre_push_policy_is_wired(_REPO)
@@ -108,17 +97,6 @@ def test_the_hooks_are_armed_in_this_clone():
     a fresh clone pushed with the tests, the pin, the name scan and the publish
     gate all skipped, and said nothing about it.
     """
-    # The helper lives in `invisible_core.testing`, added 2026-07-27 and NOT yet
-    # published. This package pins the core exactly, so CI resolves the index and
-    # the name is absent there. Skipping rather than failing, with the reason
-    # named: the skip clears itself the moment a core release carrying it lands
-    # and this package's pin moves - and until then a red suite here would be a
-    # suite people stop reading.
-    pytest.importorskip("invisible_core.testing")
-    testing = __import__("invisible_core.testing", fromlist=["x"])
-    if not hasattr(testing, "assert_hooks_are_armed"):
-        pytest.skip("the installed invisible-core predates assert_hooks_are_armed; it lands when "
-                    "this package's pin moves to a core release carrying it")
     from invisible_core.testing import assert_hooks_are_armed
 
     assert_hooks_are_armed(_REPO)
