@@ -68,6 +68,7 @@ an advert for it they would not be worth reading.
 | [web-workers-fingerprint.md](web-workers-fingerprint.md) | the two-line test that finds any page-level tool ceiling, and why OffscreenCanvas bypasses element hooks |
 | [webrtc-ice-candidate-spoofing.md](webrtc-ice-candidate-spoofing.md) | what has to be replaced, the two ways to do it, and the three fields we shipped wrong before getting them right |
 | [firefox-vs-chromium-antidetect.md](firefox-vs-chromium-antidetect.md) | four structural arguments for Firefox, the one serious argument against it, and what neither fixes |
+| [chromium-is-not-chrome.md](chromium-is-not-chrome.md) | what Playwright actually ships, the two capability checks, and why spoofing the UA makes it a provable lie |
 | [client-hints-sec-fetch.md](client-hints-sec-fetch.md) | Sec-CH-UA against the user agent against userAgentData, and why Firefox not sending them is correct |
 | [crawl4ai-stealth-custom-browser.md](crawl4ai-stealth-custom-browser.md) | the one missing field, the undocumented adapter seam, and the workaround with its cost |
 | [headless-fonts-differ.md](headless-fonts-differ.md) | why headless renders different fonts, and why more fonts is not the fix |

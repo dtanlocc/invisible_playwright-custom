@@ -42,6 +42,26 @@ So the correct statement is not "Firefox has no automation surface". It is that 
 surface is **different, smaller, and much less studied**, because far fewer people are
 looking.
 
+## The automation Chromium is not the Chromium people run
+
+The strongest version of the argument, and the one most comparisons skip entirely.
+
+Playwright ships **open-source Chromium** by default, not Chrome. Chromium has no H.264,
+no AAC and no Widevine, because those are the proprietary parts Google adds on top. Real
+people run Chrome, Edge, Brave or Opera, all of which have them.
+
+So the capability set that automation reports belongs to almost nobody, and the two gaps
+are testable in one line each. Worse, they are **capabilities rather than values**: a
+missing decoder is missing machine code, so no property override produces it, and a user
+agent claiming Chrome on a build without H.264 is a provable contradiction rather than an
+unusual reading.
+
+Firefox has no equivalent split. There is no stripped Firefox that automation runs and
+people do not, so a patched Firefox is Firefox in the ways a capability check can test.
+
+[The full version is here](chromium-is-not-chrome.md), including the branded-channel
+escape and what it costs.
+
 ## Firefox has one identity, Chromium has three
 
 Modern Chromium reports who it is in three places: the user agent string, the
