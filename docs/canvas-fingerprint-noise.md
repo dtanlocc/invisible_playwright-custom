@@ -82,7 +82,9 @@ Substitution is stronger for consistency, because with additive noise the underl
 rendering still carries the signature of
 [the operating system's text stack](bundled-fonts-cross-platform.md) under the
 perturbation. Two machines with different font backends produce different base images,
-and a small perturbation on top does not hide that.
+and a small perturbation on top does not hide that -
+[this is the reasoning that gets the same seed to the same byte-identical hash on
+Windows and Linux](canvas-webgl-cross-platform-consistency.md), not just a similar one.
 
 Now the cost, which is real and which most write-ups omit. A substitution applied at
 readback does not know why the page is reading the canvas. It cannot distinguish a
