@@ -89,6 +89,10 @@ The **event fields** are set in the browser's own input handling, so `pointerTyp
 synthesiser guessed. That part is a source patch and it is the reason the feature is
 not simply a library you could add on top.
 
+Getting the path itself right was not the end of it, either -
+[the path also has to survive the driver's own hit-target check](hover-mouse-movement-bug.md),
+which turned out to consume most of it on the exact calls real scripts make.
+
 It is switched on by default and tunable:
 
 ```python
