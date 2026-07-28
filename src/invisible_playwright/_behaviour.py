@@ -188,6 +188,19 @@ class Step:
     dy: float = 0.0
 
 
+#: What a `render` argument is: it plans ONE leg and hands back its steps.
+#: Called as `render(start, end, kind=..., lead_ms=..., bounds=..., target_w=...)`
+#: at line 346, which is the only place it is invoked.
+#:
+#: This name was used as an annotation six times in this module and DEFINED
+#: NOWHERE - found 2026-07-28 by the first F821 run this repo has ever had. It
+#: was harmless only because `from __future__ import annotations` never evaluates
+#: an annotation, so the six were strings that happened to look like a type.
+#: Anything calling `typing.get_type_hints()` on those functions would have
+#: raised, and a reader had no way to find out what the parameter accepts.
+Renderer = Callable[..., List["Step"]]
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Persona - the per-session parameter draw
 # ──────────────────────────────────────────────────────────────────────

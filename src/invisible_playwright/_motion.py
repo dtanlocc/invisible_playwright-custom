@@ -602,7 +602,7 @@ def _draw_overshoot(rng: random.Random, axis: _Axis,
 
 
 def _sample_curve(ctrl: list[tuple[float, float]], times: list[float],
-                  duration: float, axis: _Axis, prof: Any,
+                  duration: float, axis: _Axis, prof: list[float],
                   over: _Overshoot) -> list[tuple[float, float, float]]:
     """Walk the curve by ARC LENGTH, not by parameter.
 

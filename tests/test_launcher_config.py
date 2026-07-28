@@ -59,7 +59,6 @@ def test_invisible_playwright_constructs_without_launching():
 
 # ─── profile_dir kwarg - persistent context support ─────────────────────── #
 
-import pytest
 from pathlib import Path
 
 
