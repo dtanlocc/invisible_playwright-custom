@@ -76,7 +76,8 @@ identical on every machine running that identity, including a Linux server prete
 to be Windows.
 
 Substitution is stronger for consistency, because with additive noise the underlying
-rendering still carries the signature of the operating system's text stack under the
+rendering still carries the signature of
+[the operating system's text stack](bundled-fonts-cross-platform.md) under the
 perturbation. Two machines with different font backends produce different base images,
 and a small perturbation on top does not hide that.
 

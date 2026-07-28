@@ -30,7 +30,9 @@ This surprises people, and getting it wrong is a common tell in spoofed profiles
 On Windows, Firefox does not talk to the OpenGL driver directly. It uses **ANGLE**,
 Google's translation layer, which turns OpenGL ES calls into Direct3D 11. Firefox
 adopted it for the same reason Chrome did: Windows OpenGL drivers were unreliable and
-D3D11 was not.
+D3D11 was not. The same translation layer is why
+[every Windows GPU reports the same numeric limits](webgl-parameters-are-identical.md)
+regardless of how expensive the card actually is.
 
 So on Windows a real Firefox reports a vendor of `Google Inc. (NVIDIA)` or
 `Google Inc. (Intel)`, and a renderer that begins `ANGLE (`. Not `Mozilla`. A profile

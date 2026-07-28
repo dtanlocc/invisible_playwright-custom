@@ -52,7 +52,7 @@ Keys are dotted paths. All values are optional - omitted keys fall back to the s
 
 **Why `class_tier` is pinnable separately from `renderer`.** They live at different levels of abstraction:
 
-- `class_tier` is a **coarse handle** over the whole Bayesian graph. It gates the distribution of `screen`, `hardware.concurrency`, `webgl.msaa_samples`, and storage quota. Pin `{"gpu.class_tier": "low_end"}` and the sampler returns a *coherent* low-end machine - small screen, 2-4 cores, 4x MSAA - without you having to specify each field.
+- `class_tier` is a **coarse handle** over the whole Bayesian graph. It gates the distribution of `screen`, `hardware.concurrency`, `webgl.msaa_samples`, and [storage quota](hardware-concurrency-device-memory.md). Pin `{"gpu.class_tier": "low_end"}` and the sampler returns a *coherent* low-end machine - small screen, 2-4 cores, 4x MSAA - without you having to specify each field.
 - `renderer` is an **exact string** that lands verbatim in WebGL's `UNMASKED_RENDERER_WEBGL`. Useful when you want to imitate a specific GPU the target site has seen before. Does **not** condition other fields - if you pin `renderer` to an RTX 4090 but leave `class_tier` unpinned, `class_tier` is re-sampled from scratch and might disagree with the renderer string (see [How sampling + pinning interact](#how-sampling--pinning-interact)).
 
 In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`+`class_tier` together if they want full control.

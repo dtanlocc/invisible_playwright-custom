@@ -41,7 +41,8 @@ on real browsers separates them easily. That is what the service was doing, and
 **The general point, which is bigger than this bug:** a fingerprint is not only the set
 of values a browser reports. It includes how the browser behaves, and performance is a
 behaviour. You can spoof every string on the page and still be running measurably
-differently from the thing you claim to be.
+differently from the thing you claim to be - [the same value-versus-output gap](renderer-string-vs-render.md)
+that cost us a WebGL renderer flag before it cost us this one.
 
 ## Fix one: attach without entering debug mode
 

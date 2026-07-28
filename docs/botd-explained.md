@@ -35,9 +35,10 @@ Some values are decided by the JavaScript engine and cannot be changed from
 JavaScript without being obvious. BotD reads them, works out which engine you must
 be, and compares that against what your user agent claims.
 
-**`eval_length`.** `eval.toString().length` is a fixed number per engine. The check
-is literally: if the length is 37 and the engine kind is not WebKit or Gecko, that is
-a bot. A Chromium build claiming to be Firefox fails here on a value nobody thinks
+**`eval_length`.** `eval.toString().length` is a fixed number per engine, the same
+category of leak as [any other native function's own source](tostring-native-code-detection.md).
+The check is literally: if the length is 37 and the engine kind is not WebKit or Gecko,
+that is a bot. A Chromium build claiming to be Firefox fails here on a value nobody thinks
 to spoof.
 
 **`product_sub`.** If the browser claims to be Chrome, Safari, Opera or WeChat, then

@@ -74,8 +74,8 @@ The options are:
 
 Option three is the only one that removes the surface instead of obscuring it, and
 it is a design decision made long before anyone runs a detection test. It is also why
-"which stealth plugin should I use" is often the wrong question: no plugin can move
-state out of the page after the fact.
+["which stealth plugin should I use"](playwright-stealth-levels.md) is often the wrong
+question: no plugin can move state out of the page after the fact.
 
 ## Where Firefox differs, and where it does not
 

@@ -53,8 +53,8 @@ explains itself:
 
 **Moves whenever the hardware setup changes.** `screen_resolution` and
 `screen_frame` change when a laptop is docked, an external monitor is plugged in, or
-the taskbar moves. `device_memory`, `hardware_concurrency` and `architecture` change
-with the machine.
+the taskbar moves. [`device_memory`, `hardware_concurrency`](hardware-concurrency-device-memory.md)
+and `architecture` change with the machine.
 
 **Moves with the operating system's own settings.** `forced_colors`,
 `inverted_colors`, `reduced_motion`, `reduced_transparency`, `contrast`,

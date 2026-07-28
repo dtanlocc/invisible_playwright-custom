@@ -38,10 +38,10 @@ alongside canvas image hashing rather than instead of it.
 
 ## Why the natural fix is per-glyph noise, and why the naive version of it fails
 
-The obvious defence, the one canvas image fingerprinting also reaches for first, is to
-add a small varying offset so repeated measurements do not collapse to one value across
-every install of the same browser version. We shipped a version of that and had to
-replace it.
+The obvious defence, the one [canvas image fingerprinting](canvas-fingerprint-noise.md)
+also reaches for first, is to add a small varying offset so repeated measurements do not
+collapse to one value across every install of the same browser version. We shipped a
+version of that and had to replace it.
 
 The first attempt added a small random-looking offset to every glyph's advance,
 cumulatively, as the string was shaped. It worked for a two- or three-character probe.
