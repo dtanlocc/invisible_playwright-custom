@@ -63,6 +63,8 @@ differences that show up are these, and none of them is a flag saying "headless"
   [Which describes the operating system](speech-synthesis-voices.md).
 - **A screen with no taskbar** and a default resolution.
   [The relationships that have to hold](screen-size-headless-tells.md).
+- **Permission prompts that never had a human to answer them.**
+  [The two answers that have to agree](permissions-api-consistency.md).
 
 Now move that same server to headful mode. Every item on that list is still true. You
 have changed the rendering path and not the machine.

@@ -102,6 +102,6 @@ random draw reproduces it.
 
 ## Next
 
-[Configuration](configuration.html) covers proxies, timezone and environment
-variables. [Pinning fingerprint fields](pinning.html) covers forcing specific values -
+[Configuration](configuration.md) covers proxies, timezone and environment
+variables. [Pinning fingerprint fields](pinning.md) covers forcing specific values -
 a GPU model, a screen size - while leaving the rest seed-derived.

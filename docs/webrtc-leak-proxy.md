@@ -200,6 +200,9 @@ A synthesised candidate is not one value to get right. It is a small structure t
 has to be internally consistent and consistent with the other candidates in the same
 SDP. This is the same lesson as every other fingerprint surface, arriving in a
 different costume.
+[The full mechanics of replacing a candidate correctly](webrtc-ice-candidate-spoofing.md),
+including the arrival-timing tell that catches a candidate injected too fast, are
+their own page.
 
 ## How to check your own setup
 

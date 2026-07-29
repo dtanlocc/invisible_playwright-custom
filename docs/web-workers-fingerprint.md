@@ -126,7 +126,8 @@ demand, as many as the page likes. To cover them a patch would have to:
 
 - intercept worker creation, including from a blob URL and from a data URL,
 - inject itself into each one before the worker's own code runs,
-- cover `SharedWorker` and `ServiceWorker` as well as `Worker`,
+- cover `SharedWorker` and [`ServiceWorker`](service-workers-storage-partitioning.md) as
+  well as `Worker`,
 - and patch the worker-side APIs, including the `OffscreenCanvas` methods, not only the
   document-side ones.
 

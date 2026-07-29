@@ -72,7 +72,7 @@ export INVISIBLE_PLAYWRIGHT_CACHE_DIR=/mnt/big/engines
 If you already have a compatible binary on disk and want to skip the download
 entirely, point `INVPW_BINARY_PATH` at it instead. The full list of environment
 variables, including the ones for corporate networks and CI, is in
-[Configuration](configuration.html).
+[Configuration](configuration.md).
 
 ## Verifying the install
 
@@ -81,9 +81,9 @@ invisible-playwright doctor    # checks every cached engine against its recorded
 invisible-playwright version   # prints wrapper, core and engine versions
 ```
 
-Both commands, and the rest of the CLI, are in the [CLI reference](cli-reference.html).
+Both commands, and the rest of the CLI, are in the [CLI reference](cli-reference.md).
 
 ## Next
 
-[Quickstart](quickstart.html) has the two-line change from plain Playwright, and the
+[Quickstart](quickstart.md) has the two-line change from plain Playwright, and the
 sync and async examples.

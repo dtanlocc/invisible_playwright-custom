@@ -49,7 +49,7 @@ invisible-playwright doctor         # check every cached engine against the seal
 
 Downloads the patched Firefox binary if it is not already cached, verifying it
 against the sha256 shipped inside `invisible-core`. This is the one-time step covered
-in [Installation](installation.html). `fetch --force` re-downloads even if a cached
+in [Installation](installation.md). `fetch --force` re-downloads even if a cached
 copy already passes verification - useful if you suspect a corrupted cache without
 wanting to hunt for the cache directory yourself.
 
@@ -79,6 +79,6 @@ first if a session fails to launch and the error does not point at your own code
 
 ## See also
 
-[Installation](installation.html) for the initial `fetch`, and
-[Configuration](configuration.html) for the environment variables that change where
+[Installation](installation.md) for the initial `fetch`, and
+[Configuration](configuration.md) for the environment variables that change where
 the engine is cached or which binary gets used.

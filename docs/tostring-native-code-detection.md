@@ -125,7 +125,8 @@ And it fixes exactly one category. The plausibility of your GPU, whether your fo
 matches your claimed platform, whether your timezone agrees with your address: all
 unchanged, all still as hard as they were.
 [The three levels page](playwright-stealth-levels.md) is the longer version of that
-argument.
+argument, and [this is what it looks like against a specific page-level tool](vs-playwright-stealth.md)
+rather than in the abstract.
 
 ## Checking your own
 

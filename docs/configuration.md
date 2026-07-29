@@ -48,7 +48,7 @@ with InvisiblePlaywright(proxy=proxy) as browser:
 Schemes supported: `socks5`, `socks4`, `http`, `https`. DNS is routed through the
 proxy by default, no local leak - the SOCKS5-authentication and DNS-resolution
 details, including the parts most guides get wrong, are in
-[Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authentication.html).
+[Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authentication.md).
 
 Around 90% of proxies are public, so their IPs are already known and blocked before
 you ever use them. A perfect browser on a known IP still loses. For the clean 10%,
@@ -73,13 +73,13 @@ with InvisiblePlaywright(proxy=proxy, timezone="America/New_York") as browser:
 
 Timezone is not one value - it is several surfaces that a detector cross-checks
 against each other and against your exit IP, which is why
-[setting `timezone_id` and still getting flagged for a mismatch](timezone-proxy-mismatch.html)
+[setting `timezone_id` and still getting flagged for a mismatch](timezone-proxy-mismatch.md)
 is common enough to have its own page.
 
 ## Environment variables
 
 The engine downloads itself on first use, verifies a sha256 shipped inside
-`invisible-core`, and caches it - the size is on the [installation](installation.html)
+`invisible-core`, and caches it - the size is on the [installation](installation.md)
 page and it happens once per engine version. None of these are a required step; each
 row is for a specific situation.
 
@@ -97,6 +97,6 @@ export INVISIBLE_PLAYWRIGHT_CACHE_DIR=/mnt/big/engines
 
 ## Next
 
-[Pinning fingerprint fields](pinning.html) covers forcing specific values - a GPU
+[Pinning fingerprint fields](pinning.md) covers forcing specific values - a GPU
 model, a screen size, a hardware concurrency count - while leaving everything else
 seed-derived, and what breaks if you pin one field without its correlated neighbours.

@@ -144,6 +144,11 @@ Working backwards from the checks above:
 That list is short and every item is a thing a page can verify in a few lines. That is
 the level the checks are actually at.
 
+The same canvas element carries a second surface that doesn't involve reading a single
+pixel: [`measureText()` and its ten-plus numeric fields](measuretext-textmetrics-fingerprinting.md),
+which fail the same way for the same reason if the noise added to them accumulates
+instead of staying bounded.
+
 ## Checking your own
 
 ```js
