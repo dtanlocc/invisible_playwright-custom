@@ -102,6 +102,11 @@ reflexive one. The canvas must produce a hash, twice, matching. The font list mu
 non-empty and belong to the platform you claim. A suppressed signal is itself a signal,
 and [CreepJS records blocking by name](creepjs-explained.md).
 
+The same trap shows up one level down, inside a test itself rather than in what it
+tests. [A cleanup-identification check once passed for exactly this reason](orphaned-browser-process-windows.md) -
+the input it claimed to reject never actually reached the code path being checked, so
+removing the guard entirely still left it green.
+
 ## Compare, do not read verdicts
 
 The single highest-value change to how you test.
