@@ -168,7 +168,7 @@ past this variable.
 **What is the real fix?** Do not add the properties at all, which means the automation
 layer has to be built differently rather than patched afterwards.
 
-**See also:** [why setting `navigator.webdriver` to false is worse than leaving it alone](navigator-webdriver-explained.md), and [the three levels a stealth tool can work at](playwright-stealth-levels.md), since where the state lives is a level-two decision.
+**See also:** [why setting `navigator.webdriver` to false is worse than leaving it alone](navigator-webdriver-explained.md), [the three levels a stealth tool can work at](playwright-stealth-levels.md), since where the state lives is a level-two decision, and [selenium-stealth's actual maintenance status](selenium-stealth-unmaintained.md), for the popular package that patches properties next to this one.
 
 ---
 
