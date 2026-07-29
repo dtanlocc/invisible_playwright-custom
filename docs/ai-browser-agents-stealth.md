@@ -169,6 +169,25 @@ and that timing is the cheapest diagnostic you have.
 [Human-like pointer motion](human-mouse-movement.md) covers what can be done about the
 mechanical half, and it is honest that the deliberation pattern is a different problem.
 
+## This stopped being a theoretical concern in 2026
+
+Agent-driven browsing used to be rare enough that most detection stacks didn't bother
+building a dedicated signal for it. That changed this year. Fingerprint, the
+commercial fingerprinting vendor behind FingerprintJS, shipped a product in early
+2026 specifically aimed at classifying AI agent traffic - not bot detection in
+general, agent detection as its own category, with its own signal set. Academic
+research published in the same period has been measuring the same target directly:
+building multi-layer fingerprints specifically to separate an LLM-driven browsing
+session from a human one, using exactly the rhythm-based signals described above
+plus whatever else the page surface gives away.
+
+The practical upshot for anyone running an agent against a real site: the timing
+and pointer-behavior signal in the previous section is not a corner case anymore.
+It is an active, funded area of detection work, aimed specifically at the traffic
+pattern an agent loop produces, independent of whatever engine sits underneath it.
+Fixing the browser's fingerprint and fixing the agent's behavior are now both live
+requirements, not one obvious fix and one theoretical afterthought.
+
 ## The route that does accept a different engine
 
 If you want an engine whose fingerprint is set in its own source and you want an agent to
