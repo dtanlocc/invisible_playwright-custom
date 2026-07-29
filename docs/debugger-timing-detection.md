@@ -55,7 +55,9 @@ that mattered most, which had nothing to do with timing at all.
 
 Playwright drives Firefox through a component that needs to evaluate code in the page,
 track promises and manage execution contexts. The natural way to do that is the
-engine's own `Debugger` API.
+engine's own `Debugger` API. [The same frame-tracking machinery has its own separate
+failure mode against cross-origin iframes](cross-origin-iframe-unreachable.md), for a
+different reason than anything covered here.
 
 Attaching one calls `setIsDebuggee()` on every realm it touches, and that flag is not
 cosmetic. It puts the JavaScript engine into debug mode:
