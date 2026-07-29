@@ -43,7 +43,8 @@ same job, and the tool's own maintainer says as much.
 ## What playwright-stealth actually does
 
 `playwright-stealth` traces back to `puppeteer-extra-plugin-stealth` on the Node side,
-ported to Python. Mechanically it is init scripts: JavaScript injected into the page
+ported to Python - [and that original plugin has its own separate maintenance story worth knowing](puppeteer-extra-stealth-unmaintained.md).
+Mechanically it is init scripts: JavaScript injected into the page
 before the site's own code runs, redefining the properties a detector is likely to check.
 `navigator.webdriver`, the plugins array, `navigator.languages`, and similar.
 
