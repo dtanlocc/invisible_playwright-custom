@@ -179,9 +179,11 @@ free check.
 tools sometimes change one and not the other.
 
 **See also:** [navigator.webdriver is not the tell you think it is](navigator-webdriver-explained.md),
-the same argument applied to the other famous value, and
+the same argument applied to the other famous value,
 [the checklist for being detected on one site](playwright-detected-as-bot.md), where
-values you overrode yourself are step one because they are the most common cause.
+values you overrode yourself are step one because they are the most common cause, and
+[fake-useragent's 2026 archive, and what it does and doesn't change](fake-useragent-archived.md),
+the most common tool for doing exactly what this page argues against.
 
 ## Sources
 

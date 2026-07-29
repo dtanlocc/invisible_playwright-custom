@@ -39,6 +39,10 @@ The part that's easy to miss: its home repository's last substantive commit is f
 July 2024. If you checked it two years ago and never checked again, this page is the
 update.
 
+This covers `playwright-extra` too, the Node package that wraps the same plugin for
+Playwright instead of Puppeteer. Both ship from the same repository, so the
+maintenance status and everything below applies to it identically.
+
 ## What the plugin actually does, and why that part hasn't changed
 
 The plugin's approach has always been the same, and it's a reasonable one for what
