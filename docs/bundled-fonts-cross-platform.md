@@ -113,6 +113,38 @@ Closing all three took a different patch per backend, because "don't enumerate t
 host" means something different to DirectWrite, to fontconfig, and to CoreText. There
 is no single flag that does this once for all platforms.
 
+## The macOS gap: two layers, and only one was visible without a Mac
+
+CoreText's version of this fix shipped later than Windows' and Linux's, and not
+because it was harder to write. It was harder to *know was wrong*, because nobody
+doing the work had a Mac to run it on.
+
+**Layer one, found by reading the code rather than running it:** the block-at-birth
+hook that stops each backend from falling back to a live host enumeration had been
+wired into the Windows and Linux font backends, and simply never ported to CoreText.
+Reading the three backends side by side made that omission visible without running
+anything - a Mac host would enumerate its own system fonts right alongside the bundle,
+leaking the host OS on the one platform where nobody could see it happen locally.
+
+**Layer two surfaced only when the first fix actually ran in CI.** Porting the hook
+and shipping it should have closed the gap. It didn't: the very next automated
+macOS run still showed most of the bundle missing and several real host fonts
+leaking through, on a build that had compiled cleanly and looked, from the source,
+like a complete fix. The actual cause was one level down - the build configuration
+that turns bundled fonts on at all was set to enable itself only on two of the three
+target platforms. The third silently defaulted off, which also compiled out the very
+hook layer one had just added, since that code only exists when bundled fonts are
+built in. A hook that is correct and a build that never includes it produce the same
+observed nothing.
+
+Both layers are closed now, and CoreText enumerates the identical family set the
+other two backends do. The reason this is worth telling as one story rather than two
+separate fixes: the first fix looked complete by every check available without a
+real Mac, and was not. The only thing that caught the second layer was an automated
+run on the actual operating system, checking the actual output, after the fix that
+was supposed to be the whole answer. A gate that runs somewhere other than the real
+target platform is checking a different, easier question.
+
 ## What this validates, and what it costs
 
 Validated cross-platform: Windows and Linux expose the identical family set from the
