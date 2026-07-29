@@ -153,6 +153,42 @@ code paths that keep a live dependency on the host font service instead of routi
 through the bundle like everything else. Each is a known, open item rather than
 something papered over, because a gap you haven't found yet is worse than one you have.
 
+## A closed example of the same class: enumeration passing while rendering was wrong
+
+Before the manifest fixed multi-face naming across platforms, a narrower version of the
+same problem shipped and was found and closed on Linux specifically. It is worth
+walking through because it is the clearest illustration of why enumeration alone is
+never enough of a check.
+
+A `.ttc` file is a collection: several complete faces sharing one set of font tables,
+addressed through a `TTCHeader` that starts with the four-byte marker `ttcf` instead of
+the single-face `sfnt` header an ordinary font file has. Several bundled CJK families -
+regional Chinese, Japanese and a couple of serif/math variants - ship as `.ttc`
+collections for exactly that reason: related faces, one file.
+
+The font-table code on Linux never checked for that marker. It read every font file as
+if it only had one face, at a fixed offset from the start of the file. For an ordinary
+font that offset is correct. For a `.ttc` collection it lands wherever the first face's
+data happens to be, regardless of which face was actually requested by name.
+
+The result was a font that enumerated correctly - the family name resolved, the browser
+reported it was using the right font - while the glyphs actually rendered came from
+whichever face happened to sit at that fixed offset. Measured directly: metrics for
+several of these families were wrong on Linux and correct on Windows, same seed, same
+manifest, same claimed font name. Enumeration was clean. Rendering was not. That gap is
+exactly what a check that stops at "is the font in the list" cannot see.
+
+The fix adds a lookup that reads the `TTCHeader` when the `ttcf` marker is present,
+finds the requested face's own offset from the collection's face-directory table, and
+reads from there instead of assuming offset zero. After the fix, the same measurement
+that had shown a mismatch showed matching metrics on both platforms, for every affected
+family.
+
+The general lesson is the same one the four seams above are named for: a signal that
+looks closed because the obvious check passed is not the same as a signal that is
+closed. This one needed a metrics comparison, not a font list, to be caught at all -
+and it was a real, shipped gap for a period, not a hypothetical one.
+
 ## Conclusion
 
 Filtering a host's fonts leaves the host's rendering underneath, which is a
