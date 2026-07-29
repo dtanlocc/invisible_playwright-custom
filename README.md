@@ -229,6 +229,7 @@ The open-source neighbours, and what each one is for.
 - **[puppeteer-extra-plugin-stealth](https://github.com/berstend/puppeteer-extra)** - the original of this init-script lineage, still widely recommended. Its repository's last substantive commit is from mid-2024; [what that means in practice](docs/puppeteer-extra-stealth-unmaintained.md).
 - **[selenium-stealth](https://github.com/diprajpatra/selenium-stealth)** - the same approach on Selenium/CDP. Its repository's last commit is from December 2021; [what that means in practice](docs/selenium-stealth-unmaintained.md).
 - **[pyppeteer](https://github.com/pyppeteer/pyppeteer)** - the unofficial Python port of Puppeteer. Its own README says it's unmaintained and points to `playwright-python` instead; [what that recommendation is actually about](docs/pyppeteer-unmaintained-playwright.md).
+- **[rebrowser-patches](https://github.com/rebrowser/rebrowser-patches)** - fixes the `Runtime.enable` CDP leak on Chromium, independently converging on close to the same fix Patchright uses. [Full comparison](docs/vs-rebrowser-patches.md).
 
 Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) works through what each layer can and cannot reach, including what this one costs.
 

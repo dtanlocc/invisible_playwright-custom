@@ -162,9 +162,11 @@ changes.
 
 **See also:** [three ways to make Playwright undetected](playwright-stealth-levels.md),
 for the full map this comparison sits inside; [Firefox or Chromium for anti-detect](firefox-vs-chromium-antidetect.md),
-for the engine question Patchright's Chromium-only scope decides for you; and
+for the engine question Patchright's Chromium-only scope decides for you;
 [four leaks from our own driver layer](debugger-timing-detection.md), for what the
-equivalent problem looks like on Firefox.
+equivalent problem looks like on Firefox; and
+[invisible_playwright vs rebrowser-patches](vs-rebrowser-patches.md), an unrelated
+project that independently converged on close to the same `Runtime.enable` fix.
 
 ## Sources
 

@@ -71,8 +71,9 @@ flags that make the browser set `navigator.webdriver` at all, remove the binding
 the automation framework injects into the page's global scope, stop using the
 execution-context isolation pattern that leaves observable traces.
 
-**Tools:** Patchright, the drop-in Playwright fork. `rebrowser-playwright` and the
-rebrowser patches take a similar line.
+**Tools:** [Patchright](vs-patchright.md), the drop-in Playwright fork.
+[`rebrowser-playwright` and the rebrowser patches](vs-rebrowser-patches.md) take a
+similar line, converging on close to the same fix independently.
 
 **What it fixes:** a whole class of tells at the source instead of covering them.
 The difference is real and worth understanding with an example. At level 1 the
