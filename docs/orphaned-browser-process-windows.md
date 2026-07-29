@@ -158,9 +158,11 @@ or start time. Anything that can't be positively confirmed is left alone.
 
 **See also:** [why an attached debugger makes automation detectable](debugger-timing-detection.md),
 another case in the automation layer itself rather than anything the target page does,
-and [how to test whether your setup is actually working](how-to-test-bot-detection.md),
+[how to test whether your setup is actually working](how-to-test-bot-detection.md),
 for the same discipline of measuring a claim before trusting it that caught the first,
-unnecessary fix here.
+unnecessary fix here, and [why one launch in six was randomly slow](slow-browser-launch-timeout-budget.md),
+another reliability bug in the same layer with the same lesson: every piece involved
+can be individually correct and the whole still isn't bounded.
 
 ## Sources
 
