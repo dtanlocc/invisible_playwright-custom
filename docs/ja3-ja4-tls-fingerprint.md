@@ -133,6 +133,43 @@ The honest limits, because this is where people overclaim:
 - **TLS being right proves nothing about the rest.** It is one layer. The machine you
   run on still answers for its GPU, its fonts and its audio device.
 
+## A closed example: one extra cipher suite was the entire gap
+
+"The engine is real Firefox, so the handshake is right" is a claim worth checking
+rather than trusting, and once it was checked here, it wasn't quite true yet.
+
+A same-IP, same-Firefox-version comparison against a stock build turned up a real
+ClientHello difference: our build offered a 17th cipher suite that stock Firefox of
+the same version does not. JA3 and JA4 diverged accordingly - one specific pair of
+hashes on our build, a different pair on stock, both measured through a public TLS
+fingerprint checking page.
+
+The cause had nothing to do with the TLS stack itself. A single boolean preference
+controlling that one cipher suite is declared with a channel-gated default in the
+pref list our fork carries forward from upstream - on release builds it resolves to
+on. Upstream had since moved that same preference to a flat, ungated default of off
+for release builds; our fork's copy of the pref declaration had not been carried
+forward past the point where that changed. The handshake code was never touched. The
+default one preference resolves to had quietly drifted out of sync with the
+upstream release it was supposed to match.
+
+The consequence was immediate and pre-JavaScript: a production site running a
+commercial protection stack that fingerprints TLS handshakes closely treated the
+17-cipher ClientHello as an instant tell, on a connection that had not sent a single
+byte of HTTP yet. No amount of page-level stealth work touches this - by the time any
+script exists to patch anything, the handshake carrying the mismatch has already
+gone out and, if the server cared, already been judged.
+
+The fix was one line: force that preference to its upstream-current default in the
+baseline. Re-measuring afterward showed the ClientHello, JA3, JA4 and the broader
+handshake fingerprint byte-identical to stock Firefox of the same version.
+
+The generalizable point is the maintenance side of "we don't touch the TLS stack":
+not touching the code is not the same guarantee as staying in sync with every
+default the code reads, and a forked browser needs an explicit, repeated parity
+check against the currently shipped upstream release - not a one-time claim - to
+keep that promise true release over release.
+
 ## Checking your own
 
 Open one of the public JA3 or JA4 check pages from the browser or client you actually
