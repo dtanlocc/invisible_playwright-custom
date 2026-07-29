@@ -139,8 +139,10 @@ address different layers; combining them is a normal pattern on Chromium.
 **See also:** [three ways to make Playwright undetected](playwright-stealth-levels.md),
 for the full map this page sits inside; [why every override carries its source](tostring-native-code-detection.md),
 for the race any page-level fix eventually loses; [how to test which layer is actually blocking you](how-to-test-bot-detection.md), before
-picking a tool at any level; and [pyppeteer's own maintainer recommending Playwright](pyppeteer-unmaintained-playwright.md),
-one layer up from stealth technique - which driver library to build on at all.
+picking a tool at any level; [pyppeteer's own maintainer recommending Playwright](pyppeteer-unmaintained-playwright.md),
+one layer up from stealth technique - which driver library to build on at all; and
+[invisible_playwright vs fingerprint-suite](vs-fingerprint-suite.md), the same
+injection layer with a considerably more sophisticated generation model behind it.
 
 ## Sources
 
