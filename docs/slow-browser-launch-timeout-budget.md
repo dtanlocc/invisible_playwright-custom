@@ -124,7 +124,8 @@ the list.
 
 **See also:** [why a killed test runner leaks Firefox processes on Windows](orphaned-browser-process-windows.md),
 another case in the automation layer's own reliability rather than anything the
-target page does.
+target page does, and [a packaged build that launched fine but couldn't be driven](juggler-missing-packaged-build.md),
+where the gap was a smoke test that never actually exercised the thing that broke.
 
 ## Sources
 
