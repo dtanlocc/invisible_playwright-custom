@@ -125,6 +125,20 @@ Remove the seam and this whole category of check has nothing to bite on. Everyth
 else, the plausibility of your GPU, your fonts, your timezone against your IP,
 remains exactly as hard as it was.
 
+## What one real, unmodified session actually scored
+
+Run directly against a live Playwright-driven Chromium session with no stealth
+layer of any kind applied - no injected patches, no engine-level work, nothing
+this project or any comparable tool does - CreepJS's own headless module returned
+0% headless and 0% stealth, with a 25% "like headless" partial-similarity score
+alongside them. Worth stating plainly what that does and does not mean: it says
+this one specific, directly-checked session did not trip CreepJS's headless
+heuristics that day, not that headless or automation detection in general is
+solved, and not that every Playwright launch configuration scores the same way.
+The rest of the report - the parts covered throughout this page, the lie
+detection, the consistency checks, the machine-level surfaces - is where the
+actual work happens regardless of what this one narrow module reports.
+
 ## Reading your own report
 
 Two things worth doing when you open it:
