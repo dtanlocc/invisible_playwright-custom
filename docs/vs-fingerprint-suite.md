@@ -141,8 +141,10 @@ signal an engine-level approach exists to avoid.
 
 **See also:** [invisible_playwright vs playwright-stealth: page vs engine](vs-playwright-stealth.md),
 the same page-versus-engine question with a simpler generation model on the other
-side, and [why every override carries its source](tostring-native-code-detection.md),
-for the general mechanism behind the limitation described above.
+side, [why every override carries its source](tostring-native-code-detection.md),
+for the general mechanism behind the limitation described above, and
+[invisible_playwright vs playwright-with-fingerprints](vs-playwright-with-fingerprints.md),
+the same injection layer sourcing its values from a remote service instead.
 
 ## Sources
 

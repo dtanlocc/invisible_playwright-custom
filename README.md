@@ -231,6 +231,7 @@ The open-source neighbours, and what each one is for.
 - **[pyppeteer](https://github.com/pyppeteer/pyppeteer)** - the unofficial Python port of Puppeteer. Its own README says it's unmaintained and points to `playwright-python` instead; [what that recommendation is actually about](docs/pyppeteer-unmaintained-playwright.md).
 - **[rebrowser-patches](https://github.com/rebrowser/rebrowser-patches)** - fixes the `Runtime.enable` CDP leak on Chromium, independently converging on close to the same fix Patchright uses. [Full comparison](docs/vs-rebrowser-patches.md).
 - **[fingerprint-suite](https://github.com/apify/fingerprint-suite)** - generates a coherent fingerprint with a Bayesian network, close to this project's own generation approach, then injects it into a Playwright or Puppeteer page on either Chromium or Firefox. [Full comparison](docs/vs-fingerprint-suite.md).
+- **[playwright-with-fingerprints](https://github.com/bablosoft/playwright-with-fingerprints)** - injects fingerprint values sourced from a remote paid service, Windows-only, pinned to a specific Chromium build. [Full comparison](docs/vs-playwright-with-fingerprints.md).
 
 Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) works through what each layer can and cannot reach, including what this one costs.
 
