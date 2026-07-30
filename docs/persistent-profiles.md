@@ -198,9 +198,11 @@ address protections on the absence of one, and a persisted grant counts.
 
 **See also:** [WebRTC leak with a proxy](webrtc-leak-proxy.md), which is what the
 permission trap undoes, [reCAPTCHA v3 score](recaptcha-v3-score.md), for why a profile
-with a past is worth keeping, and
+with a past is worth keeping,
 [browser extensions are a fingerprint surface](browser-extension-fingerprint.md), since a
-profile is how you install one.
+profile is how you install one, and
+[why automating the login form is riskier than reusing a session](automating-login-vs-session-reuse.md),
+for the `storageState` half of this same identity question.
 
 ## Sources
 
