@@ -162,8 +162,15 @@ on `document`, no, because renaming does not remove them.
 normal document has.
 
 **Does Playwright have an equivalent?** Not this one, because it does not use
-ChromeDriver. Every automation stack has its own artefacts, and [each one is a function whose source can be printed](tostring-native-code-detection.md), and the lesson generalises
-past this variable.
+ChromeDriver, and not a comparable global either - checked directly, enumerating
+every own property on `window` in a live Playwright-driven Chromium session finds
+nothing resembling `window.__playwright` or any similarly-named global. Some
+online guides describe one anyway; it is worth checking a claim like that yourself
+before repeating it, the same way this page checks `cdc_` by opening a real
+session rather than trusting a description of one. That does not mean Playwright
+sessions have no artefacts at all - [each automation stack has its own, and each
+one is a function whose source can be printed](tostring-native-code-detection.md) -
+only that this specific one does not appear to be real.
 
 **What is the real fix?** Do not add the properties at all, which means the automation
 layer has to be built differently rather than patched afterwards.
