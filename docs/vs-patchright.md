@@ -108,13 +108,13 @@ some API surface may behave differently than documented Playwright behaviour.
 
 ## The Chromium-is-not-Chrome question, restated for a fork
 
-Because Patchright is a Playwright fork, it launches the same open-source Chromium
-Playwright ships by default, with the same missing proprietary codecs, unless you also
-set `channel="chrome"` yourself. [That gap is not a driver-level problem](chromium-is-not-chrome.md)
-and patching the driver does not close it. It is worth keeping the two concerns separate
-when evaluating any Chromium-based stealth tool: driver-level patches fix automation
-tells, they do not fix codec or DRM tells, and nothing in Patchright's README claims they
-do.
+Because Patchright is a Playwright fork, it launches the same Chromium build Playwright
+ships by default - Chrome for Testing as of Playwright 1.57, which closed the codec gap
+but not the Widevine one - unless you also set `channel="chrome"` yourself.
+[That remaining gap is not a driver-level problem](chromium-is-not-chrome.md) and patching
+the driver does not close it. It is worth keeping the two concerns separate when evaluating
+any Chromium-based stealth tool: driver-level patches fix automation tells, they do not fix
+DRM tells, and nothing in Patchright's README claims they do.
 
 ## How to actually choose
 
