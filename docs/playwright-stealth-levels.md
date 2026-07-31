@@ -5,31 +5,6 @@ parent: "Comparisons"
 nav_order: 1
 ---
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://feder-cr.github.io/invisible_playwright/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Comparisons",
-      "item": "https://feder-cr.github.io/invisible_playwright/comparisons.html"
-    },
-    {
-      "@type": "ListItem",
-      "position": 3,
-      "name": "Three ways to make Playwright undetected"
-    }
-  ]
-}
-</script>
 
 # Three ways to make Playwright undetected
 

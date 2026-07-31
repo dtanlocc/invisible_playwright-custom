@@ -2,40 +2,10 @@
 title: "Why one launch in six was randomly slow, and a per-request timeout didn't fix it"
 description: "Every network request during launch had its own timeout, and every one of them was respected. The step around them still had no upper bound, because a per-request timeout answers a different question than the one that actually matters."
 parent: "Testing and Troubleshooting"
+grand_parent: "Guides"
 nav_order: 4
 ---
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://feder-cr.github.io/invisible_playwright/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Guides",
-      "item": "https://feder-cr.github.io/invisible_playwright/guides.html"
-    },
-    {
-      "@type": "ListItem",
-      "position": 3,
-      "name": "Testing and Troubleshooting",
-      "item": "https://feder-cr.github.io/invisible_playwright/guides-testing-and-troubleshooting.html"
-    },
-    {
-      "@type": "ListItem",
-      "position": 4,
-      "name": "Why one launch in six was randomly slow, and a per-request timeout didn't fix it"
-    }
-  ]
-}
-</script>
 
 # Why one launch in six was randomly slow, and a per-request timeout didn't fix it
 
