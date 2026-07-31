@@ -212,9 +212,11 @@ from, not what the ClientHello looks like, unless it terminates TLS itself, in w
 case the fingerprint becomes the proxy's.
 
 **See also:** [the checklist for being detected on one site](playwright-detected-as-bot.md),
-where the network layer is step six, and
+where the network layer is step six,
 [Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authentication.md),
-which covers the transport underneath.
+which covers the transport underneath, and
+[why a plain Python requests scraper gets blocked before it sends a header](web-scraping-tls-fingerprint-requests-blocked.md),
+the non-browser version of this same problem.
 
 ---
 
