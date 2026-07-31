@@ -175,8 +175,10 @@ long as you resolve the zone from the address you actually exit through.
 **See also:** [Firefox preferences that silently do nothing](firefox-prefs-not-applying.md),
 if you are here because a setting looks ignored,
 [WebRTC leak with a proxy](webrtc-leak-proxy.md), which is the other half
-of "the browser and the network disagree", and
-[the checklist for being detected on one site](playwright-detected-as-bot.md).
+of "the browser and the network disagree",
+[the checklist for being detected on one site](playwright-detected-as-bot.md), and
+[why web scraping keeps getting blocked even with good proxies](web-scraping-getting-blocked-proxies.md),
+the tool-agnostic version of this same argument.
 
 ---
 
