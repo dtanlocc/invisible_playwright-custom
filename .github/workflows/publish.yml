@@ -1,0 +1,138 @@
+name: publish
+
+# Publishing invisible-playwright from a tag, with no long-lived credential anywhere.
+#
+# WHAT REPLACED WHAT. This package was uploaded by hand, from one machine, with a
+# long-lived PyPI token sitting on it. Two things follow from that and neither is
+# hypothetical: the token is a standing credential whose blast radius is the whole
+# project, and a hand-run twine has no gate in front of it - the ordering rules
+# live in a person's memory.
+#
+# The credential here is the `pypi` GitHub Environment's OIDC trust relationship,
+# minted per run and valid for minutes. Only the `upload` job names that
+# environment, and `upload` declares `needs: gate`, so a red gate means the only
+# job that can authenticate never starts. The ordering is a dependency, not a
+# convention.
+#
+# BEFORE THE FIRST RUN, on PyPI: Manage project -> Publishing -> add a GitHub
+# publisher with owner `feder-cr`, repository `invisible_playwright`, workflow
+# `publish.yml`, environment `pypi`. Until that exists the upload fails with
+# `invalid-publisher`, which is the correct failure: nothing has said this
+# workflow may speak for this project. Revoke the long-lived token AFTER the
+# first successful OIDC publish, not before.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Asked of the INDEX, first, because a tag can legitimately name a version that
+  # is already published: a tag backfilled for a hand-published release, a tag
+  # re-pushed, a re-run of this workflow. In all of those there is nothing to do
+  # and nothing wrong, and reaching twine would fail on a filename the index has
+  # already served - a red run for a situation that is fine.
+  already-published:
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.probe.outputs.present }}
+      version: ${{ steps.probe.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: probe
+        shell: bash
+        run: |
+          VERSION="$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/invisible-playwright/$VERSION/json")
+          case "$CODE" in
+            200) echo "present=yes" >> "$GITHUB_OUTPUT"
+                 echo "::notice::invisible-playwright $VERSION is already on the index. No-op, not a failure." ;;
+            404) echo "present=no"  >> "$GITHUB_OUTPUT" ;;
+            *)   echo "the index answered $CODE for $VERSION, which is neither present" >&2
+                 echo "nor absent. Refusing rather than guessing." >&2
+                 exit 1 ;;
+          esac
+
+  gate:
+    needs: already-published
+    if: needs.already-published.outputs.present != 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: the tag names the version being built
+        # A tag pointing at a different version publishes something nobody asked
+        # for, under a name that says otherwise. Skipped on workflow_dispatch,
+        # where there is no tag to compare against.
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          HAVE="${{ needs.already-published.outputs.version }}"
+          if [ "$TAG" != "$HAVE" ]; then
+            echo "tag v$TAG does not name the version in pyproject.toml ($HAVE)" >&2
+            exit 1
+          fi
+
+      - name: the pinned invisible-core is ON THE INDEX
+        # THE ordering rule, as a gate instead of a sentence in a runbook. This
+        # package declares `invisible-core==X.Y.Z`, so pip resolves the PUBLISHED
+        # core - and a consumer released against a core that is not there yet is
+        # red on every runner and broken for every user while passing locally,
+        # because the workbench core is an editable install and cannot see this
+        # class of failure at all. Measured 2026-07-28: both consumers moved to a
+        # name a new core had, neither release could resolve it.
+        shell: bash
+        run: |
+          WANT=$(grep -oE 'invisible-core==[0-9]+\.[0-9]+\.[0-9]+' pyproject.toml | head -1 | cut -d= -f3)
+          if [ -z "$WANT" ]; then
+            echo "no exact invisible-core== pin found in pyproject.toml" >&2
+            exit 1
+          fi
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/invisible-core/$WANT/json")
+          if [ "$CODE" != "200" ]; then
+            echo "invisible-core $WANT is not on the index (HTTP $CODE)." >&2
+            echo "Publish the core FIRST, then this package. In this order every" >&2
+            echo "install resolves; in the other one none of them do." >&2
+            exit 1
+          fi
+          echo "::notice::invisible-core $WANT is on the index"
+
+      - name: the suite
+        # A tag push does not trigger the ordinary test workflow, which runs on
+        # branches and pull requests. Without this, tagging is a way to publish
+        # code no job has run.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          python -m pytest -q
+
+  upload:
+    needs: [already-published, gate]
+    if: needs.already-published.outputs.present != 'yes'
+    runs-on: ubuntu-latest
+    environment: pypi          # the trust relationship lives HERE, behind the gate
+    permissions:
+      id-token: write          # trusted publishing; no token in a secret anywhere
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build
+      - run: python -m build
+      - name: twine check
+        run: |
+          pip install twine
+          twine check dist/*
+      - uses: pypa/gh-action-pypi-publish@release/v1
