@@ -12,18 +12,16 @@ from . import _session
 from ._cursor import (
     ENGINE_PYTHON,
     enable_for as _enable_cursor_engine,
-    humanize_prefs as _humanize_prefs,
     max_seconds_for as _cursor_max_seconds,
     resolve_cursor_engine,
 )
 from invisible_core._fpforge import Profile, generate_profile
 from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
-from invisible_core import cloak_prefs, make_virtual_display
+from invisible_core import make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
-from invisible_core import translate_profile_to_prefs
 
 
 #: Settle after a tab is created, in seconds. Named and module-level because

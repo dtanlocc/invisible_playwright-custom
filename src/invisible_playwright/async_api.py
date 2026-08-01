@@ -13,19 +13,17 @@ from . import _session
 from ._cursor import (
     ENGINE_PYTHON,
     enable_for as _enable_cursor_engine,
-    humanize_prefs as _humanize_prefs,
     max_seconds_for as _cursor_max_seconds,
     resolve_cursor_engine,
 )
 from invisible_core._fpforge import Profile, generate_profile
 from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
-from invisible_core import cloak_prefs, make_virtual_display
+from invisible_core import make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
-from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H, _tz_env
-from invisible_core import translate_profile_to_prefs
+from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H
 
 
 def _patch_new_page_sleep(ctx: Any) -> None:
@@ -105,7 +103,6 @@ class InvisiblePlaywright:
         self._webrtc_egress_ip: Optional[str] = None
 
     async def __aenter__(self) -> Union[Browser, BrowserContext]:
-        import sys as _sys
         # Resolve timezone="auto" AND discover the proxy egress IP in one
         # round-trip, off the event loop, before anything reads self._timezone
         # or builds prefs/env. Fail-early if a proxy is set but the egress

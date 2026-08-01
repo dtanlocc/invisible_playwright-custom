@@ -60,7 +60,10 @@ def true_headless_requested(env: Optional[Dict[str, str]] = None) -> bool:
 #: this, and a bare module-level import walks straight past it. Reported by a
 #: user within minutes of the change.
 try:
-    from invisible_core import IANA_TO_POSIX_TZ as _IANA_TO_POSIX_TZ, tz_env
+    from invisible_core import (  # noqa: F401 - the import IS the probe
+        IANA_TO_POSIX_TZ as _IANA_TO_POSIX_TZ,
+        tz_env,
+    )
 except ImportError as _exc:  # pragma: no cover - exercised by the old-core probe
     from ._pin import declared_core_pin as _declared_core_pin
 
