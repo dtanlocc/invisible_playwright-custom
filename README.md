@@ -1,4 +1,3 @@
-## GitAds Sponsored
 [![Sponsored by GitAds](https://gitads.dev/v1/ad-serve?source=feder-cr/invisible_playwright@github)](https://gitads.dev/v1/ad-track?source=feder-cr/invisible_playwright@github)
 
 <!-- GitAds-Verify: 787HB3AYTV66U4DWORC86V2KW4VXDIGY -->
