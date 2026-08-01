@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 
+from .launcher import _NEWTAB_SETTLE
 from . import _session
 from ._cursor import (
     ENGINE_PYTHON,
@@ -39,7 +40,7 @@ def _patch_new_page_sleep(ctx: Any) -> None:
 
     async def patched_new_page(**kw):
         page = await original_new_page(**kw)
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(_NEWTAB_SETTLE)
         return page
 
     ctx.new_page = patched_new_page  # type: ignore[assignment]
@@ -202,6 +203,12 @@ class InvisiblePlaywright:
         )
 
     def _patch_new_context_defaults(self, browser: Browser) -> None:
+        """Both entry points, for the reason spelled out in the sync launcher:
+        Playwright's `Browser.new_page` forwards to the IMPLEMENTATION object,
+        whose own `new_page` calls `self.new_context` - itself - so a wrapper
+        installed on the api object is never consulted, and
+        `await browser.new_page()` opened a page with the stock viewport and
+        colour scheme against a fingerprint claiming the profile's screen."""
         original = browser.new_context
         defaults = self._default_context_kwargs()
         prep = self._prep_recaptcha
@@ -219,6 +226,25 @@ class InvisiblePlaywright:
             return ctx
 
         browser.new_context = patched  # type: ignore[assignment]
+
+        original_page = browser.new_page
+
+        async def patched_page(**kw):
+            merged = dict(defaults)
+            merged.update(kw)  # user-supplied wins, same rule as new_context
+            page = await original_page(**merged)
+            ctx = page.context
+            # The settle new_context installs for later tabs, applied to THIS
+            # tab too: the same about:newtab race, and a caller doing
+            # `page = await browser.new_page()` goes straight to goto().
+            await asyncio.sleep(_NEWTAB_SETTLE)
+            _patch_new_page_sleep(ctx)
+            if prep:
+                from ._recaptcha_seed import seed_recaptcha_cookies_async
+                await seed_recaptcha_cookies_async(ctx, profile, timezone=tz)
+            return page
+
+        browser.new_page = patched_page  # type: ignore[assignment]
 
     def _default_context_kwargs(self) -> Dict[str, Any]:
         p = self._profile
