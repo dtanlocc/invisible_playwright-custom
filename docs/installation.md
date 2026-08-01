@@ -32,7 +32,8 @@ time it runs, clear the quarantine flag once:
 xattr -dr com.apple.quarantine /path/to/cached/Firefox.app
 ```
 
-`invisible-playwright path` prints the exact cached location if you need it.
+`invisible-playwright version` prints the cache location, and
+`invisible-playwright fetch` prints the exact binary path as its last line.
 
 ## Where the engine is cached, and how to move it
 
@@ -52,11 +53,12 @@ variables, including the ones for corporate networks and CI, is in
 ## Verifying the install
 
 ```bash
-invisible-playwright doctor    # checks every cached engine against its recorded seal
-invisible-playwright version   # prints wrapper, core and engine versions
+invisible-playwright version   # wrapper, core and engine versions, and the cache location
 ```
 
-Both commands, and the rest of the CLI, are in the [CLI reference](cli-reference.md).
+There is no separate check to run: `fetch` compares every cached engine against
+the seal on every run, so re-running it is the verification. Both commands are in
+the [CLI reference](cli-reference.md).
 
 ## Next
 

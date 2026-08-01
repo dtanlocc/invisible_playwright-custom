@@ -170,12 +170,10 @@ The installed command is `invisible-playwright`, with a hyphen. `python -m
 invisible_playwright` works identically and needs nothing on PATH.
 
 ```bash
-invisible-playwright fetch          # download the engine if missing
-invisible-playwright fetch --force  # re-download even if cached
-invisible-playwright path           # absolute path to the cached engine (downloads it if absent)
-invisible-playwright version        # wrapper, core and engine versions
-invisible-playwright clear-cache    # remove cached engine trees
-invisible-playwright doctor         # check every cached engine against the seal
+invisible-playwright fetch    # download the engine if missing, check every cached
+                              # one against the seal, print the path
+invisible-playwright version  # wrapper, core and engine versions, and where the
+                              # engine is cached
 ```
 
 ## Documentation, guides and comparisons
