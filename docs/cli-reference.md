@@ -44,8 +44,8 @@ Running it when everything is already correct is cheap and does nothing.
 ## `version`
 
 ```
-invisible_playwright 0.4.9
-invisible_core       18.11.0   (declared: ==18.11.0)
+invisible_playwright 0.6.0
+invisible_core       18.12.0   (declared: ==18.12.0)
 engine               firefox-18  Firefox 151.0  build 20260724001949
 seal                 f294a96ae4ec  [.../invisible_core/seal.json]
 cache                /home/you/.cache/invisible-playwright
