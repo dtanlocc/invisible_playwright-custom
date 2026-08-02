@@ -142,7 +142,7 @@ with sf as browser:
 
 ### Mimic a specific real device
 
-Pin the whole visible tuple - GPU, screen, concurrency, fonts, audio:
+Pin the whole visible tuple - GPU, screen, concurrency, audio:
 
 ```python
 pin = {
@@ -171,7 +171,7 @@ pin = {"gpu.class_tier": "low_end"}
 while everything else stays derived from the seed.
 
 **Why pin instead of just choosing a seed?** A seed gives you one whole machine.
-Pinning lets you hold one attribute steady, a locale or a screen size for example,
+Pinning lets you hold one attribute steady, a GPU model or a screen size for example,
 while the rest still varies.
 
 **Can I pin anything I like?** No. Some fields are refused deliberately, because

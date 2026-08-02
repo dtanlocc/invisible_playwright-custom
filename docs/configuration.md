@@ -24,6 +24,11 @@ Schemes supported: `socks5`, `socks4`, `http`, `https`. DNS is routed through th
 proxy by default, no local leak - the SOCKS5-authentication and DNS-resolution
 details, including the parts most guides get wrong, are in
 [Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authentication.md).
+The endpoint needs an explicit port. `socks5://gate.example.com` with no `:1080` is
+refused with a `ValueError` rather than launched unproxied, which is what it used to
+do silently. If you are driving `firefox.launch()` yourself instead of using this
+class, pass the same dict to `get_default_stealth_prefs(proxy=...)` so the SOCKS
+preferences are written.
 
 Around 90% of proxies are public, so their IPs are already known and blocked before
 you ever use them. A perfect browser on a known IP still loses. For the clean 10%,

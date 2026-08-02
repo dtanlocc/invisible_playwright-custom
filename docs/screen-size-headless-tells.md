@@ -100,8 +100,10 @@ Sampled faithfully from real data, a pool will occasionally hand out something
 unfortunate; we have written up
 [the time ours handed out a software GPU for exactly that reason](webgl-renderer-strings.md).
 
-The viewport is yours to set, and it is the one you can break yourself: ask for a
-viewport larger than the seeded screen and you have created the impossible
+The viewport is derived for you: both `new_context()` and `new_page()` open with a viewport that
+fits inside the seeded screen, along with the screen, the device pixel ratio and the colour scheme
+from the same profile. It is still the one you can break yourself, because an explicit viewport
+kwarg wins: ask for one larger than the seeded screen and you have created the impossible
 relationship above.
 
 ## Checking your own

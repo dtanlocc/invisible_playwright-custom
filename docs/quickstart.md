@@ -28,7 +28,7 @@ fields) and Bezier-curve mouse motion, with no further configuration required.
 ```python
 from invisible_playwright import InvisiblePlaywright
 
-with InvisiblePlaywright(proxy={"server": "socks5://...", "username": "u", "password": "p"}) as browser:
+with InvisiblePlaywright(proxy={"server": "socks5://gate.example.com:1080", "username": "u", "password": "p"}) as browser:
     page = browser.new_page()
     page.goto("https://example.com")
     page.click("#submit")   # mouse arcs to the button on a Bezier curve
@@ -39,7 +39,7 @@ with InvisiblePlaywright(proxy={"server": "socks5://...", "username": "u", "pass
 ```python
 from invisible_playwright.async_api import InvisiblePlaywright
 
-async with InvisiblePlaywright(proxy={"server": "socks5://...", "username": "u", "password": "p"}) as browser:
+async with InvisiblePlaywright(proxy={"server": "socks5://gate.example.com:1080", "username": "u", "password": "p"}) as browser:
     page = await browser.new_page()
     await page.goto("https://example.com")
     await page.click("#submit")
