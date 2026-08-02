@@ -169,7 +169,12 @@ jobs:
         # of a version published elsewhere must come from the artifacts the index
         # serves instead, because the tree has moved on.
         run: |
-          python -m pip install --quiet -e ".[dev]"
+          # `-e .` and not `.[dev]`: this is the job holding the OIDC
+          # credential and `contents: write`, and `record` needs the package
+          # importable plus a build backend, nothing else. The dev extra
+          # pulls pytest, ruff and - in the wrapper - the whole of
+          # Playwright into the one job that can push to main.
+          python -m pip install --quiet -e . build hatchling
           python -m invisible_core.release record
           if git diff --quiet -- PUBLISHED.json; then
             echo "::warning::nothing recorded - the ledger did not change"
