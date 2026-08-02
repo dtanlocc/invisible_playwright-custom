@@ -1083,7 +1083,55 @@
       "wheel_filename": "invisible_playwright-0.4.5-py3-none-any.whl"
     },
     {
+      "version": "0.4.6",
+      "seal_tag": "",
       "published_at": "2026-07-27T17:29:32Z",
+      "requires_dist": [
+        "invisible-core==18.6.0",
+        "playwright<=1.61.0,>=1.55",
+        "psutil>=5.9",
+        "build>=1; extra == 'dev'",
+        "playwright<=1.61.0,>=1.55; extra == 'dev'",
+        "pytest-mock>=3; extra == 'dev'",
+        "pytest-rerunfailures>=14; extra == 'dev'",
+        "pytest>=7; extra == 'dev'",
+        "responses>=0.24; extra == 'dev'"
+      ],
+      "wheel_filename": "invisible_playwright-0.4.6-py3-none-any.whl",
+      "sdist_filename": "invisible_playwright-0.4.6.tar.gz",
+      "wheel": {
+        "digest": "7aa26e31e123cb18e7a676f2e493c404558f2700b1f7776251bac993b6e0cf4a",
+        "files": {
+          "<dist-info>/METADATA": "3ab33d5bcdbf69804bdf2325472666ed7129474a9ee2a56990c2cd61400b2787",
+          "<dist-info>/WHEEL": "942926c567d0b1273d09f20295879abd37507845f6b683eab9f87d808df91100",
+          "<dist-info>/entry_points.txt": "f07941bc791c2c31375755627886bfe11ba2d83df7b2522064f84be8299ee3a3",
+          "<dist-info>/licenses/LICENSE": "2abb03e63a96918967f383cbc36e3faefe10a47ae20b2cab43212ef965e02f96",
+          "invisible_playwright/__init__.py": "82f4f24e8d47b3cf0f118dfeb80b3cd844dbbb92560b8a62e294561ab3c0f3a7",
+          "invisible_playwright/__main__.py": "c6cd277050ead2d11c98b7cbab91ada7d19e495c95e4c86de1f9aaf2b2051d38",
+          "invisible_playwright/_behaviour.py": "e2f3e9648cc981ea1f88c7dc67b6a1b3c92116ea8ad5f840fdec5463cd7ef188",
+          "invisible_playwright/_cursor.py": "fc0115ff8f3aa1ddd9af88768c4761e43003fc8ced83e9fd097d73ca4116f432",
+          "invisible_playwright/_engine.py": "39a35b45207836494f512b70bb8fccee746c57b99320967026b813776931761b",
+          "invisible_playwright/_fpforge/__init__.py": "f80aaf6cbd7c69878c72929f0e38f724d1d51b32477485f3266e5e364778efed",
+          "invisible_playwright/_geo.py": "6cb7a453ae392bd4724f2d508a7f697d1189d9e05b833cc4b36d70069d18225f",
+          "invisible_playwright/_headless.py": "ceaf85c0a32f92c8c8489fa11756b538feddecc021d4ae22782927171429c2b9",
+          "invisible_playwright/_motion.py": "ed51b95ec9bd7535df794864639cccf2eda891790812c1bfa7df28487ae07a28",
+          "invisible_playwright/_pin.py": "6a1c6da0ea4231867d545ba8555cb97872463b760e20db3489ddcdef207d9a56",
+          "invisible_playwright/_proxy.py": "dadfd7ad17246521c78c2e67bc60e31e3fc854dcb0924c4067f5d49a9662722e",
+          "invisible_playwright/_reaper.py": "a2dbe665cf25ae71ea83f4f6c63f739bac42d4b6eb5859c66938d498086a647c",
+          "invisible_playwright/_recaptcha_seed.py": "581b926e7eae254296cf3a1c5d5304e33bccde4fee362a07a31c1f5a9655cd24",
+          "invisible_playwright/_session.py": "77d0d4b6fc7cbca78f7a2c54bec78adba198a5f1be50183418d42ececfd17ae2",
+          "invisible_playwright/_webgl_personas.py": "bdb1c0d79297f9dc3177f8f530a655bd77b473a1838c4829dc48283e30c380a8",
+          "invisible_playwright/async_api.py": "012b71cdc094718646b53ce1b855d44b25d526e4ee5904a6c11691433ec7d8d2",
+          "invisible_playwright/cli.py": "9de89a758123c6650b2f1ae18d6dd390a54fc43059527e16ca4bdd65cad1a392",
+          "invisible_playwright/config.py": "5f48dfcd4cb757787af5c8ff37f2c7a6683ee3f2b4500182dd4c2dd0722a38f3",
+          "invisible_playwright/constants.py": "6be639754df221f5c41fdbe343ae35e9ea4c83297e98f6566250549f19d6c121",
+          "invisible_playwright/download.py": "416db5d579525d7f0802064d8a6929126c6b085dbe0f1c298f02a7a349f000d9",
+          "invisible_playwright/launcher.py": "e68adebdae776192860c4d196ecec26f3c4164d84b52a59467a92af5d2b53eec",
+          "invisible_playwright/prefs.py": "3fabf6f07d9f85cd5ea5bb901dfeedc2c3a41b8e199acd0dc25a11c473004298",
+          "invisible_playwright/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "invisible_playwright/sync_api.py": "5518a317416b855387b6834078858a1285d535b611f3af7e238d4433dc24d730"
+        }
+      },
       "sdist": {
         "digest": "1dd4c1334b911e712fe15d343e8f68a94d62ee226922e08117a07caa5df97b15",
         "files": {
@@ -1177,47 +1225,58 @@
           "tests/vendor/fingerprintjs-5.2.0.umd.min.js": "a8de5ead580c42d2e2b01a5752aa08da510852230971aa18554d67cd5de5775b",
           "tests/vendor/fpscanner-1.0.6.es.js": "5680b88e6075fceab5343d31b43dcb1892a98cff072d37084efdd244fd2cb809"
         }
-      },
-      "sdist_filename": "invisible_playwright-0.4.6.tar.gz",
+      }
+    },
+    {
+      "version": "0.4.7",
       "seal_tag": "",
-      "version": "0.4.6",
+      "published_at": "2026-07-28T01:56:31Z",
+      "requires_dist": [
+        "invisible-core==18.8.0",
+        "playwright<=1.61.0,>=1.55",
+        "psutil>=5.9",
+        "build>=1; extra == 'dev'",
+        "playwright<=1.61.0,>=1.55; extra == 'dev'",
+        "pytest-mock>=3; extra == 'dev'",
+        "pytest-rerunfailures>=14; extra == 'dev'",
+        "pytest>=7; extra == 'dev'",
+        "responses>=0.24; extra == 'dev'"
+      ],
+      "wheel_filename": "invisible_playwright-0.4.7-py3-none-any.whl",
+      "sdist_filename": "invisible_playwright-0.4.7.tar.gz",
       "wheel": {
-        "digest": "7aa26e31e123cb18e7a676f2e493c404558f2700b1f7776251bac993b6e0cf4a",
+        "digest": "827e6af6f7ebff3e1be5660147fa08f44cbe88f2bf1d19b134b95841a288b881",
         "files": {
-          "<dist-info>/METADATA": "3ab33d5bcdbf69804bdf2325472666ed7129474a9ee2a56990c2cd61400b2787",
+          "<dist-info>/METADATA": "d67886ab831e4e5f6d5c43b471eab62e7258180fdc76c3c134e6320fd62fba0e",
           "<dist-info>/WHEEL": "942926c567d0b1273d09f20295879abd37507845f6b683eab9f87d808df91100",
           "<dist-info>/entry_points.txt": "f07941bc791c2c31375755627886bfe11ba2d83df7b2522064f84be8299ee3a3",
           "<dist-info>/licenses/LICENSE": "2abb03e63a96918967f383cbc36e3faefe10a47ae20b2cab43212ef965e02f96",
-          "invisible_playwright/__init__.py": "82f4f24e8d47b3cf0f118dfeb80b3cd844dbbb92560b8a62e294561ab3c0f3a7",
+          "invisible_playwright/__init__.py": "387be8785becddc85aa4bc75363dce58dda608fefe63033f5e3889744043455a",
           "invisible_playwright/__main__.py": "c6cd277050ead2d11c98b7cbab91ada7d19e495c95e4c86de1f9aaf2b2051d38",
           "invisible_playwright/_behaviour.py": "e2f3e9648cc981ea1f88c7dc67b6a1b3c92116ea8ad5f840fdec5463cd7ef188",
           "invisible_playwright/_cursor.py": "fc0115ff8f3aa1ddd9af88768c4761e43003fc8ced83e9fd097d73ca4116f432",
-          "invisible_playwright/_engine.py": "39a35b45207836494f512b70bb8fccee746c57b99320967026b813776931761b",
+          "invisible_playwright/_engine.py": "9e09ddf8fa539fedf13f49a51ffe9111af9f9e40208e5bf31f687ccebbf2de0c",
           "invisible_playwright/_fpforge/__init__.py": "f80aaf6cbd7c69878c72929f0e38f724d1d51b32477485f3266e5e364778efed",
           "invisible_playwright/_geo.py": "6cb7a453ae392bd4724f2d508a7f697d1189d9e05b833cc4b36d70069d18225f",
           "invisible_playwright/_headless.py": "ceaf85c0a32f92c8c8489fa11756b538feddecc021d4ae22782927171429c2b9",
           "invisible_playwright/_motion.py": "ed51b95ec9bd7535df794864639cccf2eda891790812c1bfa7df28487ae07a28",
-          "invisible_playwright/_pin.py": "6a1c6da0ea4231867d545ba8555cb97872463b760e20db3489ddcdef207d9a56",
+          "invisible_playwright/_pin.py": "b8df78cf6e92503ee122f7ebdcd2afe98036ea25000c8dc8efa87b46fdd50c55",
           "invisible_playwright/_proxy.py": "dadfd7ad17246521c78c2e67bc60e31e3fc854dcb0924c4067f5d49a9662722e",
           "invisible_playwright/_reaper.py": "a2dbe665cf25ae71ea83f4f6c63f739bac42d4b6eb5859c66938d498086a647c",
           "invisible_playwright/_recaptcha_seed.py": "581b926e7eae254296cf3a1c5d5304e33bccde4fee362a07a31c1f5a9655cd24",
           "invisible_playwright/_session.py": "77d0d4b6fc7cbca78f7a2c54bec78adba198a5f1be50183418d42ececfd17ae2",
           "invisible_playwright/_webgl_personas.py": "bdb1c0d79297f9dc3177f8f530a655bd77b473a1838c4829dc48283e30c380a8",
-          "invisible_playwright/async_api.py": "012b71cdc094718646b53ce1b855d44b25d526e4ee5904a6c11691433ec7d8d2",
-          "invisible_playwright/cli.py": "9de89a758123c6650b2f1ae18d6dd390a54fc43059527e16ca4bdd65cad1a392",
+          "invisible_playwright/async_api.py": "78a00aab1618fd506961b97e6ba339e0bc90abfca02fffdc1faba14a6884b5a8",
+          "invisible_playwright/cli.py": "4f2e6597024a4526e7e706d3dcfa634f51912efada1ffdf98f9202c1b816edf0",
           "invisible_playwright/config.py": "5f48dfcd4cb757787af5c8ff37f2c7a6683ee3f2b4500182dd4c2dd0722a38f3",
           "invisible_playwright/constants.py": "6be639754df221f5c41fdbe343ae35e9ea4c83297e98f6566250549f19d6c121",
           "invisible_playwright/download.py": "416db5d579525d7f0802064d8a6929126c6b085dbe0f1c298f02a7a349f000d9",
-          "invisible_playwright/launcher.py": "e68adebdae776192860c4d196ecec26f3c4164d84b52a59467a92af5d2b53eec",
+          "invisible_playwright/launcher.py": "ac8a1fba987fe58ac813b6ab96d59f47c28b40c89ab06a68907fd7ab1234e72d",
           "invisible_playwright/prefs.py": "3fabf6f07d9f85cd5ea5bb901dfeedc2c3a41b8e199acd0dc25a11c473004298",
           "invisible_playwright/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "invisible_playwright/sync_api.py": "5518a317416b855387b6834078858a1285d535b611f3af7e238d4433dc24d730"
         }
       },
-      "wheel_filename": "invisible_playwright-0.4.6-py3-none-any.whl"
-    },
-    {
-      "published_at": "2026-07-28T01:56:31Z",
       "sdist": {
         "digest": "6bbd48c5a1c7c2f7aa98e390e1611dbef8daf4a189567d847eb1128ac2679872",
         "files": {
@@ -1301,26 +1360,41 @@
           "tests/vendor/fingerprintjs-5.2.0.umd.min.js": "a8de5ead580c42d2e2b01a5752aa08da510852230971aa18554d67cd5de5775b",
           "tests/vendor/fpscanner-1.0.6.es.js": "5680b88e6075fceab5343d31b43dcb1892a98cff072d37084efdd244fd2cb809"
         }
-      },
-      "sdist_filename": "invisible_playwright-0.4.7.tar.gz",
+      }
+    },
+    {
+      "version": "0.4.8",
       "seal_tag": "",
-      "version": "0.4.7",
+      "published_at": "2026-07-28T15:28:55Z",
+      "requires_dist": [
+        "invisible-core==18.9.0",
+        "playwright<=1.61.0,>=1.55",
+        "psutil>=5.9",
+        "build>=1; extra == 'dev'",
+        "playwright<=1.61.0,>=1.55; extra == 'dev'",
+        "pytest-mock>=3; extra == 'dev'",
+        "pytest-rerunfailures>=14; extra == 'dev'",
+        "pytest>=7; extra == 'dev'",
+        "responses>=0.24; extra == 'dev'"
+      ],
+      "wheel_filename": "invisible_playwright-0.4.8-py3-none-any.whl",
+      "sdist_filename": "invisible_playwright-0.4.8.tar.gz",
       "wheel": {
-        "digest": "827e6af6f7ebff3e1be5660147fa08f44cbe88f2bf1d19b134b95841a288b881",
+        "digest": "60869d6dd48bc3ffd7a88ca4ad0ec8281c81d673572f859b840a90db04b96e57",
         "files": {
-          "<dist-info>/METADATA": "d67886ab831e4e5f6d5c43b471eab62e7258180fdc76c3c134e6320fd62fba0e",
+          "<dist-info>/METADATA": "adc0015323a08360d0350f3e84c0ea9515ffd9faa488b441afab88d016601124",
           "<dist-info>/WHEEL": "942926c567d0b1273d09f20295879abd37507845f6b683eab9f87d808df91100",
           "<dist-info>/entry_points.txt": "f07941bc791c2c31375755627886bfe11ba2d83df7b2522064f84be8299ee3a3",
           "<dist-info>/licenses/LICENSE": "2abb03e63a96918967f383cbc36e3faefe10a47ae20b2cab43212ef965e02f96",
           "invisible_playwright/__init__.py": "387be8785becddc85aa4bc75363dce58dda608fefe63033f5e3889744043455a",
           "invisible_playwright/__main__.py": "c6cd277050ead2d11c98b7cbab91ada7d19e495c95e4c86de1f9aaf2b2051d38",
-          "invisible_playwright/_behaviour.py": "e2f3e9648cc981ea1f88c7dc67b6a1b3c92116ea8ad5f840fdec5463cd7ef188",
+          "invisible_playwright/_behaviour.py": "bf00751fa077f5389f46571e56c90de21e5c874308d371959e73136b720a62a7",
           "invisible_playwright/_cursor.py": "fc0115ff8f3aa1ddd9af88768c4761e43003fc8ced83e9fd097d73ca4116f432",
           "invisible_playwright/_engine.py": "9e09ddf8fa539fedf13f49a51ffe9111af9f9e40208e5bf31f687ccebbf2de0c",
           "invisible_playwright/_fpforge/__init__.py": "f80aaf6cbd7c69878c72929f0e38f724d1d51b32477485f3266e5e364778efed",
           "invisible_playwright/_geo.py": "6cb7a453ae392bd4724f2d508a7f697d1189d9e05b833cc4b36d70069d18225f",
           "invisible_playwright/_headless.py": "ceaf85c0a32f92c8c8489fa11756b538feddecc021d4ae22782927171429c2b9",
-          "invisible_playwright/_motion.py": "ed51b95ec9bd7535df794864639cccf2eda891790812c1bfa7df28487ae07a28",
+          "invisible_playwright/_motion.py": "9a87bc7d687bbfdd8659bb52459bf9b84634d53df21fbc3694007245e57f7fdb",
           "invisible_playwright/_pin.py": "b8df78cf6e92503ee122f7ebdcd2afe98036ea25000c8dc8efa87b46fdd50c55",
           "invisible_playwright/_proxy.py": "dadfd7ad17246521c78c2e67bc60e31e3fc854dcb0924c4067f5d49a9662722e",
           "invisible_playwright/_reaper.py": "a2dbe665cf25ae71ea83f4f6c63f739bac42d4b6eb5859c66938d498086a647c",
@@ -1338,10 +1412,6 @@
           "invisible_playwright/sync_api.py": "5518a317416b855387b6834078858a1285d535b611f3af7e238d4433dc24d730"
         }
       },
-      "wheel_filename": "invisible_playwright-0.4.7-py3-none-any.whl"
-    },
-    {
-      "published_at": "2026-07-28T15:28:55Z",
       "sdist": {
         "digest": "fb0ba8d3e2551a061097ce4d6679c580c8b897617479e87da288a22aa24b74d9",
         "files": {
@@ -1425,14 +1495,29 @@
           "tests/vendor/fingerprintjs-5.2.0.umd.min.js": "a8de5ead580c42d2e2b01a5752aa08da510852230971aa18554d67cd5de5775b",
           "tests/vendor/fpscanner-1.0.6.es.js": "5680b88e6075fceab5343d31b43dcb1892a98cff072d37084efdd244fd2cb809"
         }
-      },
-      "sdist_filename": "invisible_playwright-0.4.8.tar.gz",
+      }
+    },
+    {
+      "version": "0.4.9",
       "seal_tag": "",
-      "version": "0.4.8",
+      "published_at": "2026-08-01T16:53:10Z",
+      "requires_dist": [
+        "invisible-core==18.11.0",
+        "playwright<=1.61.0,>=1.55",
+        "psutil>=5.9",
+        "build>=1; extra == 'dev'",
+        "playwright<=1.61.0,>=1.55; extra == 'dev'",
+        "pytest-mock>=3; extra == 'dev'",
+        "pytest-rerunfailures>=14; extra == 'dev'",
+        "pytest>=7; extra == 'dev'",
+        "responses>=0.24; extra == 'dev'"
+      ],
+      "wheel_filename": "invisible_playwright-0.4.9-py3-none-any.whl",
+      "sdist_filename": "invisible_playwright-0.4.9.tar.gz",
       "wheel": {
-        "digest": "60869d6dd48bc3ffd7a88ca4ad0ec8281c81d673572f859b840a90db04b96e57",
+        "digest": "6454ceabe24ef001b0c953f9dca9341219468af875d443d8f0004ab15e22241c",
         "files": {
-          "<dist-info>/METADATA": "adc0015323a08360d0350f3e84c0ea9515ffd9faa488b441afab88d016601124",
+          "<dist-info>/METADATA": "98711f214456c486bda6a61530ef7dabe3d3fe86cac3b1ec68b94cb5cb287a3e",
           "<dist-info>/WHEEL": "942926c567d0b1273d09f20295879abd37507845f6b683eab9f87d808df91100",
           "<dist-info>/entry_points.txt": "f07941bc791c2c31375755627886bfe11ba2d83df7b2522064f84be8299ee3a3",
           "<dist-info>/licenses/LICENSE": "2abb03e63a96918967f383cbc36e3faefe10a47ae20b2cab43212ef965e02f96",
@@ -1462,10 +1547,6 @@
           "invisible_playwright/sync_api.py": "5518a317416b855387b6834078858a1285d535b611f3af7e238d4433dc24d730"
         }
       },
-      "wheel_filename": "invisible_playwright-0.4.8-py3-none-any.whl"
-    },
-    {
-      "published_at": "2026-08-01T16:53:10Z",
       "sdist": {
         "digest": "8fd71fad0dfd697f663de02facdde2253685ef5bfab6d3b039e82558bf5c7d7e",
         "files": {
@@ -1549,14 +1630,29 @@
           "tests/vendor/fingerprintjs-5.2.0.umd.min.js": "a8de5ead580c42d2e2b01a5752aa08da510852230971aa18554d67cd5de5775b",
           "tests/vendor/fpscanner-1.0.6.es.js": "5680b88e6075fceab5343d31b43dcb1892a98cff072d37084efdd244fd2cb809"
         }
-      },
-      "sdist_filename": "invisible_playwright-0.4.9.tar.gz",
+      }
+    },
+    {
+      "version": "0.5.0",
       "seal_tag": "",
-      "version": "0.4.9",
+      "published_at": "2026-08-01T17:36:39Z",
+      "requires_dist": [
+        "invisible-core==18.11.0",
+        "playwright<=1.61.0,>=1.55",
+        "psutil>=5.9",
+        "build>=1; extra == 'dev'",
+        "playwright<=1.61.0,>=1.55; extra == 'dev'",
+        "pytest-mock>=3; extra == 'dev'",
+        "pytest-rerunfailures>=14; extra == 'dev'",
+        "pytest>=7; extra == 'dev'",
+        "responses>=0.24; extra == 'dev'"
+      ],
+      "wheel_filename": "invisible_playwright-0.5.0-py3-none-any.whl",
+      "sdist_filename": "invisible_playwright-0.5.0.tar.gz",
       "wheel": {
-        "digest": "6454ceabe24ef001b0c953f9dca9341219468af875d443d8f0004ab15e22241c",
+        "digest": "fda2ef8c3b00372762230b6b49f8ea6614e2de9d068d9c7d9a4e3e01b5d7dd8f",
         "files": {
-          "<dist-info>/METADATA": "98711f214456c486bda6a61530ef7dabe3d3fe86cac3b1ec68b94cb5cb287a3e",
+          "<dist-info>/METADATA": "1106fded5ed4a48c17046cf17641baedbeb9779aeaf6b9967e19dc11cb195f5d",
           "<dist-info>/WHEEL": "942926c567d0b1273d09f20295879abd37507845f6b683eab9f87d808df91100",
           "<dist-info>/entry_points.txt": "f07941bc791c2c31375755627886bfe11ba2d83df7b2522064f84be8299ee3a3",
           "<dist-info>/licenses/LICENSE": "2abb03e63a96918967f383cbc36e3faefe10a47ae20b2cab43212ef965e02f96",
@@ -1576,7 +1672,7 @@
           "invisible_playwright/_session.py": "77d0d4b6fc7cbca78f7a2c54bec78adba198a5f1be50183418d42ececfd17ae2",
           "invisible_playwright/_webgl_personas.py": "bdb1c0d79297f9dc3177f8f530a655bd77b473a1838c4829dc48283e30c380a8",
           "invisible_playwright/async_api.py": "78a00aab1618fd506961b97e6ba339e0bc90abfca02fffdc1faba14a6884b5a8",
-          "invisible_playwright/cli.py": "4f2e6597024a4526e7e706d3dcfa634f51912efada1ffdf98f9202c1b816edf0",
+          "invisible_playwright/cli.py": "bb9e494dd03fb8980a917e6c41df2b073bc109238bdb7a2c70dbf121c9e25de2",
           "invisible_playwright/config.py": "5f48dfcd4cb757787af5c8ff37f2c7a6683ee3f2b4500182dd4c2dd0722a38f3",
           "invisible_playwright/constants.py": "6be639754df221f5c41fdbe343ae35e9ea4c83297e98f6566250549f19d6c121",
           "invisible_playwright/download.py": "416db5d579525d7f0802064d8a6929126c6b085dbe0f1c298f02a7a349f000d9",
@@ -1586,10 +1682,6 @@
           "invisible_playwright/sync_api.py": "5518a317416b855387b6834078858a1285d535b611f3af7e238d4433dc24d730"
         }
       },
-      "wheel_filename": "invisible_playwright-0.4.9-py3-none-any.whl"
-    },
-    {
-      "published_at": "2026-08-01T17:36:39Z",
       "sdist": {
         "digest": "760f589ca3140b60b58110770e811c56471fd01bf3c616d4fbee514bf91189ac",
         "files": {
@@ -1673,44 +1765,7 @@
           "tests/vendor/fingerprintjs-5.2.0.umd.min.js": "a8de5ead580c42d2e2b01a5752aa08da510852230971aa18554d67cd5de5775b",
           "tests/vendor/fpscanner-1.0.6.es.js": "5680b88e6075fceab5343d31b43dcb1892a98cff072d37084efdd244fd2cb809"
         }
-      },
-      "sdist_filename": "invisible_playwright-0.5.0.tar.gz",
-      "seal_tag": "",
-      "version": "0.5.0",
-      "wheel": {
-        "digest": "fda2ef8c3b00372762230b6b49f8ea6614e2de9d068d9c7d9a4e3e01b5d7dd8f",
-        "files": {
-          "<dist-info>/METADATA": "1106fded5ed4a48c17046cf17641baedbeb9779aeaf6b9967e19dc11cb195f5d",
-          "<dist-info>/WHEEL": "942926c567d0b1273d09f20295879abd37507845f6b683eab9f87d808df91100",
-          "<dist-info>/entry_points.txt": "f07941bc791c2c31375755627886bfe11ba2d83df7b2522064f84be8299ee3a3",
-          "<dist-info>/licenses/LICENSE": "2abb03e63a96918967f383cbc36e3faefe10a47ae20b2cab43212ef965e02f96",
-          "invisible_playwright/__init__.py": "387be8785becddc85aa4bc75363dce58dda608fefe63033f5e3889744043455a",
-          "invisible_playwright/__main__.py": "c6cd277050ead2d11c98b7cbab91ada7d19e495c95e4c86de1f9aaf2b2051d38",
-          "invisible_playwright/_behaviour.py": "bf00751fa077f5389f46571e56c90de21e5c874308d371959e73136b720a62a7",
-          "invisible_playwright/_cursor.py": "fc0115ff8f3aa1ddd9af88768c4761e43003fc8ced83e9fd097d73ca4116f432",
-          "invisible_playwright/_engine.py": "9e09ddf8fa539fedf13f49a51ffe9111af9f9e40208e5bf31f687ccebbf2de0c",
-          "invisible_playwright/_fpforge/__init__.py": "f80aaf6cbd7c69878c72929f0e38f724d1d51b32477485f3266e5e364778efed",
-          "invisible_playwright/_geo.py": "6cb7a453ae392bd4724f2d508a7f697d1189d9e05b833cc4b36d70069d18225f",
-          "invisible_playwright/_headless.py": "ceaf85c0a32f92c8c8489fa11756b538feddecc021d4ae22782927171429c2b9",
-          "invisible_playwright/_motion.py": "9a87bc7d687bbfdd8659bb52459bf9b84634d53df21fbc3694007245e57f7fdb",
-          "invisible_playwright/_pin.py": "b8df78cf6e92503ee122f7ebdcd2afe98036ea25000c8dc8efa87b46fdd50c55",
-          "invisible_playwright/_proxy.py": "dadfd7ad17246521c78c2e67bc60e31e3fc854dcb0924c4067f5d49a9662722e",
-          "invisible_playwright/_reaper.py": "a2dbe665cf25ae71ea83f4f6c63f739bac42d4b6eb5859c66938d498086a647c",
-          "invisible_playwright/_recaptcha_seed.py": "581b926e7eae254296cf3a1c5d5304e33bccde4fee362a07a31c1f5a9655cd24",
-          "invisible_playwright/_session.py": "77d0d4b6fc7cbca78f7a2c54bec78adba198a5f1be50183418d42ececfd17ae2",
-          "invisible_playwright/_webgl_personas.py": "bdb1c0d79297f9dc3177f8f530a655bd77b473a1838c4829dc48283e30c380a8",
-          "invisible_playwright/async_api.py": "78a00aab1618fd506961b97e6ba339e0bc90abfca02fffdc1faba14a6884b5a8",
-          "invisible_playwright/cli.py": "bb9e494dd03fb8980a917e6c41df2b073bc109238bdb7a2c70dbf121c9e25de2",
-          "invisible_playwright/config.py": "5f48dfcd4cb757787af5c8ff37f2c7a6683ee3f2b4500182dd4c2dd0722a38f3",
-          "invisible_playwright/constants.py": "6be639754df221f5c41fdbe343ae35e9ea4c83297e98f6566250549f19d6c121",
-          "invisible_playwright/download.py": "416db5d579525d7f0802064d8a6929126c6b085dbe0f1c298f02a7a349f000d9",
-          "invisible_playwright/launcher.py": "ac8a1fba987fe58ac813b6ab96d59f47c28b40c89ab06a68907fd7ab1234e72d",
-          "invisible_playwright/prefs.py": "3fabf6f07d9f85cd5ea5bb901dfeedc2c3a41b8e199acd0dc25a11c473004298",
-          "invisible_playwright/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "invisible_playwright/sync_api.py": "5518a317416b855387b6834078858a1285d535b611f3af7e238d4433dc24d730"
-        }
-      },
-      "wheel_filename": "invisible_playwright-0.5.0-py3-none-any.whl"
+      }
     },
     {
       "version": "0.6.0",
