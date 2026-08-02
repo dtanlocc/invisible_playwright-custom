@@ -488,3 +488,73 @@ def test_the_published_version_has_a_github_release():
                     f"{len(live)} versions, clean up to there. Set GITHUB_TOKEN to "
                     f"raise the rate limit")
 
+
+@pytest.mark.e2e
+def test_the_changelog_documents_every_version_it_claims_to_cover():
+    """A changelog that stops four releases ago is worse than none.
+
+    Found 2026-08-02 with the file sitting at [0.4.7] while 0.4.8, 0.4.9, 0.5.0
+    and 0.6.0 were on the index - and 0.5.0 is the release that cut the CLI from
+    six commands to two, which is the single most breaking change this package
+    has shipped. A reader upgrading across it had nothing to read.
+
+    This is the sibling of the release-page walk above and the same defect
+    shape: a record that is written by hand, consulted by users, and gated by
+    nothing drifts silently, because nothing downstream breaks when it does.
+
+    Bounded from BELOW by the file itself. The changelog does not reach back to
+    the first release and does not need to; what it must not do is stop short of
+    the present. So the rule is: every version on the index at or above the
+    oldest one documented must have a heading, and no heading may name a version
+    the index has never served.
+
+    Dates are compared too, because a heading dated by the person writing it
+    rather than by the upload is a small lie that a reader can check: this file
+    dated 0.6.0 a day late on its first reconstruction, and PyPI is the record
+    that settles it.
+    """
+    import json
+    import re
+    import urllib.request
+
+    changelog = (Path(__file__).resolve().parents[1] / "CHANGELOG.md").read_text(
+        encoding="utf-8")
+    documented = {m.group(1): m.group(2) for m in re.finditer(
+        r"(?m)^##\s*\[(\d+\.\d+\.\d+)\]\s*-\s*(\d{4}-\d{2}-\d{2})\s*$", changelog)}
+    assert documented, "no `## [X.Y.Z] - YYYY-MM-DD` heading found at all"
+
+    with urllib.request.urlopen(
+            "https://pypi.org/pypi/invisible-playwright/json", timeout=30) as resp:
+        releases = json.load(resp)["releases"]
+    published = {v: min(f["upload_time_iso_8601"] for f in files)[:10]
+                 for v, files in releases.items() if files}
+
+    def key(v):
+        return tuple(int(p) for p in v.split("."))
+
+    floor = min(documented, key=key)
+    expected = {v for v in published if key(v) >= key(floor)}
+
+    # A documented version the index never served is not automatically wrong:
+    # this package had nine releases on GitHub before it went to PyPI on
+    # 2026-07-26, and their entries are real history. Only a heading ABOVE the
+    # first published version can be an invention - below it, the index simply
+    # has nothing to say. The first draft of this gate flagged all fifteen.
+    first_published = min(published, key=key)
+    missing = sorted(expected - set(documented), key=key)
+    invented = sorted((v for v in set(documented) - set(published)
+                       if key(v) > key(first_published)), key=key)
+    misdated = sorted((v, documented[v], published[v]) for v in
+                      set(documented) & set(published) if documented[v] != published[v])
+
+    problems = []
+    if missing:
+        problems.append(
+            f"published and undocumented: {missing}. The changelog starts at "
+            f"{floor}, so everything from there up is in scope")
+    if invented:
+        problems.append(f"documented and never published: {invented}")
+    if misdated:
+        problems.append("dated differently from the upload: " + ", ".join(
+            f"{v} says {said} the index says {real}" for v, said, real in misdated))
+    assert not problems, "CHANGELOG.md: " + "; ".join(problems)
