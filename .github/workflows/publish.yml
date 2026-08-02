@@ -115,6 +115,14 @@ jobs:
           fi
           echo "::notice::invisible-core $WANT is on the index"
 
+      - name: arm the pre-push gates
+        # The suite asserts core.hooksPath is set, and a fresh checkout has no
+        # hooks armed. ci.yml does this and publish.yml did not, so the gate job
+        # went red on `test_the_hooks_are_armed_in_this_clone` while every other
+        # workflow was green: the same defect the 0.4.8 changelog records, in the
+        # one workflow that had never run.
+        run: python scripts/install_hooks.py
+
       - name: the suite
         # A tag push does not trigger the ordinary test workflow, which runs on
         # branches and pull requests. Without this, tagging is a way to publish
