@@ -5,6 +5,7 @@
   <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/firefox.svg" alt="Firefox 151.0"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/stars.svg" alt="GitHub stars"></a>
   <a href="https://github.com/feder-cr/invisible_firefox/releases/tag/usage-counter"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/launches.svg" alt="browser launches"></a>
+  <a href="https://t.me/scrapingtheweb"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/telegram.svg" alt="Telegram: join the group"></a>
 </p>
 
 <div align="center">
@@ -18,10 +19,6 @@
 Python, MIT, and it passes every bot detection test.</h3>
 
 ![invisible_playwright - 5/5 detection suites passed](https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/screenshots/hero.gif)
-
-There is a Telegram group for people working on this: browser fingerprinting,
-profile setup, proxies, and what actually works in practice.
-[Join here](https://t.me/scrapingtheweb).
 
 ## How it works
 
