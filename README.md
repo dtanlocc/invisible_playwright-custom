@@ -1,7 +1,3 @@
-[![Sponsored by GitAds](https://gitads.dev/v1/ad-serve?source=feder-cr/invisible_playwright@github)](https://gitads.dev/v1/ad-track?source=feder-cr/invisible_playwright@github)
-
-<!-- GitAds-Verify: 787HB3AYTV66U4DWORC86V2KW4VXDIGY -->
-
 <p>
   <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/blob/main/LICENSE"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/license.svg" alt="License: MIT"></a>
@@ -22,6 +18,10 @@
 Python, MIT, and it passes every bot detection test.</h3>
 
 ![invisible_playwright - 5/5 detection suites passed](https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/screenshots/hero.gif)
+
+There is a Telegram group for people working on this: browser fingerprinting,
+profile setup, proxies, and what actually works in practice.
+[Join here](https://t.me/scrapingtheweb).
 
 ## How it works
 

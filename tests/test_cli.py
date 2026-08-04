@@ -150,3 +150,67 @@ def test_a_removed_subcommand_is_refused_rather_than_silently_ignored():
         with pytest.raises(SystemExit) as exc:
             cli.main([gone])
         assert exc.value.code != 0, gone
+
+
+@pytest.mark.unit
+def test_no_test_invokes_the_cli_with_arguments_it_rejects():
+    """A test that calls a removed flag is a red workflow with a green suite.
+
+    Measured 2026-08-04. `test_release_e2e.py` still ran `fetch --force` three
+    days after `--force` went with four of the six subcommands in 0.5.0. Every
+    run of that file exited 2 on "unrecognized arguments" - and the DEFAULT suite
+    stayed green the whole time, because that test is `e2e`-marked and therefore
+    deselected. One stale argument, three red workflows: `e2e` on main, and
+    `user-install` on two release tags.
+
+    A sibling guard already forbade `--force` in the engine-mismatch MESSAGE
+    (`test_seal_wire_version.py`). It checked what the package TELLS a user to
+    run and never what the tests themselves run, so the removed flag survived in
+    the one place that actually executes it.
+
+    This validates every invocation against the real parser rather than against a
+    list of removed names. A list would have to be maintained by the same person
+    who forgot to update the call site.
+    """
+    import argparse
+    import pathlib
+    import re
+
+    parser = cli.build_parser()
+    tests_dir = pathlib.Path(__file__).resolve().parent
+    # Matches a subprocess argv of the form -m invisible_playwright <args>.
+    # No example of one is written here: the first version put a sample
+    # invocation in a comment on this line, and the scan flagged its own comment.
+    # That is the defect `18-gate-inventory.md` records about the RFC 5737 gate,
+    # which flagged its own docstring the day it was written.
+    call = re.compile(
+        r'"-m",\s*"invisible_playwright"\s*,\s*((?:"[^"]*"\s*,?\s*)+)')
+
+    problems = []
+    for path in sorted(tests_dir.rglob("test_*.py")):
+        if "playwright-upstream" in path.parts:
+            continue
+        # Comments stripped first, for the reason above.
+        source = "\n".join(
+            line.split("#", 1)[0]
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines())
+        for match in call.finditer(source):
+            args = re.findall(r'"([^"]*)"', match.group(1))
+            args = [a for a in args if a]
+            if not args:
+                continue
+            line = source[:match.start()].count("\n") + 1
+            try:
+                parser.parse_args(args)
+            except SystemExit as exit_:
+                # argparse exits 0 for --help and --version, which are valid
+                # invocations, and 2 for a parse error. Only the second is a
+                # defect. The first version of this gate treated both alike and
+                # reported `--help` as broken.
+                if exit_.code:
+                    problems.append(f"{path.name}:{line} -> {args}")
+
+    assert not problems, (
+        "these tests invoke the CLI with arguments its own parser refuses, so "
+        "they exit 2 wherever they actually run:\n  " + "\n  ".join(problems)
+        + "\nThe surface is `fetch` and `version`, and `fetch` takes nothing.")

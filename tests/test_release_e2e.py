@@ -259,7 +259,17 @@ def test_fetch_against_live_release(clean_venv: Path, isolated_cache_env: dict):
         RuntimeError: no SHA256 for {asset} in checksums.txt
     """
     out = _run(
-        [str(clean_venv), "-m", "invisible_playwright", "fetch", "--force"],
+        # NOT `fetch --force`: that flag went with four of the six subcommands
+        # in 0.5.0, and this line kept it, so every run of this file exited 2 on
+        # "unrecognized arguments" while the default suite stayed green - the test
+        # is e2e-marked, so only the two workflows that actually run it saw the
+        # red. One stale argument, three red workflows.
+        #
+        # Nothing is lost by dropping it. `fetch` verifies every cached tree
+        # against the seal on every run, which is what --force was for, and this
+        # test builds a fresh venv with an isolated cache root, so there is no
+        # warm tree to force past.
+        [str(clean_venv), "-m", "invisible_playwright", "fetch"],
         env=isolated_cache_env,
         timeout=900,  # 110 MB download + extract on slow connections
     )
