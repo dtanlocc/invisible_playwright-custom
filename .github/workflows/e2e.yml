@@ -63,4 +63,12 @@ jobs:
       - name: Fetch the published firefox binary
         run: echo "FF=$(python -m invisible_playwright fetch | tail -1)" >> "$GITHUB_ENV"
       - name: Run the full e2e suite under a virtual display
-        run: xvfb-run -a python scripts/run_e2e.py "$FF"
+        # PYTHONUNBUFFERED, and it is not a nicety. Without it Python block-buffers
+        # stdout when it is a pipe, and this step printed NOTHING for 39 minutes
+        # before the 40-minute timeout killed it on 2026-08-04: a run with no
+        # verdict and no way to tell where it went. The variable is inherited by
+        # the pytest subprocess run_e2e.py spawns, which is where the output
+        # actually comes from.
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: xvfb-run -a python -u scripts/run_e2e.py "$FF"
