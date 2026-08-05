@@ -94,8 +94,9 @@ That last point deserves more attention than it gets. A stealth build is only as
 good as the plausibility of what it claims. If the GPU string it reports is a
 software rasterizer, the browser has just announced it is running on a machine with
 no graphics hardware, and no amount of C++ patching elsewhere undoes that. I know
-because I found exactly that in my own persona pool: a small share of seeds were
-handing out the Windows software renderer as if it were a graphics card. Real data
+because I found exactly that in this project's own early data: a small share of
+profiles were handing out the Windows software renderer as if it were a graphics
+card. Real data
 sampled from real users contains servers, and if you sample naively you inherit
 them.
 

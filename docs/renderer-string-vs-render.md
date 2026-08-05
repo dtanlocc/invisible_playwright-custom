@@ -18,14 +18,14 @@ GPU draws.**
 ## What happened
 
 A commercial fingerprinting service was returning `tampering = True` on our realness
-gate. The seed under test had an NVIDIA GTX 980 persona, so the first hypothesis was
-obvious: something about that persona is wrong, probably the renderer string bucket.
+gate. The seed under test reported an NVIDIA GTX 980, so the first hypothesis was
+obvious: something about that GPU value is wrong, probably the renderer string.
 
 That hypothesis was wrong, and three measurements killed it.
 
-**A seed sweep.** Ten seeds on the same build, spanning all three vendor buckets:
-four NVIDIA, three AMD, three Intel. Ten out of ten flagged. Not persona-specific,
-then. Whatever it was applied to every identity equally.
+**A seed sweep.** Ten different seeds on the same build, each reporting a different
+GPU. Ten out of ten flagged. Not value-specific, then. Whatever it was applied to
+every identity equally.
 
 **An A/B across two builds.** The previous engine release and the current one, same
 rate. Not a regression introduced by the newer build.
@@ -34,7 +34,7 @@ rate. Not a regression introduced by the newer build.
 came back `tampering = False`, with the underlying model score around 0.15 to 0.17,
 well under the threshold that raises the flag.
 
-Same code, same personas, same detector. Clean on one host, flagged on the other.
+Same code, same seeds, same detector. Clean on one host, flagged on the other.
 
 ## The actual cause
 
@@ -139,12 +139,12 @@ at a time, and include the host operating system as an axis. That is what took u
 the wrong answer to the right one.
 
 **See also:** [WebGL renderer strings](webgl-renderer-strings.md), for what those
-strings encode and the software-rasterizer entry we shipped in our own persona pool,
+strings encode and why a software rasterizer is a giveaway,
 and [why headless renders different fonts](headless-fonts-differ.md), which is the
 same value-versus-output problem on a different surface.
 
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright).
-The measurements above are ours: ten seeds across three vendor buckets, two engine
+The measurements above are ours: ten seeds, two engine
 builds, and two host operating systems. The wrong first hypothesis is ours too.*
