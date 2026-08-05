@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-08-05
+
+### Changed
+
+- Pins `invisible-core` 18.13.0, which puts an upper bound in wall-clock time on the engine download. A `requests` timeout is per socket operation, so a connection delivering a byte every 59 seconds satisfied it forever and the transfer had no total limit; `INVISIBLE_DOWNLOAD_DEADLINE` (default 1800s) bounds it, and the refusal names the deadline, the elapsed time and the bytes received. Set it to 0 on a genuinely slow link.
+- README: the Telegram invitation moved to the top and the status badges to the bottom.
+
 ## [0.6.0] - 2026-08-01
 
 ### Fixed
