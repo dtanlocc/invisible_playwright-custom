@@ -1,6 +1,6 @@
 ---
 title: "How to scrape vacation rental listings with Playwright"
-description: "Drive the date and guest inputs, wait for the fee-inclusive total XHR, and iterate date windows per property without tripping the availability rate limits."
+description: "Scrape vacation rental listings with Playwright: drive the date and guest inputs, read the fee-inclusive total from the pricing XHR, and iterate date windows."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 32
@@ -8,6 +8,13 @@ nav_order: 32
 
 
 # How to scrape vacation rental listings with Playwright
+
+To scrape vacation rental listings with Playwright, drive a listing's date and guest
+inputs so the site prices a concrete stay, then read the fee-inclusive total from the
+pricing XHR response rather than the headline number on the card. Because a full picture
+of one property means pricing many date windows, run the whole sweep under one fixed
+`seed`, so the burst looks like a single person comparing dates instead of a swarm of new
+devices.
 
 Most people scrape a rentals search the way they scrape a product grid: load the
 results, read the headline price off each card, paginate, done. On a vacation-rental
@@ -127,13 +134,15 @@ listings it becomes a burst of thousands of availability requests in a short spa
 An availability endpoint watches exactly that shape. A thousand pricing calls are not
 suspicious on their own, but a thousand pricing calls where each one appears to come from
 a brand-new device is. The default in this library is a distinct fingerprint per session
-(GPU, audio, fonts, screen, roughly 400 fields), which is what you want when sessions
-should look unrelated. For a pricing sweep it is the opposite of what you want: it turns
+(GPU, audio, fonts, screen and hundreds of other fields), which is what you want when
+sessions should look unrelated. For a pricing sweep it is the opposite of what you want: it turns
 one researcher reading one property's calendar into what looks like a coordinated swarm.
 
 Passing a fixed `seed` makes the whole burst one consistent browser. Every window, every
 guest count, every listing in the sweep is priced by the same machine, which is what a
-real person comparing dates actually looks like.
+real person comparing dates actually looks like. Fixing the identity handles who the
+requests look like; it does not slow them down, so pair it with [deliberate pacing of the
+request rate](how-to-rate-limit-your-scraper-playwright.md) when the sweep is large.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -178,7 +187,9 @@ The results side of a rentals site paginates like real estate rather than like a
 the list is bound to a map, and what you see is what falls inside the current map bounds,
 capped at a fixed number of pins per view. "Next page" often means "move or shrink the
 viewport", not "increment an offset". If you only click through the paginator you will
-silently miss every listing the map never brought into view.
+silently miss every listing the map never brought into view. This map-bound behaviour has
+[its own walkthrough for scraping a map-based search](how-to-scrape-map-based-search-playwright.md);
+the short version for a rentals sweep is below.
 
 The robust approach is to drive the search by geographic bounds and walk a grid of
 smaller boxes, collecting listing IDs into a set as you go, so overlaps deduplicate

@@ -1,6 +1,6 @@
 ---
 title: "How to scrape a site that blocks headless browsers"
-description: "Headless mode itself is rarely the block. This is a tutorial for launching headless with a real fingerprint, then fixing the GPU, font and screen tells that actually cause it."
+description: "Headless mode is rarely the block. Launch headless with a real fingerprint, then fix the GPU, font and screen tells that actually cause it, on your deploy box."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 2
@@ -8,6 +8,22 @@ nav_order: 2
 
 
 # How to scrape a site that blocks headless browsers
+
+To scrape a site that blocks headless browsers, launch headless with a real,
+seed-consistent fingerprint and then fix the machine tells that travel with a
+headless server: a software GPU, a font set that belongs to no real desktop, a
+screen size no monitor produces, and a missing audio device. Headless mode itself is
+rarely the signal a site checks, and switching to headful on the same server leaves
+every one of those tells in place.
+
+At a glance, these are the tells that carry code fixes here, and the fix that holds for
+each versus the one that backfires:
+
+| Tell | Why it appears in headless | The fix that holds (and the one that backfires) |
+|---|---|---|
+| Software GPU in the WebGL renderer string | No graphics hardware, so the machine falls back to a software rasterizer | Give the host a real GPU, or stay honest; faking the string makes the pixels contradict it |
+| A font set that belongs to no real desktop | A bare container has no fontconfig to resolve or substitute a requested font | A bundled cross-platform font stack; installing more fonts is a stronger tell, not a weaker one |
+| Screen and viewport numbers no monitor produces | Headless has no monitor, so `availHeight == height` claims a desktop with no taskbar | Let the seeded profile derive the screen; setting your own viewport recreates the tell |
 
 The instinct, once a site starts serving a different page in headless mode, is to
 switch to headful and hope the resources are worth it. That fixes less than people
@@ -22,6 +38,10 @@ a real fingerprint, confirm the page loads the way a human's would, then walk th
 checklist of machine tells that are the real cause, with code for each one.
 
 ## Launch headless, and check what you actually got
+
+Launching headless takes one call, and the object you get back is a standard Playwright
+`Browser` with a real fingerprint already applied. Start here, then verify what the page
+actually rendered before assuming the mode was the block.
 
 ```python
 from invisible_playwright import InvisiblePlaywright

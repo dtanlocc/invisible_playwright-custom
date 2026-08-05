@@ -1,6 +1,6 @@
 ---
 title: "How to scrape data behind a login with Playwright"
-description: "Log in once with a fixed seed, save storage_state, and reuse it on every later run instead of automating the login form again, which is the highest-scrutiny flow on most sites."
+description: "Log in once with a fixed seed, save storage_state, and reuse it every run. The login form is the highest-scrutiny flow on most sites - skip it, don't script it."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 5
@@ -8,6 +8,12 @@ nav_order: 5
 
 
 # How to scrape data behind a login with Playwright
+
+To scrape a page behind a login with Playwright, log in once, save the session as
+`storage_state`, and reuse it on every later run instead of scripting the login form
+again. That single change moves your automation off the highest-scrutiny flow on most
+sites and onto the ordinary path a returning visitor already takes - a saved cookie,
+not a retyped password.
 
 The obvious way to scrape a page that requires an account is to script the login form
 every run: fill the username, fill the password, click submit, then go get the data.
@@ -40,7 +46,8 @@ imitating unusual behaviour, it is doing what most non-first-time sessions alrea
 Log in interactively or with a script you only run once, then capture the context's
 `storage_state` immediately afterward. This is standard Playwright - the object
 `InvisiblePlaywright` returns is a real `Browser`, so nothing about session capture is
-special-cased:
+special-cased, and the API-level details are in
+[save and reuse a login with storage_state](save-reuse-login-storage-state-playwright.md):
 
 ```python
 from invisible_playwright import InvisiblePlaywright

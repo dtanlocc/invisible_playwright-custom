@@ -9,6 +9,11 @@ nav_order: 16
 
 # How to wait for content to load in Playwright
 
+To wait for content to load in Playwright, wait for the specific signal you actually
+need - a specific element with `wait_for_selector`, or a condition with
+`wait_for_function` - not for the network to go quiet with `networkidle`, and never for a
+fixed `time.sleep`. The right wait is a correctness decision, not a speed one.
+
 Waiting in Playwright is not a style preference. Pick the wrong wait and you do not get
 a slower script, you get a wrong one: a handle read against a document that has already
 gone, a page scraped before its content exists, an intermittent error that only appears
@@ -85,7 +90,9 @@ page.wait_for_load_state("networkidle")   # may never settle; waits out the time
 
 `networkidle` is a signal about the network, and what you almost always care about is a
 signal about the content. Those are different questions, and the next two waits answer
-the one you actually have.
+the one you actually have. When the signal you want is one specific network response
+rather than an element or a condition, there is a targeted wait for exactly that, covered
+in [wait for a specific API response in Playwright](wait-for-specific-api-response-playwright.md).
 
 ## wait_for_selector: wait for the thing you need
 

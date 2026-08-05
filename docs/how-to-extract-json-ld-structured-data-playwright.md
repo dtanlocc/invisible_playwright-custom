@@ -9,6 +9,13 @@ nav_order: 57
 
 # How to extract JSON-LD structured data with Playwright
 
+To extract JSON-LD structured data with Playwright, select every
+`script[type='application/ld+json']` block, read the text of each with
+`all_text_contents()`, and `json.loads` it; then flatten any `@graph` array and filter
+by `@type` instead of trusting document order. It is less fragile than chasing CSS
+selectors, and an empty result is a useful signal that you were handed a blocked or
+simplified page rather than the real one.
+
 Most scraping guides teach you to chase CSS selectors down through a layout that
 changes the week after you ship. There is often a cleaner record sitting on the same
 page, already structured, already typed, put there by the site itself for search
@@ -21,15 +28,24 @@ pipeline rather than be silently skipped.
 
 ## Why JSON-LD beats scraping the DOM
 
-Many pages ship the clean record you actually want inside one or more
-`<script type="application/ld+json">` blocks. It is a JSON object describing the page
-as structured data: a product with its price and availability, an article with its
-author and publish date, an event with its start time. The site emits it so that
-search and social crawlers can read the page without guessing, which means you get to
-read it the same way.
+JSON-LD beats DOM scraping because you parse a stable, typed JSON contract instead of
+walking markup that re-renders without warning. Many pages ship the clean record you
+actually want inside one or more `<script type="application/ld+json">` blocks: a JSON
+object describing the page as structured data, such as a product with its price and
+availability, an article with its author and publish date, or an event with its start
+time. The site emits it so that search and social crawlers can read the page without
+guessing, which means you get to read it the same way.
 
-The advantage over DOM scraping is that you parse JSON instead of walking markup. A
-class name changes, a wrapper `div` moves, a component re-renders with different
+The difference in practice:
+
+| | DOM scraping | JSON-LD extraction |
+|---|---|---|
+| What you read | CSS/XPath selectors over rendered markup | A typed JSON object the site publishes |
+| Breaks when | A class renames, a `div` moves, a component re-renders | The site changes its published schema (rare, documented) |
+| Shape | Arbitrary, per-site layout | `@type` nodes, sometimes wrapped in `@graph` |
+| Empty result means | The layout probably moved | You likely did not get the real page |
+
+A class name changes, a wrapper `div` moves, a component re-renders with different
 attributes, and your selector-based extractor breaks. The JSON-LD block is a contract
 with search engines, so it changes far less often and, when it does, it changes in a
 documented shape rather than an arbitrary one.
@@ -40,8 +56,11 @@ block and assume it is yours. You filter by type.
 
 ## Extract every ld+json block with Playwright
 
-Switching from plain Playwright is a two-line change, and every standard method still
-works, because the object you get back is a real Playwright `Browser`:
+To pull every JSON-LD block, select `script[type='application/ld+json']`, read all
+matches in one call with `all_text_contents()`, and `json.loads` each block, skipping
+any that will not parse. Switching from plain Playwright is a two-line change, and
+every standard method still works, because the object you get back is a real Playwright
+`Browser`:
 
 ```python
 import json
@@ -124,8 +143,11 @@ sit first in the markup.
 
 ## An empty extraction is a detection signal, not a missing field
 
-Here is the part that matters beyond parsing, and it is the reason this technique
-pairs so well with a browser that renders like a real one.
+An empty JSON-LD result usually means you were served a challenge or simplified page,
+not that a field moved. The structured block is emitted only for the full, indexable
+page, so its absence is a detection signal worth stopping on rather than skipping past.
+That is also the reason this technique pairs so well with a browser that renders like a
+real one.
 
 The JSON-LD is emitted for the full, real page. A challenge page, an interstitial, or
 a stripped-down variant served to something a site thinks is automated does not carry

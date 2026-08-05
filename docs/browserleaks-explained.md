@@ -1,6 +1,6 @@
 ---
 title: "What BrowserLeaks actually tests, surface by surface"
-description: "A page-by-page tour of what BrowserLeaks measures - canvas hash, WebGL, WebRTC, fonts, ClientRects - why it is a raw-value inspector rather than a scorer, and why the panel people fear is rarely the one that matters."
+description: "What BrowserLeaks tests, surface by surface: canvas hash, WebGL, WebRTC, fonts, ClientRects. Why a unique panel is not a fail, and the miss it never flags."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 7
@@ -25,7 +25,7 @@ and how to read the tool for the failure it will not point at.
 
 ## A raw-value inspector, not a scorer
 
-The distinction that makes BrowserLeaks useful, and the one people miss.
+BrowserLeaks reads each browser surface and prints its raw value; it does not judge whether the values are coherent. It shows the canvas hash, the WebGL block, the font list and how rare each is in its sample, but it never cross-checks one surface against another and never hands you a trust score. That is the distinction that makes it useful, and the one people miss.
 
 [CreepJS asks whether you are lying](creepjs-explained.md): it takes a clean copy of the
 built-ins, walks descriptors and prototypes, and cross-checks every surface against

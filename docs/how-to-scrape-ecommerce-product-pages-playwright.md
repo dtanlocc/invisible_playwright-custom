@@ -1,6 +1,6 @@
 ---
 title: "How to scrape e-commerce product pages with Playwright"
-description: "Product price and stock live in a variant XHR, not the served HTML. Select each variant, wait for the price response, and cross-check the Product JSON-LD offers."
+description: "Product price and stock live in a variant XHR, not the served HTML. Select each variant, wait for the price response, and cross-check the Product JSON-LD."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 27
@@ -8,6 +8,12 @@ nav_order: 27
 
 
 # How to scrape e-commerce product pages with Playwright
+
+To scrape an e-commerce product page with Playwright, drive a real browser, select each
+variant, wait for the offers XHR that the selection fires, and read the price and stock
+from that response, then cross-check it against the page's Product JSON-LD. The price you
+want is rarely in the served HTML: it is computed by client JavaScript after load, and a
+variant's price does not exist until you pick the variant.
 
 The mistake that wastes the most time on a product page is assuming the price is in
 the HTML you were served. On a lot of storefronts it is not. The number you can see in
@@ -21,6 +27,11 @@ a second opinion. It uses stock Playwright throughout, driving a browser that ru
 variant scripts instead of guessing at them.
 
 ## Why the price is not in the HTML
+
+The price is missing from the served HTML because the storefront computes the base price
+in the browser after load, and a variant's price is fetched only once you select that
+variant. An HTTP client that never runs the page's JavaScript therefore reads a template,
+not a number.
 
 Open a product page, right click, view source, and search for the price. Frequently it
 is not there at all, or the number in the raw HTML is a placeholder that the rendered
@@ -40,6 +51,14 @@ So the correct unit of work is not "load the page and read a number". It is "cho
 variant, let the request happen, and read the response". That requires something that
 runs the site's JavaScript, which is exactly what a browser does and an HTTP library
 does not.
+
+There are three places a product number can live, and they are not equally trustworthy:
+
+| Where the number lives | What you get | How fresh | Best use |
+|---|---|---|---|
+| Variant offers XHR | Price, stock and SKU for the variant you selected | Live, computed per selection | The number to ship |
+| Price node in the DOM | Base price after client JS fills it | Live for the default variant | When there is no variant to pick |
+| Product JSON-LD | Structured base offer embedded for search engines | As fresh as the render, can lag | Cross-check, not source of truth |
 
 ## Select the variant and wait for the price XHR
 
@@ -183,8 +202,8 @@ a stealth point, it is a correctness point: requests-only scraping reads the wro
 here even when nothing is blocking you.
 
 **A fixed seed keeps the crawl one machine.** Pass `seed=42` and every fingerprint field
-the identity implies (GPU, canvas hash, audio context, fonts, screen, on the order of
-400 fields) comes back identical on every run. That matters mid-crawl for a plain
+the identity implies (GPU, canvas hash, audio context, fonts, screen, hundreds of
+fields in all) comes back identical on every run. That matters mid-crawl for a plain
 reason: the offers endpoint you hit forty times in a row sees one consistent visitor
 rather than a machine whose fingerprint drifts between SKUs. It also matters between
 runs, because a crawl that regresses can be replayed as the exact same machine instead
@@ -252,9 +271,11 @@ you still have to pace the crawl and rotate exits or you get rate limited.
 
 ## Sources
 
-- Playwright's documented `expect_response`, `eval_on_selector_all` and
-  `wait_for_function`, used here exactly as upstream defines them.
-- The schema.org Product and Offer vocabulary that storefronts embed as JSON-LD.
+- Playwright's documented [`expect_response`, `eval_on_selector_all` and
+  `wait_for_function`](https://playwright.dev/python/docs/api/class-page), used here
+  exactly as upstream defines them.
+- The schema.org [Product](https://schema.org/Product) and
+  [Offer](https://schema.org/Offer) vocabulary that storefronts embed as JSON-LD.
 - This project's own measurements of product pages whose price and stock arrive only in
   a variant XHR, with the base price written by client JavaScript after load.
 

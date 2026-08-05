@@ -1,6 +1,6 @@
 ---
 title: "window.devicePixelRatio: the pref that spoofs it"
-description: "How to set window.devicePixelRatio in Firefox so it is not a bot tell: the about:config pref that actually drives it, the plausible pref keys that do nothing, and the three values it must agree with."
+description: "Set window.devicePixelRatio in Firefox with the layout.css.devPixelsPerPx string pref, why plausible pref keys do nothing, and the three values it must match."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 22
@@ -8,6 +8,12 @@ nav_order: 22
 
 
 # window.devicePixelRatio: the pref that spoofs it
+
+In Firefox, `window.devicePixelRatio` is spoofed by one about:config pref,
+`layout.css.devPixelsPerPx`, set as a string such as `"1.25"`. The keys that live in a
+`screen` or a `dpr` namespace look right but are never read, so setting one changes
+nothing. Getting the value to move is the easy half; keeping it consistent with the two
+other places a device pixel ratio shows up is what keeps a session unremarkable.
 
 There is a whole class of Firefox device-pixel-ratio spoofs that share one property:
 they set a pref, the code runs without error, and `window.devicePixelRatio` does not

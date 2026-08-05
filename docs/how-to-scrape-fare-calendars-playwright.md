@@ -1,6 +1,6 @@
 ---
 title: "How to scrape flexible-date fare calendars with Playwright"
-description: "Scrape a flexible-date fare calendar with Playwright by waiting for each month's price XHR before reading the grid, then paging forward across a seed-stable sweep."
+description: "Scrape a flexible-date fare calendar with Playwright: wait for each month's price XHR before reading the grid, then page forward across a seed-stable sweep."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 37
@@ -9,14 +9,17 @@ nav_order: 37
 
 # How to scrape flexible-date fare calendars with Playwright
 
+To scrape a flexible-date fare calendar with Playwright, wait for each month's price XHR
+to land before you read the grid, wrap every month-turn's click in that same wait, and run
+the whole multi-month sweep on one pinned identity so the host sees one browser instead of
+a new device on every turn. A screenshot-then-parse approach fails here because it captures
+a grid that is still filling in.
+
 A flexible-date fare calendar looks like a static month of prices, and it is the
 opposite. The grid is a shell that arrives empty, each day cell gets its number from a
-separate request, and turning to the next month fires a fresh batch. If you screenshot
-the page and parse the image, you capture a grid that is still filling in.
-
-This page is the order that actually works: wait for a month's price fetch to land
-before you read the cells, then page forward one month at a time, and treat a multi-month
-sweep as one browser rather than a fresh device on every month-turn.
+separate request, and turning to the next month fires a fresh batch. The unit of work is
+not "the page loaded" but "this month's price fetch came back", and the rest of this page
+is that order in code.
 
 ## Why the calendar is not in the served HTML
 

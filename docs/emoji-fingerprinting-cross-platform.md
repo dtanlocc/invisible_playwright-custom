@@ -1,6 +1,6 @@
 ---
 title: "Emoji fingerprinting: why emoji look the same on any OS"
-description: "Emoji usually leak the host OS because every platform ships a different emoji font, yet Firefox rasterises colour emoji from its own bundled font, so they stay identical everywhere."
+description: "Emoji usually leak the host OS, since each platform ships its own emoji font. Firefox draws colour emoji from a bundled font, so they look identical everywhere."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 10
@@ -9,12 +9,14 @@ nav_order: 10
 
 # Emoji fingerprinting: why emoji look the same on any OS
 
-Emoji are one of the oldest operating-system tells there is. The same code point
-is drawn from a different font on each platform, and those fonts do not agree on a
-single pixel: Windows renders from Segoe UI Emoji, macOS from Apple Color Emoji,
-Android from Noto Color Emoji. Paint one emoji into a canvas, hash the pixels, and
-you have a signal that separates the three without asking a single JavaScript
-question about the platform.
+Emoji look the same on any OS in Firefox because Firefox draws colour emoji from
+its own bundled font rather than the platform's, so the render is host-independent.
+That is worth explaining, because emoji are otherwise one of the oldest
+operating-system tells there is. The same code point is drawn from a different font
+on each platform, and those fonts do not agree on a single pixel: Windows renders
+from Segoe UI Emoji, macOS from Apple Color Emoji, Android from Noto Color Emoji.
+Paint one emoji into a canvas, hash the pixels, and you have a signal that separates
+the three without asking a single JavaScript question about the platform.
 
 That makes emoji an attractive check for a detector, and a trap for automation
 that claims one OS while running on another. This page is about why that trap
@@ -52,6 +54,11 @@ host.
 That is a structural difference from Chrome, which defers to the platform emoji
 font, and it is the reason emoji are a much weaker OS tell in Firefox than people
 assume. The engine has already made the render host-independent.
+
+| Browser | Where the emoji font comes from | Emoji as an OS tell |
+|---|---|---|
+| Firefox | Bundled with the browser (Twemoji-based) | Weak: the same render on every OS |
+| Browsers using the OS font (e.g. Chrome) | The host operating system's emoji font | Strong: the render changes per OS |
 
 This project builds on that property deliberately. To make text match Windows on
 any host, the build bundles a set of real Windows font files and exposes only
@@ -172,7 +179,7 @@ exactly what the engine-provided emoji font predicts: the host has no say in it.
 That is the whole point of the design. On a signal that separates Windows, macOS
 and Android at a glance for most automation, a Firefox built this way produces the
 same emoji everywhere, so the emoji tell has nothing to catch. It is one field
-among the roughly 400 a session derives from its seed, and it is one that costs a
+among the many a session derives from its seed, and it is one that costs a
 container-based scraper nothing to get wrong and everything to get right.
 
 ## Conclusion

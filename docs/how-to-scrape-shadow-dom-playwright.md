@@ -1,6 +1,6 @@
 ---
 title: "How to scrape shadow DOM content with Playwright"
-description: "Playwright locators pierce open shadow roots automatically, so css and text selectors reach into web components with no special traversal helper, and closed roots stay unreachable."
+description: "Playwright locators pierce open shadow roots automatically, so css and text selectors reach into web components. Closed roots stay unreachable by design."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 22
@@ -9,16 +9,16 @@ nav_order: 22
 
 # How to scrape shadow DOM content with Playwright
 
-Most people arrive here convinced that shadow DOM needs a special traversal helper: a
-recursive walk that hops from host to `shadowRoot` to host again, or a library that
-promises to "pierce" the boundary for you. For the common case that belief is simply
-wrong, and acting on it produces slower, more fragile code than doing nothing.
+Playwright locators already cross open shadow roots, so you do not need a special
+traversal helper to scrape shadow DOM content. A `css=` or text selector reaches into a
+web component with no extra API, because the selector engine descends through open roots
+on its own. The one real limit is closed roots, and that limit is honest and absolute: no
+tool reaches them, because it is a DOM boundary rather than a detection surface.
 
-The short version: Playwright locators already cross open shadow roots. A `css=` or
-text selector reaches into a web component with no extra API, because the selector
-engine descends through open roots on its own. The one real limit is closed roots, and
-that limit is honest and absolute: no tool reaches them, because it is a DOM boundary
-rather than a detection surface.
+Most people arrive here convinced otherwise: that shadow DOM needs a recursive walk that
+hops from host to `shadowRoot` to host again, or a library that promises to "pierce" the
+boundary for you. For the common case that belief is simply wrong, and acting on it
+produces slower, more fragile code than doing nothing.
 
 ## What a shadow root actually is
 
@@ -40,10 +40,10 @@ own testing, so authors rarely choose it.
 
 ## Why document.querySelector stops at the boundary
 
-Here is the source of the confusion. If you drop into the page and run the DOM's own
-`document.querySelector`, it does not descend into any shadow root, open or closed. It
-searches the light DOM and stops at the host element. The content you want is one
-boundary further in, and the call returns `null`.
+`document.querySelector` returns `null` on shadow content because it searches only the
+light DOM and stops at the host element, never descending into a shadow root, open or
+closed. That is the source of the confusion. The content you want is one boundary further
+in, so the call returns `null` even though the element is visible on screen.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -106,8 +106,8 @@ Two practical consequences follow:
 
 ## Closed shadow roots: the honest limit
 
-Now the part most pages skip. A closed shadow root is unreachable, and no scraping tool,
-stealth engine or otherwise, changes that. The host's `.shadowRoot` is `null` by the
+A closed shadow root is unreachable, and no scraping tool, stealth engine or otherwise,
+changes that. This is the part most pages skip. The host's `.shadowRoot` is `null` by the
 component author's explicit choice, so there is no handle for any query to follow. This
 is not a detection surface and there is nothing to spoof or patch: it is a DOM boundary,
 the same one for a stock browser and an automated one.

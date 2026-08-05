@@ -1,6 +1,6 @@
 ---
 title: "How to scrape into a SQLite database with Playwright"
-description: "Write a Playwright crawl into SQLite so refresh runs upsert on a natural key with one transaction per page, staying idempotent instead of piling up duplicate rows."
+description: "Write a Playwright crawl into SQLite so a refresh upserts on a natural key, one transaction per page, staying idempotent instead of piling up duplicate rows."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 55
@@ -8,6 +8,12 @@ nav_order: 55
 
 
 # How to scrape into a SQLite database with Playwright
+
+To scrape into a SQLite database with Playwright without accumulating duplicates,
+give each entity a natural key drawn from stable page content, declare that key
+`UNIQUE`, and write every row as an `INSERT ... ON CONFLICT DO UPDATE` upsert inside
+one transaction per page. A re-crawl then updates rows in place instead of appending
+them, so the database stays a current catalog rather than a log of visits.
 
 A first crawl is easy: loop the pages, pull the rows, append them somewhere. The
 problem shows up on the second crawl. You re-visit the same catalog a week later to
@@ -146,9 +152,10 @@ enough that you are not paying a commit per row.
 
 ## Wire the crawl to the browser and refresh with a fixed seed
 
-Now the part specific to this project. The extraction runs in a real Firefox driven by
-stock Playwright, and the `browser` you get back is a real Playwright `Browser`, so the
-page-driving code below is ordinary Playwright.
+Drive the browser with ordinary Playwright and pass a fixed seed so each refresh returns
+as the same client. The extraction runs in a real Firefox driven by stock Playwright, and
+the `browser` you get back is a real Playwright `Browser`, so the page-driving code below
+is ordinary Playwright.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -203,8 +210,8 @@ request rate should look human, which is a separate control covered in
 The database part of a recurring crawl is three decisions made once. Choose a natural
 key from stable page content, never from row position. Declare it unique and write every
 row as an upsert, so a re-crawl updates in place instead of duplicating. Commit one
-transaction per page, so an interrupted run rolls back to a clean page boundary and a
-re-run heals it. Do that and the database stays the current truth across every
+transaction per page, so [an interrupted run](how-to-resume-an-interrupted-scrape-playwright.md)
+rolls back to a clean page boundary and a re-run heals it. Do that and the database stays the current truth across every
 incremental refresh.
 
 The stealth part is one decision: pass a fixed seed, so the refresh weeks later is the
@@ -247,8 +254,10 @@ client fetching a whole catalog on a fixed schedule, so pace the requests separa
   fingerprint on a later run.
 
 **See also:** [how to scrape paginated pages](how-to-scrape-paginated-pages-playwright.md)
-for walking the catalog a refresh crawl writes into a database, and
-[the quickstart](quickstart.md) for the two-line switch and the seed round-trip.
+for walking the catalog a refresh crawl writes into a database,
+[how to scrape only new items incrementally](how-to-scrape-only-new-items-incremental-playwright.md)
+for skipping rows you already have, and [the quickstart](quickstart.md) for the two-line
+switch and the seed round-trip.
 
 ---
 

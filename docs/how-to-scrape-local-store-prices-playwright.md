@@ -1,6 +1,6 @@
 ---
 title: "How to scrape location-based store prices with Playwright"
-description: "Retail price and stock are scoped by a store or ZIP picker, so scraping without setting the location returns a national default no local shopper sees. Drive the picker first, verify the cookie, align proxy and timezone."
+description: "Scrape local store prices with Playwright: drive the store or ZIP picker, verify the location cookie stuck, then align your proxy exit and timezone."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 36
@@ -8,6 +8,11 @@ nav_order: 36
 
 
 # How to scrape location-based store prices with Playwright
+
+To scrape location-based store prices with Playwright, drive the store or ZIP picker
+first, read the location cookie back to confirm the site accepted it, then crawl with
+your proxy exit and browser timezone pointed at the same region as the store. Skip that
+order and every price you collect is a national default no local shopper actually sees.
 
 For any retailer with physical stores, the price and the availability you see are not
 a property of the product. They are a property of the store you are standing in front
@@ -114,7 +119,15 @@ detector reads all three, and it reads them together.
 Select a store in one city while your exit IP is in another country and your timezone
 is a third, and you have manufactured a contradiction no real customer produces. A local
 shopper's store, IP and clock all point at the same place, because they are one person
-in one location. Three regions that disagree is both wrong data, because the store you
+in one location. Three signals have to agree, and each is set separately:
+
+| Signal | What sets it | Must point at |
+|---|---|---|
+| Selected store | The picker interaction, which writes the store cookie | The store's region |
+| Proxy exit IP | Your proxy choice | The store's region |
+| Browser timezone | Auto-derived from the egress IP, or an explicit IANA zone you pass | The store's region |
+
+ Three regions that disagree is both wrong data, because the store you
 picked is not where you appear to be, and a mismatch a detector treats as a signal in
 its own right. The store picker was working against you the moment the regions split.
 

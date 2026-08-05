@@ -1,6 +1,6 @@
 ---
 title: "How to scrape sports scores and stats with Playwright"
-description: "Scrape live sports scores and stats with Playwright: subscribe to the score feed over a WebSocket, click each stat tab to trigger its XHR, and hold one long session."
+description: "Scrape live sports scores and stats with Playwright: read the score feed over a WebSocket, click each stat tab to trigger its XHR, and hold one long session."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 50
@@ -8,6 +8,12 @@ nav_order: 50
 
 
 # How to scrape sports scores and stats with Playwright
+
+**To scrape sports scores and stats with Playwright, read the data feed instead of
+the rendered widget: subscribe to the WebSocket (or the polling XHR) that carries the
+score, click each stat tab to trigger the request that loads its panel, route live and
+finished-match data to separate parsers, and hold one seed-pinned session at a human
+poll rate.** Each step below explains why the obvious static-page approach fails.
 
 A sports page is not a document you read once. The score changes in place while the
 page stays put, the deep stats hide behind tabs that only load when clicked, and a

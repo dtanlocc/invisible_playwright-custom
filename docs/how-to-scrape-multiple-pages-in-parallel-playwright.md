@@ -1,6 +1,6 @@
 ---
 title: "How to scrape pages in parallel with Playwright"
-description: "How to run many Playwright workers at once with asyncio.gather, and why fanning them out on one fingerprint or one exit IP is the tell that undoes the parallelism."
+description: "Run many Playwright workers at once with asyncio.gather, one identity per worker, and see why a shared fingerprint or exit IP is the tell that undoes it."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 18
@@ -9,14 +9,20 @@ nav_order: 18
 
 # How to scrape pages in parallel with Playwright
 
+To scrape pages in parallel with Playwright, run each worker as its own browser launch,
+gather them on one event loop with `asyncio.gather`, and give every worker a distinct seed
+and a distinct exit IP so it reads as a separate person. Concurrency is the easy half; the
+half that decides whether parallelism helps or hurts is whether the workers are also
+distinct identities.
+
 Running one page at a time is slow, and the obvious fix is to run many at once. The
 mechanics of that in Python are easy: `asyncio.gather` and a handful of coroutines. The
-part that is not obvious, and that decides whether the parallelism helps or hurts, is what
-each of those coroutines looks like from the other side of the connection.
+part that is not obvious is what each of those coroutines looks like from the other side of
+the connection.
 
-This page is the concurrency itself, the mistake that makes concurrency worse than serial
-work, and the shape that keeps N workers looking like N different people instead of one
-person in a hurry.
+This page covers the concurrency itself, the mistake that makes concurrency worse than
+serial work, and the shape that keeps N workers looking like N different people instead of
+one person in a hurry.
 
 ## What "parallel" has to mean here
 

@@ -1,6 +1,6 @@
 ---
 title: "How to handle cookie consent banners in Playwright"
-description: "Why the cookie consent accept button times out in Playwright: the banner is a cross-origin iframe in a separate process. Target it with frame_locator, not force=True."
+description: "The cookie consent accept button times out in Playwright because the banner is a cross-origin iframe in a separate process. Use frame_locator, not force=True."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 12
@@ -8,6 +8,11 @@ nav_order: 12
 
 
 # How to handle cookie consent banners in Playwright
+
+A cookie consent banner in Playwright usually will not click because it is a cross-origin
+iframe running in a separate browser process, so your selector searches the wrong frame and
+`force=True` cannot rescue it. The fix is to address the iframe first with `frame_locator`,
+then find the accept button inside it by its role and label.
 
 Almost every guide answers this the same way: find the accept button, click it, move
 on. Something like `page.click("#accept-cookies")`, and when that times out,
@@ -39,8 +44,10 @@ a click problem, and the fix is to tell Playwright which frame to look in.
 
 ## The three symptoms are one cause
 
-If you have already tried to reach into the iframe by hand, you may have collected a
-confusing set of failures that look unrelated:
+Three different Playwright errors on a consent iframe all trace back to a single root cause:
+the iframe runs in a separate process, so the driver holds only a placeholder for it with no
+document reference and no execution context. If you have already tried to reach into the
+iframe by hand, you may have collected a confusing set of failures that look unrelated:
 
 - `element_handle.content_frame()` returns `None` on an iframe that clearly has
   content.
@@ -216,7 +223,9 @@ stays accepted, along with any device permission the flow also stored.
   above.
 
 **See also:** [why content_frame() returns None for a cross-origin iframe](cross-origin-iframe-unreachable.md)
-for the full root cause, [Playwright persistent profile: what it fixes and breaks](persistent-profiles.md)
+for the full root cause, [how to scrape iframe content with Playwright](how-to-scrape-iframe-content-playwright.md)
+for the same frame-targeting pattern applied to content rather than a button,
+[Playwright persistent profile: what it fixes and breaks](persistent-profiles.md)
 for what a stored consent carries forward, and [how to scrape data behind a login with Playwright](how-to-scrape-behind-login-playwright.md)
 for the session-reuse pattern this one sits next to.
 

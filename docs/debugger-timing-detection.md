@@ -1,6 +1,6 @@
 ---
 title: "Why an attached debugger makes automation detectable"
-description: "A commercial fingerprinting service flagged developer_tools as true with no devtools open. The cause was the automation framework's own attached debugger, and it turned out to be four separate leaks."
+description: "A fingerprinting service reported developer_tools true with no devtools open. The cause was the automation framework's attached debugger, four separate leaks."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 3
@@ -44,8 +44,8 @@ Firefox produce different distributions, not just different totals, and a model 
 on real browsers separates them easily. That is what the service was doing, and
 `developer_tools: true` was its conclusion.
 
-**The general point, which is bigger than this bug:** a fingerprint is not only the set
-of values a browser reports. It includes how the browser behaves, and performance is a
+**The general point, which is bigger than this bug:** [a browser fingerprint](what-is-a-browser-fingerprint.md)
+is not only the set of values a browser reports. It includes how the browser behaves, and performance is a
 behaviour. You can spoof every string on the page and still be running measurably
 differently from the thing you claim to be - [the same value-versus-output gap](renderer-string-vs-render.md)
 that cost us a WebGL renderer flag before it cost us this one.
@@ -133,7 +133,9 @@ automation.
 
 The side effect is that `navigator.userActivation.isActive` and `hasBeenActive` became
 true as a result of `page.evaluate()`. A page that reads user activation therefore saw a
-user gesture that no user made, at a moment no user could have made one.
+user gesture that no user made, at a moment no user could have made one. The same theme
+runs through [synthetic clicks and the `isTrusted` flag](playwright-clicks-istrusted.md):
+automation announcing an interaction that no human performed.
 
 It is now off by default, and available behind a preference for the cases that genuinely
 need gesture-gated APIs.

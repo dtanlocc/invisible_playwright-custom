@@ -1,6 +1,6 @@
 ---
 title: "How to export scraped data to Excel with Playwright"
-description: "Export scraped data to Excel with Playwright and openpyxl without the spreadsheet silently coercing your SKUs, barcodes and date-like codes into numbers, scientific notation or serial dates."
+description: "Export scraped data to Excel with Playwright and openpyxl without a spreadsheet turning your SKUs, barcodes and lot codes into numbers, notation or dates."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 56
@@ -22,11 +22,12 @@ it, and how to split several entity types into separate worksheets in one workbo
 
 ## Why a real browser, and not a static parse
 
-Before formatting matters at all, the values have to be correct. On most modern pages the
-numbers you want are not in the HTML that arrives from the server. A price is updated on
-the client after load, a table row expands to reveal the code you need, a quantity is
-filled in by script. Fetch the raw markup and you get a placeholder, an empty cell, or last
-week's number.
+Scrape from a real rendered browser rather than a static HTML parse, because on most modern
+pages the numbers you want are not in the HTML that arrives from the server. Before
+formatting matters at all, the values have to be correct. A price is updated on the client
+after load, a table row expands to reveal the code you need, a quantity is filled in by
+script. Fetch the raw markup and you get a placeholder, an empty cell, or last week's
+number.
 
 So the extraction runs in a real browser, reading the rendered DOM after the page has
 settled. `invisible_playwright` returns a stock Playwright `Browser`, so every selector,
@@ -66,18 +67,15 @@ spreadsheet. Assert that the values are present and plausible before you trust t
 
 ## The failure mode: the spreadsheet rewrites your identifiers
 
-When a spreadsheet imports a value it cannot see a schema for, it guesses a type. That
-guesser is tuned for humans typing figures into cells, and it is exactly wrong for scraped
-identifiers. Three coercions do almost all the damage:
+A spreadsheet corrupts scraped identifiers because, when it imports a value it cannot see a
+schema for, it guesses a type. That guesser is tuned for humans typing figures into cells,
+and it is exactly wrong for scraped identifiers. Three coercions do almost all the damage:
 
-- **Leading-zero codes lose the zero.** `007321` is read as the number 7321. Any SKU, ZIP,
-  or account number with a significant leading zero is now a different identifier.
-- **Long numeric codes turn into scientific notation.** A 13-digit barcode like
-  `8801234500012` becomes `8.80123E+12`, and worse, values past 15 digits are rounded to
-  15 significant figures, so the trailing digits are destroyed, not just hidden.
-- **Date-like strings become serial dates.** A size code `3-14` or a lot number `1/2024` is
-  read as a date and stored as an integer day count. `3-14` comes back as a March date of
-  the current year.
+| Scraped identifier | What the spreadsheet stores | Why it corrupts the data |
+|---|---|---|
+| `007321` (leading-zero code) | The number `7321` | The leading zero is dropped, so any SKU, ZIP or account number with a significant leading zero becomes a different identifier. |
+| `8801234500012` (13-digit barcode) | `8.80123E+12`; past 15 digits, rounded to 15 significant figures | Long numeric codes turn into scientific notation, and beyond 15 digits the trailing digits are destroyed, not just hidden. |
+| `3-14` or `1/2024` (date-like code) | An integer serial date (`3-14` becomes a March date of the current year) | Date-like strings are read as dates and stored as a day count, so the original code is lost. |
 
 None of these throw. The write succeeds, the file opens, and the corruption is only visible
 if you compare a sample against the source by eye. It is the same shape of bug as a
@@ -249,7 +247,8 @@ before you write the file, the same way you would [check a page is not being blo
 
 ## Sources
 
-- The openpyxl documentation for cell number formats, in particular the `@` text format code.
+- The [openpyxl documentation](https://openpyxl.readthedocs.io/en/stable/) for cell number
+  formats, in particular the `@` text format code.
 - The published behaviour of common spreadsheet software on numeric-looking text: leading-zero
   loss, scientific-notation display past 15 significant figures, and date inference on
   slash- and hyphen-separated codes, all reproducible with the snippet above.

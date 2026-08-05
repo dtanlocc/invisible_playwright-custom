@@ -1,6 +1,6 @@
 ---
 title: "How to scrape iframe content with Playwright"
-description: "How to scrape iframe content with Playwright: the same-origin case that frame_locator and content_frame handle cleanly, and the cross-origin case that fails for a process-isolation reason no selector can fix."
+description: "How to scrape iframe content with Playwright: use frame_locator for same-origin frames, and why cross-origin iframes fail for a process-isolation reason."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 21
@@ -27,6 +27,17 @@ property decides everything about how you reach into it.
 - **Cross-origin**: the iframe comes from a different domain than the page embedding it,
   which is the normal shape of a third-party widget: a consent banner, an embedded
   video, a payment form, a support chat. Reaching into it is where automation breaks.
+
+The two cases behave in opposite ways at every call you make against the frame:
+
+| What you check | Same-origin iframe | Cross-origin iframe |
+|---|---|---|
+| Origin vs parent | Same scheme, host and port | Different domain |
+| `content_frame()` | Returns a real `Frame` | Returns `None` |
+| `frame_locator(...).click()` | Works, auto-waits | Times out; `force=True` does nothing |
+| `frame.evaluate(...)` | Runs in the frame's context | Throws a cross-origin permission error |
+| Root cause | DOM is reachable from the parent process | Process isolation can put the frame in a separate OS process |
+| The fix | `frame_locator` / `content_frame` | Engine-level same-process loading, not any selector |
 
 The trap is that both look the same when you inspect the HTML. `<iframe src="...">`
 tells you nothing until you compare the two origins. So the first thing any iframe

@@ -1,6 +1,6 @@
 ---
 title: "Scrape autocomplete and typeahead inputs with Playwright"
-description: "Autocomplete and typeahead fields ignore fill(). Type per character with Playwright to trigger the debounced XHR, wait for the listbox, and commit a real suggestion value."
+description: "Autocomplete and typeahead inputs ignore fill(). Type per character with Playwright to fire the debounced XHR, wait for the listbox, read the real value."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 68
@@ -194,14 +194,16 @@ characters.
 
 ## Sources
 
-- Playwright's own `Locator.press_sequentially` / `Locator.type` and
-  `Page.expect_response` documentation, read for the per-character `delay` semantics
-  and the response-capture pattern.
+- Playwright's official API reference for
+  [`Locator.press_sequentially` / `Locator.type`](https://playwright.dev/python/docs/api/class-locator)
+  and [`Page.expect_response`](https://playwright.dev/python/docs/api/class-page), read for
+  the per-character `delay` semantics and the response-capture pattern.
 - This project's behavioural notes on typing cadence and trusted input events, and the
   measured failure mode of a zero-delay burst repeated across a long lookup run.
 
 **See also:** [capture XHR and API responses with Playwright](how-to-capture-xhr-api-responses-playwright.md),
 [why trusted input events matter for clicks and keys](playwright-clicks-istrusted.md),
+[scrape a date picker or calendar, another event-driven widget](how-to-scrape-date-picker-calendar-playwright.md),
 and [the checklist for being detected on one site](playwright-detected-as-bot.md).
 
 ---

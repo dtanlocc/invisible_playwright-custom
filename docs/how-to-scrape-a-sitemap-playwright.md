@@ -1,6 +1,6 @@
 ---
 title: "How to scrape a sitemap.xml with Playwright"
-description: "Walk the sitemap-index to child to urlset tree with Playwright, decompress the .xml.gz entries, and drive incremental recrawl from lastmod under one stable browser identity."
+description: "Scrape a sitemap.xml with Playwright: walk the index-to-urlset tree, decompress the .xml.gz leaves, and recrawl only the URLs whose lastmod changed."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 63
@@ -8,6 +8,12 @@ nav_order: 63
 
 
 # How to scrape a sitemap.xml with Playwright
+
+To scrape a `sitemap.xml` with Playwright, treat it as a tree rather than a flat list: read
+the root element to tell a `<sitemapindex>` from a `<urlset>`, recurse into the child
+sitemaps, decompress any `.xml.gz` leaves, and key each URL on its `<lastmod>` so later runs
+recrawl only what changed. Fetch the whole tree through the browser context, because the file
+usually sits behind the same protection as the pages.
 
 Most sitemap tutorials fetch `sitemap.xml` with a plain HTTP client, parse the `<loc>`
 tags, and hand you a flat list of URLs. That works right up until two things happen: the
@@ -39,10 +45,14 @@ the difference between a crawl the site notices and one it does not.
 
 There are two document shapes at the sitemaps.org schema, and they are not interchangeable:
 
-- A **sitemap index** has a `<sitemapindex>` root and contains `<sitemap>` entries, each
-  with a `<loc>` pointing at another sitemap file. It is a table of contents.
-- A **url set** has a `<urlset>` root and contains `<url>` entries, each with a `<loc>`
-  pointing at a real page and, usually, a `<lastmod>`. It is the actual leaf.
+| Shape | Root element | Contains | Each `<loc>` points at | Role |
+|---|---|---|---|---|
+| Sitemap index | `<sitemapindex>` | `<sitemap>` entries | another sitemap file | table of contents |
+| URL set | `<urlset>` | `<url>` entries (usually with `<lastmod>`) | a real page | the actual leaf |
+
+A **sitemap index** is a table of contents whose `<loc>` values point at more sitemaps; a
+**url set** is the leaf whose `<loc>` values point at real pages and usually carry a
+`<lastmod>`.
 
 The single most common way this code breaks is iterating a document as if it were a url set
 when it is really an index. You get a list of `<loc>` values that look like URLs, you crawl

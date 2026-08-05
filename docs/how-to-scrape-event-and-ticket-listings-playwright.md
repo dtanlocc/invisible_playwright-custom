@@ -1,6 +1,6 @@
 ---
 title: "How to scrape event and ticket listings with Playwright"
-description: "Scrape event and ticket listings with Playwright by waiting for the price and availability XHR, normalising event times to the source timezone, and stepping the calendar widget."
+description: "Scrape event and ticket listings with Playwright: wait for the availability XHR, normalise event times to the source timezone, and step the calendar widget."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 42
@@ -8,6 +8,20 @@ nav_order: 42
 
 
 # How to scrape event and ticket listings with Playwright
+
+To scrape event and ticket listings with Playwright, wait for the availability request
+instead of the initial HTML, attach each event's declared source timezone and store UTC
+alongside it, step the calendar widget to reach future dates, and poll the state attribute
+rather than the visible label. The one thing that decides whether any of it runs is that
+the browser's timezone matches the proxy's exit IP.
+
+| What trips up an event scraper | The fix |
+|---|---|
+| Price tiers and seat counts arrive over a later request, not in the initial HTML | Wait for the availability response and read its JSON, not the shell |
+| Start times are written in the venue's timezone, not yours | Attach the declared source zone and store UTC alongside the local value |
+| Future dates hide behind a calendar widget | Step the "next" control and wait for each panel's data before reading |
+| Sold-out and on-sale are often the same node with a different value | Read the machine-readable state attribute and poll on an interval |
+| The browser's timezone disagrees with the proxy's exit IP | Let the timezone auto-derive from the egress IP so the two agree |
 
 Event and ticket pages look simple and are not. The shell renders fast, but the two
 fields you actually came for, price tiers and seat availability, arrive later over a

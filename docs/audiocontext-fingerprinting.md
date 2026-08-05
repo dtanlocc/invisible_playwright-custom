@@ -1,6 +1,6 @@
 ---
 title: "AudioContext fingerprinting, and why adding noise backfired"
-description: "Audio fingerprinting is usually beaten by adding noise. We shipped that defence, measured it, and found it made sessions easier to detect, not harder. What the seven audio values are and why noise fails."
+description: "AudioContext fingerprinting is usually beaten with noise. We shipped that defence, measured it, and it made sessions easier to detect. The seven values and why."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 8
@@ -19,8 +19,10 @@ page is what the measurements said.
 
 ## What is actually being measured
 
-Almost every guide says "audio fingerprinting hashes how your device processes sound",
-which is true and useless. Here is the concrete shape.
+Audio fingerprinting collects seven values from the Web Audio API, a rendered sample
+buffer plus six device and analyser readings, and checks that they agree with each
+other. Almost every guide stops at "it hashes how your device processes sound", which
+is true and useless. Here is the concrete shape.
 
 A fingerprinting script builds a short offline audio graph, usually an oscillator into
 a dynamics compressor, renders it without playing anything, and reads the resulting

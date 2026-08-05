@@ -1,6 +1,6 @@
 ---
 title: "How to scrape job postings with Playwright"
-description: "How to scrape job postings with Playwright: drive the faceted search filters, wait on the results XHR instead of networkidle, and read the JobPosting JSON-LD instead of brittle card selectors."
+description: "Scrape job postings with Playwright: drive the faceted search filters, wait for the results XHR instead of networkidle, and read the JobPosting JSON-LD."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 26
@@ -8,6 +8,12 @@ nav_order: 26
 
 
 # How to scrape job postings with Playwright
+
+To scrape job postings with Playwright, drive the board's faceted search controls instead
+of walking URLs, wait for the specific results XHR rather than for `networkidle`, and read
+each posting from its `JobPosting` JSON-LD instead of brittle card selectors. Run the whole
+sweep under one stable browser identity so the board sees a returning visitor, and pace it
+so the request volume does not give you away.
 
 A job board is not a list of pages you can walk by number. It is a faceted search: a
 keyword box, a location field, a stack of filter checkboxes, and a results column that
@@ -23,9 +29,10 @@ rather than from CSS classes that change every quarter.
 
 ## Why the URL does not move
 
-Type a keyword, pick a location, tick "remote", and the results column repaints. Look at
-the address bar: same URL. The filters live in JavaScript state, and the browser asks a
-JSON endpoint for the matching page of results, then rewrites the list in place. Some
+The URL does not move because a job board's filters live in JavaScript state, not in the
+address bar: the browser fetches matching results from a JSON endpoint by XHR and repaints
+the list in place. Type a keyword, pick a location, tick "remote", and the results column
+repaints while the address bar stays exactly the same. Some
 boards put the query in the URL hash or query string, many do not, and none of them
 reliably give you a clean paginated URL you can iterate.
 
@@ -134,8 +141,10 @@ assume every posting fills every slot.
 
 ## Why a stable identity keeps the sweep answering
 
-Scraping one board thoroughly means running the same faceted search across many keywords
-and many locations, usually on a schedule. That is, by construction, repeated near
+A stable identity keeps the sweep answering because a board that scores velocity is far
+more likely to challenge a device it has never seen than a returning one. Scraping one
+board thoroughly means running the same faceted search across many keywords and many
+locations, usually on a schedule. That is, by construction, repeated near
 identical traffic from one machine: the same endpoint, similar payloads, over and over.
 The results endpoint is exactly the surface a board watches for that pattern, because a
 human does not run four hundred location filters before breakfast.
@@ -145,7 +154,7 @@ produces a new random device (a different GPU string, a different canvas hash, a
 screen), then today's request for "data engineer in Berlin" comes from a machine the site
 has never seen, even though you ran that exact query yesterday. A per-launch random
 identity turns a returning visitor into a new stranger on every sweep, and a board that
-scores velocity has every reason to start challenging the stranger that keeps re running
+scores velocity has every reason to start challenging the stranger that keeps rerunning
 the same expensive search.
 
 This is what a seed-stable fingerprint is for. Passing `seed=42` gives you the same GPU,

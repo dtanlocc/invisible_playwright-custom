@@ -1,6 +1,6 @@
 ---
 title: "Extract data from canvas charts with Playwright"
-description: "Recover the numbers behind a canvas or WebGL chart with Playwright by reading the data XHR or the chart library's JS state, not the pixels a canvas anti-fingerprint spoof would corrupt."
+description: "Extract data from a canvas or WebGL chart in Playwright by reading the data XHR or the chart library's JS state with page.evaluate, not the noised pixels."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 72
@@ -8,6 +8,12 @@ nav_order: 72
 
 
 # Extract data from canvas charts with Playwright
+
+**To extract data from a canvas chart with Playwright, read one of the two places the
+numbers exist before they are painted: the network response the page fetched to build the
+chart, or the chart library's in-memory JavaScript state read with `page.evaluate`. Do not
+read the pixels** - a `<canvas>` or WebGL chart is a bitmap with no DOM nodes, so selectors
+return nothing, and on a stealth browser the pixels are perturbed on purpose.
 
 You point a selector at a chart and get nothing back. The axis labels are there in the
 DOM, maybe a legend, but the bars, the line, the values you actually came for return an
@@ -154,7 +160,8 @@ the two you should.
 
 Occasionally the only source is the tooltip: the endpoint is obfuscated, the library
 exposes nothing useful on the global, and the exact value appears only when a human hovers
-a point. You can drive that with real pointer motion and sample the tooltip text after each
+a point. You can drive that with
+[human-like mouse movement](human-mouse-movement.md) and sample the tooltip text after each
 move.
 
 ```python
@@ -224,8 +231,11 @@ chart library registers. Pin a seed so the run is reproducible while you explore
 
 ## Sources
 
-- The stock Playwright API surfaced unchanged by this wrapper: `page.on("response")`,
-  `page.route`, `page.evaluate`, `page.mouse.move`, documented upstream.
+- The stock Playwright API surfaced unchanged by this wrapper: `page.on("response")` and
+  `page.route`, documented in the official
+  [Playwright network guide](https://playwright.dev/python/docs/network), plus `page.evaluate`,
+  documented in [evaluating JavaScript](https://playwright.dev/python/docs/evaluating), and
+  `page.mouse.move`.
 - This project's canvas anti-fingerprint behavior, whose per-pixel perturbation is exactly
   why pixel-based chart reading fails here, covered in the two canvas pages linked below.
 

@@ -9,6 +9,11 @@ nav_order: 39
 
 # How to scrape reviews and ratings with Playwright
 
+To scrape reviews and ratings with Playwright, read the star rating from its
+`aria-label` or CSS fill-width instead of its text, click each per-review "Read more"
+before you extract the body, and page the "load more" XHR until the DOM count stops
+rising. Those are the three fields a review page hides, and each one has a specific fix.
+
 Review pages are built to be read by a person and to resist being read by a program,
 and they do it with the two fields you actually came for. The star rating is almost
 never text. The review body you can see is almost never the whole review. And the
@@ -44,6 +49,12 @@ DOM is only ever the number you have scrolled into existence, never the total th
 claims at the top.
 
 Three different problems, three different fixes, in the three sections below.
+
+| The field | Where it really lives | The fix |
+|---|---|---|
+| Star rating | An `aria-label` or a CSS fill-width, never `innerText` | Parse the label, or compute the fill width as a fraction of the scale |
+| Review body | Truncated behind a per-review "Read more" that expands in place | Click every expander and wait for the block's text to grow |
+| Review count | Only what you have paged into the DOM via "load more" XHR | Page until the DOM count stops rising, not the total shown at the top |
 
 ## Read the star rating from aria-label or computed style
 
@@ -248,7 +259,8 @@ instead of hoping the next random identity reproduces it.
 ## Sources
 
 - Stock Playwright's `aria-label` querying, `expect_response`, `wait_for_function` and
-  `eval_on_selector_all`, read from the upstream API rather than its rendered docs.
+  `eval_on_selector_all`, from the upstream
+  [Playwright for Python API](https://playwright.dev/python/docs/api/class-page).
 - This project's own release gates, including the velocity flag that turned out to be the
   test harness hammering one endpoint rather than a browser problem.
 

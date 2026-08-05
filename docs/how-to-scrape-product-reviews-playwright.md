@@ -1,6 +1,6 @@
 ---
 title: "How to scrape product reviews with Playwright"
-description: "How to scrape product reviews with Playwright when the reviews load from their own endpoint behind a tab, why the product HTML holds only a count, and how to walk deep review pagination and dedupe."
+description: "Scrape product reviews with Playwright: the reviews load from a separate endpoint behind a tab, so drive the widget, walk its pages, and dedupe on review id."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 38
@@ -8,6 +8,11 @@ nav_order: 38
 
 
 # How to scrape product reviews with Playwright
+
+To scrape product reviews with Playwright, open the reviews widget, confirm a real row
+rendered, drive its own sort and pagination, and read each review into plain Python
+before turning the page. The product HTML itself carries only a count and a star average,
+so every individual review has to come from the separate endpoint the widget renders.
 
 The mistake that wastes the first afternoon is scraping the product page and expecting
 the reviews to be in it. They are not. The product HTML almost always holds a count and
@@ -20,9 +25,11 @@ the page, and the one honest problem you hit on a deep set that no browser fixes
 
 ## Why the reviews are not in the product HTML
 
-Open the product page, view source, and search it for the text of a review you can see
-rendered. On most storefronts it is not there. What is there is a number, "412 reviews",
-and a star average painted from an aggregate.
+The reviews are not in the product HTML because they load from a separate widget on its
+own endpoint; the initial markup carries only a count and a star average painted from an
+aggregate. Open the product page, view source, and search it for the text of a review you
+can see rendered. On most storefronts it is not there. What is there is a number, "412
+reviews", and that aggregate star value.
 
 The reviews are a separate widget. They sit behind a tab or a "load more" button, they
 are paginated on their own endpoint, and they are sortable and filterable by rating. The

@@ -9,12 +9,18 @@ nav_order: 14
 
 # How to take full-page screenshots with Playwright
 
+To take a full-page screenshot in Playwright, call `page.screenshot(path="page.png",
+full_page=True)`: it captures the entire scrollable document as a single PNG, not just the
+visible viewport. Here the captured image is the true rendered pixels even though this
+browser spoofs fingerprints, because your screenshot and the page's own canvas fingerprint
+of those same pixels come off two different readback paths, on purpose.
+
 Most screenshot how-tos stop at `full_page=True` and a path. That gets you an image.
 What it does not tell you is whether the image is the real page or a doctored one, and
 on a browser that spoofs fingerprints that is a fair question to ask. It has a precise
 answer here, and the answer is the interesting part: your screenshot is the true
 rendered pixels, while the page's own canvas fingerprint of those same pixels is
-substituted. Two different readback paths, on purpose.
+substituted.
 
 This page is the working API, the full-page mechanics people actually trip on, the two
 paths and why they diverge, and how to confirm your capture is real.
@@ -60,10 +66,11 @@ Two things routinely make that image wrong, and neither is a bug in the screensh
 
 - **Lazy-loaded content never entered.** Images and sections that load on scroll do not
   load if nothing scrolls, so the tall capture shows placeholders or blank bands. You
-  have to move the page first.
+  have to move the page first (the same problem, from the capture side, as
+  [scraping lazy-loaded images](how-to-scrape-lazy-loaded-images-playwright.md)).
 - **The layout was still settling.** `networkidle` waits for the network, not for
-  fonts, images and reflow to finish painting. A short explicit wait, or waiting on a
-  concrete element, buys the paint.
+  fonts, images and reflow to finish painting. A short explicit wait, or
+  [waiting on a concrete element](how-to-wait-for-page-load-playwright.md), buys the paint.
 
 A scroll-to-bottom nudge that handles the lazy case:
 
@@ -123,11 +130,10 @@ across many pages regardless of what element lives there:
 
 ## Two readback paths: why your image is real and the fingerprint is not
 
-This is the part specific to a fingerprint-spoofing browser, and it is the reason this
-page exists rather than pointing you at the upstream docs.
-
-A rendered surface can be read back in two very different ways, and they are treated
-differently on purpose.
+Your screenshot is the real page and the site's canvas fingerprint of that same page is
+not, because a rendered surface can be read back in two very different ways here and each
+is treated differently on purpose. This is the part specific to a fingerprint-spoofing
+browser, and the reason this page exists rather than pointing you at the upstream docs.
 
 - **The browser's own privileged capture** is what `page.screenshot` uses. It reads the
   composited result through an internal, trusted path that page JavaScript can never
@@ -150,8 +156,9 @@ same seed, byte-for-byte matching hash on both platforms.
 
 That these two paths stay separate is not free, and it is guarded. A privileged-readback
 patch was dropped once during a rebase, which quietly routed screenshot capture through
-the spoofed path instead of the clean one and corrupted every screenshot. It is now a
-release-gate check: the byte size of a privileged capture is verified, and the same
+the spoofed path instead of the clean one and corrupted every screenshot (the full
+write-up is [Playwright screenshot returns noise](playwright-screenshot-returns-noise.md)).
+It is now a release-gate check: the byte size of a privileged capture is verified, and the same
 render is confirmed still spoofed when read from the web side. The separation is a
 tested invariant, not a happy accident.
 

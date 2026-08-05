@@ -1,6 +1,6 @@
 ---
 title: "Handle 403 and 429 backoff mid-scrape in Playwright"
-description: "Read the response status off Playwright events, honor Retry-After, exponential-backoff on 429 and treat a mid-scrape 403 as a pacing signal on the same identity, not a reason to churn."
+description: "Read 403 and 429 off Playwright's response event, honor Retry-After, back off on 429 and slow a 403 on the same identity instead of churning a new fingerprint."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 76
@@ -8,6 +8,11 @@ nav_order: 76
 
 
 # Handle 403 and 429 backoff mid-scrape in Playwright
+
+To handle a 403 or 429 mid-scrape in Playwright, read the status off the `response`
+event, honor any `Retry-After` header, exponentially back off a 429 and pause-then-slow
+a 403 - all on the same identity - and rotate the fingerprint only as a deliberate
+between-session decision, never as a per-request reflex.
 
 A 403 or a 429 that arrives in the middle of a crawl is not a transient error like a
 dropped connection or a slow DNS lookup. It is a state change. The site has looked at
@@ -88,6 +93,11 @@ back to a delay of your own.
 
 429 and 403 are different messages and deserve different handling.
 
+| Status | What it means | How to respond | Same identity? |
+|---|---|---|---|
+| 429 | Too fast - a rate signal | Honor `Retry-After`, else exponential backoff with jitter | Yes; the pace was the problem, not the identity |
+| 403 | Refused - the session was categorized | Pause, back off deeper than a 429, slow the whole crawl | Yes; confirm exit and behavior first, rotate only between sessions |
+
 **429 means "too fast".** It is explicitly about rate, so the response is exponential
 backoff: wait, and if it happens again wait longer, up to a ceiling. This is the textbook
 case where retrying the same identity is correct, because the identity was never the
@@ -145,7 +155,7 @@ brand new one. On a browser that already passes the detector gates, that reactio
 makes things worse.
 
 This engine is built so that a fresh session produces a full, self-consistent desktop
-fingerprint - GPU, audio, fonts, screen, roughly 400 fields - that holds up against the
+fingerprint - GPU, audio, fonts, screen, hundreds of fields - that holds up against the
 public tampering and consistency suites (CreepJS, BotD, FingerprintJS, sannysoft,
 BrowserLeaks). When the fingerprint is already clean, a mid-scrape 403 is far more likely
 to be *behavior or rate* than *fingerprint*. It is the velocity, the request pattern, or
@@ -229,9 +239,11 @@ too. Tune from there against what the site actually tolerates.
 
 ## Sources
 
-- Playwright's `Response`, `page.on("response")` and `page.route()` API, read from the
-  upstream documentation rather than paraphrased.
-- The HTTP `Retry-After` header definition, both the delay-seconds and HTTP-date forms.
+- [Playwright's network guide and `Response` API](https://playwright.dev/python/docs/network),
+  covering `page.on("response")` and `page.route()`, read from the upstream documentation
+  rather than paraphrased.
+- The [HTTP `Retry-After` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
+  definition, both the delay-seconds and HTTP-date forms.
 - This project's release gates, which is where the observation lives that a browser passing
   the public tampering and consistency suites turns most mid-scrape blocks into a pacing
   problem rather than a fingerprint one.

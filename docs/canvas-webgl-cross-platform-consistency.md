@@ -1,6 +1,6 @@
 ---
 title: "Canvas and WebGL fingerprints, identical across OSes"
-description: "A GPU-backed render surface cannot be safely read from or written to directly. The fix is intercepting the one place JavaScript can actually see it - readback - so the same seed produces a byte-identical hash on Windows and Linux."
+description: "Canvas and WebGL fingerprints identical across Windows and Linux: intercept readback, not the render, so one seed produces a byte-identical hash on every OS."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 9
@@ -74,6 +74,11 @@ between GPUs rather than injected noise - took a measured spike count from rough
 320 down to near zero on the same probe. Substitution inherits that property too,
 for the same reason: nothing about it resembles noise added on top of a real signal.
 
+| Approach | How it hides the host | Where it fails |
+|---|---|---|
+| Additive per-call noise | Perturbs a fraction of pixels on top of the real render | Two reads in one page differ; the real render's font/GPU signature still shows through; the noise has a high-frequency shape a single read can flag |
+| Full substitution | Replaces pixels with a pure function of the seed and the pixel position, with zero input from the render underneath | Must leave low-entropy buffers untouched so it does not break legitimate canvas reads |
+
 ## The proof: byte-identical hashes, not just "looks similar"
 
 Rendered the same seed's canvas (text plus a gradient) and WebGL scene (a
@@ -121,8 +126,10 @@ content can observe, not at the source - applied to a different surface.
 **See also:** [canvas fingerprint noise](canvas-fingerprint-noise.md), for why
 per-call randomisation specifically fails; [how to make Linux and macOS report real
 Windows fonts](bundled-fonts-cross-platform.md), for the same architecture applied to
-fonts; and [WebGL renderer strings](webgl-renderer-strings.md), for the adjacent
-surface of what the GPU claims to be rather than what it draws.
+fonts; [WebGL renderer strings](webgl-renderer-strings.md), for the adjacent
+surface of what the GPU claims to be rather than what it draws; and
+[how the BrowserLeaks canvas and WebGL hash is computed](browserleaks-canvas-webgl-hash.md),
+for what that hash actually measures.
 
 ## Sources
 

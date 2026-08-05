@@ -1,6 +1,6 @@
 ---
 title: "How to scrape into a pandas DataFrame with Playwright"
-description: "Feed pandas.read_html the rendered, logged-in page.content instead of a URL, then coerce the dtypes it guesses wrong so numeric-looking IDs stop silently corrupting."
+description: "Scrape a JavaScript-rendered, logged-in table into a pandas DataFrame with Playwright: feed read_html page.content(), then fix the dtypes it guesses wrong."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 64
@@ -8,6 +8,11 @@ nav_order: 64
 
 
 # How to scrape into a pandas DataFrame with Playwright
+
+**To scrape into a pandas DataFrame with Playwright, hand `read_html` the browser's
+rendered `page.content()` string instead of a URL, then set the column dtypes yourself
+instead of trusting the ones it guesses.** Those two moves fix the two ways `read_html`
+quietly goes wrong; the rest of this page is why each half matters.
 
 `pandas.read_html` is the fastest way to turn an HTML table into a DataFrame, and it
 is also the fastest way to end up with a DataFrame that is quietly wrong. It has two
@@ -225,8 +230,9 @@ file-like object for literal HTML, so wrap the `page.content()` string in `io.St
 
 ## Sources
 
-- The pandas `read_html` behaviour: its own HTTP fetch on a URL, its shared type-inference
-  path with `read_csv`, and the `io.StringIO` requirement for literal HTML input.
+- The [pandas `read_html` documentation](https://pandas.pydata.org/docs/reference/api/pandas.read_html.html):
+  its own HTTP fetch on a URL, its shared type-inference path with `read_csv`, and the
+  `io.StringIO` requirement for literal HTML input.
 - This project's scraping test fixtures, including the 240-row product table measured both
   from the URL (empty) and from `page.content()` (full rows, three columns mistyped).
 

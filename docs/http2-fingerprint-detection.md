@@ -1,6 +1,6 @@
 ---
 title: "HTTP/2 fingerprint: the layer above the TLS handshake"
-description: "The HTTP/2 SETTINGS frame, window update, priority tree and pseudo-header order form a fingerprint one layer above JA3/JA4, produced by the engine and unreachable from JavaScript."
+description: "The HTTP/2 SETTINGS frame, window update and pseudo-header order form a fingerprint one layer above JA3/JA4, emitted by the engine, unreachable from JavaScript."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 12
@@ -9,10 +9,13 @@ nav_order: 12
 
 # HTTP/2 fingerprint: the layer above the TLS handshake
 
-Everyone writes about JA3 and JA4. The HTTP/2 fingerprint is the next signal down, it
-is produced by the same part of the browser, and it is just as far out of JavaScript's
-reach. If you have matched the TLS handshake and are still refused before a page loads,
-this is the layer to look at next.
+The HTTP/2 fingerprint is the pattern a client reveals when it opens an HTTP/2 session,
+its SETTINGS frame, connection window update, priority tree and pseudo-header order,
+one signal layer above the JA3/JA4 TLS handshake, emitted by the networking engine
+before any script runs and unreachable from JavaScript. Everyone writes about JA3 and
+JA4; this is the next signal down, produced by the same part of the browser and just as
+far out of a script's reach. If you have matched the TLS handshake and are still refused
+before a page loads, this is the layer to look at next.
 
 This page is what an HTTP/2 connection reveals, why no header spoof and no page-level
 patch can change it, what a plain HTTP library gives away that a real engine does not,

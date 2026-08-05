@@ -9,6 +9,13 @@ nav_order: 7
 
 # How to use invisible_playwright in Docker
 
+To run `invisible_playwright` in Docker, start from a maintained Playwright
+base image for the OS-level shared libraries, `pip install
+invisible-playwright`, fetch the patched Firefox engine at build time, and
+run the container with `--shm-size=1gb`. The fingerprint itself needs
+nothing container-specific: the same seed produces the same machine on a
+desktop or inside a container.
+
 This is a setup tutorial, not the detection theory. If you have not read
 [why a container that starts perfectly can still get a different page than
 your laptop](playwright-docker-detection.md), read that first - it explains
@@ -89,6 +96,14 @@ build runner mounts a persistent volume, point
 `INVISIBLE_PLAYWRIGHT_CACHE_DIR` at it and later builds skip the download
 entirely - `fetch` checks the cached tree against the seal first and only
 downloads if it does not match, so a warm cache makes the step nearly free.
+
+The three environment variables that matter in a container build:
+
+| Environment variable | What it does | Documented in |
+|---|---|---|
+| `STEALTHFOX_GITHUB_TOKEN` | Authenticates the engine download when a CI runner or corporate network rate-limits or blocks anonymous GitHub downloads | [Configuration](configuration.md) |
+| `INVISIBLE_PLAYWRIGHT_CACHE_DIR` | Points the binary cache at a path the build persists between runs, so a rebuild skips the ~238 MB download | [Configuration](configuration.md) |
+| `INVPW_BINARY_PATH` | Uses a binary already baked into the image and skips the `fetch` step entirely | [Configuration](configuration.md) |
 
 ## Running headless in the container
 

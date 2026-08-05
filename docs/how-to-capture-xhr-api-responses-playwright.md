@@ -1,6 +1,6 @@
 ---
 title: "How to capture XHR and API responses in Playwright"
-description: "Read the JSON a page fetches with page.on('response') and page.route() instead of parsing rendered HTML, and why aborting images and CSS to save bandwidth is the request pattern that gets you blocked."
+description: "Capture XHR and API JSON in Playwright with page.on('response') and page.route() instead of parsing HTML, and why aborting images to save bandwidth is a tell."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 23
@@ -8,6 +8,12 @@ nav_order: 23
 
 
 # How to capture XHR and API responses in Playwright
+
+To capture XHR and API responses in Playwright, attach `page.on("response", handler)`
+to read every response, use `page.expect_response(predicate)` to wait for one specific
+call, or `page.route()` to inspect a request before it is sent. All three are the stock
+Playwright API, running on the real `Browser` object `invisible_playwright` returns
+unchanged. Read the JSON the page already fetched instead of parsing the rendered HTML.
 
 Most pages you want to scrape already have the data in a clean form: a background XHR
 or fetch call returns JSON, and the DOM you are parsing is just that JSON rendered into
@@ -135,7 +141,8 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 The predicate is a plain function, so you can match on the URL, the status, the method,
-or anything on the response object. This is the pattern for paginated endpoints too:
+or anything on the response object. This is the pattern for
+[scraping paginated endpoints](how-to-scrape-paginated-pages-playwright.md) too:
 click "next", wait for the next page's response, read its cursor, repeat, all without
 touching a single rendered row.
 

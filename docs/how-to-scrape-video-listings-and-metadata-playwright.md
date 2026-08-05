@@ -1,6 +1,6 @@
 ---
 title: "How to scrape video listings and metadata with Playwright"
-description: "Extract duration, view count and upload date from a lazy-loading video grid with Playwright by reading JSON-LD and thumbnail overlays, and page the infinite wall cleanly."
+description: "Scrape video listings and metadata with Playwright: pull exact duration, views and upload date from JSON-LD, fall back to overlays, page the grid."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 48
@@ -8,6 +8,13 @@ nav_order: 48
 
 
 # How to scrape video listings and metadata with Playwright
+
+To scrape video listings and metadata with Playwright, read each card's structured
+data first: the `VideoObject` in the page's JSON-LD carries the exact upload date,
+duration and view count in machine form, so use the rendered DOM only for fields it
+omits, and page the grid by watching the card count stabilise rather than seeking an end
+that does not exist. Leave the player embed alone, because pulling the stream is a
+separate and much heavier problem than reading the card.
 
 A video grid looks like a simple list and behaves like anything but. The thumbnails
 lazy-load into an infinite wall that never has an end you can seek to, and the fields you
@@ -84,7 +91,10 @@ with InvisiblePlaywright(seed=42) as browser:
 The `duration` field comes back as an ISO-8601 period (`PT12M4S`), which you can parse
 with `isodate` or a small regex, and `uploadDate` as a real date rather than "3 weeks
 ago". This is the same reason [capturing the page's own XHR responses](how-to-capture-xhr-api-responses-playwright.md)
-often beats scraping the DOM: the machine-readable copy is already on the wire.
+often beats scraping the DOM: the machine-readable copy is already on the wire. The
+general pattern for pulling these blocks, including the single-object, list and `@graph`
+shapes the loop above handles, is written up in [extracting JSON-LD structured
+data](how-to-extract-json-ld-structured-data-playwright.md).
 
 When a field is genuinely absent from the structured data, fall back to the overlay. The
 duration overlay is a good example, because some grids omit it from JSON-LD on the listing
@@ -258,8 +268,9 @@ every time.
   claimed platform as a failure rather than a pass.
 
 **See also:** [scraping an infinite-scroll page](how-to-scrape-infinite-scroll-playwright.md),
-[capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md), and
-[codec fingerprinting](codec-fingerprinting.md).
+[capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md),
+[extracting JSON-LD structured data](how-to-extract-json-ld-structured-data-playwright.md),
+and [codec fingerprinting](codec-fingerprinting.md).
 
 ---
 

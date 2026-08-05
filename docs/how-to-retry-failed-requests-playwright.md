@@ -1,6 +1,6 @@
 ---
 title: "How to retry failed requests when scraping Playwright"
-description: "How to retry failed Playwright requests with a total time-and-attempt budget instead of naive per-attempt backoff, and why aggressive retries raise a velocity signal a site can score."
+description: "Retry failed Playwright requests with a total time-and-attempt budget, not naive per-attempt backoff, and see why aggressive retries raise a velocity signal."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 17
@@ -9,16 +9,19 @@ nav_order: 17
 
 # How to retry failed requests when scraping Playwright
 
+To retry a failed request in Playwright without turning your scraper into one that hangs,
+bound the total time and the total number of attempts, not just each attempt, and hand
+each attempt whatever is left of the total budget. That one change is the whole point of
+this page.
+
 A retry loop is the first thing everyone adds and the last thing anyone measures. The
 usual shape is a `for` loop with a per-attempt timeout and an exponential sleep between
 tries, and it looks correct because every individual piece is bounded. The whole loop
 often is not, and that gap is where a "retry" quietly turns into a request that hangs for
 minutes and a scraper that never finishes.
 
-This page argues for one specific change: bound the total time and the total number of
-attempts, not just each attempt, and hand each attempt whatever is left of the total. It
-comes from a bug we shipped and fixed, and it ends with the reason a more aggressive retry
-policy can get you blocked faster rather than scraped faster.
+The rule comes from a bug we shipped and fixed, and this page ends with the reason a more
+aggressive retry policy can get you blocked faster rather than scraped faster.
 
 ## The bug that is really a retry lesson
 
@@ -153,7 +156,10 @@ and the flag belonged to the test harness, not the browser.
 
 That reframes the total budget as more than a safety limit. A tight attempt cap and a
 real deadline are also a rate limiter, because they put a hard ceiling on how fast a
-failing endpoint can be retried. The advice in
+failing endpoint can be retried. It is the same volume trap that makes
+[AI agent retry loops trip rate limits rather than fingerprint checks](agent-retry-loops-rate-limits.md):
+a loop that re-requests on every failure multiplies requests no matter how real each one
+looks. The advice in
 [how to scrape without getting blocked](how-to-scrape-without-getting-blocked.md) is to
 space requests and keep one identity coherent rather than churning through many shallow
 ones; an aggressive retry loop does the opposite of both at the worst possible moment,

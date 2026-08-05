@@ -21,8 +21,20 @@ platforms.
 
 ## Why a profile feed is harder than it looks
 
-Open a profile, scroll to the bottom, then count the posts. The obvious code gets the
-obvious wrong answer:
+A profile feed is hard to scrape correctly because of three traps that stay invisible until
+you hit them: the feed is virtualized so most posts are never in the DOM at once, the counts
+you want are abbreviated and lazy-loaded, and most of the page sits behind a login wall.
+Each trap defeats a different piece of naive code, and each has its own fix.
+
+| Trap | Why it breaks naive code | The fix |
+|---|---|---|
+| Virtualized feed | Only posts near the viewport are mounted; scrolled-past nodes are removed, so a final `query_selector_all` sees about a dozen | Read each batch as it mounts and dedupe on a stable post ID |
+| Abbreviated, lazy-loaded counts | `1.2M` is a rounded string painted a beat after first paint, so you cannot sort, sum or threshold on it | Wait for the element, then parse the suffix back to an integer magnitude |
+| Login wall | An unauthenticated session gets a truncated page or a wall | Authenticate once, save the session state, and reuse it with the same seed |
+
+Start with the virtualization trap, because it is the one that silently returns wrong data
+instead of an obvious error. Open a profile, scroll to the bottom, then count the posts. The
+obvious code gets the obvious wrong answer:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -189,8 +201,11 @@ question, see [how to scrape content behind a login](how-to-scrape-behind-login-
 
 ## Make the scrolling look human, the honest caveat
 
-This is where the product's boundary has to be stated plainly, because a page that
-promotes by demonstration should also tell you what the demonstration does not cover.
+A good fingerprint removes the automated-browser tell, but it does not make robotic
+behaviour look human. These platforms score behaviour separately from the fingerprint, so
+realistic hardware still needs a realistic scroll cadence on top of it. This is where the
+product's boundary has to be stated plainly, because a page that promotes by demonstration
+should also tell you what the demonstration does not cover.
 
 Social platforms run the strictest detection of anywhere on the web. A seed-reproducible,
 C++-level fingerprint driven by stock Playwright removes the automated-browser tell: the

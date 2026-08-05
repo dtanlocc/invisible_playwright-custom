@@ -1,6 +1,6 @@
 ---
 title: "How to scrape image galleries with Playwright"
-description: "Scrape image galleries with Playwright: trigger lazy-loaded tiles by scrolling, resolve the highest srcset candidate, open the lightbox for full-resolution assets, and pass hotlink checks."
+description: "Scrape image galleries with Playwright: scroll to trigger lazy-loaded tiles, take the widest srcset, open the lightbox for full-res, and beat hotlink 403s."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 47
@@ -8,6 +8,13 @@ nav_order: 47
 
 
 # How to scrape image galleries with Playwright
+
+To scrape an image gallery with Playwright, do four things in order: scroll so
+lazy-loaded tiles promote their real URLs, parse each `srcset` and take the widest
+candidate, open the lightbox and read `currentSrc` for the full-resolution asset, then
+fetch that asset from inside the browser context so it still carries the `Referer` and
+headers that hotlink checks require. Skip any one step and you get placeholders,
+thumbnails, or 403s.
 
 A gallery looks like a grid of images and behaves like nothing of the sort. What the
 page ships you first is mostly placeholders, the real URLs are hidden in attributes the
@@ -200,7 +207,9 @@ with open("asset.jpg", "wb") as fh:
 
 ## Fetch the asset without losing the headers that got you in
 
-This is the caveat that costs people an afternoon. Image hosts commonly enforce hotlink
+Fetch the asset from inside the browser context, not from a separate downloader, so the
+request keeps the `Referer`, cookies and headers the image host inspects. This is the
+caveat that costs people an afternoon. Image hosts commonly enforce hotlink
 protection: the asset server inspects the `Referer` and the rest of the request headers,
 and it serves the picture only to a request that looks like it came from the page. A
 real browser sends a matching `Referer`, a `User-Agent` that agrees with its engine, and

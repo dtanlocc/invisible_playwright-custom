@@ -1,6 +1,6 @@
 ---
 title: "JA3 and JA4: why a TLS fingerprint cannot be patched"
-description: "A TLS fingerprint is decided before your code runs and before a single header is sent, which is why no stealth plugin touches it. What JA3 and JA4 measure, why JA3 decayed, and the two things that change the answer."
+description: "JA3 and JA4 are set by the TLS library before your code runs, so no stealth plugin can patch them. What they measure, why JA3 decayed, and the two real fixes."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 6
@@ -41,12 +41,13 @@ something. An MD5 hash tells them nothing until they look it up.
 
 ## Why JA3 stopped being dependable
 
-This is the part most guides are behind on.
+JA3 stopped being dependable because modern browsers now **randomise the order of TLS
+extensions on every connection**, and extension order is one of the five fields JA3
+hashes. The same browser therefore produces a different JA3 hash on every connection.
+This is the part most guides are still behind on.
 
-Modern browsers **randomise the order of TLS extensions on every connection**. Chrome
-introduced this deliberately, to stop servers hardcoding assumptions about client
-behaviour. Since extension order is one of the five JA3 fields, the same browser
-produces a different JA3 hash on every connection.
+Chrome introduced the randomisation deliberately, to stop servers hardcoding assumptions
+about client behaviour.
 
 That has two consequences worth understanding:
 

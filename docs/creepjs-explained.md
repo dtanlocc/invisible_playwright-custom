@@ -1,6 +1,6 @@
 ---
 title: "How CreepJS decides you are lying"
-description: "CreepJS mostly asks whether a browser is telling the truth rather than what it reports. Read from its own source, module by module, for the techniques it uses to catch a lie."
+description: "CreepJS asks whether a browser is telling the truth, not just what it reports. Read from its own source: how it detects a lie and why spoofing scores worse."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 2
@@ -13,9 +13,9 @@ Most fingerprinting tests ask what your browser reports. CreepJS mostly asks whe
 your browser is *telling the truth*, which is a different question and a much harder
 one to pass by spoofing.
 
-Read from the source on 2026-07-27 (`abrahamjuliot/creepjs`, `src/lies/index.ts` and
-the module layout) and not from the rendered page, because the interesting part
-is the method instead of the numbers it prints.
+Read from the source on 2026-07-27 ([`abrahamjuliot/creepjs`](https://github.com/abrahamjuliot/creepjs),
+`src/lies/index.ts` and the module layout) and not from the rendered page, because
+the interesting part is the method instead of the numbers it prints.
 
 ## The shape of it
 

@@ -1,6 +1,6 @@
 ---
 title: "How to scrape flight prices with Playwright"
-description: "Why a flight search returns nothing on load, how to wait for the results-complete signal instead of networkidle, and how to read the fare matrix without a half-empty capture."
+description: "Scrape flight prices with Playwright by waiting for the search's results-complete signal instead of networkidle, then reading the settled fare matrix."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 30
@@ -8,6 +8,12 @@ nav_order: 30
 
 
 # How to scrape flight prices with Playwright
+
+To scrape flight prices with Playwright, wait for the search to report itself complete
+rather than for the page to load or the network to go idle, then read the settled fare
+matrix in one pass. Because a fare scan is many searches, run every one of them as the
+same seeded browser, so the endpoint feeding the fares sees one consistent device rather
+than a new machine each time.
 
 A flight search is the worst possible fit for the way most people write a scraper. You
 submit an origin, a destination and a pair of dates, the navigation settles, and the
@@ -102,8 +108,10 @@ def scrape_fares(origin, destination, depart, ret, seed=42):
 The loop above is deliberately explicit so the exit conditions are visible: it ends
 either when the search reports complete or when a hard ceiling is reached, and it never
 depends on the network being idle. In real code you would fold the wait into a single
-`wait_for_function` against a page flag if the site exposes one, but the response-driven
-version works even when the page keeps its state private.
+`wait_for_function` against a page flag if the site exposes one, or wait directly on the
+terminal response with the predicate shown in
+[how to wait for a specific API response](wait-for-specific-api-response-playwright.md);
+the response-driven version above works even when the page keeps its state private.
 
 One caveat that trips people up: the matrix can look full and still be settling, because
 a late provider can undercut a fare that already rendered. If the last few poll responses
@@ -139,7 +147,9 @@ as waiting on load, one layer up.
 
 ## Running a whole fare scan without looking like a new device each time
 
-A single search is rarely the goal. You want a fortnight of departure dates, or the same
+Pin one seed for the entire scan and every search derives the same browser identity, so
+the whole run looks like one consistent device rather than a new machine on each request.
+A single search is rarely the goal: you want a fortnight of departure dates, or the same
 route priced every morning, which is dozens or hundreds of searches. This is where the
 browser you run the scan with starts to matter as much as the waits.
 
@@ -150,7 +160,7 @@ never produces, and a search that looks like a fresh unfamiliar device is one a
 provider-aggregating backend can reasonably choose to deprioritise or serve more slowly.
 The fix is not to hide; it is to be the *same* real browser on every search of the scan.
 
-That is what a seed gives you. `InvisiblePlaywright(seed=42)` derives roughly 400
+That is what a seed gives you. `InvisiblePlaywright(seed=42)` derives hundreds of
 fingerprint fields - GPU, audio, fonts, screen, canvas - from one number, and the same
 seed produces the same fields every run. So a scan that reuses one seed is one consistent
 Firefox making many searches, which is what a person doing a fare hunt actually looks
@@ -174,6 +184,11 @@ the *same* seed, so every one of them is the identical device rather than a new 
 time. If you would rather keep one browser open across the whole scan, hold a single
 `with InvisiblePlaywright(seed=seed) as browser:` around the loop and open a new page per
 search; the seed does the same job either way.
+
+If the site presents its dates as a single flexible-date calendar grid rather than one
+search per date, the read order changes - each month's cells arrive in their own fetch -
+and [how to scrape flexible-date fare calendars](how-to-scrape-fare-calendars-playwright.md)
+covers that variant with the same one-seed sweep.
 
 If your scan runs long enough that a single exit address becomes the pattern instead,
 that is a separate axis from the fingerprint, and

@@ -1,6 +1,6 @@
 ---
 title: "How to scrape paginated pages with Playwright"
-description: "How to crawl numbered and next-page pagination with Playwright without the stale-handle crash, why each page turn destroys the execution context, and how to keep one fingerprint across every page."
+description: "Scrape numbered and next-page pagination in Playwright without the 'Execution context was destroyed' crash: re-query after every page turn, keep one seed."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 9
@@ -8,6 +8,11 @@ nav_order: 9
 
 
 # How to scrape paginated pages with Playwright
+
+To scrape paginated pages with Playwright without the `Execution context was destroyed`
+crash, re-query your element handles after every page turn and never reuse a handle you
+took before a navigation. Pagination is a re-query problem, not a loop problem: each page
+turn is a navigation, and a navigation destroys the context every handle was bound to.
 
 Most pagination tutorials show you a loop that clicks "next", reads the items, clicks
 "next" again, and never mentions the thing that breaks it. Each page turn is a
@@ -156,13 +161,14 @@ with InvisiblePlaywright(seed=42) as browser:
 
 Because the whole crawl runs inside one `with` block and one browser, the identity is
 already stable here. The seed matters for the case you do not see coming. If your crawler
-retries a failed page in a new process, or resumes tomorrow from page 18, or shards pages
-across workers, a browser launched with no seed draws a fresh random identity each time,
+retries a failed page in a new process, or [resumes tomorrow from page 18](how-to-resume-an-interrupted-scrape-playwright.md),
+or shards pages across workers, a browser launched with no seed draws a fresh random identity each time,
 and now the same logical visitor is reporting a different GPU and a different canvas hash
 halfway through the same paginated set. A fingerprint that changes mid-crawl is a signal
 in its own right, and a cheap one for a site to check. Passing a fixed seed makes every
-process that touches this crawl present the same machine. Log it once and any page can be
-replayed against the exact identity that first fetched it. The reproducibility angle for
+process that touches this crawl present the same machine. Log it once and
+[any page can be replayed against the exact identity](reproducible-agent-browser-identity-seed.md)
+that first fetched it. The reproducibility angle for
 debugging is covered in [the checklist for being detected on one site](playwright-detected-as-bot.md);
 here the point is continuity, that the visitor on page 40 is the visitor from page 1.
 

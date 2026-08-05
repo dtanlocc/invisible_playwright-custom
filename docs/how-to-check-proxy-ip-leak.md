@@ -1,6 +1,6 @@
 ---
 title: "How to check if a proxy leaks your real IP"
-description: "How to verify a proxy is not leaking your real IP in Playwright by confirming the actual WebRTC, IPv6, DNS and timezone values, not just checking that a leak is absent."
+description: "Check if a proxy leaks your real IP in Playwright by confirming the actual WebRTC, IPv6, DNS and timezone values, not just that a leak is absent."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 16
@@ -79,6 +79,15 @@ run.
 ## The four surfaces to confirm: WebRTC, IPv6, DNS, timezone
 
 A real IP escapes through more than one channel, and each wants its own positive check.
+At a glance, this is the value to confirm on each surface and the false "no leak" that
+each one hides:
+
+| Surface | Positive value to confirm | The false "no leak" it hides |
+|---|---|---|
+| WebRTC | Host masked to `.local`, server-reflexive equal to the egress, gathering complete | WebRTC gathered nothing at all |
+| IPv6 | No global IPv6 candidate, while the v4 server-reflexive one still appears | Gathering never ran, so no v6 could appear |
+| DNS | Resolution happens at the proxy exit, not your local resolver | DNS never resolved |
+| Timezone and locale | Browser clock matches the exit country | Timezone API returned undefined |
 
 - **WebRTC** is the loud one, covered above: host masked to `.local`, server-reflexive
   equal to the egress, gathering complete.
@@ -87,9 +96,10 @@ A real IP escapes through more than one channel, and each wants its own positive
   the v4 server-reflexive one still does. That is an absence you can only trust because the
   v4 candidate proves gathering ran.
 - **DNS** should resolve through the proxy, not your local resolver. With a SOCKS proxy
-  this is the remote-DNS behaviour; confirm resolution happens at the exit rather than
-  leaking your ISP's resolver. See [SOCKS5 versus HTTP proxy](socks5-vs-http-proxy-browser.md)
-  for which schemes carry DNS through the tunnel.
+  this is the [remote-DNS behaviour](does-a-proxy-leak-dns-doh-explained.md); confirm
+  resolution happens at the exit rather than leaking your ISP's resolver. See
+  [SOCKS5 versus HTTP proxy](socks5-vs-http-proxy-browser.md) for which schemes carry DNS
+  through the tunnel.
 - **Timezone and locale** are not an IP but they undo one. An exit in one country with a
   browser clock in another is a mismatch a detector cross-checks directly.
   [When the timezone does not match the proxy](timezone-proxy-mismatch.md) lists every
@@ -239,7 +249,8 @@ compare-against-a-real-browser method these checks sit inside.
 - The public leak and fingerprint pages read from their own output, including BrowserLeaks
   for per-surface values and CreepJS for how a suppressed signal is recorded rather than
   ignored.
-- Playwright's documented `page.evaluate` and proxy configuration, used unchanged.
+- Playwright's documented [proxy configuration](https://playwright.dev/python/docs/network)
+  and `page.evaluate`, used unchanged.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "BFCache and pageshow.persisted under browser automation"
-description: "Automation drivers disable the back/forward cache, so event.persisted is always false and every back navigation is a full reload. Why that is observable, and what turning it back on costs."
+description: "Automation disables the back/forward cache, so pageshow.persisted is always false and every Back is a full reload. Why sites notice, and what enabling it costs."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 13
@@ -9,14 +9,15 @@ nav_order: 13
 
 # BFCache and pageshow.persisted under browser automation
 
+**Under browser automation, `pageshow.persisted` is almost always `false`, because the
+drivers switch the back/forward cache off.** Every back navigation becomes a full reload
+instead of an instant restore, and a page that pays attention to the difference is
+looking at a browser that behaves unlike every consumer browser of the last decade.
+
 Press Back in a real browser and the previous page usually comes back instantly,
 restored from memory with its JavaScript state intact. The page is told about it: a
-`pageshow` event fires with `persisted` set to `true`.
-
-Under automation that almost never happens, because the drivers switch the cache off.
-Every back navigation becomes a full reload, `persisted` is always `false`, and a page
-that pays attention to the difference is looking at a browser that behaves unlike every
-consumer browser of the last decade.
+`pageshow` event fires with `persisted` set to `true`. Under automation that almost never
+happens.
 
 This page covers what the cache does, what automation does to it, why the difference is
 visible, what turning it back on breaks in your own tests, and how to decide.
@@ -44,7 +45,8 @@ re-running analytics on a restored view.
 
 ## What automation does to it
 
-Two different situations, both ending in the same place.
+Automation switches the cache off deliberately, in both major engines, so it never
+restores a page. Two different situations, both ending in the same place.
 
 **Firefox under Playwright.** The driver that Playwright uses to control Firefox sets
 `disallowBFCache` on every docshell it manages. That is a deliberate choice on its part:
@@ -100,8 +102,9 @@ page.go_back(wait_until="domcontentloaded")
 page.wait_for_selector("#something-on-the-previous-page")
 ```
 
-Waiting for something you can see is more robust than waiting for a lifecycle event
-anyway, and it works whether or not the page was restored.
+Waiting for something you can see is more robust than
+[waiting for a lifecycle event](how-to-wait-for-page-load-playwright.md) anyway, and it
+works whether or not the page was restored.
 
 **State survives navigation.** That is the point of the cache, and it is also the thing
 that makes a test suite non-deterministic if the suite assumed a fresh page. If your
@@ -158,7 +161,8 @@ something odd.
 **See also:** [human-like mouse movement](human-mouse-movement.md), the same category of
 behavioural difference, and
 [the checklist for being detected on one site](playwright-detected-as-bot.md), where
-behaviour is step five.
+behaviour is step five, and [how websites detect bots](how-do-websites-detect-bots.md)
+for where behavioural signals sit in the wider picture.
 
 ## Sources
 

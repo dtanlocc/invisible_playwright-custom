@@ -1,6 +1,6 @@
 ---
 title: "Scrape nested pagination with Playwright"
-description: "How to scrape nested pagination with Playwright: carry an outer and inner cursor, keep the outer position across inner navigations, and pace the whole tree from one identity."
+description: "Scrape nested pagination in Playwright with two cursors: keep the outer position across inner navigations, pace the whole tree, and hold one identity across it."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 78
@@ -8,6 +8,11 @@ nav_order: 78
 
 
 # Scrape nested pagination with Playwright
+
+To scrape nested pagination with Playwright, treat it as a loop inside a loop: carry an
+outer cursor over the containers and an inner page number within each, read the whole outer
+level into plain data before you descend so an inner navigation cannot lose your place, and
+pace the whole tree from one fixed browser identity. A single page number is never enough.
 
 Nested pagination is pagination inside pagination. Categories are paged at the outer
 level, and each category expands into its own paged list. Or a paged list whose rows each
@@ -194,7 +199,7 @@ hundred the session has quietly presented several different machines to the same
 endpoint, and inconsistency over time is exactly the thing a stateful detector is built to
 notice. [A suppressed or shifting signal is a tell, not a pass](how-to-test-bot-detection.md).
 
-This is the reason the examples above pass `seed=42`. One seed fixes roughly 400 fields,
+This is the reason the examples above pass `seed=42`. One seed fixes hundreds of fields,
 GPU, canvas, audio, fonts and screen among them, and holds them identical for the life of
 the session and across sessions. Measured against the consistency check that pairs a seed
 with a returned visitor ID, the same seed produced the same FingerprintJS visitor ID on
@@ -239,7 +244,7 @@ categories at twenty-five pages each is a thousand page loads, which is why paci
 identity matter more than any single page.
 
 **Does the same browser session across a thousand pages get flagged?** It can, if the
-fingerprint drifts. A fixed seed holds roughly 400 fields identical for the whole session,
+fingerprint drifts. A fixed seed holds hundreds of fields identical for the whole session,
 so the thousandth request presents the same machine as the first.
 
 **Where should I put the delay?** At both levels. A short varied pause between inner pages

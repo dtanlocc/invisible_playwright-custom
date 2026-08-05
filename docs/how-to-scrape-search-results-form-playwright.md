@@ -1,6 +1,6 @@
 ---
 title: "Scrape search results by driving a form in Playwright"
-description: "Fill a search form in Playwright so its input and change handlers fire, submit past a JS-gated button, tell a results grid from a zero-results state, and iterate query permutations under one seeded identity."
+description: "Drive a search form in Playwright so its input and change events fire, get past a JS-gated submit button, and tell real results from a zero-results page."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 66
@@ -8,6 +8,13 @@ nav_order: 66
 
 
 # Scrape search results by driving a form in Playwright
+
+**To scrape search results from a form in Playwright, set the fields with `fill`, `type`
+and `select_option` so the page's own `input` and `change` handlers run, wait for the
+gated submit button to enable itself, then race the results container against the
+zero-results element so an empty answer is recorded rather than mistaken for a timeout.**
+Run that across the full set of queries under one seeded identity, at a human pace, so the
+whole matrix reads as one visitor searching rather than a swarm of machines.
 
 A lot of the data worth having is not on a page you can request by URL. It sits behind
 a search form: a couple of typed query fields, one or two dropdowns where the second
@@ -27,6 +34,11 @@ same calls apply; the identity and event-trust parts are where the two diverge, 
 that is called out where it matters.
 
 ## Set field values so the handlers actually fire
+
+**Set every field with Playwright's `fill`, `type` and `select_option`, never by assigning
+`element.value` from injected JavaScript.** Those methods drive the field the way the
+browser does for a person, so the `input` and `change` events fire and the form's own
+validation and enable-submit logic actually run.
 
 The mistake that wastes the most time here is setting a field's value directly and
 wondering why the submit button never enables. A search form is usually wired to its
@@ -100,6 +112,11 @@ instead of parsed HTML.
 
 ## Tell a results grid from a zero-results page
 
+**After submit, wait for the results container or the zero-results element and race the
+two, so a genuine empty answer is recorded as data rather than mistaken for a slow load.**
+A row count of zero cannot, on its own, tell an empty result from a page that never
+finished loading.
+
 This is the step people skip and then silently corrupt a dataset with. After submit,
 the page can be in three states, not two: results, a genuine zero-results message, or
 still loading. A selector that waits only for the results container will hang on a
@@ -133,7 +150,12 @@ class of silent data loss into a case you handle on purpose.
 
 ## Iterate permutations under one identity
 
-Now the volume. You rarely want one query; you want the form asked a matrix of them,
+**Run the whole matrix of queries under one seeded identity at a human pace, not a fresh
+browser per query.** A fixed `seed` holds the fingerprint constant across every
+permutation, so the site sees one consistent visitor searching a lot rather than a stream
+of new machines hitting the same endpoint.
+
+You rarely want one query; you want the form asked a matrix of them,
 regions crossed with categories crossed with date ranges. The instinct is to spread that
 across fresh contexts so each query starts clean. Resist it, for two reasons that pull
 the same direction.
@@ -191,6 +213,10 @@ scraped as if it belonged to the current one. The `goto` at the top of `run_quer
 does exactly that.
 
 ## Run it where the results are the same as production
+
+**Route every permutation through the exit you actually intend, and let the browser's
+timezone follow that exit, because a search that geo-filters returns a different grid, or
+none, for a request that appears to come from the wrong country.**
 
 A form scrape has one extra failure mode over a static scrape: the results themselves
 can depend on where the request appears to come from. A search that geo-filters will

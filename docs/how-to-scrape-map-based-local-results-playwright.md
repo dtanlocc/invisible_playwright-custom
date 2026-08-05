@@ -1,6 +1,6 @@
 ---
 title: "How to scrape map-based local results with Playwright"
-description: "Scrape map-based local results with Playwright by driving the viewport, capturing the bounds-keyed XHR per step, and tiling an area, with an in-region proxy and a matching WebGL fingerprint."
+description: "Scrape map-based local results with Playwright: drive the viewport, capture the bounds-keyed XHR per step, and tile an area through an in-region proxy."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 49
@@ -24,6 +24,8 @@ and whether it draws the right city.
 
 ## How map-based results actually load
 
+A map-based results list loads as three synced but separate layers, all repainted from one
+bounds-keyed request each time the view moves: the map tiles, the pins, and the DOM list.
 Three moving parts, synced but separate:
 
 - **The map tiles** are drawn on a WebGL canvas. The browser asks the GPU to rasterise

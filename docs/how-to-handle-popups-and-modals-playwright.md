@@ -1,6 +1,6 @@
 ---
 title: "How to handle popups and modals in Playwright"
-description: "How to handle popups and modals in Playwright: separating in-page JavaScript modals, native alert and confirm dialogs, and real target=_blank popup tabs, each with the right API."
+description: "Handle popups and modals in Playwright: separate in-page modals, native alert/confirm dialogs, and target=_blank tabs, and use the right API for each."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 13
@@ -8,6 +8,12 @@ nav_order: 13
 
 
 # How to handle popups and modals in Playwright
+
+Handling popups in Playwright means matching one of three mechanisms to what the page is
+actually doing: an in-page modal is DOM you locate and click, a native dialog (`alert`,
+`confirm`, `prompt`, `beforeunload`) is caught with `page.on("dialog")`, and a real popup
+tab is caught with `context.expect_page()` before the click that opens it. Pick the wrong
+one and you get a hang, a swallowed dialog, or a `Page` you never receive.
 
 The word "popup" covers three completely different things, and the reason people get
 stuck is that they reach for one mechanism when the page is doing another. An overlay

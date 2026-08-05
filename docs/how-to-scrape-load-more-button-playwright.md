@@ -9,6 +9,13 @@ nav_order: 77
 
 # Scrape load-more button pages with Playwright
 
+**To scrape a load-more list with Playwright, hold the button as a
+`page.locator()` instead of a captured element, click it in a loop, wait for the
+item count to grow after each click, and stop when the button disappears or goes
+disabled rather than after a fixed number of clicks.** That handles the two ways
+this pattern breaks: the stale-element crash, and the fixed cadence that reads as
+a bot.
+
 A load-more list looks like infinite scroll and behaves nothing like it. Scroll
 appends as you move; a load-more list appends only when an explicit button is
 clicked, and that button is one of the least stable elements on the page. It
@@ -115,7 +122,16 @@ def scrape_load_more(url, item_selector, button_selector, max_rounds=500):
 
 `max_rounds` is a safety ceiling against a page that keeps offering a button that
 never adds anything, not the exit condition. The real exits are the button
-vanishing, the button disabling, and the count refusing to grow after a click. The
+vanishing, the button disabling, and the count refusing to grow after a click:
+
+| Stop condition | How the loop detects it |
+|---|---|
+| Button removed from the DOM | `button.count() == 0` at the top of the round |
+| Button present but disabled | `not button.is_enabled()` |
+| Click added no new rows | `wait_for_function` times out waiting for the count to grow |
+| Safety ceiling reached | `max_rounds` exhausted (a guard, not a real exit) |
+
+The
 spinner case is handled for free: while the request is in flight the button is
 either detached or disabled, and both are caught by re-querying `count()` and
 `is_enabled()` at the top of the next round instead of trusting a stale reference.
@@ -250,7 +266,8 @@ identity makes the whole session, fingerprint and rhythm, reproducible.
   trusted-click path that dispatches the press at the engine level.
 
 **See also:** [scraping infinite scroll](how-to-scrape-infinite-scroll-playwright.md)
-for the viewport-driven sibling of this pattern, [why isTrusted matters for
+for the viewport-driven sibling of this pattern, [scraping numbered pagination](how-to-scrape-paginated-pages-playwright.md)
+for lists split across page-numbered URLs instead of a button, [why isTrusted matters for
 clicks](playwright-clicks-istrusted.md) for what makes the click real, and
 [the detection checklist](playwright-detected-as-bot.md) for where behavioural tells
 sit relative to everything else.

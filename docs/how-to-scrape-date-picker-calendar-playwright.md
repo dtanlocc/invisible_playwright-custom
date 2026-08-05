@@ -1,6 +1,6 @@
 ---
 title: "Scrape date-picker calendars with Playwright"
-description: "How to scrape a date-picker calendar with Playwright: navigate months, skip disabled cells, click to commit a date, and sweep a whole date range under one stable identity."
+description: "Scrape a date-picker calendar with Playwright: page between months, skip disabled cells, click to commit a date, and sweep a whole range under one identity."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 69
@@ -8,6 +8,13 @@ nav_order: 69
 
 
 # Scrape date-picker calendars with Playwright
+
+To scrape a date-picker calendar with Playwright, drive it the way a person does: click
+the field to open the widget, page to the target month by reading the header, filter to
+genuinely available day cells, then click the cell to commit the date. Typing into the
+input rarely sticks. Sweeping a whole date range adds a second requirement that has
+nothing to do with the DOM: humanized timing between clicks and one fixed identity held
+across the entire walk.
 
 A date-picker looks like a form field and behaves like an application. The value you
 want is not in the DOM waiting to be read: it is behind a grid that shows one month at

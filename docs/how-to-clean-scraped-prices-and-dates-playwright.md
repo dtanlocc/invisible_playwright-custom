@@ -1,6 +1,6 @@
 ---
 title: "How to clean scraped prices and dates with Playwright"
-description: "Parse locale-formatted prices and localized or relative dates into typed numbers and UTC timestamps with Playwright, anchored to the browser's own consistent locale and timezone."
+description: "Parse locale-formatted prices and relative dates into typed numbers and UTC timestamps with Playwright, using the browser's own stable locale and timezone."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 65
@@ -8,6 +8,11 @@ nav_order: 65
 
 
 # How to clean scraped prices and dates with Playwright
+
+To clean scraped prices and dates, read the browser's resolved locale and timezone once
+per page, then parse every value against that single locale: numbers through a
+locale-aware library into `Decimal`, and relative or localized dates into UTC. Do not
+autodetect the format per value.
 
 The hard part of scraping prices and dates is not extracting the text. It is turning
 that text into a typed number and a UTC timestamp when the text does not tell you, on
@@ -246,9 +251,11 @@ off by a rounding error is off.
   upstream.
 
 **See also:** [how to scrape geotargeted content](how-to-scrape-geotargeted-content-playwright.md)
-for making the exit, locale and timezone agree in the first place, and
+for making the exit, locale and timezone agree in the first place,
 [when the timezone does not match the proxy](timezone-proxy-mismatch.md) for what a
-mismatch costs beyond broken formats.
+mismatch costs beyond broken formats, and
+[how to export scraped data to CSV](how-to-scrape-to-csv-playwright.md) for keeping the
+`Decimal` and UTC values intact on the way out.
 
 ---
 

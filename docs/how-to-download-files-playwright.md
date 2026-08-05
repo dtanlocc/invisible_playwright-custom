@@ -1,6 +1,6 @@
 ---
 title: "How to download files with Playwright"
-description: "How to download files with Playwright using expect_download and save_as, and why the file transfer stays on the browser's proxied, DNS-through-proxy path instead of leaking your host IP."
+description: "Download files with Playwright using expect_download and save_as, keeping the transfer on the browser's proxied, DNS-through-proxy exit and off your real IP."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 10
@@ -254,8 +254,9 @@ scraping link text from the page.
   through the proxy by default, documented in [Configuration](configuration.md).
 
 **See also:** [Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authentication.md)
-for the DNS-through-proxy details, and [Configuration](configuration.md) for the
-proxy dict and timezone handling every session shares.
+for the DNS-through-proxy details, [how to upload files with Playwright](how-to-upload-files-playwright.md)
+for the reverse operation, and [Configuration](configuration.md) for the proxy dict
+and timezone handling every session shares.
 
 ---
 

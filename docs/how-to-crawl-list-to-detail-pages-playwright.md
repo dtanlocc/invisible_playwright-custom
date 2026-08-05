@@ -1,6 +1,6 @@
 ---
 title: "Crawl list pages to detail pages with Playwright"
-description: "How to crawl list-to-detail pages with Playwright: collect the links from the summary cards, visit each detail URL, re-associate the data, and pace the fan-out under one seeded identity."
+description: "Crawl list-to-detail pages with Playwright in two phases: collect the card links, visit each detail URL, re-associate the data, and pace the fan-out."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 70
@@ -9,16 +9,22 @@ nav_order: 70
 
 # Crawl list pages to detail pages with Playwright
 
+To crawl from list pages to detail pages with Playwright, split the crawl into two phases:
+first read every summary card on the list into plain Python values, each carrying its
+detail-page link, then loop over those links, load each detail page, and merge its full
+record back into the row it came from. Keeping the two phases separate is what stops element
+handles from dying mid-navigation; keeping the whole run under one seeded identity is what
+stops the fan-out of detail loads from reading as a machine.
+
 Almost every real crawl has this shape. A list page shows summary cards, one per record,
 and the full record lives somewhere else: on each item's own URL. The card has a title, a
 price, a thumbnail, and a link. Everything you actually came for, the description, the
 attributes, the fields nobody bothered to duplicate onto the card, is one navigation away.
 
-So the crawl is two phases, not one. Collect the links from the list, then visit each
-detail page and put its data back next to the list row it came from. This page is how to
-do that without losing the association, how to decide new-tab versus same-tab and how many
-detail pages to open at once, and the one stealth fact that matters more than any single
-page's fingerprint: the shape of this crawl is a fan-out, and the fan-out is the signal.
+This page is how to do that without losing the association, how to decide new-tab versus
+same-tab and how many detail pages to open at once, and the one stealth fact that matters
+more than any single page's fingerprint: the shape of this crawl is a fan-out, and the
+fan-out is the signal.
 
 ## The two-phase shape of a list-to-detail crawl
 
@@ -29,7 +35,8 @@ the full record, and merges it back into the row.
 The mistake that makes this painful later is collapsing the two phases into one loop that
 navigates away from the list mid-iteration. The moment you call `goto` on a detail URL,
 the list document is gone, and so is every element handle and locator result you were
-still holding from it. This is the same execution-context destruction that
+still holding from it. This is the same
+[execution-context destruction](execution-context-destroyed.md) that
 [breaks a naive pagination loop](how-to-scrape-paginated-pages-playwright.md): a handle
 does not survive the navigation that replaces the document it was bound to.
 
@@ -99,7 +106,9 @@ records and too slow for a few hundred, which is where the next two questions co
 
 ## New tab or same tab, and how many at once
 
-Two independent decisions get conflated here.
+Reuse one tab by default, and open a new tab only when you need the list and a detail page
+alive at the same time. Treat how many detail pages to open at once as a pacing decision
+rather than a hardware one. These are two independent decisions that get conflated here.
 
 **Same tab versus new tab.** Reusing one page, as above, means each `goto` replaces the
 previous detail document. You never hold two detail pages at once, memory stays flat, and
@@ -122,7 +131,9 @@ belongs to the browser, not the tab. That matters for the concurrency decision b
 is the reason [new_page and new_context behave differently](playwright-new-page-vs-new-context.md):
 a new context is a new identity, which is not what you want inside one crawl.
 
-**How many at once.** Opening detail pages concurrently is faster and easy to overdo. Cap
+**How many at once.**
+[Opening detail pages concurrently](how-to-scrape-multiple-pages-in-parallel-playwright.md)
+is faster and easy to overdo. Cap
 it with a semaphore so the fan-out has a fixed width, and keep the list rows as the unit of
 work so the association survives concurrency untouched.
 
@@ -153,8 +164,10 @@ machine than by the next section.
 
 ## The fan-out is the signal, not the fingerprint
 
-Here is the part that most list-to-detail guides never mention, and the reason a
-fingerprint-perfect crawl still gets blocked.
+The strongest signal a list-to-detail crawl emits is its request velocity, not any single
+page's fingerprint: hundreds of detail loads from one session in a few minutes describe a
+machine no matter how real each page looks. This is the part that most list-to-detail guides
+never mention, and the reason a fingerprint-perfect crawl still gets blocked.
 
 Look at the traffic this shape produces. One session, one identity, and then hundreds of
 detail-URL loads in a few minutes, all radiating from the same origin, all in the same

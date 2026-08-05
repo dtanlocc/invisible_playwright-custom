@@ -1,6 +1,6 @@
 ---
 title: "How to scrape to JSON Lines with Playwright"
-description: "Why JSON Lines, not one big array, is the crash-safe streaming format for a long Playwright crawl, how to write it from page.evaluate, and the flush discipline that keeps the last record."
+description: "Scrape to JSON Lines with Playwright: why NDJSON, not one big JSON array, is the crash-safe format for a long crawl, plus the flush rule that keeps your data."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 54
@@ -9,11 +9,20 @@ nav_order: 54
 
 # How to scrape to JSON Lines with Playwright
 
+**To scrape to JSON Lines with Playwright, write one `json.dumps` object per line and
+call `fh.flush()` after each write.** Every record is then a complete, valid line the
+moment it lands, so a mid-crawl crash costs you at most the single line in flight instead
+of the whole file. JSON Lines (also called NDJSON) is the append-safe alternative to
+collecting everything into one big JSON array, which is only valid once its closing
+bracket is written.
+
 Scraped records are nested and ragged. One page yields a list of items, the next
 yields one item with an extra field, a third yields none. A flat CSV cannot hold that
-shape without inventing columns, so the instinct is to collect everything into a list
-and write one big JSON array at the end. On a short run that is fine. On a crawl of
-tens of thousands of pages it is the format most likely to lose you a day of work.
+shape without inventing columns (that is the trade covered in
+[how to scrape to CSV](how-to-scrape-to-csv-playwright.md)), so the instinct is to
+collect everything into a list and write one big JSON array at the end. On a short run
+that is fine. On a crawl of tens of thousands of pages it is the format most likely to
+lose you a day of work.
 
 This page is about the container, not the extraction: why a single top-level array is
 the wrong shape for a long crawl, why JSON Lines is the append-safe one, the flush rule
@@ -63,6 +72,16 @@ The crash math is now the one you want. A 40,000-page run that dies at page 12,0
 **12,000 valid, complete lines** and a partial 12,001st. You read the file line by line,
 the 12,000 good ones parse, and you skip or truncate the one that did not finish. The
 work up to the failure is money in the bank rather than a corrupt blob.
+
+The contrast between the two containers, on the properties that matter for a long crawl:
+
+| Property | One big JSON array | JSON Lines (NDJSON) |
+|---|---|---|
+| Valid on disk | Only after the closing `]` | After every single line |
+| Append a record | Rewrite the trailing `]`, or hold all records in memory | Write one line, close nothing |
+| Crash at page 12,000 of 40,000 | Whole file invalid, none recoverable by a standard parse | 12,000 valid lines plus one partial |
+| Ragged / nested records | Fine, inside the one value | Fine, each line independent |
+| Memory for a long crawl | Grows with the run | Constant |
 
 ## Stream a crawl to JSON Lines with the real API
 
@@ -238,8 +257,10 @@ into two, which is its own signal.
 - The real wrapper API in [quickstart](quickstart.md) and [configuration](configuration.md).
 
 **See also:** [how to capture XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)
-when the data is in a JSON endpoint rather than the rendered DOM, and
-[configuration](configuration.md) for proxies and timezone on a long crawl.
+when the data is in a JSON endpoint rather than the rendered DOM,
+[how to resume an interrupted scrape](how-to-resume-an-interrupted-scrape-playwright.md)
+for the resume pattern in full, and [configuration](configuration.md) for proxies and
+timezone on a long crawl.
 
 ---
 

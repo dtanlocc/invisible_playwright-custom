@@ -1,6 +1,6 @@
 ---
 title: "How to upload files with Playwright"
-description: "Upload files with Playwright using set_input_files and expect_file_chooser, why the driver path fires trusted isTrusted events, and how to verify the upload landed."
+description: "Upload files with Playwright using set_input_files or expect_file_chooser, why the driver fires trusted isTrusted events, and how to verify it landed."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 11
@@ -8,6 +8,11 @@ nav_order: 11
 
 
 # How to upload files with Playwright
+
+To upload a file with Playwright, call `page.set_input_files(selector, path)` when the
+page has an `<input type="file">`, or use `page.expect_file_chooser()` when the input
+only appears after a click. Both run through the automation driver, so the file attaches
+with trusted (`isTrusted: true`) events and no native OS window ever appears on screen.
 
 Uploading a file looks like it should be the fiddly part of an automation, and it is
 usually the opposite: the driver does the OS dialog for you and you never see a native
@@ -21,6 +26,13 @@ the one honest caveat about behaviour, and how to confirm the file actually atta
 Everything here uses stock Playwright. `InvisiblePlaywright` returns a real
 `playwright.sync_api.Browser`, so every method below is the upstream method, documented
 exactly as upstream documents it.
+
+| Situation | Method to use |
+|---|---|
+| The page exposes an `<input type="file">` you can select | `set_input_files(selector, path)` |
+| The input only exists after clicking a custom button | `expect_file_chooser()`, then `set_files(...)` |
+| Several files at once | pass a list of paths (or buffer dicts) in one call |
+| Content generated at runtime, no file on disk | pass a `{name, mimeType, buffer}` dict to either method |
 
 ## The simple case: set_input_files
 
@@ -81,8 +93,11 @@ it.
 
 ## Why this path is trusted, not a synthetic event
 
-This is the reason the two methods above are the right ones and a hand-rolled
-alternative is not.
+`set_input_files` and `expect_file_chooser` are the right methods, and a hand-rolled
+JavaScript alternative is not, because only the driver path produces trusted events. A
+file assigned by page script fires a `change` event carrying `isTrusted: false`, which is
+a permanent, browser-set tell; the driver path fires `isTrusted: true`, exactly as a
+human picking a file from the OS dialog would.
 
 You cannot upload a file by constructing an event in page JavaScript. For security, the
 browser will not let page script assign a real file to an input's `files` property, and

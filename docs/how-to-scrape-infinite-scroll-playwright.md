@@ -1,6 +1,6 @@
 ---
 title: "How to scrape infinite scroll pages with Playwright"
-description: "A Playwright scroll loop that waits for content growth instead of a fixed sleep, knows when to stop, dedupes items, and avoids the scroll pattern that reads as a bot."
+description: "A Playwright infinite-scroll loop that waits for content growth, not a fixed sleep: when to stop, how to dedupe, and avoiding the pattern that reads as a bot."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 3
@@ -20,6 +20,21 @@ collect, and the part generic scroll tutorials skip entirely - a perfectly mecha
 scroll loop is itself something a page can notice, and the block that shows up minutes
 into a session is usually that, not your fingerprint.
 
+## Infinite scroll scraping at a glance
+
+A reliable infinite-scroll scraper makes four decisions, and the fragile version of
+each is the one most tutorials ship. Wait on a condition, stop on a streak, key dedup on
+an identifier, and vary the motion:
+
+| Decision | Fragile version | Reliable version |
+|---|---|---|
+| Know a batch loaded | `sleep(2)` between scrolls | `wait_for_function` on `scrollHeight` + `wait_for_load_state("networkidle")` |
+| Know the feed ended | stop on the first flat round | stop on a streak of consecutive flat rounds |
+| Collect without repeats | index or scroll position | a stable per-item identifier |
+| Stay unremarkable | constant wheel delta at a fixed interval | seeded, varied delta and dwell |
+
+Each row is a section below.
+
 ## Why "just scroll and wait" breaks
 
 A `sleep(2)` between scrolls encodes an assumption: that two seconds is always enough for
@@ -29,11 +44,15 @@ scroll past content that has not arrived yet and read a shorter page than exists
 pages make it too much, and a thousand-item feed now takes ten times longer to collect
 than it needs to.
 
-The fix is the same one behind most Playwright reliability advice: wait for a condition,
-not for a duration. For infinite scroll the condition is content growth, which you can
-read directly from the DOM.
+The fix is the same one behind most Playwright reliability advice: [wait for a condition,
+not for a duration](how-to-wait-for-page-load-playwright.md). For infinite scroll the
+condition is content growth, which you can read directly from the DOM.
 
 ## The scroll loop: wait for growth, not for time
+
+The reliable pattern is one loop: scroll, then wait for `document.body.scrollHeight` to
+actually increase before scrolling again, with a per-round timeout standing in for the
+sleep. When the height stops growing for several rounds in a row, the feed is done.
 
 Start from a normal launch. The `browser` object below is a real Playwright `Browser`,
 so everything from here on is standard Playwright, not a project-specific API:
@@ -261,8 +280,10 @@ first points at the fingerprint or the address; the second points here.
 
 ## Sources
 
-- Playwright's own waiting primitives (`wait_for_function`, `wait_for_load_state`,
-  `expect_navigation`), used here for content growth rather than a fixed sleep.
+- [Playwright's own waiting primitives](https://playwright.dev/python/docs/api/class-page)
+  (`wait_for_function`, `wait_for_load_state`, `expect_navigation`) and its
+  [auto-waiting / actionability](https://playwright.dev/python/docs/actionability) model,
+  used here for content growth rather than a fixed sleep.
 - This project's release gates, including the WebRTC gate whose absence-only assertion
   produced a false pass, cited here as the same shape of mistake a scroll loop can make by
   treating a truncated or suppressed page as a clean end of feed.
@@ -270,8 +291,10 @@ first points at the fingerprint or the address; the second points here.
 **See also:** [the checklist for being detected on one site](playwright-detected-as-bot.md)
 for where behavior sits in the overall order, [how to scrape without getting
 blocked](how-to-scrape-without-getting-blocked.md) for the layers above the scroll loop
-itself, and [how to test whether your browser is detected](how-to-test-bot-detection.md)
-for why a clean-looking run is not the same thing as a passing one.
+itself, [how to scrape a "load more" button](how-to-scrape-load-more-button-playwright.md)
+for the click-driven cousin of this same pattern, and [how to test whether your browser is
+detected](how-to-test-bot-detection.md) for why a clean-looking run is not the same thing
+as a passing one.
 
 ---
 

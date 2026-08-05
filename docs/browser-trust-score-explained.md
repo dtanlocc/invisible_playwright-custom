@@ -23,7 +23,10 @@ number moved.
 
 ## Three numbers, three different questions
 
-Line them up and the confusion evaporates:
+The three numbers answer three unrelated questions: CreepJS trust asks whether your
+values contradict each other, a FingerprintJS visitor ID asks whether you are the same
+visitor as last time, and a reCAPTCHA v3 score asks how risky your behaviour and history
+look. Line them up and the confusion evaporates:
 
 - **CreepJS trust** is a consistency and lie count. It is high when nothing you report
   contradicts anything else you report and nothing looks tampered with. It is not a
@@ -34,6 +37,12 @@ Line them up and the confusion evaporates:
   automated.
 - **A reCAPTCHA v3 score** is a risk estimate between 0.0 and 1.0, built mostly from
   behaviour and reputation rather than from what the DOM reports at all.
+
+| Number | The question it answers | What it reads | What moves it |
+|---|---|---|---|
+| CreepJS trust | Do my reported values contradict each other? | Descriptors, prototypes, stack traces, canvas and font surfaces | A patched or blocked probe, or two fields that disagree |
+| FingerprintJS visitor ID (+ confidence) | Am I the same visitor as before? | A hash of the browser's components, in a fixed order | Any one component changing changes the whole ID |
+| reCAPTCHA v3 score | How risky do my behaviour and history look? | Interaction, cookies, storage and exit reputation, not the DOM | A warmed-up profile and realistic behaviour, not a cleaner fingerprint |
 
 Different inputs, different outputs, different failure modes. The rest of this page is
 one section per number, then why they do not move together.

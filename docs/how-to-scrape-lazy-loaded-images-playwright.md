@@ -1,6 +1,6 @@
 ---
 title: "Scrape lazy-loaded images with Playwright"
-description: "How to scrape lazy-loaded images with Playwright by reading the deferred data-src attribute off the DOM instead of scroll-forcing every image, with a scroll-into-view fallback for when you must."
+description: "Scrape lazy-loaded images with Playwright by reading the data-src attribute off the DOM: no scrolling, no downloads. Scroll-into-view fallback included."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 71
@@ -8,6 +8,12 @@ nav_order: 71
 
 
 # Scrape lazy-loaded images with Playwright
+
+To scrape lazy-loaded images with Playwright, read the deferred `data-src` attribute
+(or `data-srcset`) straight off the DOM with `get_attribute` instead of scrolling every
+image into view. The real URL is in the markup from first paint, so you get every link
+without fetching a single image and without the top-to-bottom scroll a behaviour-watching
+site can see you perform.
 
 The first time you scrape an image gallery you read `img.src`, get a one-pixel
 transparent gif for every element, and conclude the page is broken. It is not. The
@@ -17,6 +23,11 @@ different attribute the whole time.
 This page is about reading that attribute directly instead of scrolling the page to
 force every image to download, why the direct read is both faster and quieter, and the
 narrow case where you genuinely have to scroll.
+
+| Approach | Speed | Images fetched | Detection exposure | Use when |
+|---|---|---|---|---|
+| Read the deferred attribute | Fast (string read) | None | Low, no scroll motion | The URL is in the DOM (the usual case) |
+| Scroll into view and decode | Slow (per image) | Every image | Higher, scrolling is a behavioural tell | The URL is computed only inside the observer callback |
 
 ## Why src is empty and where the real URL lives
 
@@ -82,8 +93,8 @@ if srcset:
 ```
 
 This gets you every URL on the page without a single image ever being fetched. You can
-then download the files with your own HTTP client, in parallel, at whatever size you
-want, entirely outside the browser.
+then [download the files with your own HTTP client](combine-invisible-playwright-with-httpx-for-speed.md),
+in parallel, at whatever size you want, entirely outside the browser.
 
 ## The stealth case: forcing a load is a motion you can be seen making
 
@@ -209,8 +220,11 @@ same gif.
 ## Sources
 
 - The Playwright element API used above: `query_selector_all`, `get_attribute`,
-  `scroll_into_view_if_needed` and `wait_for_function`, read from the upstream Playwright
-  documentation rather than paraphrased.
+  `scroll_into_view_if_needed` and `wait_for_function`, read from the upstream
+  [Playwright Python documentation](https://playwright.dev/python/docs/api/class-page)
+  rather than paraphrased.
+- The native `loading="lazy"` attribute and the `srcset` candidate-list syntax, from
+  [MDN's `<img>` element reference](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img).
 - The behavioural section draws on this project's own release notes on interaction tells,
   where an evenly-timed automated motion flags where a static fingerprint does not.
 

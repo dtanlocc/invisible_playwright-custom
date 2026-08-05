@@ -1,6 +1,6 @@
 ---
 title: "Headless vs headful: what is actually being detected"
-description: "Headlessness is rarely what actually gets detected. What gets detected is the collection of signals that usually accompany it, and a headful browser on the same server still has almost all of them."
+description: "Headless vs headful: headlessness is rarely what gets detected. It is the hardware and rendering signals around it, and a headful server keeps almost all of them."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 4
@@ -156,10 +156,12 @@ same server it changes the rendering path and leaves every hardware tell in plac
 does nothing about the GPU, the fonts, the audio device or the screen.
 
 **Why does my script work locally and fail in CI?** Almost always the machine rather
-than the mode. Compare the fingerprint reports, not the modes.
+than the mode. Compare the fingerprint reports, not the modes. The full version of this
+is [why a Playwright script works locally and fails in the cloud](why-playwright-works-locally-fails-in-cloud.md).
 
-**Do I need Xvfb?** On Linux, for a headed run without a desktop, yes. On Windows and
-macOS this project hides the real window instead.
+**Do I need Xvfb?** On Linux, for a headed run without a desktop, yes; see
+[running headful on a Linux server with Xvfb](run-invisible-playwright-headful-server-xvfb.md).
+On Windows and macOS this project hides the real window instead.
 
 **Does running headful cost much more?** More memory and a display server on Linux. If
 your target does not care about the mode, it buys nothing, which is why step one is

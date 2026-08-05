@@ -1,6 +1,6 @@
 ---
 title: "How to scrape news article text with Playwright"
-description: "Pull the headline, author and date from JSON-LD first, then isolate the article node, expand continue-reading, and strip nav, rails and newsletter modals from the body text."
+description: "Scrape news article text with Playwright: pull headline, author and date from JSON-LD, isolate the article node, expand continue-reading, strip boilerplate."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 40
@@ -8,6 +8,12 @@ nav_order: 40
 
 
 # How to scrape news article text with Playwright
+
+To scrape a news article cleanly, work in order: read the headline, author and
+date from the page's JSON-LD, isolate the single node that holds the article
+prose, expand any "continue reading" control, then strip the boilerplate that
+lives inside that node. Doing it in that order is what separates the sentences a
+reader sees from the navigation, rails and modals wrapped around them.
 
 The hard part of a news page is not fetching it. It is that the sentence you want
 shares a DOM with the navigation, a related-story rail, a newsletter modal, three
@@ -28,7 +34,16 @@ least reliable to scrape from visible text. A byline in the page might read "By 
 staff", the visible date might say "3 hours ago", and both move around between
 templates. The trustworthy copy lives in the head, in a JSON-LD `<script
 type="application/ld+json">` block or in `<meta>` tags, because that is what the
-site feeds to search engines and social cards and therefore keeps correct.
+site feeds to search engines and social cards and therefore keeps correct. The
+general technique for reading that block is covered in
+[extracting JSON-LD structured data](how-to-extract-json-ld-structured-data-playwright.md);
+here it is applied to the three fields a news page cares about:
+
+| Field | Most reliable source | Fallback |
+|---|---|---|
+| Headline | JSON-LD `headline` | `og:title` meta tag |
+| Author | JSON-LD `author.name` | `author` meta tag |
+| Publish date | JSON-LD `datePublished` | `article:published_time` meta tag |
 
 Parse JSON-LD first and fall back to meta tags:
 
@@ -287,17 +302,20 @@ with a fixed seed you replay the same browser and bisect.
 
 ## Sources
 
-- The Playwright Python API (`query_selector_all`, `inner_text`, `get_attribute`,
-  `evaluate`, `mouse.wheel`), used unchanged through `invisible_playwright`.
-- Schema.org `NewsArticle` / `Article` structured-data fields, as emitted in the
-  JSON-LD and Open Graph blocks that news templates ship for search and social.
+- The [Playwright Python API](https://playwright.dev/python/docs/api/class-page)
+  (`query_selector_all`, `inner_text`, `get_attribute`, `evaluate`, `mouse.wheel`),
+  used unchanged through `invisible_playwright`.
+- The [Schema.org `NewsArticle`](https://schema.org/NewsArticle) / `Article`
+  structured-data fields, as emitted in the JSON-LD and Open Graph blocks that news
+  templates ship for search and social.
 - This project's own notes on soft-meter behaviour: a metered wall counts views per
   fingerprint-plus-cookie identity, and a seed-reproducible browser lets you set that
   identity on purpose.
 
 **See also:** [persistent profiles](persistent-profiles.md) for keeping one reader
 identity across runs, [scraping behind a login](how-to-scrape-behind-login-playwright.md)
-for carrying an authenticated session, and [pinning fingerprint fields](pinning.md)
+for carrying an authenticated session, [extracting JSON-LD structured data](how-to-extract-json-ld-structured-data-playwright.md)
+for the head-reading technique in general, and [pinning fingerprint fields](pinning.md)
 for forcing a single field while leaving the rest seed-derived.
 
 ---

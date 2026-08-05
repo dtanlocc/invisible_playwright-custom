@@ -1,6 +1,6 @@
 ---
 title: "BrowserLeaks canvas and WebGL hash, explained"
-description: "What the BrowserLeaks canvas and WebGL signature actually measures, why it is a hash of a readback rather than of your GPU, and how the same seed yields a byte-identical hash on Windows and Linux."
+description: "The BrowserLeaks canvas and WebGL signature is a hash of a pixel readback, not your GPU. What it measures, and why one seed gives a byte-identical hash."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 6
@@ -9,8 +9,15 @@ nav_order: 6
 
 # BrowserLeaks canvas and WebGL hash, explained
 
+The BrowserLeaks canvas and WebGL signature is a hash of the pixels a readback call
+returns, not a fingerprint of your GPU. It sits at the very end of the render pipeline,
+which is why editing a reported renderer string never moves it, and why the only way to
+control it is to control the bytes handed back at the readback boundary. Get that boundary
+right and one seed produces a byte-identical hash on Windows and Linux alike.
+
 BrowserLeaks shows you a canvas "signature" and a WebGL "signature" and treats each as a
-stable identifier for your machine. People read those short hex strings as a fingerprint
+stable identifier for your machine (see [what each BrowserLeaks panel tests](browserleaks-explained.md)
+for the wider tour). People read those short hex strings as a fingerprint
 of the GPU, and then try to change the GPU to change them. That is the wrong layer. The
 signature is a hash of one specific thing, and once you know which thing, the whole
 surface reads differently.
@@ -36,11 +43,11 @@ and a mismatch between them is its own tell.
 
 ## The readback is the only thing JavaScript can see
 
-Here is the fact that reorganises the problem. A page never sees the render surface
-directly. The GPU draws into memory the page has no handle on. The only way JavaScript
-gets any bytes at all is by calling a readback method - `getImageData`, `toDataURL`,
-`toBlob` on the 2D side, `readPixels` on the WebGL side - and those methods are the single
-point where the rendered pixels cross from the engine into script.
+JavaScript never sees the render surface directly; the only bytes a page can obtain are the
+ones a readback call hands back. The GPU draws into memory the page has no handle on. The
+only way script gets any pixels at all is by calling a readback method - `getImageData`,
+`toDataURL`, `toBlob` on the 2D side, `readPixels` on the WebGL side - and those methods are
+the single point where the rendered pixels cross from the engine into script.
 
 So the signature is not a measurement of your GPU. It is a measurement of whatever those
 readback calls return. If the bytes handed back at that boundary are a pure function of a
@@ -81,7 +88,14 @@ different hosts, same seed, produce the same hash to the byte".
 
 Measured on this build, same seed on Windows and on Linux, read in the page the way
 BrowserLeaks reads it: the canvas signature is `df2a9319` on both, and the WebGL signature
-is `0df1d6f8` on both. Not close, identical. Across a batch of sixteen distinct seeds run
+is `0df1d6f8` on both. Not close, identical.
+
+| Signature | Windows | Linux | Match |
+|---|---|---|---|
+| Canvas | `df2a9319` | `df2a9319` | byte-identical |
+| WebGL | `0df1d6f8` | `0df1d6f8` | byte-identical |
+
+Across a batch of sixteen distinct seeds run
 through a full fingerprinting suite, zero of sixteen failed the cross-host check on either
 operating system. That is the number that says the host contribution is actually gone
 rather than merely reduced, and it is the same guarantee the
@@ -209,7 +223,9 @@ signature is the pixels, the renderer string is a reported value, and both have 
 ## Sources
 
 - BrowserLeaks canvas and WebGL pages, read for how the signature is computed: a hash over
-  the bytes returned by a readback call.
+  the bytes returned by a readback call
+  ([browserleaks.com/canvas](https://browserleaks.com/canvas),
+  [browserleaks.com/webgl](https://browserleaks.com/webgl)).
 - This project's host-independence audit, which maps every path a host-dependent render
   value can reach JavaScript and confirms the seeded hashes (`df2a9319`, `0df1d6f8`)
   byte-identical on Windows and Linux, zero of sixteen seeds failing the cross-host check.

@@ -1,6 +1,6 @@
 ---
 title: "How to scrape RSS and Atom feeds with Playwright"
-description: "Discover a site's feed URL from its <link rel=alternate> tag, fetch the RSS or Atom XML through a real browser past the same edge protection, and parse both schemas."
+description: "Scrape RSS and Atom feeds with Playwright: find the feed URL in the page, fetch the XML through the browser past the same protection, and parse both schemas."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 60
@@ -8,6 +8,12 @@ nav_order: 60
 
 
 # How to scrape RSS and Atom feeds with Playwright
+
+To scrape an RSS or Atom feed with Playwright, do three things in order: read the feed
+URL from the page's `<link rel="alternate">` tag instead of guessing a path, navigate to
+that URL in the same browser and read `page.content()` so the XML comes back past the
+same protection as the page, then parse the result as XML and branch on the root element
+(`<rss>` versus `<feed>`), because the two schemas share almost nothing.
 
 A feed looks like the easy case. It is structured XML, it is meant to be read by
 machines, and for years the advice was to skip the browser entirely and fetch the
@@ -60,9 +66,10 @@ read `href` from each.
 
 ## Fetch the XML through the browser, not a side client
 
-Here is the part that trips up feed scrapers built the old way. Once you have the
-feed URL, the instinct is to hand it to a separate HTTP library, because it is "just
-XML". On a protected site that separate request is a fresh visitor with none of the
+Fetch the feed by navigating to its URL in the same browser that loaded the page and
+reading `page.content()`, not by handing the URL to a separate HTTP client. This is the
+part that trips up feed scrapers built the old way. Once you have the feed URL, the
+instinct is to hand it to a separate HTTP library, because it is "just XML". On a protected site that separate request is a fresh visitor with none of the
 context the browser accumulated, and it draws the challenge the page navigation did
 not.
 
@@ -99,9 +106,10 @@ and it applies here unchanged.
 
 ## Parse it as XML, and branch on the schema
 
-Now the format. "RSS feed" is a colloquial name for two schemas that share almost
-nothing structurally, and code that assumes one silently returns nothing on the other.
-The differences that matter:
+Parse the feed with a standard XML parser and branch on the root element: `<rss>` is an
+RSS document, `<feed>` is Atom, and the two share almost nothing structurally. "RSS feed"
+is a colloquial name for both, and code that assumes one silently returns nothing on the
+other. The differences that matter:
 
 - **RSS** wraps items in a `<channel>`, each item is `<item>`, the date is
   `<pubDate>` in RFC 822 format, and the body is `<description>`.
@@ -110,7 +118,10 @@ The differences that matter:
   attribute (`<link href="...">`) rather than element text.
 
 So the first thing to do after parsing is look at the root element and decide which
-world you are in. Do not sniff the URL or the content type, read the tag:
+world you are in. Do not sniff the URL or the content type, read the tag. This is the
+same root-element branch used when
+[scraping a sitemap.xml through the browser](how-to-scrape-a-sitemap-playwright.md),
+where `<sitemapindex>` and `<urlset>` split apart the same way:
 
 ```python
 import xml.etree.ElementTree as ET
@@ -189,7 +200,8 @@ media type as well, read the `type` attribute off the same node.
 Dates are the other normalization worth doing at parse time rather than later. RSS
 `pubDate` is RFC 822 (`Mon, 05 Aug 2026 12:00:00 +0000`) and Atom `updated` is
 ISO 8601 (`2026-08-05T12:00:00Z`). Parsing both into a single `datetime` at the edge
-keeps every downstream comparison honest:
+keeps every downstream comparison honest, the same normalize-at-the-edge approach used
+for [cleaning scraped dates into UTC](how-to-clean-scraped-prices-and-dates-playwright.md):
 
 ```python
 from email.utils import parsedate_to_datetime

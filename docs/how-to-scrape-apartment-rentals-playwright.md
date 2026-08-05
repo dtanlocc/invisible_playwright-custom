@@ -1,6 +1,6 @@
 ---
 title: "How to scrape apartment rentals with Playwright"
-description: "Scrape apartment rental listings with Playwright by triggering the unit-availability XHR, reading the per-floorplan price table, and keying every row on its move-in date."
+description: "Scrape apartment rentals with Playwright: trigger the unit-availability XHR, read the per-floorplan price table, and key every row on its move-in date."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 34
@@ -8,6 +8,11 @@ nav_order: 34
 
 
 # How to scrape apartment rentals with Playwright
+
+To scrape apartment rentals with Playwright, launch a real browser, wait for the
+unit-availability XHR the listing fires after it loads, and parse the per-floorplan price
+table it returns, keying each row on its move-in date. A requests-only scraper never fires
+that request, so it only ever sees the marketing shell.
 
 An apartment building listing looks like one page with one price. It is not. Underneath
 the marketing shell is a unit-level table: several floorplans, each with its own per-unit
@@ -17,9 +22,8 @@ by XHR after the page renders, and a "check availability" action pulls in more u
 
 This is the gap that trips up rental scraping. A requests-only scraper fetches the HTML,
 sees the hero image and a "starting at" number, and calls it done. It never fired the
-request that returns the units, so it never had the data. This page is how to fire that
-request with a real browser, read the per-floorplan table it returns, and key each row on
-the date that actually decides the price.
+request that returns the units, so it never had the data. The rest of this page is how to
+fire that request with a real browser and turn what comes back into rows you can trust.
 
 ## Why requests-only scraping sees the wrong page
 
@@ -116,11 +120,23 @@ is the tool for that case instead.
 
 ## Read the per-floorplan table, keyed on move-in date
 
-Now the honest modelling. Do not flatten a building to one price. A floorplan is not a
-price either; a floorplan holds units, and a unit has a price that only means something
-next to its availability date and lease term. The natural key for a scraped row is
-(building, floorplan, unit, move-in date), and the price is a value under that key, not a
-property of the listing.
+Key every scraped row on the tuple (building, floorplan, unit, move-in date), and treat the
+price as a value under that key, not a property of the listing. That is the honest
+modelling. Do not flatten a building to one price, and do not flatten a floorplan to one
+either: a floorplan holds units, and a unit's price only means something next to its
+availability date and lease term.
+
+Each row carries these fields:
+
+| Field | What it holds |
+|---|---|
+| `building` | the building URL or ID the row belongs to |
+| `floorplan` | the floorplan name, with its bed and bath count |
+| `unit` | the specific unit number within the floorplan |
+| `sqft` | the unit's square footage |
+| `available_on` | the move-in date the price is keyed to |
+| `lease_term_months` | the lease length the price applies to |
+| `price` | the rent for that unit, date, and term |
 
 ```python
 def rows_from_response(building_url, payload):

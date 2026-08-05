@@ -1,6 +1,6 @@
 ---
 title: "How to scrape HTML tables with Playwright"
-description: "How to extract HTML tables with Playwright using locator.evaluate_all and page.evaluate, why reading the DOM in-page adds no automation surface, and the handle-dies-on-navigation gotcha that loses rows on multi-page tables."
+description: "Scrape HTML tables with Playwright: pull the whole table in one evaluate_all call, then extract before you navigate so a multi-page table never drops rows."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 20
@@ -9,10 +9,14 @@ nav_order: 20
 
 # How to scrape HTML tables with Playwright
 
-A table is the easiest thing on a page to scrape and the easiest thing to scrape
-wrongly. The naive loop works on a single page and then quietly drops rows the moment
-the table spans more than one, and the reason is not the extraction code at all: it is
-that the thing you extracted into stopped existing when you turned the page.
+To scrape an HTML table with Playwright, read the whole table into plain Python in one
+call with `locator.evaluate_all` or `page.evaluate`, and do it before you navigate to the
+next page. That single ordering is the difference between a scrape that comes back whole
+and one that silently loses rows. A table is the easiest thing on a page to scrape and the
+easiest thing to scrape wrongly: the naive loop works on a single page and then quietly
+drops rows the moment the table spans more than one, and the reason is not the extraction
+code at all, it is that the thing you extracted into stopped existing when you turned the
+page.
 
 This page is the extraction recipe that pulls a whole table into Python in one call, the
 reason that recipe adds nothing a detector can see, and the one navigation gotcha that
@@ -90,6 +94,16 @@ logic:
 
 Either way the crossing happens once and what comes back is ordinary Python: strings,
 lists, dicts. That last part matters more than it looks, and the rest of this page is why.
+
+Which call to reach for depends on the shape you want back and on whether the table needs
+an interaction to appear at all:
+
+| Method | Round trips | Reach for it when |
+|---|---|---|
+| Cell-by-cell `locator` loop | one per cell | a handful of cells; never a large table |
+| `locator.evaluate_all` over the rows | one | you want the rows as a list of lists |
+| `page.evaluate` over the whole table | one | you want the header separately, or rows keyed by column name |
+| `pandas.read_html` | none (parses static HTML) | a static page that needs no click, wait, login or pagination |
 
 ## Why reading the DOM this way adds no automation surface
 

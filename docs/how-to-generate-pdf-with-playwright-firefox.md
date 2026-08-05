@@ -9,6 +9,12 @@ nav_order: 15
 
 # How to generate a PDF with Playwright and Firefox
 
+To generate a PDF with Playwright on a Firefox engine you cannot use `page.pdf()`: it is
+Chromium-only and raises on Firefox. Use one of two routes that do run on Firefox - a
+full-page screenshot wrapped into a PDF (a faithful image, no selectable text), or a
+`page.content()` capture rendered by a standalone HTML-to-PDF library (real, selectable
+text).
+
 Search for this and the top answer is always the same one line: `page.pdf()`. Copy it,
 run it against a Firefox engine, and it raises. The advice is not wrong in general, it is
 wrong for the engine you are on, and the reason is worth understanding rather than working
@@ -61,7 +67,8 @@ Firefox actually has.
 ## Alternative 1: full-page screenshot, then wrap it into a PDF
 
 If what you need is a visual record of the page as it rendered - an invoice, a receipt, a
-snapshot for an audit trail - the most direct route is a full-page screenshot, then a
+snapshot for an audit trail - the most direct route is a
+[full-page screenshot](how-to-take-full-page-screenshots-playwright.md), then a
 one-line wrap into a PDF container.
 
 ```python
@@ -127,13 +134,17 @@ the Playwright session and use the `page.content()` route above.
 
 Pick the route by what the PDF is *for*, not by which is fewer lines.
 
-- **A faithful picture of the page** - the layout, the fonts, the images, exactly as they
-  rendered: full-page screenshot wrapped into a PDF. It cannot be searched, and that is fine
-  for a visual record.
-- **A document whose text can be selected, copied or indexed**: capture `page.content()` and
-  render the markup. You trade pixel fidelity (the renderer re-lays-out the HTML) for real
-  text.
-- **A quick archive of a public URL with no session**: Firefox's `--print-to-pdf`.
+| Route | Output | Selectable text | Keeps cookies / proxy / session | Best for |
+|---|---|---|---|---|
+| Full-page screenshot wrapped into a PDF | Pixel image of the page | No | Yes | A faithful visual record: an invoice, a receipt, an audit snapshot |
+| `page.content()` rendered by an HTML-to-PDF library | Re-laid-out document | Yes | Yes | Text that must be selected, copied or indexed |
+| Firefox `--print-to-pdf` | Browser-printed document | Yes | No | A quick archive of a public URL a cold visitor can reach |
+
+In words: for a faithful picture of the page - the layout, the fonts, the images, exactly as
+they rendered - take a full-page screenshot and wrap it into a PDF; it cannot be searched, and
+that is fine for a visual record. For text you can select, copy or index, capture
+`page.content()` and render the markup, trading pixel fidelity (the renderer re-lays-out the
+HTML) for real text. For a throwaway archive of a public URL, Firefox's `--print-to-pdf`.
 
 There is no route that is both a byte-for-byte photo of the rendered page and a
 text-searchable document, because those are two different outputs. Choosing the wrong one is
@@ -197,8 +208,10 @@ same pixels, so two captures differ only where the site itself changed.
 
 **See also:** [why Chromium is not Chrome](chromium-is-not-chrome.md) for the capability
 split this rests on, [Firefox or Chromium for anti-detect](firefox-vs-chromium-antidetect.md)
-for the engine trade-off, and [the screenshot readback fix](playwright-screenshot-returns-noise.md)
-for why full-page capture returns the real page now.
+for the engine trade-off, [the screenshot readback fix](playwright-screenshot-returns-noise.md)
+for why full-page capture returns the real page now, and
+[how to take full-page screenshots with Playwright](how-to-take-full-page-screenshots-playwright.md)
+for the capture step this PDF route builds on.
 
 ---
 

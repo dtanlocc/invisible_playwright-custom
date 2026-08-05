@@ -1,6 +1,6 @@
 ---
 title: "How to scrape car listings with Playwright"
-description: "How to scrape car listings with Playwright by driving the faceted filter sidebar, waiting on the post-filter results XHR, and pulling VIN and specs from the detail page, then deduping on listing id."
+description: "Scrape car listings with Playwright: drive the faceted filter sidebar, wait on the results XHR, pull VIN and specs, then dedupe overlapping permutations."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 33
@@ -8,6 +8,12 @@ nav_order: 33
 
 
 # How to scrape car listings with Playwright
+
+To scrape car listings with Playwright, drive the faceted filter sidebar with real inputs,
+wait on the results XHR keyed to each filter state and read the typed JSON it returns,
+follow the listing ids to each detail page for the VIN and specs, and dedupe on the VIN
+because overlapping filters return the same car many times. The rest of this page is how
+each of those steps works.
 
 A car marketplace does not look like a list of pages you can walk. It looks like a
 faceted filter sidebar: make, model and year checkboxes, plus mileage and price as range

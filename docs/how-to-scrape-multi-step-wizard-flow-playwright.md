@@ -1,13 +1,13 @@
 ---
-title: "Walk a multi-step wizard flow with Playwright"
-description: "How to scrape a multi-step wizard or checkout flow with Playwright: complete each step in order, carry the per-step tokens the URL does not hold, re-read the DOM after every transition, and keep one identity for the whole session."
+title: "Scrape a multi-step wizard flow with Playwright"
+description: "Scrape a multi-step wizard or checkout flow with Playwright: complete each step in order, carry the per-step tokens, and keep one identity for the whole flow."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 73
 ---
 
 
-# Walk a multi-step wizard flow with Playwright
+# Scrape a multi-step wizard flow with Playwright
 
 A wizard is not a set of pages you can visit. It is a state machine wearing a set of
 URLs. Each step is gated behind the previous one's server-side state, so the address bar
@@ -20,8 +20,10 @@ a long stateful flow is exactly where a single stable identity earns its keep.
 
 ## Why you cannot deep-link to step three
 
-The instinct is to read the URL of the final step and go straight there. On a real wizard
-that returns you to step one, or an error, and it does so on purpose.
+You cannot deep-link to step three because each step validates server-side state the
+previous step set, so a direct visit to the final URL bounces you back to step one or to an
+error. The instinct is to read the URL of the final step and go straight there; on a real
+wizard that returns you to step one, or an error, and it does so on purpose.
 
 Each step sets state on the server that the next step validates: a token in a hidden
 field, a session cookie updated on submit, a per-step nonce, a flag that says step two was
@@ -52,9 +54,10 @@ the state is created by the act, not by the address.
 Before touching the steps, fix the identity. A wizard is a long session, and long
 sessions are where a shifting fingerprint gets noticed.
 
-Pass a seed. Every field it implies - GPU, canvas hash, audio context, fonts, screen,
-roughly 400 of them - is derived from that seed and held constant for the life of the
-context. One browser, one page, all steps inside the same `with` block:
+Pass a seed. Every field it implies - GPU, canvas hash, audio context, fonts, screen, and
+the hundreds of others that make up a fingerprint - is derived from that seed and held
+constant for the life of the context. One browser, one page, all steps inside the same
+`with` block:
 
 ```python
 from invisible_playwright import InvisiblePlaywright

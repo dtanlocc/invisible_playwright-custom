@@ -1,12 +1,19 @@
 ---
 title: "Firefox or Chromium for anti-detect automation"
-description: "Firefox has no CDP surface and no Client Hints pipeline to keep in sync, and detection heuristics are tuned for Chromium. It is also a small share of real traffic, which is a real cost."
+description: "Firefox vs Chromium for anti-detect: no CDP surface, one identity not three, detection tuned for Chromium - traded against Firefox's smaller, rarer traffic share."
 parent: "Comparisons"
 nav_order: 2
 ---
 
 
 # Firefox or Chromium for anti-detect automation
+
+Firefox is the stronger engine for anti-detect automation when the target's detection is
+Chromium-tuned, which most of it is: it exposes no CDP automation protocol, keeps one copy
+of its identity instead of three, and ships one binary instead of a separate headless one.
+The cost is real and specific - Firefox is a small single-digit share of real traffic, so
+its fingerprint is rarer than a Chrome one. Pick whichever your stack supports, then fix
+the machine, because in most cases the engine is not the binding constraint.
 
 The usual framing is that Firefox gives stronger engine-level stealth at a higher
 resource cost, and Chromium gives better compatibility. Both halves are true and neither
@@ -19,6 +26,21 @@ Firefox in a way most comparisons skip.
 
 This page is the four structural arguments for Firefox, the one serious argument against
 it, what the choice does not fix, and how to decide.
+
+## Firefox vs Chromium at a glance
+
+The differences that matter are structural, not cosmetic. This table summarises them; each
+row is unpacked in its own section below.
+
+| Dimension | Firefox (patched) | Chromium |
+|---|---|---|
+| Automation protocol | No CDP; driven by a patch whose artefacts are smaller and less studied, not absent | CDP shipped in the browser, a well-studied detection surface |
+| Copies of identity to keep in sync | One (no Client Hints) | Three: user agent string, `Sec-CH-UA` headers, `navigator.userAgentData` |
+| Capability parity with what people run | Firefox is Firefox; no stripped variant runs in automation only | Default managed build fails a DRM capability check that real Chrome, Edge, Brave and Opera pass |
+| Headed vs headless | One binary with a flag | Different binaries by default in recent Playwright |
+| Detection attention | Comparatively little; most research targets Chromium | The overwhelming majority of accumulated detection work |
+| Share of real traffic | Small single-digit share, so the fingerprint is rarer (a real cost) | Large majority of real browsers |
+| AI agent framework fit | Usually not; most frameworks drive Chromium over CDP | Native fit for CDP-based frameworks |
 
 ## Firefox has no CDP surface
 

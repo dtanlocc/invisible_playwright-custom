@@ -21,6 +21,13 @@ to boring. This page shows where each layer is, the code that reads it, and the 
 honest limit: the chart carries no numbers you can extract, so the series only ever comes
 from the feed underneath it.
 
+| Data on the page | Where it actually lives | How to read it | Reliable |
+|---|---|---|---|
+| Fundamentals (market cap, P/E, dividend yield, 52-week range) | A table in the first paint | Read the DOM directly | Yes, it holds still |
+| Live price | A WebSocket stream or a polling request | Listen on the `websocket`/`framereceived` or `response` event | Yes, read at the wire |
+| Price history | An array the chart was drawn from | Capture the history request | Yes, read at the feed |
+| The chart drawing itself | Pixels on a `<canvas>` | Not recoverable, there are no numbers in it | No |
+
 ## Why the price in the DOM is a moving target
 
 Open a quote page, read the last-price element, read it again 500 ms later, and you will
@@ -162,16 +169,16 @@ had; try to read the drawing and you have nothing.
 
 ## Why a stable identity is what keeps a long session alive
 
-Everything above assumes the session survives long enough to matter. A quote capture is
-not a fetch-and-leave: to collect a stream you hold the page open for minutes or hours, and
-a long-lived polling or socket session from one identity is precisely the pattern finance
-portals watch. A headless or drifting fingerprint that would sail through a single page
+A stable browser identity is what keeps a long capture session alive, because a quote
+capture is not a fetch-and-leave: to collect a stream you hold the page open for minutes or
+hours, and a long-lived polling or socket session from one identity is precisely the pattern
+finance portals watch. A headless or drifting fingerprint that would sail through a single page
 load gets throttled part-way through a long one, and your stream goes quiet with no error
 to catch.
 
 The defense is a single, real, consistent identity that lasts the whole session. That is
 what the `seed` argument buys: pass one and every fingerprint field (GPU, audio, fonts,
-screen, roughly 400 values) is derived once and stays fixed, so the same returning device
+screen) is derived once and stays fixed, so the same returning device
 holds the connection for hours instead of looking like a new machine on every reconnect.
 
 ```python

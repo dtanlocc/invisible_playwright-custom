@@ -1,6 +1,6 @@
 ---
 title: "How to extract clean article text with Playwright"
-description: "Extract clean article text with Playwright by running a readability pass over the fully rendered DOM from page.content(), so lazy-injected body paragraphs are present and the nav, ads and cookie chrome are gone."
+description: "Extract clean article text with Playwright: wait for the body to render, then run a readability pass over page.content() to drop nav, ads and cookie chrome."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 62

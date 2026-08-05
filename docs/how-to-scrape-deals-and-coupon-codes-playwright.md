@@ -1,6 +1,6 @@
 ---
 title: "How to scrape deals and coupon codes with Playwright"
-description: "A Playwright recipe for coupon aggregators: fire the trusted reveal click, follow the new tab or clipboard or XHR that carries the code, read expiry from data attributes, and page the deal grid."
+description: "Scrape coupon codes cloaked behind a reveal button with Playwright: fire a trusted click, capture the code from a new tab, clipboard or XHR, and read expiry."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 52
@@ -8,6 +8,12 @@ nav_order: 52
 
 
 # How to scrape deals and coupon codes with Playwright
+
+To scrape deals and coupon codes with Playwright, drive a real browser that fires a trusted
+click on each card's reveal button, then capture the code from wherever the click sends it
+(a new tab, the clipboard, or an XHR response) and read expiry from the card's data
+attribute rather than the ticking countdown text. A scripted `dispatchEvent` click is
+untrusted and a reveal guarded by a bot check returns nothing.
 
 Deal and coupon pages look like the easiest scrape on the web: a grid of cards, each with
 a merchant, a discount and a code. Then you read the DOM and the code is not there. The
@@ -20,6 +26,10 @@ get the reveal to actually fire, follow the code wherever the click sends it, re
 expiry that is computed live in JavaScript, and page a grid that scrolls forever.
 
 ## Why the code is not in the DOM
+
+The coupon code is missing from the HTML because aggregators inject, copy or fetch it only
+when you click the reveal, specifically to defeat scrapers that read the raw markup. The
+merchant, discount and expiry ship in the card; the code does not.
 
 Open a deal card and inspect it. The expiry, the merchant and the discount percentage are
 usually right there in the markup. The code is not. The reveal is built to hide it until
@@ -42,7 +52,7 @@ JavaScript-synthesised one never can.
 ## Launch a browser whose reveal click is trusted
 
 The wrapper is a two-line change from stock Playwright, and the `browser` it hands back is
-a real Playwright `Browser` with every method intact. A seed makes the run reproducible,
+a real Playwright `Browser` with every method intact. A [seed makes the run reproducible](reproducible-agent-browser-identity-seed.md),
 which matters when a reveal fails and you need the same identity to debug it.
 
 ```python
@@ -66,8 +76,9 @@ wrapper-specific API: it is ordinary Playwright, which is the point.
 ## Capture the code from wherever the reveal sends it
 
 You do not know in advance which of the three paths a given card uses, so handle all three
-around a single click. Register a tab listener and a response listener before clicking, then
-read the clipboard after, and take whichever one produced a value.
+around a single click. Register a tab listener and a
+[response listener that captures the XHR the click fires](how-to-capture-xhr-api-responses-playwright.md)
+before clicking, then read the clipboard after, and take whichever one produced a value.
 
 ```python
 import re

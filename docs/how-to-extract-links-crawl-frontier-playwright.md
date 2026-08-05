@@ -1,5 +1,5 @@
 ---
-title: "How to extract links and build a crawl frontier"
+title: "How to extract links and build a crawl frontier in Playwright"
 description: "Extract links with Playwright and build a crawl frontier: resolve absolute URLs, strip tracking params, filter same-origin, and dedup with a visited set."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
@@ -7,7 +7,13 @@ nav_order: 59
 ---
 
 
-# How to extract links and build a crawl frontier
+# How to extract links and build a crawl frontier in Playwright
+
+To extract links and build a crawl frontier in Playwright, pull every anchor's raw
+`href` in one `page.evaluate`, normalize each value in Python (resolve against the
+page URL, drop the fragment, strip tracking parameters, sort the query), keep only
+same-origin URLs, and dedup with a visited set that holds the canonical form. The
+order matters: normalize before you dedup, or the same page enters the queue twice.
 
 Pulling anchors off a page is one line. Turning those anchors into a queue you can
 crawl without visiting the same page fifty times, wandering off the site, or looping
@@ -72,12 +78,11 @@ lines.
 
 ## Normalize before you dedup
 
-This is the step everything else depends on, and the one place a subtle bug hides.
-
 Normalization turns a raw, page-relative string into a single canonical URL, so that
 two strings that point at the same page produce the same output. Resolve against the
 base, drop the fragment, strip known tracking parameters, lowercase the host, and
-sort the remaining query parameters into a stable order.
+sort the remaining query parameters into a stable order. This is the step everything
+else depends on, and the one place a subtle bug hides.
 
 ```python
 from urllib.parse import urljoin, urlsplit, urlunsplit, parse_qsl, urlencode
@@ -256,7 +261,9 @@ Crawl the frontier under one seed and control volume separately.
   above, run under a fixed seed so the numbers are reproducible.
 
 **See also:** [how to scrape paginated pages](how-to-scrape-paginated-pages-playwright.md)
-for walking the numbered pages a frontier discovers, and
+for walking the numbered pages a frontier discovers,
+[how to crawl list and detail pages](how-to-crawl-list-to-detail-pages-playwright.md)
+for turning the URLs a frontier collects into extracted records, and
 [how to scrape without getting blocked](how-to-scrape-without-getting-blocked.md) for
 what holds up once the request volume climbs.
 

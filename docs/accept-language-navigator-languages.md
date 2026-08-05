@@ -1,6 +1,6 @@
 ---
 title: "Accept-Language header vs navigator.languages"
-description: "Why the Accept-Language HTTP header and navigator.languages must agree, how one Firefox pref makes that automatic, and why an injection-only spoof splits the two."
+description: "Accept-Language and navigator.languages must agree: one Firefox pref feeds both, so an injection-only spoof that moves one and not the other is a clear tell."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 21
@@ -48,6 +48,14 @@ It never touches the header. The `Accept-Language` header was formatted and sent
 network layer, which is compiled C++ and does not read the JavaScript you injected. So
 the request that fetched the page carried whatever the underlying browser's real
 preference was, while the property in the page now claims something else.
+
+The split lines up field by field like this:
+
+| Surface | Real browser | Injection-only spoof |
+|---|---|---|
+| `Accept-Language` header | formatted from the language preference | unchanged real value (sent by the network layer) |
+| `navigator.languages` | parsed from the same preference | overridden in the page |
+| Do the two agree? | yes, one shared source | no, they diverge |
 
 A detector does not need to be clever to catch this. It reads the `Accept-Language` it
 received on the request, reads `navigator.languages` from a script it served, and
@@ -195,10 +203,16 @@ slightly unusual.
 
 - Firefox's `intl.accept_languages` preference, which is the single value both the request
   header and the `navigator.languages` array are formatted from.
+- [MDN: `Navigator.languages`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/languages)
+  and [MDN: `navigator.language`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/language),
+  the page-facing properties an injection redefines.
+- [MDN: the `Accept-Language` request header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language),
+  including the quality (`q`) values a browser attaches, sent by the network stack before any page script runs.
 - This project's own realness gates, which compare request headers against in-page
   properties field by field rather than reading either in isolation.
 
 **See also:** [when the timezone does not match the proxy](timezone-proxy-mismatch.md),
+[when the TLS fingerprint and the user agent disagree](tls-fingerprint-user-agent-mismatch.md),
 [the checklist for being detected on one site](playwright-detected-as-bot.md), and
 [how to test whether your browser is detected](how-to-test-bot-detection.md).
 

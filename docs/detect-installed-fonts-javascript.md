@@ -1,6 +1,6 @@
 ---
 title: "Detecting installed fonts in JavaScript by width"
-description: "How the classic font-presence probe infers an installed family from a text-width difference with no enumeration API, what it reads on a headless browser, and how a bundled font set answers it identically on every OS."
+description: "Detect installed fonts in JavaScript with no enumeration API: how the width-comparison probe tells present from absent, and why headless browsers fail it."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 11
@@ -92,6 +92,14 @@ the user agent while the font vector is a Linux base image is a one-line
 contradiction, and it is exactly the kind of internal disagreement that
 [a browser that inspects consistency rather than values](how-to-test-bot-detection.md)
 records as a lie.
+
+The same probe list produces a different vector in each of these three cases:
+
+| Environment | Fonts that resolve (present) | Windows desktop fonts (absent) |
+|---|---|---|
+| Default Linux container | DejaVu, Liberation, a few Noto families | Segoe UI, Calibri, Cambria, Consolas |
+| Real Windows desktop | Segoe UI, Calibri, Cambria, Consolas and the rest of the Windows set | none, they are installed |
+| Bundled font set (this project) | the same fixed Windows set on every host | none, shipped inside the binary |
 
 The reverse failure is just as visible. A build that tries to suppress the probe
 by forcing every candidate to fall back returns "absent" for everything,

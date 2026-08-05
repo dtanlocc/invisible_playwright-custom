@@ -1,6 +1,6 @@
 ---
 title: "How to scrape geotargeted content with Playwright"
-description: "Geotargeting a scrape is more than a proxy exit IP. The timezone, locale, number format and geolocation all have to agree with the exit, or a cross-check flags you."
+description: "Scrape geotargeted content with Playwright: a proxy exit IP is one surface. Timezone, locale, number format and geolocation must all agree with it too."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 24
@@ -63,10 +63,26 @@ with InvisiblePlaywright(seed=42, proxy=proxy) as browser:
     print(surfaces)
 ```
 
-Add to that list two things that are not in JavaScript at all: the `Accept-Language`
-header the requests actually carry, and the country of the IP the request left from,
-which the browser also reports independently through WebRTC. And the geolocation API,
-which a page can query directly, has to fall in the same country too.
+Add to that list two things that are not in JavaScript at all: the
+[`Accept-Language` header and its `navigator.languages` twin](accept-language-navigator-languages.md)
+the requests actually carry, and the country of the IP the request left from,
+which the browser also reports independently through WebRTC. And
+[the geolocation API a page can query directly](geolocation-api-vs-ip-location-consistency.md)
+has to fall in the same country too.
+
+Tabulated, that is the set of surfaces a region check reads and the mechanism each is
+fed by:
+
+| Surface | Where a page reads it | Should be derived from |
+|---|---|---|
+| Timezone (IANA name) | `Intl.DateTimeFormat().resolvedOptions().timeZone` | egress IP |
+| UTC offset | `new Date().getTimezoneOffset()` | the live zone |
+| Interface language | `navigator.language` / `navigator.languages` | egress IP |
+| `Accept-Language` header | the HTTP request itself | egress IP |
+| Number and date format | `Intl.NumberFormat`, `toLocaleString()` | egress IP |
+| Geolocation country | the Geolocation API | egress IP |
+| Reported network address | WebRTC | exit IP |
+| Exit IP country | the proxy exit | the anchor everything matches |
 
 That is a set of surfaces, not a value. Geotargeting a region means every one of them has
 to point at the exit. Setting the timezone by hand fixes one of them and leaves the rest

@@ -1,6 +1,6 @@
 ---
 title: "How to scrape cryptocurrency prices with Playwright"
-description: "Read live crypto prices from the WebSocket frames instead of the flickering DOM node, page the market-cap table separately, and keep the feed open with a stable Playwright identity."
+description: "Scrape live cryptocurrency prices with Playwright by reading WebSocket frames, not the flickering DOM node, and hold the feed open with a stable identity."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 51
@@ -9,12 +9,19 @@ nav_order: 51
 
 # How to scrape cryptocurrency prices with Playwright
 
-The first thing to know before writing a line of code: if the exchange or aggregator
-you are reading publishes a public data API, use it. It is almost always the right
-tool, it is faster, and it will not break the next time the page markup changes. This
-guide is for the other case, the one where the numbers you need only ever appear in
-the rendered page, and you have to get them out of a live browser without capturing
-garbage.
+To scrape live cryptocurrency prices with Playwright, subscribe to the page's
+WebSocket and read each price from the frames it delivers, not from the DOM node: a
+live ticker overwrites that node several times a second, so the value you read back is
+stale the instant you have it. Handle the ranked market-cap table as a separate
+scroll-and-collect job, and hold the connection open with a stable browser identity so
+that a dropped-and-reconnected feed reads as one steady client rather than a churn of
+new devices.
+
+Before writing a line of code, though: if the exchange or aggregator you are reading
+publishes a public data API, use it. It is almost always the right tool, it is faster,
+and it will not break the next time the page markup changes. This guide is for the
+other case, the one where the numbers you need only ever appear in the rendered page,
+and you have to get them out of a live browser without capturing garbage.
 
 That case is harder than it looks, for a reason specific to prices: they do not sit
 still. A crypto ticker updates many times a second over a persistent WebSocket, and
@@ -24,6 +31,11 @@ rather than the tail, paging the market table as a separate job, and keeping the
 connection alive long enough to matter.
 
 ## Why the DOM value is a race you lose
+
+Reading the DOM node is a race you cannot win: a live ticker replaces that node
+several times a second, so between the frame that paints a value and the moment your
+read resolves, the WebSocket has already delivered another tick. The fix is to read
+the frames, not the node.
 
 Open a live prices page and watch one cell. The number changes several times a second,
 and on most sites the node briefly changes color on each update - green up, red down -
@@ -138,6 +150,12 @@ properly](how-to-wait-for-page-load-playwright.md) rather than sleeping a fixed 
 of seconds is the difference between a full table and a truncated one.
 
 ## Why a stable identity keeps the feed open
+
+A stable, seed-reproducible identity keeps a long-lived feed open because a server can
+meter connections, and a client that presents the same device on every reconnect reads
+as one returning subscriber rather than a churn of throwaway clients hitting the socket.
+It does not make you invisible; it makes a long connection look like the steady client
+it actually is.
 
 A one-shot table scrape is a short visit. A continuous price capture is the opposite:
 it is a single connection you want to hold open for minutes or hours, receiving frames

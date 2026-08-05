@@ -9,6 +9,14 @@ nav_order: 6
 
 # How to run Playwright in Docker without getting detected
 
+To run Playwright in Docker without getting detected, you have to fix what the
+container reveals about its machine, not just get the browser to start. A slim image
+gives away a missing GPU, a tiny font set, no audio device and a default screen -
+facts about the hardware that stay true even when `navigator.webdriver` is clean. This
+tutorial fixes those in the browser engine itself, then verifies the result with a
+field-by-field diff against a real desktop, so the container and the desktop describe
+the same seeded machine.
+
 Most Docker-and-Playwright tutorials solve one problem: getting the browser to start.
 Install the system libraries, add some fonts, use the official image, done. That
 problem is real and those tutorials are correct. It is also a different problem from
@@ -24,6 +32,8 @@ and the code that fixes each one.
 
 ## What a stock container gives away, concretely
 
+A stock container gives away four facts about its machine at once, none of them about
+automation: a missing GPU, a tiny font set, no audio device, and a screen nobody has.
 Before writing a Dockerfile, know what you are fighting. A `python:3.11-slim` or
 `mcr.microsoft.com/playwright` image answers every one of these the same way, and a
 page can read all of them without asking permission:
@@ -190,7 +200,7 @@ Worth being precise about, because the honest limit matters more than the pitch.
 The engine bundles its own font stack and ignores the container's fontconfig
 entirely, so the font list a page measures is the same list on a bare `python:slim`
 image as on a desktop, and it is the list that belongs to the platform being claimed.
-The screen values, the audio defaults and the GPU persona all come from the same
+The screen values, the audio defaults and the GPU fingerprint all come from the same
 seeded profile, so they describe one coherent machine instead of six unrelated
 container defaults.
 
@@ -267,6 +277,6 @@ comparison method used in the verification section above.
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
-a Firefox patched at the C++ level. The font stack and the GPU persona travel with the
+a Firefox patched at the C++ level. The font stack and the GPU fingerprint travel with the
 engine into the container, which is the only reason `docker build` and a desktop can
 agree on what machine they are.*

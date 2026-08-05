@@ -1,6 +1,6 @@
 ---
 title: "How to scrape restaurant menu data with Playwright"
-description: "Extract nested restaurant menu data with Playwright by reading JSON-LD first, falling back to the View menu tab XHR, and flattening category, size and variant prices into rows."
+description: "Scrape restaurant menu data with Playwright: read JSON-LD first, fall back to the View menu tab XHR, and flatten category, size and variant prices into rows."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 43
@@ -8,6 +8,12 @@ nav_order: 43
 
 
 # How to scrape restaurant menu data with Playwright
+
+To scrape restaurant menu data with Playwright, read the structured tree the page
+already ships rather than the rendered cards: parse the JSON-LD `Restaurant` node and
+its `hasMenu` field first, fall back to the "View menu" tab's XHR when the menu is not in
+the initial HTML, flatten categories, sizes and variants into one row per price, and match
+the proxy exit to the city so the menu you extract is the local one.
 
 Menu data looks simple on the page and is anything but underneath. What renders as a
 tidy column of dishes is, in the data model, a tree: items grouped under categories,

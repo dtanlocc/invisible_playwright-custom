@@ -1,6 +1,6 @@
 ---
 title: "How to scrape classifieds listings with Playwright"
-description: "How to scrape geo-scoped classifieds listings with Playwright: align the proxy region, harvest cards from the category feed, and drive a human contact-reveal click."
+description: "Scrape classifieds listings with Playwright: align the proxy region and timezone, harvest cards from the rotating feed, then drive a human contact-reveal click."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 31
@@ -9,17 +9,27 @@ nav_order: 31
 
 # How to scrape classifieds listings with Playwright
 
+To scrape classifieds listings with Playwright you align three location signals (proxy
+exit, browser timezone, and the site's own location control) so the feed is the real
+inventory for a place you can plausibly be, loop the rotating category feed and dedupe on
+each listing's own id, then drive the contact-reveal click as a genuine human interaction.
+When the revealed number is painted into an image, read it with OCR on the image bytes,
+not a DOM text read.
+
 Classifieds are not a search index. They are seller-posted cards in an infinite
 category feed, scoped to a location you choose, and they rotate: a listing posted this
 morning can be gone by the afternoon. The seller's phone or contact is usually hidden
 until you click a reveal button, and on some boards that revealed value is painted into
 an image so a plain text read comes back empty.
 
-That shape breaks the naive approach in three specific ways, and this page works through
-each. The feed you get depends on where the site thinks you are, so the location has to
-be consistent end to end. The cards you want are the ones on screen right now, so harvest
-is a loop over a moving feed. And the contact is behind an interaction, so the reveal
-click has to look like a person did it.
+That shape breaks the naive approach in specific ways, and this page works through each:
+
+| The obstacle | Why it breaks a naive scrape | The approach |
+|---|---|---|
+| Feed is location-scoped | The site shows one city's inventory; a mismatch is wrong data or a tell | Align proxy exit, timezone, and the site's location control |
+| Feed is infinite and rotates | Cards shift and expire between passes | Loop the feed, dedupe on listing id, persist fields at harvest time |
+| Contact is behind a reveal | A synthetic click gets a decoy value or nothing | Drive a trusted, human-looking reveal click, spaced out |
+| Contact is a rendered image | `inner_text()` returns empty; there is no DOM string | OCR on the image bytes, a separate step from the browser |
 
 ## Why the location has to agree with itself
 

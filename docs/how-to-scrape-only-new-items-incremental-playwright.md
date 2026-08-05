@@ -1,6 +1,6 @@
 ---
 title: "Incremental scraping: only new items since last run"
-description: "How to scrape only new items with Playwright using a high-water mark that stops at the first already-seen id, handles out-of-order inserts and edits, keeps one seeded identity, and varies the run schedule."
+description: "Scrape only new items in Playwright with a high-water mark that stops at the first already-seen id, handling out-of-order inserts, edits, and a varied schedule."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 75
@@ -8,6 +8,11 @@ nav_order: 75
 
 
 # Incremental scraping: only new items since last run
+
+**To scrape only the new items instead of the whole feed, keep the id of the newest item
+you already have as a high-water mark, walk the feed newest-first on each run, and stop the
+moment you reach that id.** Everything above it is new; everything from it down you already
+own, so there is no reason to read further.
 
 The default way to keep a dataset fresh is to re-scrape the whole feed on every run and
 diff it against what you already have. It works, and it is the wrong shape twice over: it
@@ -37,6 +42,13 @@ makes you.
 
 Fetching only what changed shrinks both. The rest of this page is how to know what changed
 without reading everything to find out.
+
+| | Full-feed re-scrape | Incremental (high-water mark) |
+|---|---|---|
+| Requests per run | Every page, every run (e.g. ~20 page loads for a 1,000-item feed) | Only the new top of the feed, often a few and sometimes zero |
+| Cost when nothing changed | Unchanged: still the full pass | Near zero: stops at the first already-seen id |
+| First run | Full pass | Full pass once, then incremental after |
+| Pattern signature | Large, identical volume on a schedule, easy to recognize | Small, but a fixed size on a fixed clock is its own pattern (see below) |
 
 ## The high-water mark: stop at the first already-seen id
 
@@ -186,17 +198,18 @@ site does not need to break your fingerprint to notice a metronome; it just need
 
 So the move is to split the two things people usually couple:
 
-**Keep the identity stable.** Reuse the same seed across runs so the fingerprint is
-continuous. A returning visitor who looks identical week to week is normal; an identity that
+**Keep the identity stable.** Reuse [the same seed across runs](reproducible-agent-browser-identity-seed.md)
+so the fingerprint is continuous. A returning visitor who looks identical week to week is
+normal; an identity that
 is freshly minted on every visit is not, and rotating the fingerprint every run to "look
 different" actually manufactures the anomaly. This is also what makes a failed run
 reproducible, since the same seed rebuilds the same machine. If you also want cookies and
 local storage to carry across runs, keep the identity in [a persistent profile on disk](persistent-profiles.md)
 rather than a fresh context each time.
 
-**Vary the schedule.** Do not run it like a cron a site can watch for. Add jitter to the
-interval and randomize the minute so the run times do not form a straight line. The seed
-stays put; the clock moves.
+**Vary the schedule.** Do not run it like [a cron a site can watch for](schedule-invisible-playwright-scrapes-with-cron.md).
+Add jitter to the interval and randomize the minute so the run times do not form a straight
+line. The seed stays put; the clock moves.
 
 ```python
 import random
@@ -293,8 +306,8 @@ whole point.
 
 ## Sources
 
-- This project's quickstart and configuration pages for the real launch API and the seeded,
-  reproducible identity used above.
+- This project's [quickstart](quickstart.md) and [configuration](configuration.md) pages for
+  the real launch API and the seeded, reproducible identity used above.
 - This project's own rate-limiting notes, where request velocity is treated as a scored
   signal rather than politeness, and the self-flag incident behind that rule.
 

@@ -9,6 +9,13 @@ nav_order: 4
 
 # How to rotate proxies when scraping with Playwright
 
+To rotate proxies in Playwright, assign one proxy per browser session and keep it for
+the life of that session, authenticate it on the path that carries its scheme, resolve
+DNS through it, and derive the timezone, locale and WebRTC address from that session's
+own exit IP so none of them contradicts the new address. Rotating the exit IP is the
+easy half; making everything that must agree with the new IP actually agree with it is
+the half that decides whether a rotated session gets flagged.
+
 This is a tutorial: assign a proxy to a session, authenticate it, resolve DNS through
 it, and decide when to rotate at all. The code is real and runnable against
 `InvisiblePlaywright`, a real Playwright `Browser`.
@@ -19,6 +26,12 @@ agree with the new IP once you have it, and generic proxy-rotation tutorials do 
 mention it because their browser cannot fix it anyway.
 
 ## Per session, not per request
+
+Rotate the proxy once per browser session, not once per request: give one browser
+launch one proxy and hold it for the whole visit, then close the session and start the
+next one on a different proxy. This is the [sticky-session pattern rather than a
+per-request rotating pool](sticky-vs-rotating-proxy-sessions.md), and for a browser it
+is the correct default.
 
 The instinct coming from `requests` or `scrapy` is to rotate on every outgoing call: a
 fresh IP per request, drawn from a pool, so no single address makes too many calls.
@@ -106,6 +119,14 @@ Playwright directly, because that is the path where its credential support is re
 The endpoint needs an explicit port; a bare host with no port is refused rather than
 launched unproxied.
 
+| Proxy scheme | Where the credentials go | Remote DNS |
+|---|---|---|
+| `socks5://` / `socks4://` | Written into the browser's own proxy prefs, credentials included | On by default |
+| `http://` / `https://` | Passed to Playwright's proxy layer, where its credential support is real | On by default |
+
+The [difference between a SOCKS5 and an HTTP proxy for a browser](socks5-vs-http-proxy-browser.md)
+is what decides which of those two paths a given proxy takes.
+
 ## DNS through the proxy, not around it
 
 A SOCKS5 proxy tunnels the connection. It does not automatically tunnel the DNS lookup
@@ -113,8 +134,9 @@ that happens before the connection, and that split is easy to miss because nothi
 about it fails loudly.
 
 Resolve hostnames locally and only the traffic is proxied; your resolver, and anyone
-watching it, sees the plain list of every hostname visited, unproxied. Resolve at the
-far end and the split disappears. `InvisiblePlaywright` routes DNS through the proxy by
+watching it, sees the plain list of every hostname visited, unproxied. That gap is
+[how a proxy leaks DNS even when the traffic is tunneled](does-a-proxy-leak-dns-doh-explained.md).
+Resolve at the far end and the split disappears. `InvisiblePlaywright` routes DNS through the proxy by
 default for `socks5`/`socks4`/`http`/`https` servers, so there is nothing to set for
 the common case:
 

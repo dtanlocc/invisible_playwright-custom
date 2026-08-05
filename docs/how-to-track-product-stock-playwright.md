@@ -1,6 +1,6 @@
 ---
 title: "How to track product stock and restocks with Playwright"
-description: "Track product stock and restocks with Playwright: poll the per-variant availability XHR, diff the in-stock boolean, and pace each poll so it reads as one shopper."
+description: "Track product stock and restocks with Playwright: poll the per-variant availability XHR, diff the in-stock boolean, and pace the poll to read as one shopper."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 35
@@ -8,6 +8,12 @@ nav_order: 35
 
 
 # How to track product stock and restocks with Playwright
+
+To track product stock and restocks with Playwright, poll the per-variant
+availability XHR the page fires after it loads, read the in-stock boolean for the
+SKU you care about, and alert the moment it flips from `false` to `true`. Run every
+poll from one seed-fixed session so it reads as a single returning shopper, and pace
+it with jitter so the frequency itself does not give you away.
 
 Stock is not a number you scrape once, it is a boolean you watch. A size sells out,
 then two days later it comes back, and the only thing you cared about was the moment it
@@ -22,10 +28,12 @@ making the poll look like a returning shopper rather than a burst of new machine
 
 ## The shell HTML does not tell you what is in stock
 
-Open the product page source and read it. On most modern storefronts the availability
-you see rendered - "In stock", "Only 2 left", a greyed-out size button - is not in that
-HTML at all. The shell arrives first, then a script fires an XHR to an availability or
-inventory endpoint, and the response is what paints the button state.
+The in-stock flag is almost never in the shell HTML; it arrives in a later XHR, so
+parsing the first response tells you nothing reliable. Open the product page source
+and read it: on most modern storefronts the availability you see rendered - "In
+stock", "Only 2 left", a greyed-out size button - is not in that HTML at all. The
+shell arrives first, then a script fires an XHR to an availability or inventory
+endpoint, and the response is what paints the button state.
 
 That means three things for a stock tracker:
 
@@ -43,8 +51,8 @@ the variant you care about, and notice when it changes.
 
 ## Find the availability XHR
 
-Load the page once with the network listener attached and let it tell you which request
-carries the inventory. A patched browser driven by stock Playwright uses the ordinary
+To find the availability XHR, load the page once with a network listener attached and
+let it tell you which request carries the inventory. A patched browser driven by stock Playwright uses the ordinary
 `page.on("response")` event, so this is standard Playwright with nothing extra to learn:
 
 ```python
@@ -178,8 +186,10 @@ the poll looking like one shopper instead of a crowd.
 Two things separate this from tracking a price, and both are easy to get wrong.
 
 **You are tracking a state, not a value.** A price is a number you can sample lazily and
-interpolate; a wrong or slightly stale price is a small error. A stock flag is a boolean
-whose entire value is the instant it changes, and the window can be minutes. That pushes
+interpolate, so [tracking a product's price](how-to-track-product-prices-playwright.md)
+tolerates a much slower poll and a wrong or slightly stale price is a small error. A
+stock flag is a boolean whose entire value is the instant it changes, and the window can
+be minutes. That pushes
 you toward polling more often, which pushes you straight into the second problem.
 
 **A consistent fingerprint does not exempt you from the rate limit you are about to

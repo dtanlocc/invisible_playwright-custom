@@ -1,6 +1,6 @@
 ---
 title: "How to track product prices with Playwright"
-description: "Build a daily price monitor in Playwright that waits for the async price widget, keeps one stable fingerprint per watched identity, and diffs a persisted time series against yesterday."
+description: "Track product prices with Playwright: wait for the async price widget, keep one stable fingerprint per watched item, and diff a saved daily time series."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 28

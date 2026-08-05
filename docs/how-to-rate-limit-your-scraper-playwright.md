@@ -1,6 +1,6 @@
 ---
 title: "How to rate limit your own Playwright scraper"
-description: "Why request velocity is a scored detection signal rather than politeness, how to throttle Playwright navigations with jitter and concurrency limits, and the self-flag story that proves it."
+description: "Request velocity is a scored detection signal, not politeness. Throttle your Playwright scraper with a minimum gap, jitter, concurrency caps, and 429 backoff."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 19
@@ -8,6 +8,11 @@ nav_order: 19
 
 
 # How to rate limit your own Playwright scraper
+
+Rate limit your own Playwright scraper by putting a minimum gap plus random jitter between
+navigations, capping how many pages run in parallel, and backing off when the site returns
+a `429`. Do it because request velocity is a scored detection signal, not courtesy: a
+machine cadence flags the session on a layer that a perfect fingerprint never touches.
 
 Most guides file rate limiting under manners: be a good citizen, do not overload the
 server. That framing is why people skip it, because a scraper that is trying not to get
@@ -54,8 +59,9 @@ volume. A detector that watches velocity does not care how good the browser is.
 
 ## Mouse motion is per action, cadence is separate
 
-It is worth being precise about what the engine already does for you, because it covers
-one behaviour signal and not the other.
+The engine's mouse model handles per-action realism, not request cadence, so it does not
+rate limit your loop for you. It is worth being precise about what the engine already does,
+because it covers one behaviour signal and not the other.
 
 Every click arcs the pointer to the target along a Bezier curve rather than teleporting to
 the coordinate, which adds a realistic, variable latency to each action and is

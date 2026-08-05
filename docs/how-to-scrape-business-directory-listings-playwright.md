@@ -1,6 +1,6 @@
 ---
 title: "How to scrape business directory listings with Playwright"
-description: "Drive a location-plus-category search form, reveal click-gated phone and email fields, walk the filtered pagination, and keep the whole city-by-category sweep coherent as one visitor."
+description: "Scrape business directory listings with Playwright: drive the search form, reveal click-gated phone and email, and walk the filtered pagination as one visitor."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 41
@@ -8,6 +8,12 @@ nav_order: 41
 
 
 # How to scrape business directory listings with Playwright
+
+To scrape business directory listings with Playwright, drive the search form for each
+location-and-category pair, wait for the results to render, un-obfuscate the contact fields,
+and follow the site's own next control to walk the filtered pagination to its end. Run the
+whole city-by-category matrix under one pinned identity so it reads as a single visitor
+rather than a fleet of one-page strangers.
 
 A business directory looks like a flat list and behaves like a nested loop. There is no
 page you can request that returns every listing. There is a search form that wants a

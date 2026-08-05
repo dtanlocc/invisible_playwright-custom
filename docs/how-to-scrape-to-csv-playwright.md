@@ -9,6 +9,12 @@ nav_order: 53
 
 # How to scrape to CSV with Playwright
 
+To scrape to CSV with Playwright, drive the page in a real browser, extract each row with
+`page.evaluate`, and write it with Python's `csv.DictWriter` using `encoding="utf-8-sig"`
+and `newline=""`. That pulls the JavaScript-rendered value a human actually sees and
+escapes every comma, quote and line break, so one messy cell cannot split a row or corrupt
+the file a spreadsheet opens.
+
 Writing a CSV row looks like joining strings with commas. It is not, and the moment a
 scraped cell contains a comma, a line break or an accented character, the naive version
 splits one row into three columns or corrupts the whole file when a spreadsheet opens it.
@@ -20,8 +26,10 @@ halfway does not take the file with it.
 
 ## Why a real browser writes different cells than an HTTP fetch
 
-Before any escaping question, there is a correctness question: are the values you are
-writing the real ones?
+A real browser writes the values a user actually sees, while a plain HTTP fetch writes
+whatever sat in the raw HTML before JavaScript ran, which is often a placeholder or an
+empty cell. Before any escaping question, then, there is a correctness question: are the
+values you are writing the real ones?
 
 Prices, stock counts, ratings and anything else that updates without a full page load are
 written into the DOM by JavaScript after the document arrives. An HTTP client that fetches
@@ -123,7 +131,9 @@ with open("catalog.csv", "w", newline="", encoding="utf-8-sig") as f:
 
 ## Crash-safe incremental writing for long crawls
 
-A catalog crawl runs for an hour across dozens of pages. If it holds every row in memory
+To make a long crawl survive its own failure, append each page's rows as you go, `flush()`
+and `os.fsync()` after every page, and on restart skip the keys already written. A catalog
+crawl runs for an hour across dozens of pages. If it holds every row in memory
 and writes once at the end, an exception on page 47, a killed process or a lost connection
 throws away everything. The fix is to append each page's rows as you go, and to make the
 file safe to resume.
@@ -190,7 +200,9 @@ with InvisiblePlaywright(seed=42) as browser, \
 Because the crash-safe file keys on the URL, the resume is exact rather than approximate:
 you continue from the first row you had not yet committed, not from a page number you hope
 was the right one. This is also why the extraction includes a stable `url` per row even
-when you do not care about the URL as data. It is the dedup key.
+when you do not care about the URL as data. It is the dedup key. The same durable-checkpoint
+idea, generalised beyond CSV, is the subject of
+[resume an interrupted scrape with Playwright](how-to-resume-an-interrupted-scrape-playwright.md).
 
 ## One row = one entity: the shape decision CSV forces
 
@@ -208,8 +220,11 @@ rows. Both are valid; you have to pick, and you have to pick before you design t
 If your data is genuinely tabular already, the mechanics of reading it out of the page are
 their own topic, covered in
 [how to scrape HTML tables with Playwright](how-to-scrape-html-tables-playwright.md).
-CSV is the right output when one entity really is one flat row. When it is not, the fix is
-to choose a different grain, not to bury the delimiter and pretend.
+CSV is the right output when one entity really is one flat row. When the record genuinely
+nests, a line-per-record format carries it without flattening: see
+[how to scrape to JSON Lines with Playwright](how-to-scrape-to-json-lines-playwright.md).
+When it is not, the fix is to choose a different grain, not to bury the delimiter and
+pretend.
 
 ## Why a fixed seed belongs in a scraper that resumes
 
@@ -272,9 +287,10 @@ children, or one row is a child and the parent columns repeat. Pick the grain up
   and the seed-reproducible identity that keeps a resumed file attributable to one browser.
 
 **See also:** [how to scrape HTML tables with Playwright](how-to-scrape-html-tables-playwright.md)
-for genuinely tabular pages, [Configuration](configuration.md) for proxy and timezone
-setup on a long crawl, and [the quickstart](quickstart.md) for the two-line switch from
-stock Playwright.
+for genuinely tabular pages, [how to export scraped data to Excel with Playwright](how-to-export-scraped-data-to-excel-playwright.md)
+when a spreadsheet keeps mangling SKUs and codes, [Configuration](configuration.md) for
+proxy and timezone setup on a long crawl, and [the quickstart](quickstart.md) for the
+two-line switch from stock Playwright.
 
 ---
 

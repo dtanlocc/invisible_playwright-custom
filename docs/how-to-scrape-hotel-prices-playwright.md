@@ -1,6 +1,6 @@
 ---
 title: "How to scrape hotel room prices with Playwright"
-description: "Hotel room rates do not exist until you drive a check-in, check-out and occupancy search, so scraping them means operating a date picker and reading the rate XHR per query, not a field."
+description: "Scrape hotel room prices with Playwright by driving the date and occupancy form, then reading the rate XHR per search: rates do not exist until you query."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 29
@@ -37,10 +37,19 @@ HTML](how-to-capture-xhr-api-responses-playwright.md): the response is typed, it
 carries the full rate breakdown the box only summarizes, and it does not rot when the
 markup changes.
 
-The practical consequence: a rate scan is many searches. One property, one week of
-arrival dates, two length-of-stay options and two occupancy settings is already dozens of
-distinct queries, and you want them all from one browser session. That is the part that
-needs a real browser and a stable identity, for reasons the last two sections get to.
+The practical consequence: a rate scan is many searches. The query count is the product
+of every dimension you vary, so a modest scan of one property is already dozens of
+distinct searches you want from one browser session:
+
+| Search dimension | Example range | Values |
+|---|---|---|
+| Arrival date | one week of check-ins | 7 |
+| Length of stay | two options | 2 |
+| Occupancy | two settings | 2 |
+| **Total distinct queries** | | **28** |
+
+That is the part that needs a real browser and a stable identity, for reasons the last
+two sections get to.
 
 ## Drive the date and occupancy form
 
@@ -166,9 +175,9 @@ content](how-to-scrape-geotargeted-content-playwright.md).
 
 ## Why one fingerprint has to carry the whole scan
 
-Here is the part specific to this workload. A rate scan is, from the server's side,
-dozens of near-identical searches from one visitor in a short window: same property, same
-device, dates marching forward one day at a time. That is a legitimate thing for a person
+One fingerprint has to carry the whole scan because, from the server's side, a rate scan
+is dozens of near-identical searches from one visitor in a short window: same property,
+same device, dates marching forward one day at a time. That is a legitimate thing for a person
 comparing dates to do, and a rate endpoint will keep answering it as long as the visitor
 stays coherent. The failure mode is the tenth identical-looking search of the minute
 coming back blank, not because you were "detected" in the dramatic sense, but because

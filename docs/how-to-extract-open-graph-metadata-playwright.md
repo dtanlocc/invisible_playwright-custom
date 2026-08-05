@@ -9,6 +9,12 @@ nav_order: 58
 
 # How to extract Open Graph and meta tags with Playwright
 
+To extract Open Graph and meta tags with Playwright, read the rendered `<head>` after
+JavaScript has run: query both `<meta property>` and `<meta name>` elements, take each
+`content` attribute, resolve a relative `og:image` against `page.url`, and fall back to
+the document `<title>` when `og:title` is absent. Parsing the server's first response
+instead of the rendered DOM is the mistake that returns empty tags on modern sites.
+
 Open Graph looks like the easiest thing on the page to read. It is a handful of
 `<meta>` tags in the `<head>`, the values are right there in the attributes, and a
 one-line query gets them. Then you ship it and half the `og:image` values are broken
@@ -75,11 +81,11 @@ the page sees, which matters later on this page.
 
 ## Read the rendered head, not the initial response
 
-The obvious shortcut is to skip the browser and parse the raw HTML the server first
-returns. For a large and growing share of sites this reads nothing, because the app
-ships a near-empty `<head>` and injects the Open Graph tags with JavaScript after the
-first paint. The tags exist by the time a human sees the page; they do not exist in the
-bytes the server sent.
+Read the Open Graph tags from the rendered DOM, not from the raw HTML the server first
+returns. For a large and growing share of sites, parsing that first response reads
+nothing, because the app ships a near-empty `<head>` and injects the Open Graph tags with
+JavaScript after the first paint. The tags exist by the time a human sees the page; they
+do not exist in the bytes the server sent.
 
 Reading through a rendered DOM is what makes this correct. `eval_on_selector_all` runs
 against the live document, so a tag written by a script five hundred milliseconds after
@@ -247,8 +253,10 @@ card as evidence the page really loaded.
   of a wrong one.
 
 **See also:** [waiting for the right load condition](how-to-wait-for-page-load-playwright.md)
-for the timing half of this, and [scraping without getting blocked](how-to-scrape-without-getting-blocked.md)
-for why a body comes back as a placeholder in the first place.
+for the timing half of this, [scraping without getting blocked](how-to-scrape-without-getting-blocked.md)
+for why a body comes back as a placeholder in the first place, and
+[extracting JSON-LD structured data](how-to-extract-json-ld-structured-data-playwright.md)
+for the other metadata block that lives in the same head.
 
 ---
 

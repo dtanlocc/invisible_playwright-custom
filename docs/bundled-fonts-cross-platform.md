@@ -1,6 +1,6 @@
 ---
 title: "How to make Linux and macOS report real Windows fonts"
-description: "Filtering a host's font list still leaves the host's rendering underneath. The fix that actually holds is shipping the real font files inside the browser, on all three platforms, from one manifest that keeps three unrelated font backends in agreement."
+description: "To make Linux and macOS report real Windows fonts, bundle the real font files and read only from them. Filtering a list leaves the host's rendering underneath."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 6
@@ -9,10 +9,11 @@ nav_order: 6
 
 # How to make Linux and macOS report real Windows fonts
 
-Filtering a host's font list still leaves the host's rendering underneath - the list
-says Windows, the pixels say something else. This page is the fix that actually holds:
-shipping the real font files inside the browser instead, what it took to make that
-hold on three unrelated font backends, and where it still leaks.
+To make Linux and macOS report real Windows fonts, ship the real Windows font files
+inside the browser and read only from that bundle on every platform. Filtering a host's
+font list is not enough: it changes what gets reported, not what gets rendered - the
+list says Windows, the pixels say something else. This page is what it took to make that
+bundle hold on three unrelated font backends, and where it still leaks.
 [Why headless browsers render different fonts](headless-fonts-differ.md) covers the
 detection side of the same problem, if you want that first.
 
@@ -210,8 +211,8 @@ names. It does not by itself stop the browser's normal font backend from also se
 whatever else is on the host, and licensing is a separate problem again.
 
 **Why not just spoof the font list in JavaScript?** There's no enumeration API to
-intercept; detection works by measuring rendered text, and a script cannot change what
-the OS actually draws.
+intercept; [detection works by measuring rendered text](detect-installed-fonts-javascript.md),
+and a script cannot change what the OS actually draws.
 
 **Does this fix cost anything?** A larger binary, and a font list that's frozen at
 build time rather than tracking whatever the real OS might add later.

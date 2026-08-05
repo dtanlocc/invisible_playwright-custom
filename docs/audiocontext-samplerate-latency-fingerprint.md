@@ -1,6 +1,6 @@
 ---
 title: "AudioContext sampleRate and latency as a fingerprint"
-description: "AudioContext.sampleRate, outputLatency and destination.maxChannelCount are read from the real audio driver, so a headless server leaks through them. Why, and how a seeded browser keeps the profile coherent."
+description: "AudioContext.sampleRate, outputLatency and maxChannelCount are read from the audio driver, so a headless server leaks. How a seeded browser keeps them coherent."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 13
@@ -8,6 +8,12 @@ nav_order: 13
 
 
 # AudioContext sampleRate and latency as a fingerprint
+
+An `AudioContext` fingerprints a machine before it renders a single sample: `sampleRate`,
+`outputLatency` and `destination.maxChannelCount` are read straight from the operating
+system's audio driver, so a headless server with no sound hardware answers them with
+tell-tale defaults. The defence is not to spoof each number, but to return all three as
+one coherent device profile that a real machine could actually have.
 
 Most writing about audio fingerprinting is about the rendered buffer: you run an
 `OfflineAudioContext`, hash the samples it produces, and treat that hash as the signal.
@@ -102,9 +108,14 @@ are what produce the impossible device. The engine returns all three together as
 coherent profile, chosen for the session from a small set of real device archetypes, so
 the values always describe a machine that could actually exist:
 
-- a plain stereo desktop, `44100` Hz, latency around 40 ms, two channels;
-- a USB interface at `48000` Hz with a lower latency near 30 ms, two channels;
-- a 5.1-capable card at `48000` Hz, latency near 40 ms, six channels.
+| Device archetype | `sampleRate` | `outputLatency` | `maxChannelCount` |
+|---|---|---|---|
+| Plain stereo desktop | 44100 Hz | around 40 ms | 2 |
+| USB audio interface | 48000 Hz | lower, near 30 ms | 2 |
+| 5.1-capable sound card | 48000 Hz | near 40 ms | 6 |
+
+Each row is a machine that exists; the impossible combinations between rows are the ones a
+detector is looking for.
 
 Because the whole profile is keyed off the session seed, a six-channel destination never
 lands next to a laptop's latency, and the same seed reproduces the same audio device on
@@ -190,9 +201,14 @@ does.
 
 ## Sources
 
-- The Web Audio API surface as specified: `AudioContext.sampleRate`, `baseLatency`,
-  `outputLatency`, and `AudioDestinationNode.maxChannelCount`, read from the engine rather
-  than from any single detector's rendering of them.
+- W3C Web Audio API specification, which defines `sampleRate`, `baseLatency` and
+  `outputLatency` on `AudioContext` and `maxChannelCount` on the destination node:
+  [www.w3.org/TR/webaudio/](https://www.w3.org/TR/webaudio/).
+- MDN Web Docs on the same properties, read from the engine rather than from any single
+  detector's rendering of them:
+  [AudioContext.sampleRate](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/sampleRate),
+  [AudioContext.outputLatency](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/outputLatency),
+  and [AudioDestinationNode.maxChannelCount](https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode/maxChannelCount).
 - This project's own audio patches and their release notes, which choose the three static
   audio properties together as one coherent device profile so the values never contradict
   each other.

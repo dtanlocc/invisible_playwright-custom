@@ -1,6 +1,6 @@
 ---
 title: "How to scrape real estate listings with Playwright"
-description: "Real estate portals re-fetch results from a map-bounds XHR, not on navigation, and hide price and beds in detail-page JSON-LD. Here is how to drive both with Playwright."
+description: "Scrape real estate listings with Playwright: portals re-fetch results from a map-bounds XHR, not navigation, and hide price and beds in detail-page JSON-LD."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 25
@@ -8,6 +8,11 @@ nav_order: 25
 
 
 # How to scrape real estate listings with Playwright
+
+To scrape real estate listings with Playwright, drive the map-bounds XHR that repaints the
+results as the viewport pans, then read price, beds and baths from each detail page's
+JSON-LD. A crawler that only walks URLs fires neither request and comes back with a
+fraction of the inventory.
 
 A property portal looks like a list of cards next to a map. It is really a map with a
 list bolted to the side, and that inversion is the whole reason a straightforward
@@ -20,9 +25,11 @@ fixes.
 
 ## Why a URL crawler misses most of the inventory
 
-Open a metro-area search and watch the network panel while you drag the map. The page
-does not navigate. It fires an XHR carrying the map viewport (a bounding box, and often
-a zoom level), and the card column repaints from the JSON that comes back.
+A URL crawler misses most of the inventory because the results are not tied to the URL at
+all: they arrive from a map-bounds request that only fires when the viewport moves. Open a
+metro-area search and watch the network panel while you drag the map. The page does not
+navigate. It fires an XHR carrying the map viewport (a bounding box, and often a zoom
+level), and the card column repaints from the JSON that comes back.
 
 That has three consequences a card-only crawler quietly loses to:
 

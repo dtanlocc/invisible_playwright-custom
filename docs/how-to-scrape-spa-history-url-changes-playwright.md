@@ -1,6 +1,6 @@
 ---
 title: "Scrape an SPA that changes URL via history API"
-description: "Scrape a single-page app whose URL changes with history.pushState and no page load: wait on route and DOM markers, capture the view XHR, and re-query after each change."
+description: "Scrape a single-page app that changes URL via history.pushState with no page load: wait on route and DOM markers, capture the view XHR, re-query each route."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 79
@@ -41,6 +41,18 @@ with page.expect_navigation():
     page.click("a[href='/app/items']")
 page.on("framenavigated", handler)   # never called for a pushState route
 ```
+
+Here is what actually happens on each signal, classic navigation versus a
+`pushState` route:
+
+| Signal | Classic multi-page navigation | `history.pushState` route |
+|---|---|---|
+| `load` | Fires | Never fires |
+| `domcontentloaded` | Fires | Never fires |
+| `framenavigated` | Fires | Never fires |
+| `networkidle` | Settles once requests stop | No transition (the URL change makes no request) |
+| `page.url` | Updates | Updates immediately |
+| The DOM | A brand-new document | Same document, one subtree swapped |
 
 The URL did change. `page.url` will read the new path immediately after the click.
 What did not change is anything Playwright treats as a navigation, which is exactly
@@ -256,7 +268,8 @@ of the pattern.
 ## Sources
 
 - Playwright's `wait_for_url`, `expect_response`, `locator` and `wait_for_function`
-  APIs, read from their documented behaviour rather than from a verdict.
+  APIs, read from their documented behaviour rather than from a verdict:
+  [Playwright Python `Page` API reference](https://playwright.dev/python/docs/api/class-page).
 - This project's own measurements of a single context across a multi-route session:
   with a fixed seed, the canvas hash and visitor ID stay identical on every route.
 

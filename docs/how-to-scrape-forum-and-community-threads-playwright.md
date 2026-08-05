@@ -1,6 +1,6 @@
 ---
 title: "How to scrape forum and community threads with Playwright"
-description: "Scrape forum and community threads with Playwright by walking the reply tree depth-first, expanding collapsed branches, and separating quoted text from original posts under one stable identity."
+description: "Scrape forum and community threads with Playwright: walk the reply tree depth-first, expand collapsed branches over XHR, strip quoted text under one identity."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 46
@@ -8,6 +8,13 @@ nav_order: 46
 
 
 # How to scrape forum and community threads with Playwright
+
+To scrape forum and community threads with Playwright, treat each thread as a tree:
+walk the reply nesting depth-first, expand every collapsed "load more replies" branch
+over XHR before reading the DOM, and strip quoted blockquotes so a copied paragraph is
+not counted twice. Run the whole multi-thread sweep under one seeded identity and pace
+it to a per-identity request budget. The rest of this page shows each step in stock
+Playwright.
 
 A product listing is a flat sequence. A forum thread is not. Replies nest under
 parents to an arbitrary depth, whole branches hide behind a "load more replies"
@@ -65,7 +72,7 @@ with InvisiblePlaywright(seed=42) as browser:
 The `browser` here is a real Playwright `Browser`, so `new_page`, `goto`,
 `query_selector_all` and every other method behave exactly as they do upstream. The only
 difference from plain `firefox.launch()` is that the GPU, fonts, audio device, screen
-and the roughly 400 fields behind them are all derived from that one seed and stay
+and the many other fields behind them are all derived from that one seed and stay
 identical for the whole run. Requesting fifty threads from one consistent member looks
 ordinary. Requesting fifty threads each from a freshly randomised device does not.
 
@@ -110,8 +117,9 @@ direct-child combinator is what keeps each post counted once and placed correctl
 
 Deep branches do not ship in the initial HTML. The server sends the thread down to some
 depth and replaces the rest with a "load more replies" control that fetches the missing
-subtree over XHR when clicked. Read the DOM before expanding and those branches simply
-are not there. There is no error, just a silent hole in your data.
+subtree over XHR when clicked, the same [load-more button pattern](how-to-scrape-load-more-button-playwright.md)
+seen on flat listings but applied to nested replies. Read the DOM before expanding and
+those branches simply are not there. There is no error, just a silent hole in your data.
 
 So expansion has to happen first, and it has to repeat, because expanding one branch can
 reveal another collapsed control nested inside it. Loop until none remain.

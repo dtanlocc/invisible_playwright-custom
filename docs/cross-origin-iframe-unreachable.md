@@ -1,6 +1,6 @@
 ---
 title: "Why content_frame() returns None for a cross-origin iframe"
-description: "Three Playwright operations on a cross-origin iframe fail together - content_frame() returns None, frame.evaluate() throws a permission error, frame_locator times out - and all three share one cause that has nothing to do with permissions."
+description: "content_frame() returns None on a cross-origin iframe, frame.evaluate() throws, frame_locator times out - one shared cause: process isolation, not a permissions bug."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 9
@@ -8,15 +8,21 @@ nav_order: 9
 
 # Why content_frame() returns None for a cross-origin iframe
 
-A specific cluster of symptoms, all on the same page, all against the same
-cross-origin iframe: `element_handle.content_frame()` returns `None`.
-`frame.evaluate()` throws a permission error naming a cross-origin object.
-`frame_locator(...).click()` times out, and passing `force=True` changes nothing.
-Disabling JavaScript works around it and defeats the point of automating the page at
-all.
+`content_frame()` returns `None` for a cross-origin iframe when Firefox's
+site-isolation feature puts that iframe in a separate OS process: the automation
+driver's frame tree holds only an empty placeholder for it, so there is no real frame
+reference to hand back. It is not a permissions bug, and the same single cause is why
+`frame.evaluate()` throws and `frame_locator` times out on the same iframe.
+
+That cluster of symptoms all lands on the same page, all against the same cross-origin
+iframe: `element_handle.content_frame()` returns `None`, `frame.evaluate()` throws a
+permission error naming a cross-origin object, and `frame_locator(...).click()` times
+out with `force=True` changing nothing. Disabling JavaScript works around it and
+defeats the point of automating the page at all.
 
 These read like three unrelated bugs. They are one bug, and it isn't a permissions
-problem.
+problem. If the iframe you are after is same-origin instead, none of this applies and
+[scraping it is a short job with `frame_locator`](how-to-scrape-iframe-content-playwright.md).
 
 ## What's actually different about that iframe
 
@@ -31,9 +37,11 @@ automation driver that assumed it could reach into every frame from one process.
 
 ## Why the driver's own frame tracking breaks
 
-Playwright drives Firefox through Juggler, an internal automation protocol, which
-keeps a tree of every frame on the page so `page.frames`, `content_frame()` and
-friends can find them. That tree is built and maintained from the parent process.
+The frame tracking breaks because it is built from a single process while the iframe
+lives in another. Playwright drives Firefox through
+[Juggler, an internal automation protocol](playwright-protocol-drift.md), which keeps
+a tree of every frame on the page so `page.frames`, `content_frame()` and friends can
+find them. That tree is built and maintained from the parent process.
 
 When the iframe's browsing context lives in a different, isolated process, the
 parent-side frame tree registers a placeholder for it instead of the real thing: no

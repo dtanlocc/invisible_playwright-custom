@@ -1,6 +1,6 @@
 ---
 title: "CSS fingerprinting: what media queries reveal"
-description: "Media features and CSS system colours identify a machine with no script at all, which puts them out of reach of every page-level stealth layer. What they expose, and the two consistency traps."
+description: "Media queries and CSS system colours fingerprint a machine with no JavaScript, beyond page-level stealth. What they expose, and the two consistency traps."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 9
@@ -9,8 +9,16 @@ nav_order: 9
 
 # CSS fingerprinting: what media queries reveal
 
-Almost everything written about browser fingerprinting assumes JavaScript. Disable it,
-block it, patch it, and the discussion is about what a script can read.
+**CSS fingerprinting identifies a machine using only stylesheet media queries and system
+colours, with no JavaScript at all.** Media queries reveal the pointer type, the
+operating-system dark-mode setting, display resolution and colour gamut, the screen size,
+and accessibility preferences; CSS system colours reveal the operating system itself. Each
+is read by loading a different resource per branch, so the server learns the answer from
+which request arrives.
+
+Almost everything written about [what a browser fingerprint is](what-is-a-browser-fingerprint.md)
+assumes JavaScript. Disable it, block it, patch it, and the discussion is about what a
+script can read.
 
 CSS does not need a script. A stylesheet can ask what kind of pointer you have, whether
 your system is in dark mode, how many colours your display shows, and how large it is,
@@ -48,7 +56,17 @@ It is that these values are *free* to collect and are rarely part of anyone's ch
 
 ## The media features that actually carry information
 
-Not all of them are interesting. These are:
+Not every media feature carries useful entropy. The ones that identify a machine fall into
+five groups: pointer and hover capabilities, colour scheme, display characteristics,
+accessibility preferences, and size.
+
+| Media feature | What it reveals |
+|---|---|
+| `pointer`, `any-pointer`, `hover`, `any-hover` | Input devices: mouse vs touch, and whether the device has both |
+| `prefers-color-scheme` | OS dark-mode setting, close to a coin flip across real users |
+| `resolution`, `color-gamut` | Display panel class (`p3` marks a modern, wide-gamut display) |
+| `prefers-reduced-motion`, `prefers-contrast`, `forced-colors`, `inverted-colors` | Accessibility preferences; a non-default value is rare and identifying |
+| `width`, `height`, `device-width`, `device-height` | Screen and viewport size, and the CSS/JavaScript consistency trap below |
 
 **Pointer and hover.** `pointer`, `any-pointer`, `hover`, `any-hover`. A desktop with a
 mouse reports `fine` and `hover`. A phone reports `coarse` and `none`. A touchscreen
@@ -60,7 +78,9 @@ and it is close to a coin flip across real users, so it is a genuine bit rather 
 constant.
 
 **Display characteristics.** `resolution` and `color-gamut` describe the panel.
-`color-gamut: p3` says a modern, better-than-average display.
+`color-gamut: p3` says a modern, better-than-average display; see
+[color-gamut as a display fingerprint](color-gamut-hdr-media-query-fingerprint.md) for how
+that one media query alone narrows the field.
 
 **Accessibility preferences.** `prefers-reduced-motion`, `prefers-contrast`,
 `forced-colors`, `inverted-colors`. Almost everyone leaves these at the default, which
@@ -190,8 +210,8 @@ platform tell that no script controls, and
 
 ## Sources
 
-- MDN's reference for the `@media` at-rule and the individual media features named
-  above.
+- MDN's [reference for the `@media` at-rule](https://developer.mozilla.org/en-US/docs/Web/CSS/@media)
+  and the individual media features named above.
 - Published work on CSS-based fingerprinting, which is where the load-an-image-per-branch
   technique is described.
 - This project's own media-feature and system-colour handling, and the reason the palette

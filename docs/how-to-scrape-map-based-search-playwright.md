@@ -1,6 +1,6 @@
 ---
 title: "Scrape a map-based search with Playwright"
-description: "How to scrape a map-based search with Playwright: pan and zoom a tile map, capture the bounding-box marker XHR, and grid the viewport so you cover the whole area."
+description: "Scrape a map-based search with Playwright: capture the bounding-box marker XHR, pan and zoom the tile map, and grid the viewport to cover the whole area."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 67
@@ -78,7 +78,8 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 Everything here is stock Playwright. `page.on("response", ...)`, `response.json()`,
-`response.request` and `wait_until="networkidle"` are the documented API, and the
+`response.request` and `wait_until="networkidle"` are the
+[documented Playwright API](https://playwright.dev/python/docs/api/class-page), and the
 `browser` returned by `InvisiblePlaywright` is a real Playwright `Browser`, so nothing
 about interception changes. The only judgement call is the URL match, and you make it
 once by watching the Network panel while you drag the map by hand.
@@ -175,6 +176,11 @@ first viewport's request returned 41 markers, and its counter claimed "hundreds"
 would have scraped from the first screen was under 7% of the answer. The grid is not an
 optimization, it is the difference between a sample and the data.
 
+| Approach at the same zoom | Distinct markers | Coverage |
+|---|---|---|
+| First viewport request only | 41 | under 7% of the grid total |
+| 4x4 grid, deduplicated by item ID | 612 | the full traverse |
+
 ## The stealth angle you cannot skip on this layout
 
 Map scraping stresses exactly two fingerprint surfaces at once, and it stresses them
@@ -251,6 +257,10 @@ return the same item more than once by design.
   search layouts.
 - This project's fingerprint gates for the WebGL renderer and the pointer-motion model,
   which are the two surfaces a map interaction exercises hardest.
+- The [Playwright Python API reference](https://playwright.dev/python/docs/api/class-page)
+  for `page.on("response")`, `response.json()`, and the
+  [mouse](https://playwright.dev/python/docs/api/class-mouse) methods used here, all of
+  which are stock, documented Playwright.
 
 **See also:** [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)
 for the interception pattern this page points at the box request,

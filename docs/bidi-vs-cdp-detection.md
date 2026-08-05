@@ -19,7 +19,9 @@ driver speaks over leaves the page-level artifacts exactly where they were.
 
 ## The protocol is the control channel, not the fingerprint
 
-Start with what these protocols are. CDP, BiDi and Firefox's own Juggler are all
+The protocol is the wire a driver speaks over, not the fingerprint a page reads,
+so changing it moves nothing a detector looks at. CDP, BiDi and Firefox's own
+Juggler are all
 control channels: the out-of-process link a driver uses to say "open a page", "go
 to this URL", "evaluate this script", "give me the console messages". They are
 plumbing between your Python process and the browser process.
@@ -39,8 +41,10 @@ artifacts are produced by a different mechanism entirely.
 
 ## What CDP's Runtime.enable leak actually was
 
-The specific leak that gave this whole topic its energy is worth stating exactly,
-because it is narrower than the folklore around it.
+The CDP `Runtime.enable` leak was a page-visible side effect of how Chromium
+automation manages JavaScript execution contexts, not a property of the CDP wire
+itself. It is narrower than the folklore around it, so it is worth stating
+exactly.
 
 On Chromium, automation libraries call the CDP command `Runtime.enable` to manage
 the execution contexts they need for evaluating JavaScript. That call has an
@@ -100,7 +104,7 @@ have ever wanted "one protocol, every browser", this is that.
 What it standardizes is the shape of the control channel: the commands, the
 events, the subscription model. What it does not do, because it is not what a
 control protocol is for, is change what the browser exposes to the page. BiDi has
-no clause that turns off `navigator.webdriver`, no clause about whether a helper
+no clause that turns off [`navigator.webdriver`](does-playwright-set-navigator-webdriver.md), no clause about whether a helper
 runs in the page's realm before the page's own scripts, no clause about whether the
 JavaScript engine is in a mode that runs loops slower. Those are engine and driver
 behaviors. A standardized wire carries them just as faithfully as a proprietary one.
@@ -146,7 +150,16 @@ not, and it is orthogonal to detection too.
 The practical upshot is that "which protocol" is not a stealth decision. Pick the
 protocol for engineering reasons: BiDi for cross-browser uniformity and a stable
 standard, CDP where you need a Chromium-specific capability it exposes, Juggler if
-you are on this project's Firefox because that is what it speaks. Then measure the
+you are on this project's Firefox because that is what it speaks. The three differ
+on engineering properties, but not on the axis people ask about here:
+
+| Protocol | Cross-browser standard | `Runtime.enable`-style context leak | Control wire visible to the page | Protocol choice changes detectability |
+|---|---|---|---|---|
+| CDP | No (Chromium family) | Yes, until hand-patched at the driver | No | No |
+| WebDriver BiDi | Yes (W3C, multi-engine) | No such standardized clause | No | No |
+| Juggler | No (Firefox, this project) | No `Runtime.enable` command exists | No | No |
+
+Then measure the
 things that actually decide detection, none of which the protocol choice sets.
 
 The measurement that separates the real question from the imagined one is timing

@@ -1,6 +1,6 @@
 ---
 title: "hardwareConcurrency, deviceMemory and storage quota"
-description: "hardwareConcurrency, deviceMemory and storage quota are three one-line reads, all routinely wrong on a server, and all checked against each other by a detector rather than on their own."
+description: "hardwareConcurrency, deviceMemory and storage quota are three one-line reads that go wrong on a server, and detectors cross-check them against each other."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 2
@@ -24,18 +24,21 @@ it useful as one.
 
 ## What each one actually reports
 
-**`hardwareConcurrency`** is the number of logical processors. On real consumer
-machines it is almost always a power of two or a small even number: 4, 8, 12, 16.
-It is available in workers as well as on the main thread, which matters below.
+**[`hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency)**
+is the number of logical processors. On real consumer machines it is almost always a
+power of two or a small even number: 4, 8, 12, 16. It is
+[readable inside a Web Worker](web-workers-fingerprint.md) as well as on the main
+thread, which matters below.
 
-**`deviceMemory`** is RAM in gibibytes, deliberately coarse. The specification rounds
-to a small set of values, so you will see 0.5, 1, 2, 4 and 8, and 8 is the cap. A
-machine with 64 GB reports 8. It is a Chromium API; Firefox does not implement it,
-which is itself a signal in the other direction if something claims Chrome and returns
-`undefined`.
+**[`deviceMemory`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory)**
+is RAM in gibibytes, deliberately coarse. The
+[Device Memory specification](https://www.w3.org/TR/device-memory/) rounds to a small
+set of values, so you will see 0.5, 1, 2, 4 and 8, and 8 is the cap. A machine with
+64 GB reports 8. It is a Chromium API; Firefox does not implement it, which is itself a
+signal in the other direction if something claims Chrome and returns `undefined`.
 
-**`storage.estimate().quota`** is how much the origin is allowed to store, and browsers
-derive it from free disk space. That makes it a rough, noisy proxy for the size of the
+**[`storage.estimate().quota`](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate)**
+is how much the origin is allowed to store, and browsers derive it from free disk space. That makes it a rough, noisy proxy for the size of the
 volume, and it varies enormously between a laptop with a half-full terabyte drive and a
 container with a small overlay filesystem.
 
@@ -64,6 +67,11 @@ a fresh iframe, a service worker. An engine-level value has no such gap, because
 is no override to be missing.
 
 ## Why the worker check is the important one
+
+The worker check matters most because it detects tampering rather than unusual hardware.
+If the main thread and a worker report different core counts, the page has not learned
+your hardware, it has learned that something is rewriting values in one execution context
+and not another. That is a stronger and more damning finding than any specific number.
 
 ```js
 // main thread

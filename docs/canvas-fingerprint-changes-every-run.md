@@ -1,6 +1,6 @@
 ---
 title: "Canvas fingerprint changes every run: use a seed"
-description: "Why your canvas, WebGL and audio hashes change on every Playwright run, why that reads as a rotating device, and how a single seed makes every readback byte-identical."
+description: "Canvas, WebGL and audio hashes change every Playwright run because each session draws a fresh identity. Pass a fixed seed to make readbacks byte-identical."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 6
@@ -8,6 +8,11 @@ nav_order: 6
 
 
 # Canvas fingerprint changes every run: use a seed
+
+A canvas fingerprint that changes on every Playwright run is not a leak or a bug. Without
+a seed, each session is handed a fresh, self-consistent device, so the canvas, WebGL and
+audio readbacks are recomputed at every launch. Pass a fixed seed and all three come back
+byte-identical, run to run. That single argument is the whole fix.
 
 You open a fingerprinting page twice from the same automation, and the canvas hash
 is different each time. The WebGL hash moves too, and so does the audio one. Nothing
@@ -217,8 +222,8 @@ durable identity.
   are computed as a pure function of a hardware seed derived from the session seed.
 - The release consistency gate, which relaunches a fixed seed and requires an
   identical visitor ID from run to run, and fails the build otherwise.
-- The quickstart and configuration pages in this documentation set for the seed
-  argument and the API it belongs to.
+- The [quickstart](quickstart.md) and [configuration](configuration.md) pages in this
+  documentation set for the seed argument and the API it belongs to.
 
 **See also:** [how to test whether your browser is detected](how-to-test-bot-detection.md)
 for the assert-the-right-value method, and

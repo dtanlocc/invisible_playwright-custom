@@ -1,6 +1,6 @@
 ---
 title: "How to download images in bulk with Playwright"
-description: "Download images in bulk with Playwright: resolve lazy srcset and data-src to the full-resolution URL, then pull hotlink-protected bytes inside the browser's own session so cookies, Referer and fingerprint match."
+description: "Download images in bulk with Playwright: resolve lazy srcset and data-src to full-res URLs, then fetch the bytes inside the page session so hotlink checks pass."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 61
@@ -9,6 +9,12 @@ nav_order: 61
 
 # How to download images in bulk with Playwright
 
+To download images in bulk with Playwright reliably, resolve each image's
+full-resolution URL from `srcset` or `data-src` after triggering the lazy load, then
+fetch the bytes through the page's own request context (`page.request`) so every request
+carries the same session cookies, `Referer` and fingerprint the server used to serve the
+page. That one move is what turns placeholders and 403s back into real files.
+
 Bulk image scraping looks like a one-liner and then breaks in two places that have
 nothing to do with each other. First the URL you read off the DOM is not the image you
 wanted: it is a tiny placeholder, or a `data:` blob, or empty, because the real source
@@ -16,12 +22,8 @@ lives in `srcset` or a `data-src` attribute that only becomes a real request whe
 element scrolls into view. Second, once you have the right URL, fetching it from a
 separate HTTP client returns a watermarked placeholder or a `403`, because the asset is
 hotlink-protected and your out-of-band request does not carry the page's cookies, its
-`Referer`, or a handshake that matches the browser that loaded the page.
-
-This page fixes both. The short version: resolve the highest-resolution candidate from
-`srcset`, trigger the lazy load, and then pull the bytes through the page's own request
-context so every image request leaves with the same session as the page that is allowed
-to see them.
+`Referer`, or a handshake that matches the browser that loaded the page. This page fixes
+both, and the second fix is where the browser you use actually matters.
 
 ## Why bulk image scraping breaks twice
 
@@ -32,7 +34,9 @@ usually only notice the first one.
 candidates in `srcset` (a comma-separated list of URL plus width or density descriptors)
 or in a framework attribute like `data-src`. Until a scroll or an intersection observer
 fires, `img.currentSrc` is empty or points at a 1x1 pixel. Read `src` naively and you
-download hundreds of identical placeholders.
+download hundreds of identical placeholders. If your galleries defer through `data-src`,
+[reading that attribute directly off the DOM](how-to-scrape-lazy-loaded-images-playwright.md)
+is often lighter than scroll-forcing every image.
 
 **Hotlink protection.** The full-resolution asset is often served only to a request that
 proves it came from the page: a session cookie set during the visit, a `Referer` header
@@ -201,6 +205,15 @@ same one that runs through [TLS handshake fingerprinting](ja3-ja4-tls-fingerprin
 the block is often decided by what the connection looks like before the URL is even read,
 which no amount of correct URL parsing in Python can fix.
 
+| Fetch path | Session cookies + `Referer` | Result on hotlink-protected assets |
+|---|---|---|
+| External HTTP client (generic user agent, no `Referer`) | absent | placeholder or `403` |
+| `page.request` (page's `Referer`, same context) | present | real full-resolution bytes |
+
+The public thumbnails came through on both paths, which is the trap: a spot check on one
+unprotected thumbnail reports everything working while the protected assets are still
+being refused.
+
 For files that are downloads rather than inline images (a ZIP of originals, a PDF behind
 the same session), the same principle applies through a different API, covered in
 [downloading files with Playwright](how-to-download-files-playwright.md).
@@ -231,20 +244,24 @@ context, so it sends the same cookies automatically; add `headers={"referer": pa
 
 **Should I use requests or httpx to download the images?** Not for protected assets. A
 separate client presents a different TLS and header fingerprint than the browser that
-loaded the page, which is exactly what hotlink protection checks. Fetch inside the context.
+loaded the page, which is exactly what hotlink protection checks. This is
+[why a plain Python requests scraper is blocked before it sends a header](web-scraping-tls-fingerprint-requests-blocked.md);
+fetch inside the context instead.
 
 **How do I get the highest-resolution version instead of the thumbnail?** Parse `srcset`
 and pick the candidate with the largest `w` or `x` descriptor, resolving it against the
 page URL, before you download anything.
 
 **Is downloading hundreds of images at once safe?** No. A dense, evenly spaced burst is a
-behavioural signal by itself. Cap concurrency, add jitter, and pace it like a human paging
-through the gallery.
+behavioural signal by itself. Cap concurrency, add jitter, and
+[rate-limit the job so it paces like a human](how-to-rate-limit-your-scraper-playwright.md)
+paging through the gallery.
 
 ## Sources
 
-- Stock Playwright's `APIRequestContext` behaviour: `page.request` shares the browser
-  context's cookies and connection pool, and `response.body()` returns raw bytes.
+- Playwright's official [`APIRequestContext` documentation](https://playwright.dev/python/docs/api/class-apirequestcontext):
+  `page.request` uses the same cookie jar as its browser context, and `response.body()`
+  returns the raw response bytes.
 - This project's own gates on writing uploaded and downloaded content as bytes rather than
   text, so binary image data is never re-encoded on the way to disk.
 - The same-session versus separate-client comparison described above, run against

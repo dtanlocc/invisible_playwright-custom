@@ -1,6 +1,6 @@
 ---
 title: "about:webrtc: read your real ICE candidates"
-description: "Firefox's built-in about:webrtc lists your live ICE candidates and the gathering timeline, so you can tell a LAN-IP leak from an obfuscated .local host and a proxy-egress srflx candidate by candidate."
+description: "Read your live ICE candidates in Firefox's built-in about:webrtc: tell a real LAN-IP leak from a masked .local host and a proxy-egress srflx line."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 17
@@ -57,6 +57,17 @@ timeline looks like a browser talking to a STUN server rather than fabricating a
 answer instantly.
 
 ## The three states a leak site collapses into one
+
+Three candidate states, plus a suppressed section that gathers nothing, all round to
+the same one-word leak-site badge. The table below is how each reads in the candidate
+list; the lines underneath show the exact shape of each one.
+
+| State | Candidate line | Leak-site badge | Verdict |
+|---|---|---|---|
+| Leak | `typ host` with a raw `192.168.x.x` LAN address | "Local IP" / red warning | Real leak, worse than stock |
+| Correct host | `typ host` with a `<uuid>.local` name | "No Leak", local IP shown as "-" | Shipped, correct |
+| Correct srflx | `typ srflx` with your proxy egress address | contributes to "No Leak" | Correct exit |
+| Suppressed | nothing gathered at all | "No Leak" | Detectable tell, a FAIL |
 
 Here is what each state looks like as a candidate line, so you can recognise it on
 sight in the table.
