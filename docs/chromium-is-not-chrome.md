@@ -1,12 +1,18 @@
 ---
 title: "Chromium is not Chrome, and detectors know the difference"
-description: "Playwright's default browser closed its codec gap in 2026 and kept its Widevine one. Checked directly: H.264 plays, Widevine still rejects. That remaining gap is a compiled-in capability no JavaScript patch can fill."
+description: "Chrome for Testing, Playwright's default since 1.57, plays H.264 but still fails the Widevine DRM check - a compiled-in gap that no JavaScript patch can close."
 parent: "Comparisons"
 nav_order: 3
 ---
 
 
 # Chromium is not Chrome, and detectors know the difference
+
+**Short answer:** no, they are not the same, and the gap moved in 2026 rather than closing.
+Playwright's default Chromium - Chrome for Testing since v1.57 - now plays the same
+H.264/AAC codecs as real Chrome, checked directly in a live session. It still fails
+Chrome's Widevine DRM check, and that part cannot be patched from JavaScript because it is
+a compiled-in capability, not a value a page reads off a string.
 
 Every stealth guide for Chromium-based automation quietly assumes "Chromium" and "Chrome"
 mean the same thing, or that the gap between them is fixed and permanent. Neither is true.
@@ -32,7 +38,7 @@ both play. The codec half of this page's original argument no longer holds for a
 default Playwright launch - it holds for whatever version you're actually pinned to, and it
 is worth checking your own rather than assuming either answer.
 
-## What still doesn't survive the switch
+## The Widevine gap that survives the switch
 
 Checked in the same session: Widevine still rejects.
 
@@ -145,7 +151,16 @@ That is not an argument that Firefox wins overall.
 and it is serious. But on this specific axis the two engines are not in comparable
 positions, and most comparisons never mention it.
 
-## Checking your own
+## Codec and DRM support, by build
+
+| Build | H.264 / AAC playback | Widevine DRM | What it actually is |
+|---|---|---|---|
+| Bare open-source Chromium (pre-1.57 default, or an explicit unbranded build) | No | No | Missing the proprietary codec and DRM additions Google adds on top of open-source Chromium |
+| Chrome for Testing (Playwright's default since 1.57, no `channel` set) | Yes | No | Google's own automation distribution - Chrome's codecs, not Chrome's DRM licensing |
+| Real Chrome, launched via `channel="chrome"` | Yes | Yes | The actual installed browser, with the update and install costs described above |
+| Firefox, patched at the C++ level | N/A - no split | N/A - no split | One build, not two: there is no stripped variant that only automation runs |
+
+## How to check your own build for the gap
 
 Run this in whatever browser your automation actually launches:
 

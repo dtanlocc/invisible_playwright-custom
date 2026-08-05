@@ -1,13 +1,19 @@
 ---
 title: "navigator.webdriver is not the tell you think it is"
-description: "navigator.webdriver is a specified property, not a leak, and patching it alone buys you almost nothing. What it actually tells a detector, and why the property existing at all is by design."
+description: "navigator.webdriver is a specified property, not a leak. Patching it alone buys almost nothing: what it tells a detector, and where the real fix has to live."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 1
 ---
 
-
 # navigator.webdriver is not the tell you think it is
+
+`navigator.webdriver` is a real, specified browser property: a conforming
+browser must report it as `true` while under automation control and otherwise
+leave it `undefined`, never `false`. It is the cheapest signal in any
+fingerprint, which is why it is the one everybody checks first, and passing it
+alone - by hiding, patching, or deleting it - stops a detector on essentially
+nothing else it looks at.
 
 If you have ever automated a browser and been shown a different page than a human
 gets, the first thing you found was almost certainly `navigator.webdriver`. It is
@@ -53,11 +59,12 @@ Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver') // should exis
 ```
 
 **Three.** Your getter is a JavaScript function you wrote, and functions carry
-their source. `Function.prototype.toString` on a native getter returns
-`function get webdriver() { [native code] }`. On yours it returns whatever you
-typed. Every serious stealth layer patches `toString` to hide this, and then the
-patch to `toString` is itself detectable, and so on down. This is the part people
-underestimate: each layer of the disguise is a new surface.
+their source. [`Function.prototype.toString`](tostring-native-code-detection.md)
+on a native getter returns `function get webdriver() { [native code] }`. On
+yours it returns whatever you typed. Every serious stealth layer patches
+`toString` to hide this, and then the patch to `toString` is itself detectable,
+and so on down. This is the part people underestimate: each layer of the
+disguise is a new surface.
 
 ## The timing problem, which is why "it works locally" happens
 
@@ -99,10 +106,12 @@ A rough map of what that picture contains:
   are native, whether anything has been redefined. Cheap to check, expensive to
   fake completely.
 - **Consistency across surfaces.** The user agent string says one platform. So do
-  `navigator.platform`, the Client Hints, the fonts that are actually installed,
-  the WebGL renderer string, the timezone, the language list, and the way the
-  audio stack rounds floating point. Any one of those can be spoofed. Making all
-  of them agree, on a machine that is not actually that machine, is the real work.
+  [`navigator.platform`](navigator-platform-oscpu-consistency.md), the Client
+  Hints, the fonts that are actually installed, the
+  [WebGL renderer string](webgl-renderer-strings.md), the timezone, the
+  language list, and [the way the audio stack rounds floating point](audiocontext-fingerprinting.md).
+  Any one of those can be spoofed. Making all of them agree, on a machine that
+  is not actually that machine, is the real work.
 - **Rendering.** Canvas and WebGL output, and whether the reported GPU is a GPU a
   human would plausibly have. A software rasterizer string is a strong signal that
   the browser is running on a server with no graphics hardware, and it is a signal
@@ -134,7 +143,7 @@ becomes `undefined` and not `false`, because nothing set it. What it does not
 change is anything about the machine underneath.
 
 **In the browser engine, before it ships.** Change the values in the C++ source
-and rebuild. Camoufox does this for Firefox, and so does the project I maintain,
+and rebuild. [Camoufox](vs-camoufox.md) does this for Firefox, and so does the project I maintain,
 `invisible_playwright`. At this level there is no override to detect, because
 there is no override: the engine simply reports the value you compiled in, through
 the same native code path a normal build uses. `Function.prototype.toString` says
@@ -195,7 +204,7 @@ itself a recognisable launch configuration.
 cheapest check, not the important one. Everything else on your machine is still
 answering honestly.
 
-**See also:** [the three levels a stealth tool can work at](playwright-stealth-levels.md), [what CreepJS does to catch an override](creepjs-explained.md), and [the ChromeDriver `cdc_` variable](cdc-variable-explained.md) for the same problem in a different place.
+**See also:** [the three levels a stealth tool can work at](playwright-stealth-levels.md), [what CreepJS does to catch an override](creepjs-explained.md), [the ChromeDriver `cdc_` variable](cdc-variable-explained.md) for the same problem in a different place, and [whether stock Playwright sets navigator.webdriver to true](does-playwright-set-navigator-webdriver.md).
 
 ---
 

@@ -1,13 +1,22 @@
 ---
 title: "How to avoid bot detection with Playwright"
-description: "A proactive guide to avoiding Playwright bot detection: navigator.webdriver patches are level one, and what only a patched browser engine can fix, with runnable code."
+description: "A proactive guide to avoiding Playwright bot detection: navigator.webdriver patches are level one, a patched engine reaches the rest, with runnable code."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 8
 ---
 
-
 # How to avoid bot detection with Playwright
+
+**Avoiding bot detection in Playwright means fixing the right layer before you launch
+a session, not patching properties after a site has already blocked you.** Detection
+is decided at a layer most stealth work never reaches. Patching `navigator.webdriver`
+and its neighbours is real, it is worth doing, and it is also the cheapest thing a
+detector checks. The durable tells are not values you can redefine from a page
+script. They are outputs a real machine produces and a script cannot: what the
+engine actually renders, what it can actually decrypt, how a pointer actually moves.
+Building toward that from the start, rather than patching properties after a block
+shows up, is the difference this page is about.
 
 This page is written for before you launch a session, not after one gets blocked. If
 you already have a specific site turning you away, [the reactive
@@ -18,16 +27,7 @@ the proactive version, the decisions to make and the code to write before the fi
 request goes out, so you spend effort on the layer that actually decides the outcome
 instead of the layer that is easiest to patch.
 
-The short version of everything below: detection is decided at a layer most stealth
-work never reaches. Patching `navigator.webdriver` and its neighbours is real, it is
-worth doing, and it is also the cheapest thing a detector checks. The durable tells
-are not values you can redefine from a page script. They are outputs a real machine
-produces and a script cannot: what the engine actually renders, what it can actually
-decrypt, how a pointer actually moves. Building toward that from the start, rather
-than patching properties after a block shows up, is the difference this page is
-about.
-
-## Decide which layer you are actually fixing
+## Decide which layer of Playwright bot detection you are fixing
 
 Stealth advice reads as one undifferentiated pile of tips, and that is the first
 mistake to avoid. It operates at three distinct levels, and each one has a different
@@ -93,10 +93,11 @@ This is the argument for moving down a level rather than writing a longer init
 script. A property can be redefined by anyone with a console. An output has to be
 produced by something that actually has the capability being tested.
 
-## The capability check that a property patch cannot pass
+## The capability check a Playwright property patch cannot pass
 
-Here is a concrete version of that distinction, one you can run yourself against
-whatever Playwright launches today.
+A capability check asks the browser to do something rather than report something,
+which is why a page-level patch cannot pass one. Here is a concrete version you can
+run yourself against whatever Playwright launches today.
 
 Playwright's managed Chromium, as of the 1.57 default, ships Chrome's codecs. It
 does not ship Chrome's DRM module. Ask a live page to negotiate a protected session
@@ -132,7 +133,7 @@ patches. That structural difference, and its real cost (Firefox is a smaller sha
 of traffic to begin with), [is covered in full
 here](firefox-vs-chromium-antidetect.md).
 
-## The two-line switch, and what it buys at each level
+## The two-line Playwright switch, and what it buys at each level
 
 `invisible_playwright` patches the C++ source of Firefox itself and ships the
 compiled binary, driven by stock Playwright with no wrapped subset of its API. The
@@ -179,7 +180,7 @@ rather than after:
 - Space requests out. A perfectly disguised session making requests at machine
   speed produces a velocity signal that no per-request fingerprint hides.
 
-## A short pre-launch checklist
+## A short pre-launch checklist for Playwright bot detection
 
 Before pointing any of this at a target you have not tested against yet:
 

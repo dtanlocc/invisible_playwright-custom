@@ -1,31 +1,35 @@
 ---
 title: "How to scrape without getting blocked"
-description: "Why most anti-blocking advice fixes the wrong layer, the order to work in that puts the free checks first, and why looking like a real browser beats rotating user agents and proxies."
+description: "Blocking is at least five independent layers, not one signal. The order to fix them cheapest first, and why looking real beats rotating user agents and proxies."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 1
 ---
 
-
 # How to scrape without getting blocked
+
+Getting blocked is not one problem, it is at least five independent ones: the address,
+the handshake, the machine, the automation layer, and behaviour. Each needs a different
+fix, and the fastest way to stay blocked is to work on the wrong one first, in the order
+a vendor sells them rather than the order that is cheapest and most likely to be the
+actual cause.
 
 Almost everyone arrives at this question with the same first move already made: rotate
 the user agent, buy a proxy pool, add a stealth plugin. That is the expensive end of the
 problem and the least likely single cause, and starting there is why the block usually
 survives all three.
 
-Getting blocked is not one thing. It is at least five different things that need
-different fixes, and the advice that sells best conflates them into "use our rotating
-proxies". This page is the mental model that puts them in order, cheapest and most likely
-first, so the effort lands where the block actually is.
+This page is the mental model that puts the five layers in order, cheapest and most
+likely first, so the effort lands where the block actually is.
 
 ## Blocking is not one signal, it is a stack of them
 
 A site can turn automation away at five different layers, and each one is invisible to a
 fix aimed at another:
 
-- **The address.** Datacenter range, a bad-reputation ASN, a country that does not match
-  the rest of the session, an exit a thousand other clients are using this minute.
+- **The address.** [Datacenter range](can-websites-detect-a-datacenter-proxy-ip.md), a
+  bad-reputation ASN, a country that does not match the rest of the session, an exit a
+  thousand other clients are using this minute.
 - **The handshake.** The TLS ClientHello and HTTP/2 settings are decided before any page
   loads, and they are distinctive per engine.
 - **The machine.** GPU, fonts, audio device, screen. A server has none of these and its
@@ -110,10 +114,11 @@ real browser leaks.
 **Volume is its own fingerprint.** Hammering one endpoint from one address at machine
 speed produces a velocity signal that no per-request disguise hides. We once flagged our
 own product for exactly this, and the flag belonged to the test harness, not the browser.
-Space the requests, vary nothing you do not have to, and keep one identity coherent rather
-than churning through many shallow ones. The way this project keeps an identity coherent
-is to derive every surface from a single seed, so the same seed is the same machine every
-time and a failing run is reproducible instead of a new guess.
+[Space the requests](how-to-rate-limit-your-scraper-playwright.md), vary nothing you do
+not have to, and keep one identity coherent rather than churning through many shallow
+ones. The way this project keeps an identity coherent is to derive every surface from a
+single seed, so the same seed is the same machine every time and a failing run is
+reproducible instead of a new guess.
 
 ## Conclusion
 
@@ -160,9 +165,11 @@ go blank.
   test harness rather than the browser.
 
 **See also:** [WebGL renderer strings](webgl-renderer-strings.md) and [why headless
-renders different fonts](headless-fonts-differ.md) for the machine layer, and
+renders different fonts](headless-fonts-differ.md) for the machine layer,
 [the TLS handshake no in-page test can see](ja3-ja4-tls-fingerprint.md) for the one that
-is decided before the page even loads.
+is decided before the page even loads, and
+[how websites detect bots](how-do-websites-detect-bots.md) for the layer-by-layer
+scoring model that sits behind this ordering.
 
 ---
 
