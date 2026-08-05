@@ -1,10 +1,12 @@
 <p align="center">
-  <a href="https://t.me/scrapingtheweb"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/telegram.svg" alt="Telegram: join the community"></a>
-  <br>
-  <sub>Proxies, fingerprints, captchas, and getting more out of invisible-playwright. Ask anything.</sub>
+  <b>Trouble with captchas? With proxies? Is your browser detected every time?</b><br>
+  <sub>Join the group and ask. Someone in there has already solved it.</sub>
+</p>
+<p align="center">
+  <a href="https://t.me/scrapingtheweb"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/telegram.svg" alt="Join on Telegram" height="38"></a>
 </p>
 
-<p>
+<p align="center">
   <a href="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml"><img src="https://github.com/feder-cr/invisible_playwright/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="https://github.com/feder-cr/invisible_playwright/blob/main/LICENSE"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/license.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/python.svg" alt="Python 3.11+"></a>
@@ -15,13 +17,12 @@
 
 <div align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/banner-dark.png">
-  <img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/banner-light.png" alt="invisible_playwright" width="620">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/banner-dark.png">
+  <img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/banner-light.png" alt="invisible_playwright" width="720">
 </picture>
-</div>
-
 <h3 align="center">Undetected Playwright automation on a stealth-patched Firefox.<br>
 Python, MIT, and it passes every bot detection test.</h3>
+</div>
 
 ![invisible_playwright - 5/5 detection suites passed](https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/screenshots/hero.gif)
 
