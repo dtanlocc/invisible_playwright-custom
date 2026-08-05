@@ -1,6 +1,6 @@
 ---
 title: "Offline timezone resolution from a proxy exit IP"
-description: "How the wrapper derives the browser timezone from a proxy exit IP offline, using a self-updating bundled database and no per-launch geolocation API call."
+description: "Resolve the Playwright browser timezone from a proxy exit IP offline, using a self-updating local database and no per-launch geolocation API call."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 18
@@ -9,11 +9,17 @@ nav_order: 18
 
 # Offline timezone resolution from a proxy exit IP
 
-If your browser reports a timezone that does not match the country its traffic comes
-out of, that disagreement is a cheap, decisive flag. The obvious fix is to look up the
-exit IP against a geolocation service at launch and set the timezone to whatever it
-returns. That fix quietly creates a second problem: the lookup itself is a request that
-does not look like browsing.
+The wrapper resolves the browser timezone offline: it reads the proxy exit IP once, over
+the proxy it was already using, and maps that IP to an IANA timezone against a locally
+cached geolocation database, with no per-launch call to a geolocation service. That keeps
+the browser's timezone in agreement with its exit without adding a request a real browser
+never makes.
+
+The problem this solves is a simple one. If your browser reports a timezone that does not
+match the country its traffic comes out of, that disagreement is a cheap, decisive flag.
+The obvious fix is to look up the exit IP against a geolocation service at launch and set
+the timezone to whatever it returns. That fix quietly creates a second problem: the lookup
+itself is a request that does not look like browsing.
 
 This page is about resolving the zone from the exit without phoning a geolocation API on
 every launch, why that matters, and the failure behaviour that decides whether a bad
@@ -97,6 +103,11 @@ is in [Configuration](configuration.md).
 
 ## Keeping the database current without an API call
 
+The offline database stays current without an API call. On each launch the wrapper makes
+one cheap, unmetered check against a permalink that always points at the newest published
+build, and downloads only when the local copy is behind. There is no metered version check
+and no fixed multi-day recheck window.
+
 An offline database has an obvious failure mode: it goes stale, IP ranges get reassigned,
 and eventually the exit maps to the wrong country. The naive fix is a version check against
 a package index or a release API on every launch, which puts a metered request back into
@@ -117,9 +128,16 @@ enough that there is no reason to open that window.
 
 ## What happens when the lookup fails
 
-The interesting part of any resolution step is what it does when it cannot resolve, and
-here the answer depends on whether a proxy is in play, because the two cases have opposite
-risks.
+When resolution fails, the fallback depends on whether a proxy is in play, and the two
+cases have opposite risks. Behind a proxy the wrapper fails early at launch rather than
+ship a mismatch; without a proxy it falls back to the host timezone and the session
+continues. The interesting part of any resolution step is what it does when it cannot
+resolve, so both cases are set out below.
+
+| Situation | On a failed resolution | Why |
+|---|---|---|
+| Proxy set | Fails early at launch | A foreign exit paired with the host timezone is a mismatch worth stopping for |
+| No proxy | Falls back to the host timezone, continues | The host address is what the session presents, so the host timezone is correct |
 
 **With a proxy**, a failed resolution fails early. The reason is precise: if resolution
 fell back to the host's own timezone while the traffic exits through a foreign proxy, the

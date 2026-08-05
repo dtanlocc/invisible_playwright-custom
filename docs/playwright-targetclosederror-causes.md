@@ -41,6 +41,12 @@ what the browser said before it closed:
 DEBUG=pw:browser,pw:protocol python your_script.py 2> pw.log
 ```
 
+Only one nearby problem is genuinely about time, and it is not this one: a launch that is
+intermittently slow but eventually connects. Even there a raised per-request timeout is the
+wrong lever, as [a launch that was slow one run in six](slow-browser-launch-timeout-budget.md)
+shows. `TargetClosedError` is the opposite case: the target is already gone, so waiting
+longer only postpones the same exception.
+
 The three sections that follow tell you which of the three logs you are looking at.
 
 ## Cause 1: the automation layer is missing from the build
@@ -153,8 +159,9 @@ timeout matches none of them.
 ## What a reproducible identity buys you here
 
 The reason these three were separable at all is that we could replay the exact run that
-failed. That is the practical argument for a seed. `invisible_playwright` is stock
-Playwright with a patched Firefox underneath, so the `browser` you get back is a real
+failed. That is the practical argument for a seed. `invisible_playwright` is
+[stock Playwright with a patched Firefox underneath](stock-playwright-patched-binary.md),
+so the `browser` you get back is a real
 Playwright `Browser` and every method is the documented one; the only thing added is that
 the whole identity derives from one seed, and pinning it makes a failing run reproducible
 instead of a one-off you can never get back.

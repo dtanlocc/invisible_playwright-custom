@@ -1,13 +1,20 @@
 ---
-title: "Web scraping keeps getting blocked even with good proxies: the actual reason"
-description: "A clean residential proxy fixes the IP. It does nothing about the machine behind it. Most scraping guides stop at rotation and delays; the field that actually gets checked is whether the proxy's country agrees with everything else the browser reports."
+title: "Web scraping keeps getting blocked with good proxies"
+description: "A residential proxy fixes the IP, not the machine behind it. Scraping gets blocked when the proxy's country disagrees with the browser's timezone or language."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 8
 ---
 
 
-# Web scraping keeps getting blocked even with good proxies: the actual reason
+# Web scraping keeps getting blocked with good proxies
+
+Web scraping keeps getting blocked even with good proxies because a proxy only
+changes the request's IP address, not what the browser reports once a page loads.
+When the proxy's exit country disagrees with the browser's timezone, language, and
+number formatting, that contradiction is a signal a site can check directly, no matter
+how clean or expensive the IP is. Fixing it means aligning the browser side of the
+session with the proxy's country, not upgrading the proxy again.
 
 The standard advice for a scraper that keeps getting blocked is some combination of:
 better proxies, slower requests, randomized delays, rotate the user agent. All
@@ -34,8 +41,9 @@ any of the properties involved being individually rare or fake.
 ## Why this survives every proxy upgrade
 
 This is the part that makes "just get better proxies" feel like it stopped working
-even when the proxies genuinely improved. A residential IP with a spotless reputation
-still carries a country. If the browser side of the session isn't adjusted to match
+even when the proxies genuinely improved. A
+[residential IP](residential-datacenter-mobile-proxies-explained.md) with a spotless
+reputation still carries a country. If the browser side of the session isn't adjusted to match
 that country - timezone, language, and everything downstream of them - the mismatch is
 exactly as visible as it was on a flagged datacenter IP. The proxy quality was never
 the variable that check depends on.
@@ -45,13 +53,13 @@ other:
 
 - `Intl.DateTimeFormat().resolvedOptions().timeZone` and the timezone offset a `Date`
   object reports
-- `navigator.language` / `navigator.languages`, and the `Accept-Language` header the
-  requests actually carry
+- `navigator.language` / `navigator.languages`, and [the `Accept-Language` header the
+  requests actually carry](accept-language-navigator-languages.md)
 - Number and date formatting (`Intl.NumberFormat`, `toLocaleString`) - a separate
   mechanism from the two above, and one that can silently stay wrong while the others
   get fixed
-- What WebRTC reports independently, if it's enabled at all, since it can reveal a
-  real address through a proxy that never touches HTTP
+- What WebRTC reports independently, if it's enabled at all, since it can
+  [reveal a real address through a proxy that never touches HTTP](webrtc-leak-proxy.md)
 
 [The full breakdown of which fields these are, and the combinations that get caught
 most often, is worked through here](timezone-proxy-mismatch.md).
@@ -76,8 +84,8 @@ If proxy quality has stopped being the bottleneck, the honest next question is
 whether the browser side of the session was ever told which country it's supposed to
 be in:
 
-1. Resolve the proxy's exit country from its IP, independent of anything the scraper
-   itself reports.
+1. [Resolve the proxy's exit country from its IP](offline-geoip-timezone-proxy.md),
+   independent of anything the scraper itself reports.
 2. Read the timezone, language, and number-formatting fields the browser actually
    produces for that session.
 3. Confirm they describe the same country the IP does - not just that they're
@@ -116,6 +124,10 @@ for what a proxy changes and what it leaves completely alone.
 
 - This project's own testing methodology for proxy/timezone/locale consistency,
   cross-referenced against real IP-to-country resolution.
+- MDN Web Docs, [`Intl.DateTimeFormat.prototype.resolvedOptions()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions),
+  on the `timeZone` a browser reports as an IANA zone name.
+- MDN Web Docs, [`Navigator.languages`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/languages),
+  on the browser's language list and its link to the `Accept-Language` header.
 
 ---
 

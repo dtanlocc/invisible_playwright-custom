@@ -1,6 +1,6 @@
 ---
 title: "Playwright new_page vs new_context: the viewport tell"
-description: "Playwright new_page can ship the stock 1280x720 viewport and skip your per-context fingerprint defaults while new_context does not. The measured tell and the fix."
+description: "Playwright new_page can ship the stock 1280x720 viewport and skip your per-context fingerprint defaults. new_context does not. The measured tell and the fix."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 13
@@ -8,6 +8,14 @@ nav_order: 13
 
 
 # Playwright new_page vs new_context: the viewport tell
+
+**The difference between `new_page` and `new_context` is who owns the context
+settings.** `new_context` hands you a fresh, isolated browser profile and lets you
+set its viewport, device pixel ratio and colour scheme yourself. `new_page`
+creates that context implicitly and takes whatever defaults apply, which for the
+viewport means Playwright's stock 1280x720. On a plain browser that costs nothing.
+On a browser carrying a seed-derived fingerprint, a viewport nobody chose can
+contradict everything around it.
 
 Every Playwright tutorial reaches for `browser.new_page()` first, because it is
 one line and it gives you a page. What none of them mention is that the same
@@ -31,6 +39,14 @@ context for you implicitly and opens one page in it.
 The catch is which settings that implicit context is born with. If you never pass
 a `viewport`, the context takes Playwright's default of 1280x720, and so does the
 page. `new_context` gives you the seam to set those values yourself:
+
+| | `browser.new_page()` | `browser.new_context()` |
+|---|---|---|
+| What it is | Convenience: creates an implicit context and opens one page in it | Explicit: hands you the context, you open pages in it |
+| Context settings (`viewport`, `device_scale_factor`, `color_scheme`) | Whatever defaults apply to the implicit context | You set them yourself |
+| Isolation (cookies, storage) | Lives in the one implicit context | A fresh isolated profile per call |
+| Best for | Quick one-page scripts | Cookies and storage scoped per task |
+
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -217,9 +233,10 @@ contradiction a single value never is.
 
 ## Sources
 
-- Playwright's own `Browser.new_page` and `BrowserContext` documentation for what a
-  context owns and how an implicit context is created, read from the upstream API
-  reference rather than inferred.
+- Playwright's own [`Browser` API reference](https://playwright.dev/python/docs/api/class-browser)
+  for what a context owns and how an implicit context is created: it states plainly
+  that `new_page` "creates a new page in a new browser context", read from the
+  upstream reference rather than inferred.
 - This project's release notes for the entry that measured the 1280-against-1906
   divergence, and the fix that wraps both entry points from one shared set of
   defaults.

@@ -1,6 +1,6 @@
 ---
 title: "invisible_playwright vs hrequests"
-description: "hrequests is a hybrid: a TLS-impersonating HTTP client plus an optional browser mode with injected fingerprints. What each mode trades away, and where a C++ engine differs."
+description: "hrequests is a hybrid: a TLS-impersonating HTTP client plus a browser mode with injected fingerprints. What each mode trades, and where a native engine differs."
 parent: "Comparisons"
 nav_order: 20
 ---
@@ -126,6 +126,22 @@ HTTP fetch, and it never claims to fix the two things no browser property contro
 datacenter IP is still a datacenter IP, and machine-shaped behaviour is still a signal.
 A real engine removes the fingerprint seam; it does not remove your address or your
 mouse path.
+
+## hrequests and invisible_playwright side by side
+
+The two hrequests modes and invisible_playwright differ on one axis that decides
+everything: whether JavaScript runs, and if it does, where the fingerprint lives. A
+mode that runs no script has no JS surface to fingerprint; a mode that injects into a
+running page leaves an override a detector can find; an engine that returns the value
+natively leaves no seam.
+
+| What a detector checks | hrequests HTTP mode | hrequests browser mode | invisible_playwright |
+|---|---|---|---|
+| Runs JavaScript | No | Yes | Yes |
+| Network handshake | TLS impersonation | Real browser's handshake | Firefox's own real handshake |
+| Where the fingerprint lives | No JS surface to fingerprint | Injected into the running page | Returned natively by the engine |
+| Override seam to find | None | Yes, at the injection point | None |
+| Relative speed | Fastest | Full browser | Full browser |
 
 ## Choosing between them
 

@@ -1,6 +1,6 @@
 ---
 title: "navigator.buildID and the stale build date tell"
-description: "navigator.buildID is a Firefox-only property almost no stealth tool touches. Why a hardcoded 2018 build date is a worse tell than the real compiled one, with the score we measured."
+description: "navigator.buildID is a Firefox-only build-date property. Freezing it to a 2018 constant is a worse tell than the real value, with the score change we measured."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 17
@@ -9,9 +9,14 @@ nav_order: 17
 
 # navigator.buildID and the stale build date tell
 
-Everyone spoofs the user agent. Almost nobody thinks about `navigator.buildID`,
-which is a Firefox-only property that reports when the browser binary was
-compiled. It is easy to miss because Chromium does not have it, so a habit built
+Do not spoof `navigator.buildID`. It is a Firefox-only property that reports
+when the browser binary was compiled, and pinning it to a fixed constant on a
+current build creates a build date that disagrees with your version and engine.
+That contradiction is a stronger tell than the real value, which a genuine
+binary already reports correctly with nothing to set.
+
+Everyone spoofs the user agent. Almost nobody thinks about `navigator.buildID`.
+It is easy to miss because Chromium does not have it, so a habit built
 on Chromium never learns to check it. And the first instinct when you do notice
 it, which is to pin it to a nice round constant, is the one that turns a quiet
 property into a loud one.
@@ -32,14 +37,19 @@ the value up against everything else the page claims to be.
 Two things make it interesting to a fingerprinter. First, on a real Firefox
 install it is not a free variable: it is a fact about the binary, and it moves
 in lockstep with the version, the release channel and the update history.
-Second, Firefox's own anti-fingerprinting mode has a well-known behaviour here.
-With `privacy.resistFingerprinting` enabled, the browser deliberately reports a
-fixed value, `20181001000000`, so that every RFP user looks identical on this
-one field. That single date, October 1st 2018, is therefore a value a detector
+Second, [Firefox's resistFingerprinting mode](resist-fingerprinting.md) has a
+well-known behaviour here. With `privacy.resistFingerprinting` enabled, the
+browser deliberately reports a fixed value, `20181001000000`, so that every RFP
+user looks identical on this one field. That single date, October 1st 2018, is therefore a value a detector
 recognises on sight: it does not mean "old browser", it means "this user has
 resistFingerprinting on", which is itself a small, distinctive population.
 
 ## The tell: a frozen build date on a fresh binary
+
+The tell is a hand-pinned build date sitting on a fresh binary: a value frozen
+to the past while the version, the TLS handshake and the JavaScript surface all
+report something current. A consistency check does not need the "right" build
+date to flag it, only two values that cannot both be true at once.
 
 Here is the trap. If you build or patch a Firefox in 2026 and then hardcode
 `general.buildID.override` to `20181001000000`, you have not hidden in the crowd.

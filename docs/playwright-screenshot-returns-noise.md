@@ -1,6 +1,6 @@
 ---
 title: "Playwright screenshot returns noise: readback fix"
-description: "Why Playwright page.screenshot() returned a full-frame noise PNG instead of the page, and the principal-split canvas readback fix that made captures clean again."
+description: "Why Playwright page.screenshot() returned a noise PNG instead of the page, and the principal-split canvas readback fix that made captures clean again."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 5
@@ -9,12 +9,16 @@ nav_order: 5
 
 # Playwright screenshot returns noise: readback fix
 
-This one is a closed bug in this product, written up because the shape of it is
-instructive. For a while, `page.screenshot()` did not return the page. It
-returned a full-frame PNG of colored static, tens of megabytes of it, the same
-static every time for a given seed and different static for a different seed.
-The automation ran, the navigation succeeded, the file was written, and the
-file was garbage.
+`page.screenshot()` returned a full-frame PNG of colored static, tens of
+megabytes of it, because a canvas anti-fingerprint defense also rewrote the
+browser's own screenshot readback. The noise was the same every time for a given
+seed and different for a different seed. The automation ran, the navigation
+succeeded, the file was written, and the file was garbage. The fix keyed the
+transform on a security boundary the engine already draws, exempting the
+privileged screenshot read while leaving every web-content read spoofed.
+
+This is a closed bug in this product, written up because the shape of it is
+instructive.
 
 The cause was a fingerprint defense that was doing its job a little too well,
 and could not tell the browser's own screenshot machinery apart from a web page
@@ -83,6 +87,13 @@ the screenshot is the real page, byte for byte. Web-content reads are
 substituted exactly as before, so the fingerprint stays spoofed. It is the same
 exemption boundary the browser's own canvas protection uses, applied to our own
 transform rather than invented for it.
+
+The whole fix is that one distinction:
+
+| Read origin | Pixels returned | Who can trigger it |
+|---|---|---|
+| Privileged, trusted context (the screenshot capture, internal chrome and resource origins) | The real page, unchanged | Only the browser's own machinery |
+| Ordinary web content | Substituted per seed, so the hash matches the spoofed machine | Any page, including a detector |
 
 The result, verified on the shipped binary at a fixed seed: screenshots are
 identical to a build from before the substitution existed, while a web page's

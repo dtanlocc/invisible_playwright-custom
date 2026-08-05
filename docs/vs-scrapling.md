@@ -1,12 +1,18 @@
 ---
 title: "invisible_playwright vs Scrapling"
-description: "Scrapling is the most-starred tool in the space, but its stealth ceiling is whichever browser it wraps. Why the difference that matters is engine versus parser."
+description: "invisible_playwright vs Scrapling: Scrapling is an adaptive parser, not a stealth engine, so its detectability ceiling is whichever browser it wraps."
 parent: "Comparisons"
 nav_order: 14
 ---
 
 
 # invisible_playwright vs Scrapling
+
+invisible_playwright and Scrapling are not really competitors: invisible_playwright is
+a stealth browser engine, while Scrapling is an adaptive HTML parser whose stealth is
+only ever as good as the browser it wraps. A comparison of detectability against
+Scrapling is therefore a comparison against that underlying engine, not against
+Scrapling itself.
 
 Scrapling is the most-starred project in this whole space, with more than 72,000
 stars, and that popularity makes it the natural thing to reach for. It is worth being
@@ -16,6 +22,16 @@ engine, and those are different problems with different ceilings.
 This page is about that distinction: what Scrapling is genuinely excellent at, where
 its stealth actually comes from, and why "which one is harder to detect" is a question
 about a component Scrapling does not ship.
+
+| Property | invisible_playwright | Scrapling |
+|---|---|---|
+| What it is | A stealth browser engine (C++-patched Firefox) | An adaptive scraping framework (HTML parser) |
+| Layer it works at | The fetch: makes the request look like a real browser | Post-fetch: parses HTML that already arrived |
+| Where stealth comes from | Built in, answered below the JavaScript surface | Delegated to a third-party browser it wraps |
+| Detectability ceiling | The patched engine itself | Whichever engine the installed version wraps |
+| Ships its own fingerprint engine | Yes, every field from one seed | No |
+| Survives a site redesign | Not its job | Yes, via a similarity-based adaptive parser |
+| Best used | To fetch a page credibly | To keep extraction alive across markup changes |
 
 ## What Scrapling actually is
 

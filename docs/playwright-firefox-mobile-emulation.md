@@ -1,6 +1,6 @@
 ---
 title: "Playwright mobile emulation on Firefox and isMobile"
-description: "Why Playwright iPhone and mobile device presets misbehave on Firefox: isMobile is unsupported upstream and the seeded engine owns the screen size, not the client."
+description: "Why Playwright iPhone and mobile presets misbehave on Firefox: isMobile is unsupported upstream and the seeded engine owns the screen size, not the client."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 17
@@ -8,6 +8,12 @@ nav_order: 17
 
 
 # Playwright mobile emulation on Firefox and isMobile
+
+Playwright mobile emulation does not work on Firefox the way it does on Chromium. The
+`isMobile` option is unsupported by Playwright on Firefox, so an iPhone-class device
+preset raises an error instead of applying, and the screen size is owned by the seeded
+engine, so forcing it on a single context is accepted at the protocol level and then
+ignored. Both are expected behaviour, not bugs in your code.
 
 If you copy a mobile-emulation snippet that works on Chromium and point it at Firefox,
 it does not behave the same way. An iPhone preset that produces a convincing mobile
@@ -47,6 +53,11 @@ display the page believes it is running on, which is distinct from the `viewport
 part of that display the content occupies. On Chromium both take effect. On Firefox one
 of them is rejected outright by Playwright, and the other is overridden by the browser.
 
+| Preset field | What it controls | Chromium | Firefox |
+|---|---|---|---|
+| `is_mobile` | Meta viewport tag and touch semantics | Applied | Rejected by Playwright, the call raises |
+| `screen` | The display size the page reports | Applied | Accepted at the protocol level, then overridden by the seeded engine |
+
 ## Why the iPhone preset does not translate to Firefox
 
 Spread that preset into a Firefox context and it does not silently degrade. It raises:
@@ -69,9 +80,9 @@ of a preset if you like, but never spread it whole.
 
 ## isMobile is unsupported on Firefox, and that is upstream
 
-This is the part people misattribute. `isMobile` not working on Firefox is a property of
-Playwright's own Firefox support, documented upstream, and it holds for stock Playwright
-against a stock Firefox exactly as it holds here. It is not something a stealth layer
+`isMobile` not working on Firefox is a property of Playwright's own Firefox support,
+documented upstream, and it holds for stock Playwright against a stock Firefox exactly as
+it holds here. This is the part people misattribute. It is not something a stealth layer
 adds or could remove; the automation protocol Playwright speaks to Firefox has no mobile
 emulation on this axis to begin with.
 

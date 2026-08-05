@@ -1,6 +1,6 @@
 ---
 title: "WebRTC IP that matches the proxy exit, by design"
-description: "How the WebRTC server-reflexive candidate is kept equal to the proxy exit IP: one lookup shared with the timezone, the real NAT port preserved, and the address swapped in place."
+description: "WebRTC IP matching the proxy exit: the server-reflexive candidate address equals the exit IP, the real NAT port is preserved, all from one shared lookup."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 15
@@ -8,6 +8,11 @@ nav_order: 15
 
 
 # WebRTC IP that matches the proxy exit, by design
+
+WebRTC is kept matching the proxy exit by discovering the exit address once, then
+swapping it into the real server-reflexive (`srflx`) candidate in place while preserving
+the actual NAT port. HTTP and WebRTC then report the same public address, and the
+candidate still reads as a genuine router mapping rather than a fabricated one.
 
 A browser behind a proxy has two ways to say where it is. The HTTP request exits
 through the proxy, so the visible address is the proxy's. WebRTC asks a separate

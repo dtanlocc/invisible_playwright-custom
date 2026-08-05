@@ -1,6 +1,6 @@
 ---
 title: "navigator.platform and oscpu on a spoofed OS"
-description: "navigator.platform, navigator.oscpu and navigator.appVersion are derived from the OS Firefox was compiled on, so a Linux build under a Windows user agent leaks Linux on all three."
+description: "navigator.platform, oscpu and appVersion come from the OS Firefox runs on, so a Linux build under a spoofed Windows user agent leaks Linux on all three."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 19
@@ -22,14 +22,15 @@ strings agreeing.
 
 ## The three properties that describe the operating system
 
-Four properties, read from JavaScript, all claim to describe where the browser runs:
+Four properties, read from JavaScript, all claim to describe where the browser runs.
+On a real Windows Firefox they look like this:
 
-- `navigator.userAgent` - the familiar string, `Mozilla/5.0 (Windows NT 10.0; Win64;
-  x64; rv:151.0) ...`.
-- `navigator.platform` - a short token: `Win32`, `Linux x86_64`, `MacIntel`.
-- `navigator.oscpu` - a longer OS string, `Windows NT 10.0; Win64; x64` on Windows.
-- `navigator.appVersion` - a legacy field whose tail repeats the platform, `5.0
-  (Windows)`.
+| Property | What it is | Example on a real Windows Firefox |
+|---|---|---|
+| `navigator.userAgent` | the familiar user agent string | `Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) ...` |
+| `navigator.platform` | a short OS token (`Win32`, `Linux x86_64`, `MacIntel`) | `Win32` |
+| `navigator.oscpu` | a longer OS string, and a Firefox-only property | `Windows NT 10.0; Win64; x64` |
+| `navigator.appVersion` | a legacy field whose tail repeats the platform | `5.0 (Windows)` |
 
 A real Windows Firefox returns Windows on every one of them, because they are all
 generated from the same underlying fact: the operating system the browser is running
@@ -248,6 +249,11 @@ reproduces them on every run.
   built-in overrides, with no source patch required.
 - Direct measurement with the code on this page, reading the four properties from a real
   Playwright `Browser` and asserting they name one operating system.
+- MDN Web Docs,
+  [`Navigator.oscpu`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/oscpu)
+  (documented as a non-standard, Firefox-specific property) and
+  [`Navigator.platform`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform)
+  (documented as deprecated but still widely read for OS detection).
 
 **See also:** [why you should not set the user agent yourself](playwright-user-agent.md),
 [Client Hints and the headers that must agree with it](client-hints-sec-fetch.md), and

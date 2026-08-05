@@ -1,6 +1,6 @@
 ---
 title: "TLS fingerprint vs User-Agent: the contradiction"
-description: "A spoofed User-Agent is a claim the request makes; the TLS handshake is an output the engine already produced. When they name different browsers, that gap is a decisive, provable tell."
+description: "A TLS fingerprint mismatch beats a spoofed User-Agent: the handshake is evidence the engine already produced, the header only a claim. Why the gap is decisive."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 13

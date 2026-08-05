@@ -1,6 +1,6 @@
 ---
 title: "Screen size and viewport tells in headless browsers"
-description: "A headless browser has no monitor, so every screen and viewport value it reports was decided by something else. Which combinations never occur on a real machine, and the detail that catches almost everyone."
+description: "A headless browser has no monitor, so its screen and viewport values are invented. Which size combinations never occur on a real machine, and the top tell."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 3
@@ -66,7 +66,9 @@ which is a value no visible window has.
 
 **The device pixel ratio has to be plausible for the resolution.** Common values are
 1, 1.25, 1.5 and 2. A ratio of 1 on a very high resolution, or a fractional ratio no
-operating system offers, is a made-up number.
+operating system offers, is a made-up number. See
+[how devicePixelRatio is set per profile in Firefox](devicepixelratio-firefox-pref.md)
+for why this value has to travel with the rest of the identity.
 
 **The resolution should be one people have.** 1920x1080 and 1366x768 are everywhere.
 800x600 is not a laptop in 2026, and neither is 1024x768. A resolution chosen for a
@@ -85,7 +87,7 @@ describes a virtual one.
 It is the same category as [a software WebGL renderer](webgl-renderer-strings.md),
 [fonts that belong to another platform](headless-fonts-differ.md) and
 [a missing audio device](audiocontext-fingerprinting.md). Four independent ways of
-saying the same thing: this is a server.
+saying the same thing: [this is a server](can-a-website-tell-you-are-on-a-server.md).
 
 ## How this project handles it
 

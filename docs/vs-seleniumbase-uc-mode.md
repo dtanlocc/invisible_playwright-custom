@@ -1,12 +1,20 @@
 ---
 title: "invisible_playwright vs SeleniumBase UC Mode"
-description: "SeleniumBase UC Mode disconnects chromedriver from Chrome during clicks and navigations to hide the WebDriver channel, but never touches the Chromium engine, TLS, GPU or font identity."
+description: "SeleniumBase UC Mode detaches chromedriver to hide the WebDriver channel, but never changes the Chromium engine, GPU, fonts, canvas or the TLS handshake."
 parent: "Comparisons"
 nav_order: 16
 ---
 
 
 # invisible_playwright vs SeleniumBase UC Mode
+
+invisible_playwright and SeleniumBase UC Mode fix automation blocks at different layers.
+UC Mode is a Selenium driver-timing trick: it detaches `chromedriver` from Chrome during
+clicks and navigations, so no automation channel is attached at the moment a page looks,
+then reconnects. invisible_playwright is an engine-level Firefox patch: the identity a page
+reads (GPU, fonts, canvas, audio, the TLS handshake) is built into the browser, not painted
+on by the driver. UC Mode hides the WebDriver channel and nothing else; the engine patch
+changes what the machine itself looks like. They are not really competing for the same block.
 
 SeleniumBase is a large, actively maintained Python test framework, 12.9k stars at the
 time of writing, and its UC Mode is one of the better-known ways to run Selenium without

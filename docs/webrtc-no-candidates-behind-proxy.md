@@ -27,7 +27,8 @@ real local address next to the proxy's. That is a real problem and it has [its o
 page](webrtc-leak-proxy.md). But the failure people hit behind a working proxy is the
 mirror image, and it is worse because it looks like success.
 
-A browser that has gathered ICE candidates emits at least two kinds. A host candidate,
+A browser that has gathered [ICE candidates](https://www.rfc-editor.org/rfc/rfc8445)
+emits at least two kinds. A host candidate,
 which is the machine's own address (or a masked `.local` form of it), and a server
 reflexive candidate, the `srflx`, which is the public address a STUN server saw the
 traffic arrive from. Behind NAT, which is every home connection, a real Firefox always
@@ -44,13 +45,14 @@ same as asserting the presence of a real value.
 
 ## Why a residential proxy makes STUN return nothing
 
-STUN works over UDP. It sends a small datagram to a STUN server and reads back the
+STUN, the [Session Traversal Utilities for NAT protocol](https://www.rfc-editor.org/rfc/rfc8489),
+works over UDP. It sends a small datagram to a STUN server and reads back the
 public address and port the server observed. That round trip is how the srflx candidate
 gets its value.
 
 A SOCKS5 residential proxy, of the kind sold as a pool of home IP addresses, almost
-always carries TCP and refuses UDP. Even the SOCKS5 UDP-associate command, which exists
-precisely for this, is typically unimplemented at the exit. So when the browser tries to
+always carries TCP and refuses UDP. Even the SOCKS5 [UDP ASSOCIATE command](https://www.rfc-editor.org/rfc/rfc1928), which
+the protocol defines precisely for this, is typically unimplemented at the exit. So when the browser tries to
 send its STUN datagram through the tunnel, the datagram has nowhere to go. The STUN
 transaction times out. No public address comes back, so no srflx candidate is formed.
 
@@ -72,8 +74,9 @@ prompted for any device.
 
 A page that has not been granted camera or microphone permission does not get the full
 candidate set. To limit what an untrusted page can learn about your interfaces, the
-browser switches into a reduced mode in which it only offers the address of the default
-route: the single interface your traffic would leave by. Deciding which interface that
+browser switches into a reduced mode, one of the [WebRTC IP address handling
+modes](https://www.rfc-editor.org/rfc/rfc8828), in which it only offers the address of the
+default route: the single interface your traffic would leave by. Deciding which interface that
 is requires a quick internal probe. The browser opens a UDP socket and "connects" it to
 the remote address of the document, not to send anything, but to ask the operating
 system which local address that route would use.
@@ -95,6 +98,14 @@ The reference is a stock Firefox behind a home router. Open a WebRTC probe in on
 normal connection, and you get a host candidate and a server reflexive candidate whose
 address is your public IP. Non-empty, with a srflx present. That is the shape a detector
 expects, and matching it is the goal.
+
+The three states a detector can observe, side by side:
+
+| WebRTC state | Candidate count | Server reflexive (srflx) | Reads as |
+|---|---|---|---|
+| Stock Firefox behind a home NAT | Non-empty | Present, carries the public IP | Normal |
+| Untouched engine via a SOCKS5 proxy | Short or empty | Missing (UDP dropped) | Manipulated |
+| This project's fix via the same proxy | Non-empty | Present, carries the proxy egress IP | Normal |
 
 The fix in this project targets both failure paths so the observed shape matches that
 reference through a proxy:
@@ -235,6 +246,14 @@ diff against a stock Firefox on the same machine.
 - Measurements through a SOCKS5 residential exit against public detection suites,
   comparing candidate count, host form and server reflexive address before and after the
   fix, against a stock Firefox reference on the same machine.
+- [RFC 8489, Session Traversal Utilities for NAT (STUN)](https://www.rfc-editor.org/rfc/rfc8489)
+  - STUN runs over UDP to discover the public address behind a NAT.
+- [RFC 1928, SOCKS Protocol Version 5](https://www.rfc-editor.org/rfc/rfc1928) - defines the
+  UDP ASSOCIATE command that a residential exit typically leaves unimplemented.
+- [RFC 8445, Interactive Connectivity Establishment (ICE)](https://www.rfc-editor.org/rfc/rfc8445)
+  - the candidate types, including the server reflexive candidate a NAT produces.
+- [RFC 8828, WebRTC IP Address Handling Requirements](https://www.rfc-editor.org/rfc/rfc8828)
+  - the reduced default-route modes a page without media permission runs in.
 
 **See also:** [WebRTC leaks through a proxy](webrtc-leak-proxy.md) for the opposite
 failure of exposing your real address, [ICE candidate spoofing](webrtc-ice-candidate-spoofing.md)

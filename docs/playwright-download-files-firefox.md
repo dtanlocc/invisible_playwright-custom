@@ -1,6 +1,6 @@
 ---
 title: "Playwright download files with Firefox and the tell"
-description: "How to download files with Playwright and Firefox using expect_download, why accept_downloads is already on, and the honest part every scraping tutorial skips: what an automated download is and is not observable to the page."
+description: "Download files with Playwright and Firefox using expect_download. accept_downloads is on by default, no save dialog appears, and the file is not page-visible."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 15
@@ -8,6 +8,11 @@ nav_order: 15
 
 
 # Playwright download files with Firefox and the tell
+
+To download a file with Playwright and this Firefox, arm `page.expect_download()` before
+the click that triggers the download, read the `download` object off `.value` after the
+block, and call `download.save_as(path)`. `accept_downloads` is on by default, so nothing
+extra needs enabling, and no save dialog or download shelf appears.
 
 Most download tutorials stop at the code that saves the file. This one includes the
 part they leave out: which of the things your automation does while downloading a file
@@ -97,8 +102,9 @@ with InvisiblePlaywright(seed=42) as browser:
 
 ## What actually happens: no download shelf appears
 
-Here is the mechanism worth understanding. In a browser a human drives, clicking a
-download link produces visible chrome: a shelf, a panel, a progress row, a completion
+No download shelf, save prompt, or progress row appears under this wrapper, because the
+file is taken before that interface is ever built. In a browser a human drives, clicking
+a download link produces visible chrome: a shelf, a panel, a progress row, a completion
 chime. That machinery exists to inform a person.
 
 Under automation none of it is wanted, and in this fork none of it runs. The engine
@@ -134,6 +140,13 @@ and the rhythm of the actions before and after. Those are the same behavioural s
 any interaction exposes, and they are covered by the general order of work in
 [the checklist for when Playwright is detected on one site](playwright-detected-as-bot.md).
 The download itself adds little to that picture.
+
+| Observable to the page | Not observable to the page |
+|---|---|
+| That a link or button was activated | The file landing on disk |
+| How the pointer arrived at it | Where on disk the file was saved |
+| Whether the click carried a trusted event | The timing of the disk write |
+| The rhythm of actions before and after | The absent download shelf (browser UI, not a page element) |
 
 So treat this page as a practical how-to first. It is not a claim that downloading is a
 strong tell, and it is not a claim that it is invisible either. It is the accurate

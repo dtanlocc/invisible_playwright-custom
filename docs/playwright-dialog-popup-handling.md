@@ -1,6 +1,6 @@
 ---
 title: "Playwright dialog and popup handling without a tell"
-description: "Playwright auto-dismisses every JS dialog unless you register page.on('dialog'), and that default instant always-cancel answer is both a functional bug and a non-human tell."
+description: "Playwright auto-dismisses every JS dialog unless you register page.on('dialog'). That instant always-cancel default is both a functional bug and a non-human tell."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 14
@@ -8,6 +8,13 @@ nav_order: 14
 
 
 # Playwright dialog and popup handling without a tell
+
+Playwright dismisses every JavaScript dialog automatically unless you register a
+`page.on("dialog", ...)` handler, and that default is an instant, always-cancel answer
+returned in zero milliseconds. It breaks any flow gated on a `confirm()` and hands a
+watching page a clean non-human timing signal at the same time. The fix is to register a
+listener, decide the answer per dialog, and wait a human amount of time before you
+respond.
 
 Every guide tells you to register `page.on("dialog", ...)`. Almost none of them tell
 you what happens when you do not, which is the part that bites twice: your click
@@ -157,7 +164,7 @@ Now the round trip the page measures is a few hundred to a couple of thousand
 milliseconds, it varies run to run, and the answer is not a constant. That is the
 difference between "a listener fired" and "a person decided". Keep the variation honest:
 a `time.sleep(1.0)` fixed to the millisecond is its own uniform-interval tell, the same
-mistake as keystrokes at a perfectly even cadence.
+mistake as [keystrokes at a perfectly even cadence](keystroke-timing-detection-playwright.md).
 
 One honest scope note. `invisible_playwright` makes the browser itself look like a real
 Windows Firefox - GPU, audio, fonts, screen, roughly 400 fields from one seed - and it
@@ -238,7 +245,8 @@ browser and the mouse look real; the dialog answer and its timing are yours.
 - This project's own measurements of `confirm()` round-trip timing under the default
   dismissal versus a delayed handler, run through the shipped binary.
 
-**See also:** [Playwright detected as a bot on one site](playwright-detected-as-bot.md)
+**See also:** [how to handle popups and modals in Playwright](how-to-handle-popups-and-modals-playwright.md)
+for the broader overlay patterns, [Playwright detected as a bot on one site](playwright-detected-as-bot.md)
 for the order to work a block in, [human mouse movement](human-mouse-movement.md) for
 the rest of the behavioural surface, and
 [how to test whether your browser is detected](how-to-test-bot-detection.md) for

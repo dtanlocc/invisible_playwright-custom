@@ -1,6 +1,6 @@
 ---
 title: "navigator.vendor and productSub: the Firefox tells"
-description: "navigator.vendor and navigator.productSub are engine-fixed brand constants a Chromium spoof gets wrong and a real Firefox reports natively, and here is how to read them."
+description: "navigator.vendor is empty and navigator.productSub is 20100101 on real Firefox. See why a Chromium spoof gets these engine-fixed constants wrong."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 20
@@ -8,6 +8,13 @@ nav_order: 20
 
 
 # navigator.vendor and productSub: the Firefox tells
+
+On a real Firefox, `navigator.vendor` is the empty string `""` and
+`navigator.productSub` is the frozen literal `"20100101"`; on the Chromium family they are
+`"Google Inc."` and `"20030107"`. Both are read-only brand constants baked into the engine,
+so a page reads them to tell which engine it is really talking to - and a Chromium-based
+tool wearing a Firefox user agent has to fake both by hand, in the wrong place on the
+object, where a one-line check can see the disguise.
 
 Most disguises fail on the values a tool sets by hand. This page is about two values
 almost nobody sets by hand, because they look boring: `navigator.vendor` and
@@ -231,7 +238,8 @@ your problem.
 - This project's own notes on capability-versus-value tells, of which these two fields are
   the smallest concrete instance.
 
-**See also:** [why navigator.webdriver is not the tell you think it is](navigator-webdriver-explained.md),
+**See also:** [navigator.buildID, another engine-fixed Firefox tell](navigator-buildid-firefox-tell.md),
+[why navigator.webdriver is not the tell you think it is](navigator-webdriver-explained.md),
 [why you should not set the user agent](playwright-user-agent.md), and
 [Chromium is not Chrome](chromium-is-not-chrome.md) for the capability-versus-value
 argument in its sharpest form.

@@ -98,10 +98,11 @@ exists.
 
 ## With invisible_playwright you rarely need connect at all
 
-Most people reach for `connect_over_cdp` because they think attaching to a separately
-launched browser is the only way to get one configured the way they want. With this
-project it is not: the launcher hands you a real, fully configured `Browser` object
-directly, in-process, and it is a genuine Playwright `Browser` with every standard method.
+With invisible_playwright you usually need neither `connect()` nor `connect_over_cdp`:
+the launcher hands you a real, fully configured `Browser` object directly, in-process, and
+it is a genuine Playwright `Browser` with every standard method. People reach for
+`connect_over_cdp` because they assume attaching to a separately launched browser is the
+only way to get one configured the way they want. With this project it is not.
 
 ```python
 from invisible_playwright import InvisiblePlaywright

@@ -1,6 +1,6 @@
 ---
 title: "Playwright set_input_files uploads and the tell"
-description: "How to upload files with Playwright set_input_files in Firefox without a native OS picker opening, plus the trusted change-event caveat that upload tutorials never mention."
+description: "Upload files with Playwright set_input_files in Firefox: no native OS picker opens, plus the trusted change-event caveat most upload tutorials skip."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 19
@@ -8,6 +8,11 @@ nav_order: 19
 
 
 # Playwright set_input_files uploads and the tell
+
+To upload a file with Playwright in this Firefox, call
+`page.set_input_files(selector, path)`. It attaches the file straight to the
+`<input type=file>`, and no native OS file picker opens for a driven input, so there is
+nothing to click through or dismiss. That is the whole mechanic, and it is stock Playwright.
 
 Most upload tutorials stop at the one-liner: call `set_input_files`, pass a path, done.
 This one includes the part they leave out. There are two separate things happening when
@@ -45,6 +50,15 @@ habit worth keeping from the start.
 `set_input_files` attaches one or more files directly to an `<input type=file>` element.
 It takes a single path, a list of paths for a multi-file input, or an empty list to clear
 a previous selection.
+
+| Upload scenario | What to pass / call |
+|---|---|
+| Single file | `set_input_files(selector, "photo.png")` |
+| Multiple files into one input | `set_input_files(selector, ["a.pdf", "b.pdf"])` |
+| Clear a previous selection | `set_input_files(selector, [])` |
+| Bytes generated at runtime, no temp file | pass a dict with `name`, `mimeType`, `buffer` |
+| Element created late or re-rendered | `page.locator(selector).set_input_files(path)` |
+| Custom button that opens the chooser | `page.expect_file_chooser()` then `set_files` |
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -97,7 +111,9 @@ async with InvisiblePlaywright(seed=42) as browser:
 
 ## What actually happens: no native picker opens
 
-Here is the mechanism worth understanding. In a browser a human drives, clicking a file
+No native OS file picker opens when `set_input_files` drives a file input in this fork; the
+selection is attached to the element directly instead. Here is why that matters. In a
+browser a human drives, clicking a file
 input opens the operating system's file chooser: a modal window, drawn by the OS, that
 the person navigates to pick a file. That dialog is native chrome, it is not part of the
 page, and a script cannot reach into it.
@@ -117,7 +133,11 @@ where the browser's own download shelf never appears for the same reason.
 
 ## The honest part: the picker is invisible, the event is not
 
-Now the caveat, which is the whole reason this is not just another upload snippet.
+A page cannot detect the missing file picker, but it can read whether the resulting upload
+events are trusted. The suppressed OS dialog reveals nothing, because JavaScript in the
+document could never see it either way; the observable signal is `isTrusted` on the `change`
+and `input` events that firing the upload produces. This is the caveat that upload snippets
+leave out, and the whole reason this page exists.
 
 It is tempting to think the suppressed native dialog is a detection risk. It is not, and
 the reason is precise: **the OS file chooser is not observable to the page in the first
@@ -242,7 +262,8 @@ browser fire it by attaching the file through `set_input_files`.
 
 - The upstream Playwright upload API (`set_input_files` on `Page`, `Locator` and
   `ElementHandle`, the in-memory file payload, and `expect_file_chooser` with
-  `FileChooser.set_files`), which this wrapper exposes unchanged.
+  `FileChooser.set_files`), which this wrapper exposes unchanged:
+  [Playwright Python "Inputs" guide, Upload files](https://playwright.dev/python/docs/input).
 - This project's engine, whose file-chooser interception attaches a driven selection
   through the automation channel instead of opening the operating system's native picker.
 - The `isTrusted` flag on `change` and `input` events, set by the browser and not

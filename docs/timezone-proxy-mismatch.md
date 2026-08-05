@@ -1,6 +1,6 @@
 ---
 title: "Playwright timezone does not match the proxy IP"
-description: "Setting timezone_id and still getting flagged for a mismatch happens because timezone and locale are not one value each. They are half a dozen surfaces a detector cross-checks against your exit IP."
+description: "You set timezone_id and still get flagged. Timezone and locale are not one value each: several surfaces a detector cross-checks against your exit IP."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 5
@@ -19,7 +19,8 @@ correctly leaves the others answering the old question.
 
 ## Everything that has to agree
 
-Run this on any page and read all of it, not the first line:
+A timezone match check reads nine values, not one, and it flags you when any two of
+them disagree. Run this on any page and read all of it, not the first line:
 
 ```js
 Intl.DateTimeFormat().resolvedOptions().timeZone   // "America/New_York"
@@ -54,8 +55,9 @@ The combinations that get caught most often:
 
 ## Why the environment variable does not work
 
-A common suggestion is to set `TZ` before launching the browser. It is worth knowing
-precisely when that fails.
+Setting the `TZ` environment variable before launch does not reliably fix this in Firefox
+on Windows, because Firefox only honours `TZ` in POSIX form there, not the IANA identifier
+you actually want. It is worth knowing precisely when that fails.
 
 On Windows, Firefox ignores `TZ` unless it is in **POSIX** form, like `EST5EDT`. The
 IANA identifier you actually want, `America/New_York`, is not recognised there. So the

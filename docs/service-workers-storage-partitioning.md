@@ -1,6 +1,6 @@
 ---
 title: "Service workers, storage partitioning and automation"
-description: "A service worker is state that survives clearing cookies, and blocking service workers is a capability a real browser has. What partitioning changed, and what a browser context actually separates."
+description: "Service workers survive clearing cookies, and blocking them is a signal since real browsers register them. What storage partitioning changed for automation."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 14
@@ -42,7 +42,9 @@ does nothing about two of your own sessions on the same profile.
 
 ## A service worker outlives clearing cookies
 
-This is the part that catches people, and it is easy to verify.
+Clearing cookies does not unregister a service worker. The registration lives in a
+separate store with a separate lifetime, so it survives the operation most people treat as
+clearing state. This is the part that catches people, and it is easy to verify.
 
 ```python
 context.clear_cookies()          # cookies gone
@@ -89,6 +91,8 @@ them enabled, and handle the interception complexity rather than trading it for 
 
 ## What a browser context does and does not separate
 
+A browser context separates storage but nothing about the machine. Two contexts get
+separate cookies and registrations; they share one canvas hash, one GPU, one set of fonts.
 Worth stating precisely, because "context" gets used as if it meant "separate browser".
 
 A context separates **storage**: cookies, local storage, IndexedDB, cache, service worker
@@ -104,7 +108,9 @@ is. For everything a fingerprint is made of, it is not.
 
 ## Cache timing as an identity bridge
 
-The subtler use, and the reason partitioning exists at all.
+A service worker's cache can reveal whether a browser has visited a resource before, purely
+from how fast the response comes back. No cookie is read. This is the subtler use, and the
+reason partitioning exists at all.
 
 A service worker can serve requests from its cache, which is much faster than the network.
 A page that measures how long a resource takes can infer whether it was cached, and

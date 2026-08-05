@@ -1,6 +1,6 @@
 ---
 title: "invisible_playwright vs Ulixee Hero"
-description: "Ulixee Hero replays captured browser-profile data onto headless Chromium at the automation layer; invisible_playwright decides each fingerprint value inside a patched Firefox, so there is no injected seam for a consistency check to catch."
+description: "invisible_playwright vs Ulixee Hero: replayed emulation on stock Chromium vs a fingerprint decided natively in patched Firefox, with no injected seam to detect."
 parent: "Comparisons"
 nav_order: 15
 ---
@@ -8,10 +8,13 @@ nav_order: 15
 
 # invisible_playwright vs Ulixee Hero
 
-Both projects want the same end result: an automated browser that reads as an ordinary
-one. They get there from opposite directions, and the difference is architectural rather
-than cosmetic, so it is worth naming precisely instead of ranking the two on a feature
-grid.
+invisible_playwright and Ulixee Hero both automate a browser that reads as an ordinary
+one, but they differ in where the fingerprint is produced. Ulixee Hero replays real-browser
+data captured in its datasets onto a stock headless Chromium at the automation layer;
+invisible_playwright decides each value natively inside a patched Firefox, so there is no
+injected override for a consistency check to catch. They get there from opposite directions,
+and the difference is architectural rather than cosmetic, so it is worth naming precisely
+instead of ranking the two on a feature grid.
 
 Ulixee Hero (about 1,551 stars at the time of writing) drives Chromium and sources its
 stealth from emulation data. invisible_playwright drives a Firefox that was patched at the

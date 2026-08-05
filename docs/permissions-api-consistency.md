@@ -1,6 +1,6 @@
 ---
 title: "Permissions API: the two answers that must agree"
-description: "Notification.permission and navigator.permissions.query answer the same question through different code, and headless browsers have historically disagreed. The set of permission states is also a fingerprint."
+description: "The Permissions API and Notification.permission answer one question two ways, and a mismatch long flagged headless browsers. What a real browser shows."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 8
@@ -8,6 +8,13 @@ nav_order: 8
 
 
 # Permissions API: the two answers that must agree
+
+**The Permissions API and `Notification.permission` describe the same permission state
+through two code paths, and a real browser gives the same answer both ways.** When they
+disagree - classically `Notification.permission` says `denied` while
+`navigator.permissions.query({name: 'notifications'})` says `prompt` - the browser is
+almost certainly headless or automated. The whole set of permission states is a second
+signal: granting everything to silence dialogs produces a browser almost nobody has.
 
 There is a headless check that has been in every detection suite for years and takes two
 lines:
@@ -80,9 +87,9 @@ worse than the dialog you avoided.
 
 Two mechanisms, and the difference matters.
 
-**Granting at the context level.** Most frameworks let you pre-grant permissions when
-creating a context. This is scoped to that context and disappears with it, which is the
-tidy version.
+**Granting at the context level.** Most frameworks let you
+[pre-grant permissions when you create a context](set-geolocation-permissions-per-playwright-context.md).
+This is scoped to that context and disappears with it, which is the tidy version.
 
 **Granting through the browser's own UI or profile.** A permission granted this way is
 written into the profile and survives. In a persistent profile it survives forever, or
@@ -184,6 +191,7 @@ Profile-level grants persist, including into future sessions on a reused profile
 practice is the same thing.
 
 **See also:** [what a persistent profile fixes and breaks](persistent-profiles.md),
+[the same pair read as a bot-detection signal](notification-permission-detection.md),
 [WebRTC leak with a proxy](webrtc-leak-proxy.md), and
 [what sannysoft actually checks](sannysoft-explained.md), whose permissions row is this
 check.

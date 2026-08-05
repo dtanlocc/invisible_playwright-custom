@@ -1,6 +1,6 @@
 ---
 title: "SOCKS5 vs HTTP proxy: what each does in the browser"
-description: "SOCKS5 and HTTP proxies differ less in speed than in who authenticates and which network path touches the patched Firefox engine at all. A practical, tested guide for Playwright."
+description: "SOCKS5 vs HTTP proxy in the browser: who authenticates and where. SOCKS auth and DNS run in the patched Firefox engine; HTTP auth runs in the Playwright driver."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 10
@@ -8,6 +8,12 @@ nav_order: 10
 
 
 # SOCKS5 vs HTTP proxy: what each does in the browser
+
+**The practical difference between a SOCKS5 and an HTTP proxy in the browser is who
+authenticates and where, not speed.** With a `socks5://` URL the patched Firefox
+engine opens the connection, speaks the authentication, and resolves DNS at the exit.
+With an `http://` URL the Playwright driver authenticates one layer up, and the
+engine's proxy settings are never touched.
 
 Most comparisons of these two proxy types argue about speed or overhead. That is
 the least interesting difference and almost never the one that decides whether your
@@ -19,6 +25,20 @@ involved at all.
 This page is about that split. It is written for Playwright, it uses a real API, and
 the behaviour described is what the shipped build actually does when you hand it each
 kind of proxy URL.
+
+## SOCKS5 vs HTTP proxy at a glance
+
+Every row below is a property of the code path the URL scheme selects, not a tuning
+option you set separately. The scheme is the only switch.
+
+| Property | SOCKS proxy (`socks5://`, `socks4://`, `socks://`) | HTTP/HTTPS proxy (`http://`, `https://`) |
+|---|---|---|
+| Where auth happens | Connection layer, inside the SOCKS handshake | HTTP Basic auth, a `Proxy-Authorization` header |
+| Who holds the credentials | The patched browser engine | The Playwright driver |
+| Engine proxy prefs | Set directly (`network.proxy.type = 1`, host, port, version) | Left untouched |
+| DNS resolution | Forced at the exit (`network.proxy.socks_remote_dns = true`) | Depends on the setup |
+| Passed to Playwright | No proxy (the engine does the whole job) | The proxy dictionary, unchanged |
+| Needed a source patch | Yes, to speak authenticated SOCKS5 | No, Basic auth was already handled |
 
 ## The one distinction that actually changes behaviour
 
@@ -202,6 +222,10 @@ browser rather than trusting the scheme alone.
   performed with a username and password, described in this project's patch notes.
 - Firefox's own proxy preferences (`network.proxy.type`, `network.proxy.socks_remote_dns`),
   which are standard `about:config` settings.
+- The SOCKS protocol itself: SOCKS version 5 is defined in
+  [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928), and its username/password
+  authentication method, the one the patch performs, is defined separately in
+  [RFC 1929](https://www.rfc-editor.org/rfc/rfc1929).
 
 **See also:** [SOCKS5 proxy authentication in Playwright](playwright-socks5-proxy-authentication.md),
 [rotating proxies across runs](how-to-rotate-proxies-playwright.md), and

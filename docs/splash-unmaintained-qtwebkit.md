@@ -8,6 +8,12 @@ nav_order: 17
 
 # Splash is unmaintained, and it was never a real browser
 
+Splash is a QtWebKit render service whose default branch was last pushed in August 2024,
+and QtWebKit is an engine no consumer browser ships. Both facts matter, but the second is
+the one no spoof reaches: every JavaScript-visible surface reports an engine that matches
+no real audience, and that mismatch lives below any header, so no user-agent string or
+page-level plugin corrects it.
+
 Splash is a render service: you hand it a URL over an HTTP API, it runs the page and
 hands back HTML, a screenshot or a rendered DOM. For a long time that was a reasonable
 way to execute JavaScript on a server without driving a full browser yourself. It is
@@ -32,7 +38,9 @@ there is no other engine underneath to borrow from.
 
 ## QtWebKit is an engine nobody browses with
 
-This is the part that a user-agent string hides and does not fix.
+QtWebKit is a WebKit fork that no consumer browser ships today, so the real-world
+audience running it is zero, not merely small. This is the part that a user-agent string
+hides and does not fix.
 
 Every browser a real visitor uses is one of three engines: Blink (Chrome and the
 Chromium family), WebKit proper (Safari), or Gecko (Firefox). QtWebKit is a fourth
@@ -71,7 +79,10 @@ version of an engine they never ran at all.
 
 ## Why a header or user-agent spoof cannot reach it
 
-It helps to separate the two layers, because people spend effort on the wrong one.
+A header or user-agent spoof cannot reach QtWebKit's tells because it rewrites the
+request, not the engine, and the canvas, WebGL renderer and feature-detection results are
+computed by the engine. It helps to separate the two layers, because people spend effort
+on the wrong one.
 
 The layer you can rewrite from outside the engine is the request and a few named
 JavaScript properties: the user-agent header, the `Accept-Language` header, a pinned
@@ -81,6 +92,11 @@ The layer you cannot rewrite from outside is what the engine computes: how it dr
 how it measures, what its graphics stack reports, how it answers hundreds of small
 capability questions. Those come from the compiled engine. To change them you change
 the engine, and if you are running a render service the engine is the service.
+
+| Layer | What it includes | Can a spoof change it? |
+|---|---|---|
+| Request and named JS properties | user-agent header, `Accept-Language`, `navigator.platform` | Yes: cheap to set, cheap to cross-check |
+| What the engine computes | canvas pixels, WebGL renderer, layout rounding, feature detection | No: only changing the engine changes these |
 
 This is why the durable difference between a render service and a real browser is not
 "how new is it". It is which of these two layers you are standing on. A tool built on a

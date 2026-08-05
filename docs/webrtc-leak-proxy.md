@@ -1,6 +1,6 @@
 ---
 title: "WebRTC leak with a proxy in Playwright and Selenium"
-description: "The standard WebRTC leak fix, disabling WebRTC or forcing non-proxied UDP off, passes every leak test and fails at the only thing that matters. What actually leaks through a proxy, and a gate of ours that missed it."
+description: "A SOCKS5 proxy does not stop a WebRTC leak, and disabling WebRTC just trades the leak for a detectable signature. What actually leaks, and how to check."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 1
@@ -152,9 +152,9 @@ straight back.
 This took the longest to find and it is not intuitive.
 
 A page that has not been granted camera or microphone permission causes Firefox to
-gather in a restricted mode: only the address of the **default route**, instead of
-every local interface. That mode is a privacy feature and it is the normal case, since
-most pages never ask for a camera.
+gather in a [restricted mode](https://www.rfc-editor.org/rfc/rfc8828): only the
+address of the **default route**, instead of every local interface. That mode is a
+privacy feature and it is the normal case, since most pages never ask for a camera.
 
 Finding the default route works by opening a UDP socket "connected" to the remote
 address of the document and reading back which local address the OS picked. Behind a
@@ -175,8 +175,8 @@ Suppose you decide to supply the srflx candidate yourself, so it names your prox
 exit address. The address is the easy part. The candidate carries several other
 fields, and each of them is checkable:
 
-- **Priority** is computed by a documented formula from the candidate type, the
-  interface preference and the component id. Our first attempt hardcoded the local
+- **Priority** is computed by [a documented formula](https://www.rfc-editor.org/rfc/rfc8445#section-5.1.2)
+  from the candidate type, the interface preference and the component id. Our first attempt hardcoded the local
   preference to `0xFFFF`. Real candidates on this stack fall in a range around
   32256 to 32704, so `65535` is a value no genuine candidate ever has. One number,
   and it was enough on its own.

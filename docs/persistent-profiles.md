@@ -1,6 +1,6 @@
 ---
 title: "Playwright persistent profile: what it fixes and breaks"
-description: "A persistent user data directory keeps logins, and carries three traps: a seed that must not move, a stored camera permission that disables WebRTC address protection, and an age that has to be consistent."
+description: "A Playwright persistent profile keeps logins but carries three traps: a stale seed, a camera permission disabling WebRTC protection, and an inconsistent age."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 7
@@ -71,8 +71,9 @@ the same thing that makes
 
 ## The stored permission that disables WebRTC address protection
 
-This one deserves its own section because it is invisible, permanent, and it undoes work
-you did somewhere else entirely.
+A stored camera or microphone permission switches off Firefox's WebRTC address
+protections for that origin. It gets its own section because it is invisible, permanent,
+and it undoes work you did somewhere else entirely.
 
 Firefox conditions two separate WebRTC privacy behaviours on whether the page has camera
 or microphone access:
@@ -171,7 +172,9 @@ with a past is worth keeping,
 [browser extensions are a fingerprint surface](browser-extension-fingerprint.md), since a
 profile is how you install one, and
 [why automating the login form is riskier than reusing a session](automating-login-vs-session-reuse.md),
-for the `storageState` half of this same identity question.
+for the `storageState` half of this same identity question, and
+[whether you can point Playwright at your real browser profile](can-i-use-my-real-browser-profile-playwright.md),
+which is the one profile you should never reuse.
 
 ## Sources
 

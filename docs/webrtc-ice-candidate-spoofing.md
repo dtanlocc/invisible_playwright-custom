@@ -1,6 +1,6 @@
 ---
 title: "WebRTC ICE candidate spoofing: the fields that give it away"
-description: "Replacing the address in a server-reflexive candidate is the easy part. The priority, the foundation and the arrival time are all checkable, and we shipped all three wrong before getting them right."
+description: "Spoofing a WebRTC ICE candidate is more than the address: priority, foundation and arrival time are all checkable, and we shipped all three wrong first."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 2
@@ -23,7 +23,10 @@ foundation it shares.
 
 ## What actually has to be replaced
 
-A normal browser behind NAT produces two candidates that matter:
+**Only the server-reflexive (srflx) candidate has to be replaced; the host candidate
+should be left alone.** The srflx carries your public address and is the one that betrays
+the real interface behind a proxy. A normal browser behind NAT produces two candidates
+that matter:
 
 ```
 candidate:... typ host   <uuid>.local          the LAN address, masked
@@ -33,7 +36,8 @@ candidate:... typ srflx  203.0.113.7  raddr ...  the public address, from STUN
 The **srflx** is the problem. STUN runs over UDP, a SOCKS proxy carries TCP, so the
 browser asks a STUN server directly from the real interface and the server truthfully
 answers with your real address. Your HTTP traffic exits one way and your WebRTC exits
-another, and the two disagree.
+another, and the two disagree. The goal is the opposite: a
+[WebRTC address that matches the proxy exit](webrtc-ip-match-proxy-exit.md).
 
 The **host** candidate is not the problem, and this is where people overcorrect. Firefox
 already masks it behind an mDNS `<uuid>.local` name by default, which is what real
@@ -46,6 +50,10 @@ alone.
 overcorrection are both louder than the leak.
 
 ## Two ways to produce the right address
+
+There are two methods, and a real implementation needs both: swap the proxy's address into
+a genuine STUN result when STUN works, or synthesise a candidate from scratch when no STUN
+server is reachable.
 
 **Swap after the fact.** Let the real STUN transaction complete, then replace the address
 in the result before the candidate is emitted. The advantage is that everything else
@@ -62,12 +70,13 @@ one covers the case where it does not.
 
 ## Tell one: arrival time
 
-Our first synthetic candidate was emitted immediately.
+**A real server-reflexive candidate cannot arrive instantly; it appears one network round
+trip after gathering starts, so a candidate that materialises with zero delay describes a
+STUN server in the same room as you.** Our first synthetic candidate was emitted
+immediately.
 
-A real server-reflexive candidate cannot appear instantly. It exists because a request
-travelled to a STUN server and a response came back, so it arrives one network round trip
-after gathering starts. A candidate that materialises with zero delay describes a STUN
-server in the same room as you.
+The candidate exists only because a request travelled to a STUN server and a response came
+back. Skipping that trip is the tell: no round trip, no real candidate.
 
 This is not a theoretical concern. Published detection advice for this exact technique
 names round-trip timing as the way to spot a spoofed address, in both directions: a
@@ -79,11 +88,13 @@ round trip rather than immediately.
 
 ## Tell two: priority
 
-This is the one that would have caught us on any careful inspection, and it is a single
-number.
+**A synthetic candidate is exposed when its priority falls outside the narrow band the
+real ICE stack produces, because priority is computed, not chosen.** This is the tell that
+would have caught us on any careful inspection, and it is a single number.
 
-ICE priority is not arbitrary. It is computed by a documented formula from the candidate
-type, an interface preference and the component id:
+ICE priority is not arbitrary. It is computed by a documented formula (defined in
+[RFC 8445](https://www.rfc-editor.org/rfc/rfc8445), the ICE specification) from the
+candidate type, an interface preference and the component id:
 
 ```
 priority = (type_preference << 24) | (local_preference << 16) | (256 - component_id)
@@ -131,7 +142,9 @@ one.
 
 ## The failure nobody expects: gathering dies behind a proxy
 
-The most expensive bug in this area was not a wrong value. It was no values at all.
+**The most expensive bug in this area was not a wrong value. It was no values at all:
+gathering can fail behind a proxy and produce
+[no ICE candidates at all](webrtc-no-candidates-behind-proxy.md).**
 
 Firefox restricts ICE gathering to the address of the **default route** when the page has
 no camera or microphone permission, which is the normal case for almost every page. That
@@ -185,16 +198,20 @@ more specific thing to be than one with an unusual address.
 
 **How do I test this properly?** Assert the positive shape: the page completes, the host
 candidate is a `.local` name, and the srflx address equals your proxy's exit. An empty
-result is a failure. [The method](how-to-test-bot-detection.md).
+result is a failure. Read the live candidates in
+[about:webrtc](about-webrtc-debug-ice-candidates.md), and see
+[the wider method](how-to-test-bot-detection.md).
 
 **See also:** [WebRTC leak with a proxy](webrtc-leak-proxy.md) for the problem this
-solves, [when the timezone does not match the proxy](timezone-proxy-mismatch.md) for the
+solves, the [WebRTC IPv6 leak a proxy does not stop](webrtc-ipv6-leak-proxy.md),
+[when the timezone does not match the proxy](timezone-proxy-mismatch.md) for the
 other half of making a proxied session agree with itself, and
 [how to test whether your browser is detected](how-to-test-bot-detection.md).
 
 ## Sources
 
-- The ICE specification's priority formula, and the local-preference range produced by
+- [RFC 8445 (Interactive Connectivity Establishment)](https://www.rfc-editor.org/rfc/rfc8445),
+  which defines the candidate priority formula, and the local-preference range produced by
   the ICE implementation Firefox uses.
 - Published detection guidance for this technique, which names round-trip timing and
   candidate ordering as the ways to spot a fabricated address.

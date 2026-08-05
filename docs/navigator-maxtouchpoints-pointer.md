@@ -1,6 +1,6 @@
 ---
 title: "navigator.maxTouchPoints and pointer consistency"
-description: "Why navigator.maxTouchPoints reads 0 on a spoofed desktop, why the pointer and any-pointer media queries have to agree with it, and how CreepJS cross-checks that pair."
+description: "Why navigator.maxTouchPoints reads 0 on a spoofed desktop, why the pointer media queries must agree, and how CreepJS cross-checks the pair to catch a spoof."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 18
@@ -8,6 +8,13 @@ nav_order: 18
 
 
 # navigator.maxTouchPoints and pointer consistency
+
+On a spoofed desktop, `navigator.maxTouchPoints` should read `0`, and the CSS
+pointer media queries have to agree with it: `(pointer: fine)` and
+`(any-hover: hover)` match, while `(any-pointer: coarse)` is false. A
+fingerprinter does not read either value on its own; it checks whether the two
+agree, because they describe the same hardware through different code paths, and
+CreepJS records a mismatch as a lie.
 
 `navigator.maxTouchPoints` looks like a throwaway integer. It is one of the
 cheapest cross-checks a fingerprinter has, because it does not live alone: it

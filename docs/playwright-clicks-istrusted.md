@@ -1,6 +1,6 @@
 ---
 title: "Playwright isTrusted: are automated clicks real?"
-description: "Whether Playwright clicks carry isTrusted=true, why a JS-dispatched event never can, and how Firefox with Juggler keeps synthetic input trusted through the native input path."
+description: "Do Playwright clicks have isTrusted=true? A JS-dispatched event never can, but Firefox driven through Juggler synthesizes input on the native path, so it does."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 18
@@ -82,6 +82,15 @@ detector looks at next after `isTrusted`:
 - **Pressure.** The event carries a pressure value that moves with button state, the way a
   real pointer's does, rather than a flat constant that reads as fabricated.
 
+At the event level, which is all a detector can read, the two origins compare like this:
+
+| Signal a detector reads | Page-injected JS event | Native driven click (Firefox + Juggler) |
+|---|---|---|
+| `isTrusted` | `false` | `true` |
+| Input source (pointer device) | unknown or null device | real mouse |
+| Pressure | flat constant | moves with button state |
+| Passes the origin check | no | yes |
+
 The important consequence for this library is that the humanised motion path and a plain
 `page.mouse.move` are not two different mechanisms. The waypoints produced for a
 human-shaped stroke are handed to the engine with byte-identical arguments to the ones a
@@ -143,8 +152,9 @@ boundary. A click that carries `isTrusted=true` clears the origin check and noth
 The engine still has to deliver a plausible sequence, hence why direct
 [hover behaviour once misfired on Windows](hover-mouse-movement-bug.md) when waypoints were
 dispatched inside the hit-target check rather than before it, and why the shape and timing
-of motion remain their own problem. Above that sits behaviour proper, and above that the
-network and the machine.
+of motion remain their own problem. Above that sits
+[behavioural biometrics proper](mouse-dynamics-behavioural-biometrics.md), and above that
+the network and the machine.
 
 So the honest ordering is: fabricate events in JavaScript and you lose at the boundary, on
 a one-bit check, before any of the harder work is even evaluated. Drive them through the
@@ -193,8 +203,9 @@ separate questions.
 
 ## Sources
 
-- The WHATWG DOM specification for `Event.isTrusted`: set at construction, read-only, true
-  only for user-agent-generated events.
+- The [WHATWG DOM specification for `Event.isTrusted`](https://dom.spec.whatwg.org/#dom-event-istrusted):
+  set at construction, read-only, true only for user-agent-generated events. See also
+  [MDN's `Event.isTrusted` reference](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted).
 - This project's own measurements of the native input path: driven input synthesized as a
   real mouse with a pressure value, and the humanised motion path passing arguments
   identical to a plain mouse move through the same engine call.

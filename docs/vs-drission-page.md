@@ -1,12 +1,20 @@
 ---
 title: "invisible_playwright vs DrissionPage"
-description: "DrissionPage fuses an HTTP session mode and a CDP browser mode in one object. That signature design means each half fails a different half of a modern detection check, and this page shows why."
+description: "DrissionPage fuses an HTTP session mode and a CDP browser mode in one object, so each half fails a different half of a strict detection check. Here is why."
 parent: "Comparisons"
 nav_order: 18
 ---
 
 
 # invisible_playwright vs DrissionPage
+
+invisible_playwright and DrissionPage solve two different problems. DrissionPage fuses a
+fast HTTP session mode with a CDP-driven Chromium browser mode in one object;
+invisible_playwright is a single patched-Firefox engine driven by stock Playwright. Against
+a strict detection check the difference decides the outcome: DrissionPage's two modes each
+fail a different half of the check, while one real-browser engine presents a single
+consistent identity all the way down. Pick DrissionPage for speed where nobody inspects the
+connection, invisible_playwright when the connection and the fingerprint are read together.
 
 DrissionPage is a well-liked Python automation library, around 12.3k stars and actively
 maintained (its repository was last pushed on 2026-07-22 as of this writing). Its
@@ -138,8 +146,8 @@ with sf as browser:
     page.goto("https://example.com")
 ```
 
-Async is the same shape, for the concurrency DrissionPage's session mode is usually
-reached for:
+Async is the same shape, for the
+[concurrency DrissionPage's session mode is usually reached for](run-invisible-playwright-concurrently-asyncio.md):
 
 ```python
 from invisible_playwright.async_api import InvisiblePlaywright
@@ -151,8 +159,10 @@ async with InvisiblePlaywright(seed=42) as browser:
 
 You lose the raw-HTTP speed path. That is a real cost, and if your workload is
 high-volume scraping of pages that never inspect the connection, DrissionPage's session
-mode is faster and you should use it. What you gain is that there is only ever one story
-to tell, and it is a true one.
+mode is faster and you should use it. If you want both, you can
+[pair invisible_playwright with a raw HTTP client for the fast paths](combine-invisible-playwright-with-httpx-for-speed.md)
+and keep the browser only for the pages that read the connection. What you gain is that
+there is only ever one story to tell, and it is a true one.
 
 The honest caveat, the same one this whole site repeats: a consistent real browser is not
 a magic pass. The IP still matters, behaviour still matters, and a datacenter address on a
@@ -217,5 +227,3 @@ for working a real block in the right order.
 *Written while maintaining [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
 a Firefox patched at the C++ level driven by stock Playwright. The dual-mode split is not a
 knock on DrissionPage; it is what happens when one object carries two identities.*
-</content>
-</invoke>

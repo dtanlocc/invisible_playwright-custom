@@ -1,6 +1,6 @@
 ---
 title: "WebGL shader precision as a fingerprint surface"
-description: "getShaderPrecisionFormat is a third WebGL fingerprint component, hashed apart from the numeric parameters and the extension list. How detectors read it, and how to test yours."
+description: "getShaderPrecisionFormat is a third WebGL fingerprint, hashed apart from the numeric parameters and extension list. How detectors read it and how to test yours."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 12
@@ -8,6 +8,12 @@ nav_order: 12
 
 
 # WebGL shader precision as a fingerprint surface
+
+WebGL shader precision is a third browser-fingerprinting surface, read with
+`getShaderPrecisionFormat` and hashed separately from the numeric `getParameter` limits and
+the `getSupportedExtensions` list. It is the component most likely to reveal a browser
+running on one operating system while claiming another, because it is produced deep in the
+graphics stack where a spoofed user agent string cannot reach it.
 
 Most WebGL fingerprinting write-ups stop at two things: the numeric parameters you read
 with `getParameter`, and the extension list you read with `getSupportedExtensions`. There
@@ -21,16 +27,17 @@ they tell one story or three.
 
 ## What getShaderPrecisionFormat returns
 
-Every WebGL context exposes a method most sites never call by hand but every serious
+`getShaderPrecisionFormat` returns an object with three integer fields: `rangeMin`,
+`rangeMax` and `precision`. These describe the numeric range and the number of bits the
+GPU pipeline guarantees for a given precision qualifier in a given shader stage. Every
+WebGL context exposes the method, and while most sites never call it by hand, every serious
 fingerprinting library does:
 
 ```javascript
 gl.getShaderPrecisionFormat(shaderType, precisionType)
 ```
 
-It returns an object with three integer fields: `rangeMin`, `rangeMax` and `precision`.
-These describe the numeric range and the number of bits the GPU pipeline guarantees for a
-given precision qualifier in a given shader stage. There are two shader stages
+There are two shader stages
 (`VERTEX_SHADER` and `FRAGMENT_SHADER`) and six precision types (`LOW_FLOAT`,
 `MEDIUM_FLOAT`, `HIGH_FLOAT`, `LOW_INT`, `MEDIUM_INT`, `HIGH_INT`), so a detector that
 wants full coverage collects twelve triples in total.
@@ -47,10 +54,11 @@ claim reports the exact same limits as an old integrated chip.
 A fingerprinting library does not fold shader precision into the numeric parameter hash.
 It hashes it as its own component, alongside two others:
 
-- The numeric limits from `getParameter` (max texture size, viewport dims, varying
-  vectors, and so on).
-- The extension list from `getSupportedExtensions`.
-- The twelve shader precision triples from `getShaderPrecisionFormat`.
+| WebGL component | Read with | What it captures |
+|---|---|---|
+| Numeric parameters | `getParameter` | max texture size, viewport dims, varying vectors, and other numeric limits |
+| Extension list | `getSupportedExtensions` | the set of supported WebGL extensions |
+| Shader precision | `getShaderPrecisionFormat` | twelve rangeMin / rangeMax / precision triples across two shader stages and six precision types |
 
 Three components, three hashes. You can match the first two perfectly and still be caught
 on the third, because it comes from a different code path in the graphics stack and is
@@ -219,8 +227,10 @@ enabling it.
 
 ## Sources
 
-- The WebGL specification for `getShaderPrecisionFormat`, `getParameter` and
-  `getSupportedExtensions`, read from the spec rather than from a summary of it.
+- The [WebGL specification](https://registry.khronos.org/webgl/specs/latest/1.0/) for
+  `getShaderPrecisionFormat`, `getParameter` and `getSupportedExtensions`, read from the
+  spec rather than from a summary of it, and the
+  [MDN reference for getShaderPrecisionFormat](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/getShaderPrecisionFormat).
 - This project's own cross-OS measurements: the shader precision component moving from the
   Mesa hash to the Windows-equivalent hash on a Linux host claiming Windows, and the
   matching drop in a commercial fingerprinting service's tampering model score.

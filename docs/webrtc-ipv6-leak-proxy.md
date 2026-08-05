@@ -43,11 +43,23 @@ That is the leak. The IPv4 srflx candidate shows the proxy; the IPv6 host
 candidate shows the machine. Both are in the same candidate list, and a detector
 that reads the list sees both.
 
+| ICE candidate | Where the address comes from | Rides TCP? | Does the proxy cover it? | What it reveals |
+|---|---|---|---|---|
+| `typ srflx` (server reflexive) | A STUN round trip | Yes | Yes | The proxy's egress IPv4 |
+| `typ host`, IPv4 | Local interface enumeration | No | No | A private LAN address, masked as `<uuid>.local` |
+| `typ host`, IPv6 | Local interface enumeration | No | No | The machine's global, routable IPv6 |
+
+Only the first row travels a transport the proxy carries. The two `typ host` rows
+are read straight off the operating system's interface list, which is why the
+proxy never sees them and the IPv6 one exposes a stable global address.
+
 ## Why the standard "disable IPv6" pref does nothing now
 
-The advice you will find everywhere is to set
-`media.peerconnection.ice.disableIPv6` to `false` in about:config, or to flip the
-matching Playwright/Selenium preference. That advice is stale.
+Setting `media.peerconnection.ice.disableIPv6` does not stop the IPv6 WebRTC leak
+in current Firefox, because the pref was disconnected from the code path that emits
+host candidates. The advice you will find everywhere is to toggle
+`media.peerconnection.ice.disableIPv6` in about:config, or to flip the matching
+Playwright/Selenium preference. That advice is stale.
 
 We went looking for where current Firefox reads that pref during ICE gathering.
 It does not. A search across the WebRTC transport code finds the pref honoured only

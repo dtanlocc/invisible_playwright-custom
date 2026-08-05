@@ -1,6 +1,6 @@
 ---
 title: "Your renderer string says NVIDIA. Your pixels say software."
-description: "A detection flag chased in the wrong direction for a while: you can spoof what a browser says about its GPU, and you cannot spoof what the GPU actually draws. The story of finding that out the hard way."
+description: "You can spoof a browser's GPU renderer string, but not the pixels a software rasterizer draws. Why headless GPU spoofing gets flagged, and what actually helps."
 parent: "Canvas, WebGL, Fonts and Audio"
 grand_parent: "Guides"
 nav_order: 4
@@ -55,20 +55,21 @@ claims and the hardware that drew this image are not the same hardware".
 
 Everything else in a fingerprint is a value you can set. This one is an *output*.
 
-A renderer string is a string. A canvas hash is the result of running a rasteriser
-over a shape, and to change it consistently you have to change the rasteriser or the
-machine. That is why:
+A renderer string is a string. A [canvas hash](browserleaks-canvas-webgl-hash.md) is
+the result of running a rasteriser over a shape, and to change it consistently you have
+to change the rasteriser or the machine. That is why:
 
 - Spoofing the string alone is not enough, and is arguably worse than leaving it
   honest, because it creates a claim the pixels contradict.
 - The mismatch is invisible in every check that only reads values. Our own
   release gates read values for a long time before this surfaced, which is [why they now assert presence rather than absence](how-to-test-bot-detection.md).
-- It is worst exactly where automation usually runs: servers, containers and CI, none
-  of which have a GPU.
+- It is worst exactly where automation usually runs: [servers, containers and CI](can-a-website-tell-you-are-on-a-server.md),
+  none of which have a GPU.
 
-If you deploy browser automation to a cloud machine and it behaves differently from
-your laptop, this is high on the list of reasons, and it will not show up in any
-property-level audit.
+If you deploy browser automation to a cloud machine and it
+[behaves differently from your laptop](why-playwright-works-locally-fails-in-cloud.md),
+this is high on the list of reasons, and it will not show up in any property-level
+audit.
 
 ## What the options actually are
 

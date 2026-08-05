@@ -1,6 +1,6 @@
 ---
 title: "Function.prototype.toString and the [native code] check"
-description: "Every JavaScript override is a function, and every function carries its own source. That single fact is the ceiling on page-level stealth, and it explains a whole category of detection rather than one check."
+description: "How sites detect Function.prototype.toString patching with the [native code] check, why toString spoofing fails, and what an engine-level build fixes."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 1
@@ -15,6 +15,10 @@ understanding in detail because it explains a whole category of detection rather
 one check.
 
 ## The check
+
+Sites detect a patched property by calling `toString()` on its getter: a native getter
+prints `[native code]`, a JavaScript replacement prints the source you wrote. That is the
+entire check, and it is one string comparison.
 
 ```js
 Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver').get.toString();
