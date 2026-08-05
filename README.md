@@ -6,6 +6,8 @@
   <a href="https://t.me/scrapingtheweb"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/telegram.svg" alt="Join on Telegram" height="38"></a>
 </p>
 
+---
+
 <div align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/banner-dark.png">
