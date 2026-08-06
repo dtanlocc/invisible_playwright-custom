@@ -31,23 +31,64 @@ def parse(path):
         body = m.group(2)
     return fm, body.lstrip("\n")
 
+# Subdirectories are walked, not skipped. `docs/` grew `integrations/` with nine
+# pages, and a converter reading only the flat level dropped all nine AND left
+# every link into them pointing at a wiki page that does not exist - nine dead
+# links across eight pages, invisible because the pages themselves rendered.
+# A wiki is flat, so a subdirectory page is named by its own slug, except an
+# `index`/`README` inside a directory, which takes the DIRECTORY's name so that
+# a `](integrations/)` link has somewhere to land.
 pages = {}
-for f in sorted(os.listdir(DOCS)):
-    if not f.endswith(".md"):
-        continue
-    slug = f[:-3]
-    pages[slug] = parse(os.path.join(DOCS, f))
+sources = {}
+for dirpath, _dirnames, filenames in os.walk(DOCS):
+    rel = os.path.relpath(dirpath, DOCS).replace(os.sep, "/")
+    for f in sorted(filenames):
+        if not f.endswith(".md"):
+            continue
+        stem = f[:-3]
+        if rel == ".":
+            slug = stem
+            src = stem
+        elif stem in ("index", "README"):
+            slug = rel.split("/")[-1]
+            src = rel
+        else:
+            slug = stem
+            src = rel + "/" + stem
+        if slug in pages:
+            raise SystemExit(
+                "two docs pages want the same flat wiki name %r: %s and %s. "
+                "A wiki has no directories, so this has to be resolved in "
+                "docs/ rather than silently letting one overwrite the other."
+                % (slug, sources[slug], src))
+        pages[slug] = parse(os.path.join(dirpath, f))
+        sources[slug] = src
 
 valid = set(pages.keys())
+#: Every way a doc page can be addressed from another one, mapped to its flat
+#: wiki name: bare slug, `dir/slug`, either with `.md`, and `dir/` on its own.
+addressable = {src: slug for slug, src in sources.items()}
+for slug, src in sources.items():
+    if "/" in src:
+        addressable.setdefault(src.split("/")[-1], slug)
+# `dir/` on its own is how a page links to a directory index, and it needs the
+# trailing form for EVERY source, not only the ones that already carry a slash:
+# `integrations/README.md` has the source `integrations`, so the first cut of
+# this left `](integrations/)` as the single dead link out of 325 pages.
+for src in list(addressable):
+    addressable.setdefault(src + "/", addressable[src])
 
 def rewrite(body):
     def repl(m):
         target, anchor = m.group(1), (m.group(2) or "")
-        # only rewrite links that point at a real doc page
-        if target in valid:
-            return "](" + ("Home" if target == "index" else target) + anchor + ")"
+        hit = addressable.get(target) or (target if target in valid else None)
+        if hit:
+            return "](" + ("Home" if hit == "index" else hit) + anchor + ")"
         return m.group(0)
-    return re.sub(r'\]\(([a-z0-9\-]+)\.md(#[A-Za-z0-9\-]+)?\)', repl, body)
+    # `[a-z0-9/-]` and an optional `.md`: a link into a subdirectory carries the
+    # slash and may or may not carry the extension, and the first version of
+    # this pattern matched neither.
+    return re.sub(r'\]\(([a-z0-9/\-]+)(?:\.md)?(#[A-Za-z0-9\-]+)?\)', repl, body)
 
 os.makedirs(OUT, exist_ok=True)
 written = 0
