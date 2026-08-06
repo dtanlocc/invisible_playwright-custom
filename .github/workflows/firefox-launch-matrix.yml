@@ -40,7 +40,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, windows-2025, windows-latest]
-        python: ["3.11", "3.12", "3.13"]
+        # This is a "does firefox.exe launch" smoke test across Windows versions;
+        # the Python version does not change the answer, so one is enough. That
+        # takes this all-Windows (2x-cost) matrix from 9 jobs to 3.
+        python: ["3.12"]
 
     steps:
       - uses: actions/checkout@v4

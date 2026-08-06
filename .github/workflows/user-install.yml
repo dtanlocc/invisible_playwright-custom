@@ -48,11 +48,12 @@ on:
         type: choice
         options: [index, git]
   schedule:
-    # Daily. The published artifacts do not change on their own, but everything
-    # around them does: pip resolves a new Playwright, GitHub moves a release
-    # asset, an index mirror lags. Those break users without any commit here,
-    # so a run triggered only by pushes would never see them.
-    - cron: "17 6 * * *"
+    # Weekly (Monday). The published artifacts do not change on their own, but
+    # everything around them does: pip resolves a new Playwright, GitHub moves a
+    # release asset, an index mirror lags. Those break users without any commit
+    # here, so a run triggered only by pushes would never see them. Weekly is
+    # enough to catch that drift without adding a Windows job to the queue daily.
+    - cron: "17 6 * * 1"
   release:
     types: [published]
 
