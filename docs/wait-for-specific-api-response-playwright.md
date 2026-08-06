@@ -1,6 +1,6 @@
 ---
 title: "Wait for a specific API response in Playwright"
-description: "How to wait for a specific API response in Playwright with page.expect_response and a URL predicate, read the JSON at the source, and the one thing waiting cannot fix."
+description: "How to wait for a specific API response in Playwright with page.expect_response and a URL predicate, read the JSON at the source, and what waiting cannot fix."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 93
@@ -9,16 +9,19 @@ nav_order: 93
 
 # Wait for a specific API response in Playwright
 
-Most of the data you want to scrape does not live in the HTML. It arrives in a
-background fetch, gets turned into DOM nodes by JavaScript, and the values you care
-about are already in that JSON before a single element renders. Waiting for the
-rendered DOM means waiting for, and then re-parsing, a worse copy of data the browser
-already received.
+To wait for a specific API response in Playwright, wrap the action that triggers the
+call in `page.expect_response` with a URL predicate that matches the request you want,
+then read `.json()` on the `Response` object it hands back - no DOM parsing involved.
+Most of the data you want to scrape does not live in the HTML in the first place. It
+arrives in a background fetch, gets turned into DOM nodes by JavaScript, and the values
+you care about are already in that JSON before a single element renders. Waiting for
+the rendered DOM means waiting for, and then re-parsing, a worse copy of data the
+browser already received.
 
-Playwright can hand you the original response instead. This page is about
-`page.expect_response`, a URL predicate to select the request you want, reading the
-JSON directly, and the honest limit of the technique: it waits for a response, it does
-not make a rejected request succeed.
+Playwright can hand you the original response instead. This page covers the URL
+predicate to select the request you want, reading the JSON directly, and the honest
+limit of the technique: it waits for a response, it does not make a rejected request
+succeed.
 
 ## Wait for the response, not the rendered DOM
 
@@ -200,8 +203,9 @@ driver layers. IP reputation, rate limits and pacing are still yours to handle.
 
 ## Sources
 
-- Playwright's documented `page.expect_response` and `Response` API, used exactly as
-  upstream, because invisible_playwright returns a real Playwright `Browser`.
+- Playwright's documented [`page.expect_response`](https://playwright.dev/python/docs/api/class-page#page-expect-response)
+  and [`Response`](https://playwright.dev/python/docs/api/class-response) API, used
+  exactly as upstream, because invisible_playwright returns a real Playwright `Browser`.
 - This project's own measurements on request-triggered fetches: the response arrives on
   the network before it is rendered, and a rejected request returns its rejection to
   `expect_response` regardless of how long you wait.

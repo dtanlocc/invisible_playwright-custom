@@ -85,14 +85,14 @@ A cautionary tale, because we shipped this.
 This project builds its fingerprints from real-world data, on the theory that values
 seen in the wild are the safest values to claim. Real-world data, from real users,
 includes people running Windows on virtual machines, where the GPU is a software
-rasterizer. So for a while about **1.4% of generated identities drew exactly that** - a
-real GPU string over software-rendered pixels.
+rasterizer. So for a while a small minority of generated identities drew exactly
+that - a real GPU string over software-rendered pixels.
 
 Aiming faithfully at reality had reproduced reality's worst case.
 
-It was worse than 1.4% suggests, because seed 42 - the example seed in the quickstart
-that people copy - was one of the affected ones. Anyone copying the quickstart got a
-browser announcing it had no GPU.
+It was worse than that minority suggests, because seed 42 - the example seed in the
+quickstart that people copy - was one of the affected ones. Anyone copying the
+quickstart got a browser announcing it had no GPU.
 
 The fix changed only the affected identities and left every other one stable. No
 generated identity reports a software rasterizer now; the share that did moved to an
@@ -125,8 +125,10 @@ and believes the answer.
 
 It does not survive much else. The override is a function whose source can be
 printed, and its result can be cross-checked against things that are harder to fake:
-the actual rendering of a canvas, the set of supported extensions, the reported
-maximum texture size, [the shader precision ranges](webgl-shader-precision-fingerprint.md).
+the actual rendering of a canvas, the
+[set of supported extensions](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/getSupportedExtensions),
+the reported maximum texture size,
+[the shader precision ranges](webgl-shader-precision-fingerprint.md).
 A claimed NVIDIA card whose extension list belongs to a software rasterizer has
 answered the same question twice and given different answers. That gap between what
 the string claims and what the GPU actually draws is not theoretical: it is
@@ -165,5 +167,5 @@ shader model plausible for its generation, and consistent with the platform you 
 ---
 
 *From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
-a Firefox patched at the C++ level. The 1.4% above is our own measurement, of our own
+a Firefox patched at the C++ level. The share above is our own measurement, of our own
 mistake.*

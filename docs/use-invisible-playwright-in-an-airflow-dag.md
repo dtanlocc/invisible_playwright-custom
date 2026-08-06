@@ -42,17 +42,18 @@ Airflow-specific is *when* that block runs, and that is the whole game.
 
 ## Never launch the browser at module import
 
-This is the one mistake the framework sets you up to make.
+Keep the browser launch inside the task body - a `PythonOperator` callable or a `@task`
+function - never at module level in the DAG file. Airflow re-imports every DAG file
+repeatedly to build the schedule (the scheduler on a short interval, and the webserver
+too), so any code sitting at module level runs on every one of those parses, not once per
+scheduled run.
 
-Airflow parses every DAG file repeatedly - the scheduler re-imports it on a short interval
-to build the schedule, and the webserver imports it too. Any code at module level runs on
-every one of those parses. If you launch a browser at the top of the file, you are not
-launching it once per scheduled run; you are launching one on every scheduler heartbeat,
-downloading the engine on the first parse of a fresh worker, and blocking the parser while
-a browser starts. The DAG becomes slow to import, imports time out, and the task has not
-even been scheduled yet.
+If you launch a browser at the top of the file, you are not launching it once per
+scheduled run; you are launching one on every scheduler heartbeat, downloading the engine
+on the first parse of a fresh worker, and blocking the parser while a browser starts. The
+DAG becomes slow to import, imports time out, and the task has not even been scheduled yet.
 
-Keep the launch inside the task body, where it runs only when the task actually executes:
+Here is what that looks like in practice:
 
 ```python
 from datetime import datetime
@@ -106,19 +107,19 @@ the first time it runs the task.
 
 ## Seed as a task parameter, for reproducible retries
 
-Airflow will retry a failed task, and by default a retry is a fresh process with a fresh
-random draw. For a browser that generates a distinct fingerprint per session, that means
-the retry looks like a *different machine* than the attempt that failed. When you are
-debugging a block, that is the opposite of what you want: you cannot tell the site
-changing from the machine changing.
+Store the seed as a DAG parameter, as the example above does with `params={"seed": 42}`,
+so every run and every retry reads the same seed and produces the same identity - the
+same GPU, the same canvas hash, the same fonts, the same screen, run after run. That
+matters because Airflow retries a failed task as a fresh process with a fresh random draw
+by default: for a browser that generates a distinct fingerprint per session, a retry
+without a pinned seed looks like a *different machine* than the attempt that failed, and
+when you are debugging a block that is the opposite of what you want - you cannot tell the
+site changing from the machine changing.
 
-Pin the identity by storing the seed as a DAG parameter, as the example above does with
-`params={"seed": 42}`. Every run and every retry reads the same seed, so the same seed
-produces the same GPU, the same canvas hash, the same fonts, the same screen - the whole
-identity, run after run. A retry then replays the exact browser that failed, and a manual
-re-run with the same parameter reproduces it too. If you want each scheduled day to have
-its own stable identity instead, derive the seed from the logical date (`data_interval_start`)
-so that today is reproducible while tomorrow differs deliberately rather than by accident.
+A retry then replays the exact browser that failed, and a manual re-run with the same
+parameter reproduces it too. If you want each scheduled day to have its own stable
+identity instead, derive the seed from the logical date (`data_interval_start`) so that
+today is reproducible while tomorrow differs deliberately rather than by accident.
 
 That reproducibility is also why a bisect is a bisect: change the seed on purpose, never
 by side effect. The same reasoning, at the level of a single run, is in the
@@ -126,8 +127,9 @@ by side effect. The same reasoning, at the level of a single run, is in the
 
 ## What the orchestrator does not do
 
-Here is the honest boundary, because it is easy to assume the scheduler is doing more than
-it is.
+Airflow changes nothing about detection: it supplies retries, dependencies and a
+schedule, not a fingerprint or an IP address. It is easy to assume the scheduler is doing
+more than it is, so here is the honest boundary.
 
 invisible_playwright is built to look like a real Firefox driven by a real person, and
 that is *why* it passes most detection checks: the fingerprint, the TLS handshake and the
@@ -195,6 +197,9 @@ loop.
   for the real launch API, proxy dict and timezone behaviour.
 - Airflow's own documentation on top-level DAG code and why it runs on every parse, which
   is the reason the launch belongs inside the task.
+- Playwright's own documentation on the [sync vs async
+  API](https://playwright.dev/python/docs/library), for when `async_api` is the right
+  choice inside a task that already runs an event loop.
 - This project's release gates and the detection-testing method, for what the browser
   covers and what the proxy and pacing still have to.
 

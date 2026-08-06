@@ -112,7 +112,11 @@ them reproducible. `invisible_playwright` launches a Firefox patched at the C++ 
 and returns an ordinary Playwright `Browser`, so every method is the one you already
 know.
 
-Read the surfaces that a render service cannot honestly produce, straight off the page:
+Read the surfaces that a render service cannot honestly produce, straight off the page.
+The renderer name below comes from the
+[`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+extension, which every engine answers from its own graphics stack rather than from a
+header:
 
 ```python
 from invisible_playwright import InvisiblePlaywright

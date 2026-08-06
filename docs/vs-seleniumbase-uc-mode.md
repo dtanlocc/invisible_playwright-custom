@@ -55,8 +55,9 @@ cannot leave a live automation channel for a script to find at the instant it ma
 
 The disconnect trick works because one whole family of automation tells lives in the
 *connection itself*: the `chromedriver` process holding a live control channel, the
-renamed DevTools console variables the driver injects, `navigator.webdriver` reflecting an
-attached automation client. Detach the driver at the watched moment and, for that moment,
+renamed DevTools console variables the driver injects,
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+reflecting an attached automation client. Detach the driver at the watched moment and, for that moment,
 those signals are simply not there to read. This is a driver-timing defense, and against a
 page that only checks for a live driver it is effective.
 

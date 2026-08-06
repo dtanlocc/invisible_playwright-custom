@@ -29,16 +29,19 @@ limit on what fixing the fingerprint layer actually buys you.
 The set a typical fingerprinting script reads is longer than most people expect. The
 common members:
 
-- **Canvas rendering.** The page draws text and shapes to an offscreen canvas and
-  hashes the pixels. The result depends on the GPU, the driver, the font rasterizer
-  and anti-aliasing, so two different machines usually produce different hashes.
-- **WebGL.** The renderer and vendor strings, plus a hash of a rendered 3D scene. This
-  leans on the graphics stack even harder than canvas does.
+- **[Canvas rendering](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API).**
+  The page draws text and shapes to an offscreen canvas and hashes the pixels. The
+  result depends on the GPU, the driver, the font rasterizer and anti-aliasing, so two
+  different machines usually produce different hashes.
+- **[WebGL](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API).** The renderer
+  and vendor strings, plus a hash of a rendered 3D scene. This leans on the graphics
+  stack even harder than canvas does.
 - **Installed fonts.** Enumerated directly or inferred by measuring text width. The set
   is characteristic of the operating system and what has been installed on it.
-- **AudioContext.** An oscillator processed through the audio pipeline and hashed. The
-  output varies with the audio stack, and a machine with no real audio device answers
-  with tell-tale defaults.
+- **[AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).**
+  An oscillator processed through the audio pipeline and hashed. The output varies with
+  the audio stack, and a machine with no real audio device answers with tell-tale
+  defaults.
 - **Screen.** Width, height, available height, colour depth and device pixel ratio.
 - **Timezone and language.** The IANA zone the browser reports and its language list.
 - **User agent, platform and hardware.** The UA string, `navigator.platform`,
@@ -196,6 +199,10 @@ is stable rather than randomised per call.
 - This project's seed-derived generator, which produces canvas, WebGL, font, audio,
   screen and hardware attributes from a single seed so the join is consistent by
   construction.
+- MDN Web Docs, [Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API),
+  [WebGL API](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API) and
+  [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API), the
+  documented interfaces behind the canvas, WebGL and audio attributes above.
 
 **See also:** [what a FingerprintJS visitor ID actually hashes](fingerprintjs-visitor-id.md),
 [why a randomised canvas hash is itself a tell](canvas-fingerprint-noise.md), and

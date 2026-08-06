@@ -77,8 +77,8 @@ that most often give away a server:
   equal to the full height, meaning no taskbar.
 - **[Font lists that do not match the claimed platform](bundled-fonts-cross-platform.md).**
   Claiming Windows with a Linux font set is a one-line check.
-- **Hardware concurrency and device memory** that pair oddly with the claimed
-  machine.
+- **[Hardware concurrency and device memory](hardware-concurrency-device-memory.md)**
+  that pair oddly with the claimed machine.
 - **No audio device.** Sample rate, output latency and channel count come from real
   hardware, and a container that has none answers with defaults that say so. See
   [AudioContext fingerprinting](audiocontext-fingerprinting.md).

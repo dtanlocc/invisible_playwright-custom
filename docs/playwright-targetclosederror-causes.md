@@ -123,7 +123,9 @@ navigation that moves to a new origin, this fires:
 page.on("crash", lambda page: print("content process gone:", page.url))
 ```
 
-The `crash` event is the honest signal here. `TargetClosedError` is only what you get on
+The [`crash` event](https://playwright.dev/python/docs/api/class-page#page-event-crash) is
+the honest signal here: Playwright's own docs define it as what fires when a page's process
+dies, for instance from over-allocating memory. `TargetClosedError` is only what you get on
 the *next* call you make to that dead page; the crash came first and the transport log
 shows the content process actor vanishing, not a protocol rejection and not a launch
 error. If you were not listening for `crash`, all you see is the downstream
@@ -241,8 +243,9 @@ is gone as soon as it happens.
 - This project's own release archive: the packaged build that shipped without its
   automation layer, and the protocol-drift measurement in which one undeclared viewport
   field took out 97 of 133 end-to-end tests with the build green.
-- The Playwright transport log (`DEBUG=pw:browser,pw:protocol`) and the `page.on('crash')`
-  event, read from a real failing run rather than from the final exception type.
+- The Playwright transport log (`DEBUG=pw:browser,pw:protocol`) and the
+  [`page.on('crash')` event](https://playwright.dev/python/docs/api/class-page#page-event-crash),
+  read from a real failing run rather than from the final exception type.
 
 **See also:** [the checklist for a browser detected as a bot](playwright-detected-as-bot.md)
 once the browser is actually drivable, and [protocol drift](playwright-protocol-drift.md)

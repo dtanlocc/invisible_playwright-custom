@@ -9,7 +9,8 @@ nav_order: 5
 
 # Playwright screenshot returns noise: readback fix
 
-`page.screenshot()` returned a full-frame PNG of colored static, tens of
+[`page.screenshot()`](https://playwright.dev/python/docs/api/class-page#page-screenshot)
+returned a full-frame PNG of colored static, tens of
 megabytes of it, because a canvas anti-fingerprint defense also rewrote the
 browser's own screenshot readback. The noise was the same every time for a given
 seed and different for a different seed. The automation ran, the navigation

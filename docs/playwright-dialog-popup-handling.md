@@ -32,8 +32,8 @@ popup windows in a way that is both correct and unremarkable. The examples use
 A JavaScript dialog - `alert()`, `confirm()`, `prompt()`, and the `beforeunload`
 prompt - blocks the page until it is answered. In a normal browser a human answers it.
 Under automation there is no human, so Playwright has to decide, and its default is to
-**dismiss every dialog automatically** the moment one appears, unless you have
-registered a `dialog` listener on that page.
+[**dismiss every dialog automatically**](https://playwright.dev/python/docs/dialogs) the
+moment one appears, unless you have registered a `dialog` listener on that page.
 
 Dismiss is not neutral. For `confirm()` and for `beforeunload`, dismiss means
 **cancel** - the call returns `false`. For `prompt()` it returns `null`. So this,
@@ -239,9 +239,9 @@ browser and the mouse look real; the dialog answer and its timing are yours.
 
 ## Sources
 
-- Playwright's documented `Dialog` behaviour: dialogs are auto-dismissed unless a
-  `dialog` listener is registered, read from the upstream API rather than its rendered
-  docs.
+- Playwright's documented [`Dialog` handling](https://playwright.dev/python/docs/dialogs):
+  "If there is no listener for `page.on('dialog')`, all dialogs are automatically
+  dismissed."
 - This project's own measurements of `confirm()` round-trip timing under the default
   dismissal versus a delayed handler, run through the shipped binary.
 

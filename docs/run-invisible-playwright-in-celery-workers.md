@@ -9,6 +9,12 @@ nav_order: 85
 
 # Run invisible_playwright in Celery task workers
 
+Running invisible_playwright inside Celery means launching one browser per
+worker process at startup and reusing it for every task, opening and closing
+a page per task, passing the seed as a task argument so retries stay
+reproducible, and tuning worker concurrency down as a request-rate knob rather
+than up as a throughput dial.
+
 Putting a browser behind a task queue is a good idea for the wrong reasons and
 a good idea for the right ones. The wrong reason is that a queue will hide a
 detection problem: it will not. The right reasons are pacing, retries and
@@ -88,6 +94,11 @@ def scrape(self, url):
     finally:
         page.close()
 ```
+
+The `goto` call above waits for
+[`domcontentloaded`](https://playwright.dev/python/docs/api/class-page#page-goto)
+rather than a full page load, which is enough for most scrapes and keeps the
+per-task work fast.
 
 `new_page()` is cheap; `launch()` is not. This is the whole trade. The browser
 is the expensive, long-lived resource and it stays up for the life of the
@@ -219,6 +230,9 @@ about the exit address, and a real-looking browser on a bad IP still loses.
 - The invisible_playwright [quickstart](quickstart.md) and
   [configuration](configuration.md) pages for the real launch API, the seed
   argument and proxy handling used in the examples above.
+- [Playwright's `goto` API reference](https://playwright.dev/python/docs/api/class-page#page-goto)
+  for the `wait_until` options, including `domcontentloaded`, used in the
+  task example above.
 - Celery's worker signal model (`worker_process_init` /
   `worker_process_shutdown`) and its concurrency and prefetch settings.
 - This project's own measurements that a Firefox launch per short task dominates

@@ -73,7 +73,8 @@ JavaScript surface a page can inspect. It is driven by stock Playwright, so ther
 new automation API to learn, and it derives every fingerprint field from a single seed.
 
 Switching from plain Playwright is two lines, and the returned object is a real
-Playwright `Browser` with every method intact:
+[Playwright `Browser`](https://playwright.dev/python/docs/api/class-browser) with every
+method intact:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -194,6 +195,9 @@ the fetch, the parser handles the extraction.
   third-party browser engine rather than shipping one.
 - This project's own comparison pages for the two engines Scrapling has wrapped, and the
   release gates behind the field-by-field test method described above.
+- [Playwright's own `Browser` class docs](https://playwright.dev/python/docs/api/class-browser),
+  read 2026-08-06, for what the returned object exposes once you switch from plain
+  Playwright.
 
 **See also:** [the comparison with the Firefox-based engine](vs-camoufox.md),
 [the comparison with the patched-Chromium engine](vs-patchright.md), and

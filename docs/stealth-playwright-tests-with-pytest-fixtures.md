@@ -20,7 +20,8 @@ wires that pair around invisible_playwright, shows how to assert fingerprint rea
 inside a test against an allowed open-source detector, and is honest about the one thing
 a passing fixture cannot prove.
 
-Because invisible_playwright returns a real Playwright `Browser`, none of this needs a
+Because invisible_playwright returns a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), none of this needs a
 special test harness. It is the ordinary pytest-asyncio setup you already know, pointed
 at a browser that reads as a genuine Firefox instead of an automated one.
 
@@ -35,7 +36,8 @@ That directness is the whole reason the fixture pair works cleanly:
 
 - A **session-scoped** fixture launches invisible_playwright once. The engine resolves and
   starts a single time for the entire run, and every test shares that one process.
-- A **function-scoped** fixture hands each test its own browsing context, torn down when
+- A **function-scoped** fixture hands each test its own
+  [browsing context](https://playwright.dev/python/docs/browser-contexts), torn down when
   the test ends, so cookies and storage never leak from one test into the next.
 
 Install what you need first:
@@ -243,6 +245,10 @@ the page not throwing.
 - The real invisible_playwright API as documented in [Quickstart](quickstart.md) and
   [Configuration](configuration.md): a two-line launch that returns a stock Playwright
   `Browser`, with a `seed` argument for a reproducible identity.
+- Playwright's own docs on [`Browser.new_context()`](https://playwright.dev/python/docs/api/class-browser)
+  and [browser contexts](https://playwright.dev/python/docs/browser-contexts): each context
+  is an isolated, incognito-like session within one browser instance, which is the isolation
+  the function-scoped context fixture relies on.
 - This project's own testing notes on the false pass a negative assertion produces, and on
   the velocity flag that belonged to the harness rather than the browser.
 - pytest-asyncio's fixture-scope and event-loop-scope behaviour, which is what makes the

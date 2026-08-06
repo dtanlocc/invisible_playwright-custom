@@ -93,12 +93,10 @@ actually contains and why in-page tricks never reach it.
 
 ## Why the dual mode splits the failure in two
 
-Here is the part that makes DrissionPage's signature feature a signature liability against
-a strict check.
-
-A modern detection stack does not look at one surface. It reads the TLS handshake, then
-reads the in-page fingerprint, then checks whether the two tell the same story. The dual
-mode gives it two different stories to catch:
+A modern detection stack does not look at one surface: it reads the TLS handshake, reads
+the in-page fingerprint, then checks whether the two tell the same story. That is what
+turns DrissionPage's signature feature into a signature liability against a strict check -
+the dual mode hands it two different stories to catch instead of one:
 
 - **In browser mode**, the handshake is Chromium's and the fingerprint is CDP-driven
   Chromium's. Consistent with each other, and both saying "automated Chromium engine."
@@ -123,7 +121,8 @@ The engine is Firefox, patched at the C++ level so that what it reports about it
 matches what it actually is. There is no session mode to drop into, because the whole
 point is that every request comes from a genuine browser handshake with a matching
 in-page fingerprint. You drive it with stock Playwright, and the object you get back is a
-real Playwright `Browser` with every standard method:
+real [Playwright `Browser`](https://playwright.dev/python/docs/api/class-browser) with
+every standard method:
 
 ```python
 from invisible_playwright import InvisiblePlaywright

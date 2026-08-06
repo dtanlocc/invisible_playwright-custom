@@ -57,10 +57,10 @@ changes that.
 
 ## The ceiling this was always going to hit, maintained or not
 
-This is worth separating from the maintenance question, because it's the more
-durable point. [Patching individual properties from the page, one at a time, is a
-different strategy from being a real browser](vs-playwright-stealth.md), and it has
-the same shape whether the patch list is current or two years stale.
+[Patching individual properties from the page, one at a time, is a different
+strategy from being a real browser](vs-playwright-stealth.md), and it has the same
+shape whether the patch list is current or two years stale. That's worth separating
+from the maintenance question, because it's the more durable point.
 
 Every property this class of plugin fixes is fixed **after the fact**: the browser's
 real, honest properties get overwritten by a script that runs before the page's own
@@ -69,9 +69,11 @@ mechanisms - checking whether
 [`Function.prototype.toString` on the patched getter still returns `[native code]`](tostring-native-code-detection.md),
 checking `Object.getOwnPropertyDescriptor` for a descriptor shape a native property
 wouldn't have, or simply finding one of the several dozen properties nobody wrote a
-patch for yet. A frozen patch list makes this worse by construction, but a perfectly
-current one would still have the same fundamental gap: the browser's TLS handshake,
-its real GPU-backed WebGL output, its real font rendering are not JavaScript-visible
+patch for yet.
+
+A frozen patch list makes this worse by construction, but a perfectly current one
+would still have the same fundamental gap: the browser's TLS handshake, its real
+GPU-backed WebGL output, its real font rendering are not JavaScript-visible
 properties, so no amount of page-level patching touches any of them at all.
 
 The split is easiest to read as a table:

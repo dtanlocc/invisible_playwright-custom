@@ -1,6 +1,6 @@
 ---
 title: "undetected-chromedriver vs a patched Firefox browser"
-description: "undetected-chromedriver strips the driver's cdc_ and webdriver leaks but ships a stock Chromium fingerprint; a patched Firefox build fixes the engine fingerprint itself."
+description: "undetected-chromedriver strips the cdc_ and webdriver leaks but still ships a stock Chromium fingerprint; a patched Firefox fixes the engine fingerprint."
 parent: "Comparisons"
 nav_order: 29
 ---

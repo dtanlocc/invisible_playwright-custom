@@ -73,7 +73,8 @@ Everything the machine reports about itself, because there is one machine:
   [And is a comparison, not a count](headless-fonts-differ.md).
 - **The audio profile**, the speech voice list, the codec support.
 - **The screen dimensions** and their relationships.
-- **`hardwareConcurrency`, `deviceMemory`, the storage quota.**
+- **[`hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency),
+  [`deviceMemory`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory), the storage quota.**
 - **The TLS handshake**, which is per connection and identical in shape.
   [And decided below all of this](ja3-ja4-tls-fingerprint.md).
 
@@ -87,11 +88,14 @@ several countries simultaneously.
 
 ## The timezone problem the pattern creates
 
-This one is specific and it bites the careful.
+**A timezone resolved from the exit address has to be resolved per exit, and this pattern
+resolves it only once, at launch.** That is specific and it bites the careful: it looks
+like a setting you configured correctly, and it behaves like one that was never applied
+to most of the browser.
 
-A timezone resolved from the exit address has to be resolved **per exit**. If your tool
-resolves it at browser launch, it resolved it for the launch-time exit, and every context
-afterwards carries that zone regardless of where its own proxy leaves from.
+If your tool resolves the timezone at browser launch, it resolved it for the launch-time
+exit, and every context afterwards carries that zone regardless of where its own proxy
+leaves from.
 
 Context one leaves from Germany with a German timezone. Context two leaves from Japan
 with a German timezone. The second one is the mismatch that
@@ -186,6 +190,9 @@ and [Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authen
 
 - Playwright's proxy option at browser and context level, and its behaviour of fixing the
   proxy at creation time: [Playwright network documentation](https://playwright.dev/python/docs/network).
+- `navigator.hardwareConcurrency` and `navigator.deviceMemory`, two of the shared values
+  listed above: [MDN: hardwareConcurrency](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency),
+  [MDN: deviceMemory](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory).
 - The surfaces listed above are each documented on their own page, linked in place.
 - This project resolves the timezone, locale and WebRTC exit address from one lookup per
   launch, which is why one identity is one launch here.

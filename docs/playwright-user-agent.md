@@ -26,7 +26,11 @@ correct, and what to do instead.
 
 ## What the user agent has to agree with
 
-Change the string to claim Chrome on Windows, and here is what did not change:
+**Changing `navigator.userAgent` does not touch roughly eight other signals a page can
+read for free** - the platform properties, the font set, the WebGL renderer and its
+numeric parameters, the codec support pattern, the CSS color palette, the audio and
+speech-voice values, and the TLS handshake. Change the string to claim Chrome on Windows,
+and here is what did not change:
 
 | Signal | Why it still contradicts the claimed string |
 |---|---|
@@ -43,7 +47,7 @@ Every one of those is cheaper to check than the user agent is to fake. A browser
 Chrome while producing a Firefox handshake and a Linux font set has not disguised itself.
 It has volunteered that it is lying.
 
-## Why rotation makes it worse, not better
+## Why user agent rotation makes it worse, not better
 
 **Rotation does not create several identities: it creates one machine that keeps
 changing its story about which browser it is, while every other value it produces
@@ -93,7 +97,7 @@ Firefox does not send those headers at all, which is its own consistency require
 browser claiming Chrome and sending no Client Hints is making a claim its own request
 contradicts.
 
-## The one case where you should set it
+## The one case where you should set the user agent
 
 If your build genuinely emits something like `HeadlessChrome` in its default user agent,
 that string is wrong and fixing it is correct. It is a real leak and it costs nothing to

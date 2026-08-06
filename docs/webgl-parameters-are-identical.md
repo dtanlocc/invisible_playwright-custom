@@ -122,6 +122,10 @@ if you depend on it.
 
 ## Checking your own
 
+Every number below comes from one call,
+[`gl.getParameter()`](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/getParameter),
+the same call any fingerprinting script uses:
+
 ```js
 const gl = document.createElement('canvas').getContext('webgl');
 const P = ['MAX_TEXTURE_SIZE','MAX_RENDERBUFFER_SIZE','MAX_VERTEX_ATTRIBS',

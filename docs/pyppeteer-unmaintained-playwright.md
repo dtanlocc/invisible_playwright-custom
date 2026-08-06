@@ -46,8 +46,9 @@ The two libraries differ on more than staffing:
 
 Puppeteer and pyppeteer are both built around one browser family and one protocol:
 Chromium and CDP. Playwright was built afterward with a different premise, one
-driver abstraction over three separate engines - Chromium, Firefox, and WebKit -
-each through whatever protocol actually works for that engine (CDP for Chromium,
+driver abstraction over [three separate
+engines](https://playwright.dev/python/docs/browsers) - Chromium, Firefox, and
+WebKit - each through whatever protocol actually works for that engine (CDP for Chromium,
 Firefox's own automation layer for Firefox). That's a wider foundation than a CDP
 port can be extended into, and it's a reasonable part of why maintaining a
 Python-side Puppeteer port stopped being where the energy went: the actively

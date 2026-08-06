@@ -10,10 +10,11 @@ nav_order: 35
 # Save and reuse login with storage_state in Playwright
 
 Logging in on every run is slow, and it drives the one flow on most sites that gets
-watched hardest. Playwright already ships the tool that skips it: `storage_state` dumps
-the cookies and local storage from a logged-in context to a file, and a later context
-loads that file and starts already authenticated. It works here unchanged, because the
-browser this project returns is a real Playwright `Browser`.
+watched hardest. Playwright already ships the tool that skips it:
+[`storage_state`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+dumps the cookies and local storage from a logged-in context to a file, and a later
+context loads that file and starts already authenticated. It works here unchanged,
+because the browser this project returns is a real Playwright `Browser`.
 
 This page is the concrete API - how to save, how to restore, and the one caveat that
 turns a saved session from a shortcut into a flagged request: the session is bound to the
@@ -203,8 +204,12 @@ robotic timing - those you still have to supply.
 
 ## Sources
 
-- Playwright's own `storage_state` / `storageState` and `new_context` / `newContext`
-  APIs, for the save-and-restore mechanism used throughout.
+- Playwright's
+  [`storage_state`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+  API reference, which documents exactly what the saved file contains.
+- Playwright's own guide to
+  [reusing signed-in state](https://playwright.dev/python/docs/auth), the same
+  save-once-restore-later pattern with `new_context` used throughout this page.
 - This project's seed-derived fingerprint model, described on the
   [quickstart](quickstart.md) page, applied here to a saved session rather than a
   debugging run.

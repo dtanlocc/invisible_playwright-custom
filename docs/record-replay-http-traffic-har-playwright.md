@@ -1,6 +1,6 @@
 ---
 title: "Record and replay HTTP traffic with HAR in Playwright"
-description: "How to record HTTP traffic to a HAR file and replay it offline with routeFromHAR in Playwright, why the replay is a stale fixture, and why a HAR holds real session data."
+description: "Record HTTP traffic to a HAR file and replay it offline with routeFromHAR in Playwright: why replay is a stale fixture and a HAR holds real session data."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 32
@@ -23,8 +23,8 @@ share.
 
 ## Record every request to a HAR
 
-Point a context at a path with `record_har_path` and everything it fetches lands in
-that file when the context closes. The two-line launch is the same one from the
+Point a context at a path with [`record_har_path`](https://playwright.dev/python/docs/api/class-browser#browser-new-context)
+and everything it fetches lands in that file when the context closes. The two-line launch is the same one from the
 [Quickstart](quickstart.md); the browser it returns is a real Playwright `Browser`,
 so `new_context` and every option it takes work exactly as upstream documents them.
 
@@ -50,8 +50,9 @@ until the context closes, so a crash before `context.close()` leaves you nothing
 
 ## Replay the HAR offline with routeFromHAR
 
-The mirror image is `route_from_har`. Register it on a fresh context and every
-matching request is answered from the file instead of the network.
+The mirror image is [`route_from_har`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-route-from-har).
+Register it on a fresh context and every matching request is answered from the file
+instead of the network.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -166,9 +167,10 @@ which you supply.
 
 ## Sources
 
-- Playwright's own documentation for `record_har_path` / `record_har_mode` on
-  `browser_context` and for `route_from_har`, read from the API reference rather
-  than a rendered tutorial.
+- Playwright's own API reference for [`new_context`'s `record_har_path` /
+  `record_har_mode` / `record_har_content`](https://playwright.dev/python/docs/api/class-browser#browser-new-context)
+  and for [`route_from_har`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-route-from-har),
+  read from the reference rather than a rendered tutorial.
 - This project's release gates, which run offline replay fixtures on the patched
   Firefox as part of the deterministic test set.
 

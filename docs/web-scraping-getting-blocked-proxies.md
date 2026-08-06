@@ -40,13 +40,14 @@ any of the properties involved being individually rare or fake.
 
 ## Why this survives every proxy upgrade
 
-This is the part that makes "just get better proxies" feel like it stopped working
-even when the proxies genuinely improved. A
+Proxy quality was never the variable this mismatch depends on, which is why upgrading
+to a better proxy makes no difference on its own. A
 [residential IP](residential-datacenter-mobile-proxies-explained.md) with a spotless
-reputation still carries a country. If the browser side of the session isn't adjusted to match
-that country - timezone, language, and everything downstream of them - the mismatch is
-exactly as visible as it was on a flagged datacenter IP. The proxy quality was never
-the variable that check depends on.
+reputation still carries a country, and if the browser side of the session isn't adjusted
+to match that country - timezone, language, and everything downstream of them - the
+mismatch is exactly as visible as it was on a flagged datacenter IP. That's the part
+that makes "just get better proxies" feel like it stopped working, even when the
+proxies genuinely improved.
 
 Concretely, the fields that have to agree with the proxy's country, not just with each
 other:
@@ -66,11 +67,11 @@ most often, is worked through here](timezone-proxy-mismatch.md).
 
 ## Why this applies regardless of which tool is doing the scraping
 
-None of this is specific to any one scraping framework. A proxy plus a mismatched
-timezone is the same contradiction whether the request comes from a full browser
-under Playwright or Selenium, or from a plain HTTP client with no browser at all -
-the only difference is which of the fields above the tool is even capable of setting.
-A tool driving a real browser can fix all of them. A bare HTTP client can fix the
+This mismatch is not specific to any one scraping framework: a proxy plus a
+mismatched timezone is the same contradiction whether the request comes from a full
+browser under Playwright or Selenium, or from a plain HTTP client with no browser at
+all - the only difference is which of the fields above the tool is even capable of
+setting. A tool driving a real browser can fix all of them. A bare HTTP client can fix the
 `Accept-Language` header and nothing else, because the rest only exist once a browser
 is actually rendering a page.
 

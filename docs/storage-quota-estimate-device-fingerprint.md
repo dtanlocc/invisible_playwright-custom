@@ -25,7 +25,9 @@ consistency rule that matters.
 
 ## What estimate() actually returns
 
-The API is small and standard:
+`navigator.storage.estimate()` returns two numbers in one call: `usage`, the bytes this
+origin already occupies, and `quota`, the ceiling it is allowed to grow into. Calling it
+is one line:
 
 ```python
 from invisible_playwright import InvisiblePlaywright

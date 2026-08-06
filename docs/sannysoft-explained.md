@@ -29,14 +29,14 @@ Eleven rows, the oldest and best-known set. In page order:
 | Row | What it reads |
 |---|---|
 | **User Agent** | whether the string contains `HeadlessChrome` |
-| **WebDriver** | `navigator.webdriver` |
+| **WebDriver** | [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver) |
 | **WebDriver Advanced** | the same value read through a less obvious path, to catch a shallow override |
 | **Chrome** | whether `window.chrome` exists and looks whole, on a Chromium build |
 | **Permissions** | whether the Notifications permission state and `Notification.permission` agree |
 | **Plugins Length** | `navigator.plugins.length` being zero, which old headless builds reported |
 | **Plugins is of type PluginArray** | the prototype of `navigator.plugins`, catching an array pretending to be one |
 | **Languages** | `navigator.languages` being empty |
-| **WebGL Vendor** and **WebGL Renderer** | the unmasked strings |
+| **WebGL Vendor** and **WebGL Renderer** | the [unmasked strings](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info) |
 | **Broken Image Dimensions** | the natural size of an image that failed to load |
 
 Almost all of these are historical. They describe headless Chrome as it behaved
@@ -51,9 +51,10 @@ automation at all:
 here is a server tell that no amount of automation-flag fixing hides. There is a
 [longer page on that](webgl-renderer-strings.md).
 
-**Permissions** is the interesting shape: it does not ask a single question, it asks
-two and compares the answers. That pattern, cross-checking two sources that must
-agree, is what everything modern is built on.
+**[Permissions](https://developer.mozilla.org/en-US/docs/Web/API/Permissions_API)** is
+the interesting shape: it does not ask a single question, it asks two and compares the
+answers. That pattern, cross-checking two sources that must agree, is what everything
+modern is built on.
 
 ## Group two: the property dump
 

@@ -48,8 +48,9 @@ is: **who speaks the authentication handshake, and over which protocol?**
 - A **SOCKS proxy** (`socks5://`, `socks4://`, `socks://`) authenticates at the
   connection layer, before any HTTP is spoken. The username and password are part of
   the SOCKS handshake itself.
-- An **HTTP/HTTPS proxy** (`http://`, `https://`) authenticates with HTTP Basic auth,
-  a `Proxy-Authorization` header the client sends after it opens the connection.
+- An **HTTP/HTTPS proxy** (`http://`, `https://`) authenticates with HTTP Basic auth, a
+  [`Proxy-Authorization`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Proxy-Authorization)
+  header the client sends after it opens the connection.
 
 Those are different mechanisms living at different layers, and in this tool they are
 handled by two different components. The scheme in the URL is the switch. Nothing
@@ -79,13 +80,12 @@ automation driver in front of it.
 
 ## Why SOCKS5 authentication needed a source patch
 
-Here is the part that is specific to this build rather than to proxies in general.
-
-Stock Firefox has supported SOCKS5 for years, but only **without** credentials. If you
-set a SOCKS5 proxy that requires a username and password in an unmodified Firefox, the
-authenticated handshake is not performed, and the connection is refused by any exit
-that demands auth. Most commercial residential and mobile exits demand auth. So on a
-stock engine, authenticated SOCKS5, which is the common case, simply did not work.
+SOCKS5 authentication needed a source patch because stock Firefox only speaks SOCKS5
+**without** credentials: given a SOCKS5 proxy that requires a username and password, an
+unmodified engine never performs the authenticated handshake, so any exit that demands
+auth refuses the connection. Most commercial residential and mobile exits demand auth,
+so on a stock engine, authenticated SOCKS5, which is the common case, simply did not
+work.
 
 This build carries a C++ patch to the proxy service so the engine reads a SOCKS
 username and password and includes them in the SOCKS5 handshake. That is the only
@@ -226,6 +226,9 @@ browser rather than trusting the scheme alone.
   [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928), and its username/password
   authentication method, the one the patch performs, is defined separately in
   [RFC 1929](https://www.rfc-editor.org/rfc/rfc1929).
+- The HTTP side's `Proxy-Authorization` header and the Basic authentication scheme it
+  carries are documented on
+  [MDN's Proxy-Authorization reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Proxy-Authorization).
 
 **See also:** [SOCKS5 proxy authentication in Playwright](playwright-socks5-proxy-authentication.md),
 [rotating proxies across runs](how-to-rotate-proxies-playwright.md), and

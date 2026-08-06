@@ -1,6 +1,6 @@
 ---
 title: "Stagehand and stealth: why a Firefox engine won't drop in"
-description: "Stagehand wraps Playwright with act, observe and extract but is TypeScript and Chromium-channel only, so a Python-launched Firefox cannot drop in. Here is what still applies."
+description: "Stagehand wraps Playwright with act, observe and extract, but it is TypeScript and Chromium-only, so a Python Firefox engine cannot drop in underneath it."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 14
@@ -9,13 +9,15 @@ nav_order: 14
 
 # Stagehand and stealth: why a Firefox engine won't drop in
 
-A common question from people building agents: "I use Stagehand for the act / observe /
-extract loop, and I want a stealthier engine under it. Can I swap in invisible_playwright?"
+**Short answer: no.** A Python-launched Firefox cannot serve as the engine under
+Stagehand's act/observe/extract loop, and the reason is not stealth quality - it is that
+two seams do not line up: the language runtime and the browser engine. That is the honest
+answer to a common question from people building agents: "I use Stagehand for the act /
+observe / extract loop, and I want a stealthier engine under it. Can I swap in
+invisible_playwright?"
 
-The short answer is no, and the reason is worth spelling out, because it is not about
-stealth quality. It is about two seams that do not line up. Once those are clear, the
-useful part is what does carry over: the things that decide whether an agent gets blocked
-are mostly not the engine at all.
+Once those two seams are clear, the useful part is what does carry over: the things that
+decide whether an agent gets blocked are mostly not the engine at all.
 
 ## What Stagehand actually is
 
@@ -64,7 +66,8 @@ gap we are about to close by wishing.
 
 If you are in Python, you do not need a wrapper to get act/observe/extract behaviour. You
 launch the browser and drive it with whatever model loop you like, because the object you
-get back is a plain Playwright `Browser` with every standard method:
+get back is a plain Playwright [`Browser`](https://playwright.dev/python/docs/api/class-browser)
+with every standard method:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -99,16 +102,15 @@ the shape is the same for any Python agent loop.
 
 ## Why the engine passes most checks, and what it does not touch
 
-This is where the honest framing matters, because it is easy to over-read what swapping
-the engine buys you.
-
 invisible_playwright is built to look like a real Firefox driven by a real person, and
-that is genuinely most of the fingerprint problem. The GPU, canvas, audio, fonts and
-screen are seed-derived and internally consistent; the TLS handshake is a real Firefox
-handshake because it is a real Firefox; and there is no driver flag announcing automation.
-Those are the layers a public suite like [CreepJS, sannysoft or BotD](how-to-test-bot-detection.md)
-reads, and they are the layers where a genuine engine wins by being genuine rather than by
-patching over a Chromium one.
+that is genuinely most of the fingerprint problem - but it is easy to over-read what
+swapping the engine buys you, so the framing has to stay honest.
+
+The GPU, canvas, audio, fonts and screen are seed-derived and internally consistent; the
+TLS handshake is a real Firefox handshake because it is a real Firefox; and there is no
+driver flag announcing automation. Those are the layers a public suite like
+[CreepJS, sannysoft or BotD](how-to-test-bot-detection.md) reads, and they are the layers
+where a genuine engine wins by being genuine rather than by patching over a Chromium one.
 
 What the engine does **not** touch, and no engine choice does:
 
@@ -189,6 +191,8 @@ answer.
 
 - Stagehand's own documentation and configuration for how it launches a browser: a
   TypeScript library that creates and owns a Chromium (or Chromium-channel) session.
+- [Playwright's `Browser` API reference](https://playwright.dev/python/docs/api/class-browser)
+  for what a launched browser exposes to any driver code, standard-method by standard-method.
 - This project's [Quickstart](quickstart.md) and [Configuration](configuration.md) for the
   real launch API and proxy handling.
 - This set's survey of

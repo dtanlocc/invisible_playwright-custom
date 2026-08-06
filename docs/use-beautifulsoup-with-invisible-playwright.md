@@ -1,6 +1,6 @@
 ---
 title: "Use BeautifulSoup with invisible_playwright"
-description: "Pair BeautifulSoup with invisible_playwright: the browser does the fingerprint-real fetch, BeautifulSoup parses page.content(). BS4 has nothing to do with detection."
+description: "Pair BeautifulSoup with invisible_playwright: the browser fetches with a real fingerprint, BeautifulSoup parses page.content(). BS4 plays no role in detection."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 80
@@ -32,8 +32,10 @@ Two tools, two jobs, no overlap:
 - **BeautifulSoup** performs the parse. Once the page is in hand, it turns a wall of
   HTML into something you can query by tag, class or attribute.
 
-The join between them is a single call: `page.content()` returns the current DOM as an
-HTML string, and BeautifulSoup takes a string. That is the entire integration.
+The join between them is a single call:
+[`page.content()`](https://playwright.dev/python/docs/api/class-page#page-content) returns
+the current DOM as an HTML string, and BeautifulSoup takes a string. That is the entire
+integration.
 
 ```python
 from bs4 import BeautifulSoup
@@ -65,10 +67,11 @@ you here, because there is nothing good to parse.
 invisible_playwright is built to answer those same questions the way a real Firefox on
 a real desktop does. The handshake is Firefox's handshake. The
 [TLS layer that a plain requests-based client cannot fake](web-scraping-tls-fingerprint-requests-blocked.md)
-is the browser's own. `navigator.webdriver` and the usual automation tells are handled
-at the engine, not bolted on in page script. By the time `page.content()` gives you an
-HTML string, the guarded fetch has already succeeded, and BeautifulSoup is operating on
-a page a human would have seen.
+is the browser's own. The
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+flag and the usual automation tells are handled at the engine, not bolted on in page
+script. By the time `page.content()` gives you an HTML string, the guarded fetch has
+already succeeded, and BeautifulSoup is operating on a page a human would have seen.
 
 Swapping BeautifulSoup for lxml directly, or for a different parser, changes none of
 this. The fetch already happened. The parser is downstream of the only thing detection
@@ -187,6 +190,12 @@ you supply; neither tool provides them.
 
 ## Sources
 
+- Playwright's documented behaviour for
+  [`page.content()`](https://playwright.dev/python/docs/api/class-page#page-content): it
+  returns the full HTML of the page, exactly as it exists at that instant.
+- The
+  [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  property, the standard WebDriver automation flag documented by MDN.
 - The project's own quickstart and configuration pages for the launch API, the seed
   behaviour and proxy handling.
 - BeautifulSoup's documented behaviour as an offline HTML parser: it accepts a string

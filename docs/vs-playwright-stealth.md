@@ -26,7 +26,7 @@ patching the engine and rebuilding the browser.
 ported to Python - [and that original plugin has its own separate maintenance story worth knowing](puppeteer-extra-stealth-unmaintained.md).
 Mechanically it is init scripts: JavaScript injected into the page
 before the site's own code runs, redefining the properties a detector is likely to check.
-`navigator.webdriver`, the plugins array, `navigator.languages`, and similar.
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver), the plugins array, `navigator.languages`, and similar.
 
 The appeal is real and worth stating plainly. It is a few lines added to an existing
 Playwright script, no browser fork, no binary to maintain, and it works immediately

@@ -23,14 +23,16 @@ cache timing turns into an identity bridge.
 
 ## What storage partitioning actually changed
 
-Browsers used to key storage by the origin that owned it. An embedded third party got the
-same storage everywhere it was embedded, which is what made cross-site tracking through
-storage work.
-
-Modern browsers key it by **the pair**: the top-level site plus the embedded origin, what
+Storage partitioning changed the key that browsers use to store data: instead of keying by
+the origin alone, modern browsers key by **the pair** of the top-level site plus the
+embedded origin, what
 [MDN's guide to the mechanism](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/State_Partitioning)
 calls double-keying. The same third party embedded on two different sites now gets two
-separate storages. [Service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+separate storages instead of one shared one.
+
+Before this, browsers keyed storage by the origin that owned it, so an embedded third party
+got the same storage everywhere it was embedded, which is what made cross-site tracking
+through storage work. [Service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
 registrations, IndexedDB, SharedWorkers, BroadcastChannel and Web Locks are all partitioned
 this way in third-party contexts.
 
@@ -72,14 +74,12 @@ profile. [Which is one of the reasons to pair a profile with an identity](persis
 
 ## Blocking service workers is visible
 
-Playwright exposes a
+Blocking service workers produces a browser in which they never register, and on a site
+that uses one that absence is observable in the page. Playwright exposes a
 [`service_workers` context option](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-service-workers)
 to block them, and several stacks built on it set it by default because a worker
-intercepting requests makes network interception harder to reason about. It is a
-sensible engineering default.
-
-It also produces a browser in which service workers never register. On a site that uses
-one, that is observable in the page:
+intercepting requests makes network interception harder to reason about - a sensible
+engineering default that trades one problem for a different, visible one:
 
 ```js
 navigator.serviceWorker.getRegistration().then(r => console.log(r));   // undefined, always
@@ -113,13 +113,11 @@ is. For everything a fingerprint is made of, it is not.
 ## Cache timing as an identity bridge
 
 A service worker's cache can reveal whether a browser has visited a resource before, purely
-from how fast the response comes back. No cookie is read. This is the subtler use, and the
-reason partitioning exists at all.
-
-A service worker can serve requests from its cache, which is much faster than the network.
-A page that measures how long a resource takes can infer whether it was cached, and
-therefore whether this browser has been to that resource before. No cookie is involved and
-nothing is read.
+from how fast the response comes back - no cookie is read, and nothing is read at all in
+the usual sense. This is the subtler use, and the reason partitioning exists at all: a
+service worker serves cached requests much faster than the network reaches them, so a page
+that measures how long a resource takes can infer whether it was cached, and therefore
+whether this browser has been to that resource before.
 
 Partitioning limits this to a single top-level site, which is most of the value. The
 residual gaps are documented in the research: workers that reach unpartitioned storage,

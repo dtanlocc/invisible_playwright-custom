@@ -206,6 +206,13 @@ for how to settle this yourself.
 
 - Camoufox's own documentation for its stated mechanism and surface list, read
   2026-07-28.
+- [MDN's `Intl` reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl)
+  and the [MDN Geolocation API overview](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API),
+  for what each documented surface actually covers on the web-platform side.
+- [MDN's `PointerEvent.pointerType`](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerType),
+  [`PointerEvent.pressure`](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure) and
+  [`Event.isTrusted`](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted) references, for
+  what the input event fields this project sets are specified to carry.
 - This project's patch catalogue for the seeded sampler, the bundled font architecture,
   the input event fields and the four automation-layer fixes.
 - Where a claim about their implementation could not be checked against their source, the

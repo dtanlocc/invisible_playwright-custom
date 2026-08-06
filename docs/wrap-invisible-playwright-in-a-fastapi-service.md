@@ -83,8 +83,9 @@ async def render(url: str):
         await page.close()
 ```
 
-The `browser` object is a real `playwright.async_api.Browser`, so `new_page`,
-`goto`, `content` and every other method behave exactly as documented upstream.
+The `browser` object is a real
+[`playwright.async_api.Browser`](https://playwright.dev/python/docs/api/class-browser),
+so `new_page`, `goto`, `content` and every other method behave exactly as documented upstream.
 There is no wrapped subset to learn - the only thing that differs from plain
 Playwright is the two-line launch. Run it with any ASGI server, for example
 `uvicorn app:app`, and `GET /render?url=https://example.com` returns the page as
@@ -96,7 +97,8 @@ is a service that falls over on the day it gets busy.
 
 ## Bound the concurrency with a semaphore
 
-The service above has a quiet flaw: nothing limits how many pages open at once.
+A render service that just launches a page per request has a quiet flaw:
+nothing limits how many pages open at once.
 Ten callers arriving together open ten pages together, a hundred open a hundred,
 and each page is real memory and a real share of one CPU. A single browser does
 not protect you from this - it just means all those pages crowd into one
@@ -151,7 +153,8 @@ return a `503` when the wait runs out.
 
 ## Returning a screenshot instead of HTML
 
-The same service returns a PNG with one different call. A screenshot endpoint is
+A render service built the same way returns a PNG with one different call:
+swap `page.content()` for `page.screenshot()`. A screenshot endpoint is
 useful precisely because a text log tells you what your extractor found, while
 the image tells you what the page actually rendered - the distinction that
 [reading the screenshot instead of the log](how-to-test-bot-detection.md) is
@@ -173,7 +176,8 @@ async def shot(url: str, full_page: bool = False):
             await page.close()
 ```
 
-`page.screenshot` is stock Playwright, so `full_page=True` captures past the
+[`page.screenshot`](https://playwright.dev/python/docs/api/class-page#page-screenshot)
+is stock Playwright, so `full_page=True` captures past the
 fold exactly as it does everywhere else - the mechanics and the pitfalls of the
 tall capture are in
 [how to take full-page screenshots](how-to-take-full-page-screenshots-playwright.md).

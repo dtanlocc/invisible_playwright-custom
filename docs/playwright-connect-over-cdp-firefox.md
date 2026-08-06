@@ -21,10 +21,13 @@ this project you usually do not need either.
 
 ## connect_over_cdp is a Chromium-only entry point
 
-`connect_over_cdp` does exactly one thing: it speaks the Chrome DevTools Protocol to
-an already-running browser that is listening on a CDP endpoint. It is a real method on
-every browser type in Playwright's Python API, including `firefox`, so calling it does
-not raise "no such attribute". It raises because there is no endpoint on the other end.
+[`connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp)
+does exactly one thing: it speaks the Chrome DevTools Protocol to an already-running
+browser that is listening on a CDP endpoint. Playwright's own reference for the method
+states plainly that "connecting over the Chrome DevTools Protocol is only supported for
+Chromium-based browsers." It is a real method on every browser type in Playwright's
+Python API, including `firefox`, so calling it does not raise "no such attribute". It
+raises because there is no endpoint on the other end.
 
 ```python
 from playwright.sync_api import sync_playwright
@@ -61,8 +64,12 @@ the connection primitive that reaches it is not `connect_over_cdp`.
 
 ## The path that replaces it: connect() over a Juggler endpoint
 
-The remote-connection method for Firefox is `connect()`, not `connect_over_cdp()`. It
-attaches to a **browser server** that publishes a `ws://` endpoint speaking Juggler.
+The remote-connection method for Firefox is
+[`connect()`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect),
+not `connect_over_cdp()`. It attaches to a **browser server** that publishes a `ws://`
+endpoint speaking Juggler; Playwright's own reference describes `connect()` as attaching
+"to an existing browser instance created via `BrowserType.launchServer`" and does not
+restrict it to Chromium the way `connect_over_cdp` is restricted.
 
 You start that server with Playwright's own tooling. The `launchServer()` call in the
 Node API, or the `playwright launch-server --browser firefox` CLI it backs, both boot a
@@ -137,8 +144,8 @@ common case, the context manager removes the reason people went looking for
 
 ## What "just launch it normally" buys you over attaching
 
-Attaching over a protocol has a cost that the in-process launch avoids, and it is worth
-naming because it is the same class of thing this documentation set keeps returning to.
+Attaching over a protocol has a cost that the in-process launch avoids: the connection
+method itself is part of what a page can measure, not just what it lets you do.
 
 An automation protocol is a surface. Attaching a debugger to a page realm, historically,
 did four separately observable things to Firefox: it disabled the optimising JIT so the
@@ -193,8 +200,10 @@ layer underneath to switch on. Use the Juggler `connect()` path instead.
 
 ## Sources
 
-- Playwright's Python `BrowserType` surface, where `connect` and `connect_over_cdp` are
-  distinct methods and only Chromium can produce a CDP endpoint to attach to.
+- Playwright's own [`BrowserType` API reference](https://playwright.dev/python/docs/api/class-browsertype),
+  where [`connect_over_cdp`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect-over-cdp)
+  and [`connect`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-connect)
+  are documented as distinct methods, the former stated as Chromium-only.
 - This project's Juggler protocol contract, including the closed-world schema validation
   and the driver-layer artefacts documented on the pages linked above.
 

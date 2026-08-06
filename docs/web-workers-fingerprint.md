@@ -24,6 +24,10 @@ does differently, and how to check your own.
 
 ## A worker is a separate realm with its own navigator
 
+A worker created from a script or blob URL gets its own `navigator`, populated by the
+browser for that worker rather than copied from the document. Reading it from inside the
+worker shows what the browser decided independently of any page-level patch:
+
 ```js
 const w = new Worker(URL.createObjectURL(new Blob([`
   postMessage({
@@ -48,7 +52,7 @@ result rather than a hardware result.
 
 ### What a worker can read
 
-`WorkerNavigator` is a subset of `Navigator`, and the subset is exactly the part that
+[`WorkerNavigator`](https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator) is a subset of `Navigator`, and the subset is exactly the part that
 matters here: `userAgent`, `platform`, `language` and `languages`,
 `hardwareConcurrency`, `deviceMemory` where implemented, `onLine`, and the storage
 estimate. Plus `performance.now()` for timing.
@@ -58,7 +62,7 @@ patches do not reach.
 
 ## OffscreenCanvas: the canvas path that bypasses the patch
 
-`OffscreenCanvas` lets a worker create and draw to a canvas with no DOM element involved and
+[`OffscreenCanvas`](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas) lets a worker create and draw to a canvas with no DOM element involved and
 read the pixels back, which sidesteps any protection that only hooks the HTML canvas element.
 This is the strongest version of the problem, and it is not theoretical.
 
@@ -195,7 +199,7 @@ whose worker check is this idea applied to one value.
 
 ## Sources
 
-- MDN for `OffscreenCanvas`, `WorkerNavigator` and the worker types.
+- MDN for [`OffscreenCanvas`](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas), [`WorkerNavigator`](https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator) and the worker types.
 - Public reports of canvas protections not applying inside shared and service workers in
   one engine, and Firefox's own tracked OffscreenCanvas gap, for the claim that this is
   actively used.

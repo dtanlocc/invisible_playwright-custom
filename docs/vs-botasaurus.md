@@ -8,13 +8,16 @@ nav_order: 22
 
 # botasaurus vs invisible_playwright: framework vs library
 
-These two tools get compared because both promise a browser that reads as real,
-but they sit at different layers of the stack, and picking between them is mostly
-a question about how much of your scraping harness you want to own.
+botasaurus is a batteries-included scraping framework built around Chrome;
+invisible_playwright is a patched-Firefox engine plus a seed-reproducible
+fingerprint that you drive with the automation library you already know. That is
+the whole difference: a framework that decides your harness for you, versus an
+engine you drive with your own.
 
-botasaurus is a scraping framework. invisible_playwright is a browser engine plus
-a fingerprint that you drive with the automation library you already know. That is
-the whole difference, and the rest of this page is what it means in practice.
+The two get compared because both promise a browser that reads as real, but they
+sit at different layers of the stack, and picking between them is mostly a
+question about how much of your scraping harness you want to own. The rest of
+this page is what that difference means in practice.
 
 ## What botasaurus is
 

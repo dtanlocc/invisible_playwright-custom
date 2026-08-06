@@ -23,8 +23,9 @@ whole game.
 ## The four layers, and why fixing one does not fix the others
 
 1. **Browser fingerprint.** What your browser reports about itself: the engine, the GPU,
-   the fonts, the screen, the canvas and audio hashes, whether `navigator.webdriver` is
-   set. Stock Playwright's default fingerprint can be internally inconsistent - a value
+   the fonts, the screen, the canvas and audio hashes, whether
+   [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+   is set. Stock Playwright's default fingerprint can be internally inconsistent - a value
    claiming one operating system next to a value that belongs to another - and a detector
    scores the contradiction, not the individual values.
 2. **IP reputation.** Your exit address, scored before your browser sends a single byte.
@@ -60,7 +61,8 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 The `browser` object is a real Playwright `Browser`, so `new_page`, `goto`, `click`,
-`fill` and the rest behave exactly as documented upstream. Passing `seed=42` makes the
+`fill` and the rest behave exactly as
+[documented upstream](https://playwright.dev/python/docs/api/class-page). Passing `seed=42` makes the
 identity reproducible: the same seed yields the same GPU, the same canvas hash, the same
 fonts every run, which is what turns a flaky "sometimes blocked" failure into one you can
 replay and bisect. That is the mechanism behind why the browser-check layer passes -

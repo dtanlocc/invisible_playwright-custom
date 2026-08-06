@@ -26,11 +26,13 @@ port is left exactly as the machine found it instead of being made up.
 
 ## What "matching" actually means
 
-The candidate that matters here is the server-reflexive one, the `srflx`. It is what a
-real browser behind a home router produces: the router rewrites the source address of
-an outbound packet to the household's public address and to some port the router chose,
-and a [STUN](https://datatracker.ietf.org/doc/html/rfc5389) server on the far side reports that rewritten pair back. The pair is the NAT
-mapping. A real `srflx` is always a public address with a plausible port next to it.
+Matching means the server-reflexive (`srflx`) candidate carries the same public address as
+the HTTP exit, paired with a real, non-zero port next to it, not just the address on its own.
+That candidate is what a real browser behind a home router produces: the router rewrites the
+source address of an outbound packet to the household's public address and to some port the
+router chose, and a [STUN](https://datatracker.ietf.org/doc/html/rfc5389) server on the far
+side reports that rewritten pair back. The pair is the NAT mapping, and a real `srflx` is
+always a public address with a plausible port next to it.
 
 So matching is not just "show the proxy's address". It is: show the proxy's address in
 a candidate that still looks like a NAT mapping. An address with no port, a port of
@@ -72,17 +74,17 @@ with InvisiblePlaywright(seed=42, proxy=proxy) as browser:
 
 ## Swap the address, keep the NAT port
 
-The naive way to force a matching address is to fabricate a whole candidate: pick the
-exit address, attach some port, and hand it to the page. That produces a matching
-address and an unconvincing mapping, because the invented port carries none of the
-structure a real router mapping has.
-
-What happens instead is a swap, not a fabrication. The machine still performs the real
-STUN exchange and learns a real mapped pair. The address half of that pair is replaced,
-in place, with the measured exit address. The port half is left exactly as the network
+What happens is a swap, not a fabrication. The machine still performs the real STUN
+exchange and learns a real mapped pair. The address half of that pair is replaced, in
+place, with the measured exit address. The port half is left exactly as the network
 produced it. The candidate that reaches the page is therefore a genuine mapping with one
 field corrected: the public address now equals the proxy exit, and the port is the real
 one the network assigned, not a constant and not a zero.
+
+The naive alternative would be to fabricate a whole candidate instead: pick the exit
+address, attach some port, and hand it to the page. That produces a matching address and
+an unconvincing mapping, because the invented port carries none of the structure a real
+router mapping has.
 
 That distinction is the whole point of the design. A port that is preserved from a real
 exchange varies the way a real one does and pairs with the address the way a real one
@@ -92,11 +94,7 @@ reproduce, because it was never synthetic in the first place.
 
 ## Why the value travels as an environment variable first
 
-There are two channels that could carry the exit address into the part of the browser
-that builds the candidate: a preference, synchronised from the parent process after the
-child is running, or the child's environment, fixed at the moment it is launched.
-
-The address is delivered through the environment first, with the preference as a
+The exit address is delivered through the environment first, with the preference as a
 fallback, for a timing reason. A child process inherits its environment at the instant
 it is started, so the value is present before the process has executed a single line.
 The preference channel synchronises slightly later, after the parent has finished
@@ -104,6 +102,12 @@ propagating it. WebRTC gathering can begin early, and a value that is not there 
 value the candidate cannot use. Delivering it as inherited environment means it is
 available from the first moment gathering could ask for it, with the preference behind it
 so nothing depends on that timing being tight.
+
+There are two channels that could have carried the exit address into the part of the
+browser that builds the candidate: a preference, synchronised from the parent process
+after the child is running, or the child's environment, fixed at the moment it is
+launched. The environment wins because of when each one becomes available, not because
+of anything else about the two.
 
 You never set either channel by hand. The measured exit is written into both before
 launch; an explicitly supplied value wins if you provide one, and with no proxy nothing

@@ -192,8 +192,10 @@ allowed to make.
 
 ## Sources
 
-- The CSS Overflow and CSSOM view specifications, which define `overflow: scroll`
-  layout and the `offsetWidth` / `clientWidth` geometry the measurement reads.
+- The [CSS Overflow](https://www.w3.org/TR/css-overflow-3/) and
+  [CSSOM View](https://www.w3.org/TR/cssom-view-1/) specifications, which define
+  `overflow: scroll` layout and the `offsetWidth` / `clientWidth` geometry the
+  measurement reads.
 - This project's own fingerprint parity checks, which compare a seeded identity's
   layout metrics against a stock Firefox on the same machine, field by field.
 

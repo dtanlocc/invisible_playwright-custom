@@ -8,11 +8,14 @@ nav_order: 20
 
 # invisible_playwright vs hrequests
 
-Most tools on these comparison pages pick one layer and live there. hrequests, by
-daijro, is unusual because it is two tools in one package: a TLS-impersonating HTTP
-client for requests that never open a browser, and an optional browser mode for the
-pages that need one. That hybrid design is the interesting part, and it means the
-comparison is really two comparisons, because each mode makes a different trade.
+hrequests pairs a TLS-impersonating HTTP client with a browser mode that injects its
+fingerprint into the page after launch; invisible_playwright is a single browser whose
+fingerprint comes from inside a patched engine itself, so there is no injection for a
+detector to find. hrequests, by daijro, is unusual among the tools on these comparison
+pages because it is two tools in one package: a TLS-impersonating HTTP client for
+requests that never open a browser, and an optional browser mode for the pages that
+need one. That hybrid design is the interesting part, and it means the comparison is
+really two comparisons, because each mode makes a different trade.
 
 This page walks the two modes, names the seam each one carries, and shows where a
 fingerprint that lives in the browser engine lands differently. hrequests was last

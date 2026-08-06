@@ -23,7 +23,9 @@ without the others and you have manufactured a contradiction that scores against
 
 ## What per-context geolocation actually does
 
-Two independent context options do the work, and they are independent on purpose.
+Two independent context options set the position and remove the prompt: `geolocation`
+supplies the coordinates, and `permissions=["geolocation"]` pre-grants access so the page
+never has to ask. They are independent on purpose.
 
 - [`geolocation={"latitude": ..., "longitude": ...}`](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-geolocation)
   is the position the browser hands to
@@ -101,16 +103,14 @@ want a later page to see the prompt again.
 
 ## Why the coordinates have to agree with everything else
 
-This is the part that decides whether the disguise holds, and it has nothing to do with
-Playwright.
-
 A precise coordinate is a strong claim, and a consistency check reads it against three
 other things the session already announced: the country and region of your **exit IP**,
-the browser **timezone**, and the **locale** and language list. Coordinates in one country
-with an exit IP in another, or a timezone on a different continent, is not a subtle tell.
-It is two values that should agree and do not, which is [the exact shape detectors look
-for](playwright-detected-as-bot.md): they rarely flag a value for being unusual, they flag
-two values for disagreeing.
+the browser **timezone**, and the **locale** and language list. This is the part that
+decides whether the disguise holds, and it has nothing to do with Playwright. Coordinates
+in one country with an exit IP in another, or a timezone on a different continent, is not
+a subtle tell. It is two values that should agree and do not, which is [the exact shape
+detectors look for](playwright-detected-as-bot.md): they rarely flag a value for being
+unusual, they flag two values for disagreeing.
 
 So pin them together, to the same place:
 
@@ -130,14 +130,13 @@ is the same defect one surface over.
 
 ## What this fixes and what it does not
 
-Worth being exact, because geolocation is easy to overtrust.
-
 `invisible_playwright` is built to look like a real Firefox driven by a real person, and
 that is why it clears most detection surfaces on its own: the fingerprint, the TLS
 handshake and the driver layer read as a genuine browser, not as automation wearing a
-browser. Per-context geolocation slots into that cleanly, because a real browser answers
-`getCurrentPosition()` with a real position and now yours does too, consistent with the
-rest of the identity when you pin it correctly.
+browser. Worth being exact about what geolocation adds on top of that, because it is easy
+to overtrust. Per-context geolocation slots into that cleanly, because a real browser
+answers `getCurrentPosition()` with a real position and now yours does too, consistent
+with the rest of the identity when you pin it correctly.
 
 What it does not do, and cannot: it does not launder a bad exit. A coordinate is a
 statement, not proof of location, and if the IP behind it sits in a datacenter range or a

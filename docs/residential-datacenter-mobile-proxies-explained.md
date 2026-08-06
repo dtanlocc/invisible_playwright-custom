@@ -10,7 +10,8 @@ nav_order: 19
 # Residential vs datacenter vs mobile proxies explained
 
 There are two completely separate things a site reads about your session, and they are
-easy to confuse. One is the browser: the fingerprint, the driver layer, the TLS
+easy to confuse - especially when the question is which of residential, datacenter or
+mobile proxies to use. One is the browser: the fingerprint, the driver layer, the TLS
 handshake. The other is the exit address: who owns the IP, what its reverse DNS says,
 how many other people are behind it right now. A tool can make the first one look like a
 real person on a real Windows machine and change nothing about the second.
@@ -26,7 +27,8 @@ you drove through it.
 When a request arrives, a site has a handful of cheap lookups it can do on the source
 address alone, before it runs a single line of your JavaScript.
 
-- **The ASN and its owner.** Every IP belongs to an Autonomous System, and the AS owner
+- **The ASN and its owner.** Every IP belongs to an
+  [Autonomous System](https://datatracker.ietf.org/doc/html/rfc1930), and the AS owner
   is public. A block registered to a hosting company reads as a hosting company. A block
   registered to a consumer broadband provider reads as consumer broadband. This lookup
   costs nothing and is the first thing a reputation service does.
@@ -66,8 +68,9 @@ which is worth reading if the datacenter question is the one that brought you he
 ## Residential proxies: consumer ranges, higher cost
 
 A residential proxy exits from an address registered to a consumer broadband provider.
-The ASN reads as an ISP, the rDNS looks like a subscriber line, and to the four lookups
-above the exit is indistinguishable from a household on that ISP.
+The ASN reads as an ISP, the rDNS looks like a subscriber line, and on the ASN and
+reverse-DNS checks a site runs before your page loads, the exit is indistinguishable
+from a household on that ISP.
 
 That is why residential IPs survive the ASN filter that datacenter IPs fail. They are
 also more expensive, usually slower, and often billed by the gigabyte rather than the
@@ -130,10 +133,11 @@ with InvisiblePlaywright(seed=42, proxy=proxy) as browser:
     print(page.text_content("body"))
 ```
 
-The `browser` here is a real Playwright `Browser`, so every standard method works
-unchanged. Swap the `server` value for a datacenter, residential or mobile endpoint and
-the browser is byte-for-byte identical; only the class of address that arrives at
-`example.com` differs. Passing `seed=42` fixes the fingerprint so that when you compare
+The `browser` here is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every standard
+method works unchanged. Swap the `server` value for a datacenter, residential or mobile
+endpoint and the browser is byte-for-byte identical; only the class of address that
+arrives at `example.com` differs. Passing `seed=42` fixes the fingerprint so that when you compare
 two proxy classes, the browser is held constant and the IP is the only variable - which
 is the only honest way to attribute a block to the exit rather than the browser.
 
@@ -207,11 +211,16 @@ class is a separate problem from the browser string.
 
 ## Sources
 
+- [RFC 1930](https://datatracker.ietf.org/doc/html/rfc1930), the IETF guidelines that
+  define an Autonomous System as a routing policy unit and specify the ASN that
+  identifies it - the basis for the ASN lookup described above.
+- [Playwright's `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for what the launched `Browser` object exposes in the example above.
 - This project's configuration notes on proxy schemes, egress-derived timezone, and the
   proportion of public proxy IPs already known and blocked.
-- Public IP-classification behaviour: ASN and AS-owner registration, reverse DNS
-  conventions for server versus consumer ranges, and carrier-grade NAT on mobile
-  networks - each read from how the lookups work rather than from any vendor's claims.
+- Public IP-classification behaviour: reverse DNS conventions for server versus consumer
+  ranges, and carrier-grade NAT on mobile networks - each read from how the lookups work
+  rather than from any vendor's claims.
 - The project's own experience that a coherent fingerprint on a poorly-chosen exit still
   loses, which is the reason this page exists.
 

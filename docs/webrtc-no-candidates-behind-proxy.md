@@ -9,16 +9,16 @@ nav_order: 14
 
 # WebRTC has no ICE candidates behind a proxy
 
+The short version: a residential proxy tunnels TCP and drops UDP, STUN needs UDP, so
+the gathering that should produce a public candidate produces nothing. A real Firefox
+behind a home router never comes back empty. So "empty" does not read as "private", it
+reads as "manipulated".
+
 You route the browser through a residential proxy, open a detection page, and the
 WebRTC section comes back empty. No local candidate, no server reflexive candidate,
 nothing. It feels like a win, because nothing leaked. It is not a win. An empty
 candidate list is one of the loudest signals a fingerprinting page can read, and this
 page is about why the emptiness happens and why it is the tell.
-
-The short version: a residential proxy tunnels TCP and drops UDP, STUN needs UDP, so
-the gathering that should produce a public candidate produces nothing. A real Firefox
-behind a home router never comes back empty. So "empty" does not read as "private", it
-reads as "manipulated".
 
 ## The empty list is the tell, not the leak
 

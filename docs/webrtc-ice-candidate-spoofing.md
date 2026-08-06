@@ -12,14 +12,14 @@ nav_order: 2
 Every guide about hiding your address in WebRTC stops at the address. Rewrite the
 server-reflexive candidate to say the proxy's IP and you are done.
 
-You are not done. A candidate is a structured record with half a dozen fields, it arrives
-at a particular moment, and it sits in a set alongside other candidates that have to be
-consistent with it. We got the address right immediately and then spent a long time
-finding out that three other things were wrong.
+**You are not done: the candidate that betrays you is a structured record with half a
+dozen fields, and this page covers what has to be replaced, the two ways to do it, and the
+three fields that give away a synthetic candidate - when it arrives, what priority it
+claims, and what foundation it shares.**
 
-This page is what has to be replaced, the two ways to do it, and the three fields that
-betray a synthetic candidate: when it arrives, what priority it claims, and what
-foundation it shares.
+A candidate arrives at a particular moment, and it sits in a set alongside other
+candidates that have to be consistent with it. We got the address right immediately and
+then spent a long time finding out that three other things were wrong.
 
 ## What actually has to be replaced
 
@@ -40,11 +40,12 @@ another, and the two disagree. The goal is the opposite: a
 [WebRTC address that matches the proxy exit](webrtc-ip-match-proxy-exit.md).
 
 The **host** candidate is not the problem, and this is where people overcorrect. Firefox
-already masks it behind an mDNS `<uuid>.local` name by default, which is what real
-browsers do. Replacing it with a fake LAN IP makes you *worse* than stock: we shipped
-that once, and a public leak test reported "WebRTC exposes your Local IP" against our
-browser and not against an ordinary Firefox. The correct move is to leave the default
-alone.
+already masks it behind an mDNS `<uuid>.local` name by default, the
+[same host-candidate concealment mechanism drafted at the IETF](https://datatracker.ietf.org/doc/html/draft-ietf-rtcweb-mdns-ice-candidates)
+for exactly this privacy problem, and it is what real browsers do. Replacing it with a
+fake LAN IP makes you *worse* than stock: we shipped that once, and a public leak test
+reported "WebRTC exposes your Local IP" against our browser and not against an ordinary
+Firefox. The correct move is to leave the default alone.
 
 [The wider version of this argument](webrtc-leak-proxy.md) is that suppression and
 overcorrection are both louder than the leak.
@@ -213,6 +214,9 @@ other half of making a proxied session agree with itself, and
 - [RFC 8445 (Interactive Connectivity Establishment)](https://www.rfc-editor.org/rfc/rfc8445),
   which defines the candidate priority formula, and the local-preference range produced by
   the ICE implementation Firefox uses.
+- [The IETF draft on mDNS ICE candidates](https://datatracker.ietf.org/doc/html/draft-ietf-rtcweb-mdns-ice-candidates),
+  which documents concealing host-candidate IP addresses behind mDNS names, the mechanism
+  Firefox ships by default.
 - Published detection guidance for this technique, which names round-trip timing and
   candidate ordering as the ways to spot a fabricated address.
 - This project's own ICE work: the post-STUN address swap, the synthetic fallback with its

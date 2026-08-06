@@ -120,19 +120,19 @@ around a save dialog because there is no save dialog.
 
 ## The honest part: what a download does and does not reveal
 
-Now the caveat, which is the whole reason this is not just another scraping snippet.
+**For the most part, an automated download is not a detection surface, because the
+file landing on disk is not observable to the page.** JavaScript running in the
+document cannot see your filesystem, cannot read where the file went, and cannot time
+the write, so once the browser has begun the transfer, what your code does with the
+bytes happens entirely outside the page's view.
 
-The suppressed UI and the instant, dialog-free handling are real behaviours, and they
-are machine behaviours, not human ones. A person cannot accept a file in zero
-milliseconds with no visible interface. So it is fair to ask whether an automated
-download is a detection surface.
-
-For the most part it is not, and the reason is specific: **the file landing on disk is
-not observable to the page.** JavaScript running in the document cannot see your
-filesystem, cannot read where the file went, and cannot time the write. Once the browser
-has begun the transfer, what your code does with the bytes happens entirely outside the
-page's view. The shelf that did not appear is the browser's own UI, not a page element,
-so the document cannot query its absence either.
+That is the caveat this page exists to state plainly, and it earns the reasoning
+behind it rather than a bare claim. The suppressed UI and the instant, dialog-free
+handling described above are real behaviours, and they are machine behaviours, not
+human ones: a person cannot accept a file in zero milliseconds with no visible
+interface, which is exactly why it is fair to ask the question in the first place. The
+shelf that did not appear is the browser's own UI, not a page element, so the document
+cannot query its absence either.
 
 What the page can observe is everything up to and around the click: that a link was
 activated, how the pointer arrived at it, whether the activation carried a trusted event,
@@ -212,9 +212,10 @@ page that triggered it, proxy and proxied DNS included, with no separate configu
 
 ## Sources
 
-- The upstream Playwright download API (`expect_download`, `Download.save_as`,
-  `Download.suggested_filename`, `Download.path`, the `accept_downloads` context option),
-  which this wrapper exposes unchanged.
+- [The Playwright download API](https://playwright.dev/python/docs/downloads)
+  (`page.expect_download`, `Download.save_as`, `Download.suggested_filename`,
+  `Download.path`), plus the `accept_downloads` context option, all of which this
+  wrapper exposes unchanged.
 - This project's engine, whose download handling routes an intercepted transfer to the
   automation channel rather than to a browser download shelf.
 - The observability boundary between page JavaScript and the filesystem, which is what

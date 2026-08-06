@@ -16,7 +16,7 @@ evidence, what happens when you do it anyway, and the routes that work.
 
 ## What Playwright's own documentation says
 
-Two statements from the same API reference, and they are not about the same thing.
+Two statements from the same [API reference](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch), and they are not about the same thing.
 
 On the `server` field:
 
@@ -38,7 +38,7 @@ opened in November 2021 and **still open**, with 49 thumbs-up and the label
 `P3-collecting-feedback`. A feature request that has been open for five years is not a
 feature that quietly works.
 
-Checked 2026-07-27, against Playwright's `docs/src/api/params.md` and the live issue.
+Checked 2026-07-27, against Playwright's [`docs/src/api/params.md`](https://github.com/microsoft/playwright/blob/main/docs/src/api/params.md) and the live issue.
 
 ## What happens when you pass them anyway
 

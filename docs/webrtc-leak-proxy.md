@@ -9,6 +9,11 @@ nav_order: 1
 
 # WebRTC leak with a proxy in Playwright and Selenium
 
+A SOCKS5 or HTTP proxy does not stop a WebRTC leak: proxies carry TCP, but
+WebRTC's STUN step needs UDP, so the browser asks a STUN server directly and
+the real IP comes back. Disabling WebRTC avoids that leak, but a browser with
+zero ICE candidates is its own signature.
+
 "My browser leaks my real IP while using a proxy." "Playwright leaks IP with proxy."
 "How do I prevent WebRTC leaks in Selenium?" Every answer to those questions ends the
 same way: disable WebRTC, or set
@@ -22,7 +27,10 @@ gate of ours that printed green over a browser whose WebRTC was completely dead.
 
 ## What a real Firefox behind NAT emits
 
-Start here, because it is the target and almost nobody states it.
+A real Firefox behind NAT emits exactly two ICE candidates: one host
+candidate carrying a random mDNS name instead of the LAN address, and one
+srflx candidate carrying the public IP learned from a STUN server. Start
+here, because almost nobody states this baseline explicitly.
 
 Open a `RTCPeerConnection` on an ordinary consumer machine and you get, at minimum:
 

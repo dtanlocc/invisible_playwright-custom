@@ -1,6 +1,6 @@
 ---
 title: "tls-client vs a real browser: when TLS is enough"
-description: "When tls-client and its JA3/HTTP2 socket spoofing beats a real browser on JSON and HTML endpoints, and the exact seam where JS execution forces you back to a full Firefox."
+description: "When tls-client's JA3/HTTP2 socket spoofing beats a real browser on JSON and HTML endpoints, and the seam where JS execution forces a switch to real Firefox."
 parent: "Comparisons"
 nav_order: 32
 ---
@@ -19,8 +19,10 @@ before that data exists. That seam is the whole comparison.
 
 ## What tls-client actually does
 
-A plain HTTP client in Python sends a TLS `ClientHello` that looks nothing like a
-browser: different cipher order, different extensions, a different HTTP/2 settings frame.
+A plain HTTP client in Python sends a TLS
+[`ClientHello`](https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2) that looks
+nothing like a browser: different cipher order, different extensions, a different
+[HTTP/2 settings frame](https://datatracker.ietf.org/doc/html/rfc9113#name-settings).
 That signature, the [JA3/JA4 handshake fingerprint](ja3-ja4-tls-fingerprint.md), is read
 before a single byte of your request body is parsed, so a request can be rejected purely
 for how it opened the connection.
@@ -183,6 +185,10 @@ that must run goes to the browser.
 - The `tls-client` project's own repository and its documented client-profile list, read
   from source rather than from a summary, for what it reproduces at the handshake and
   HTTP/2 layer.
+- [RFC 8446 section 4.1.2](https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2),
+  which defines the TLS `ClientHello` message a handshake fingerprint is read from.
+- [RFC 9113 section 6.5](https://datatracker.ietf.org/doc/html/rfc9113#name-settings),
+  which defines the HTTP/2 SETTINGS frame a TLS-impersonation client also has to match.
 - This project's own fingerprint and network gates, for the claim that a browser's TLS
   handshake and its JavaScript identity come from the same process.
 

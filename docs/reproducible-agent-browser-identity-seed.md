@@ -39,7 +39,8 @@ identity instead.
 ## Give one agent one seed (the two-line version)
 
 If you already have Playwright code, switching is two lines, and adding a seed is one
-keyword. The `browser` object is a real Playwright `Browser`, so every method you
+keyword. The `browser` object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every method you
 already use works unchanged.
 
 ```python
@@ -78,8 +79,11 @@ with sf as browser:
 
 The claim is testable in a few lines. Launch the same seed twice and compare a
 fingerprint surface that a random build would change every time. Here the WebGL
-renderer string and a canvas readback, which should be byte-identical across the two
-runs:
+renderer string, read via the
+[`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+extension, and a canvas readback via
+[`toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL),
+which should be byte-identical across the two runs:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -193,6 +197,12 @@ integer.
 - This project's own release gates, which assert that one seed reproduces one identity
   (the same seed must yield the same values on relaunch) and that a suppressed or absent
   signal counts as a failure rather than a pass.
+- Playwright's own [`Browser` API reference](https://playwright.dev/python/docs/api/class-browser)
+  for what `new_page` returns: the object every example above drives is the standard
+  Playwright API, not a fork of it.
+- MDN's [`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+  and [`HTMLCanvasElement.toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+  references for the two readback methods the reproduction proof above uses.
 
 **See also:** [why a canvas hash changes every run without a fixed seed](canvas-fingerprint-changes-every-run.md),
 [whether two devices can share a browser fingerprint](can-two-devices-share-a-browser-fingerprint.md),

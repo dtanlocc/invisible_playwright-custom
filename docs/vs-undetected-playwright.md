@@ -27,8 +27,10 @@ When automation is spotted, the tell lives in one of three places:
 - **The driver layer.** How the framework talks to the browser over its debugging
   protocol, and what that protocol leaks. This is a property of the framework-plus-engine
   pairing, not of the page.
-- **The fingerprint layer.** What the browser itself reports: canvas, WebGL renderer,
-  fonts, audio, screen, the whole physical-machine picture. This is decided by the
+- **The fingerprint layer.** What the browser itself reports: the
+  [canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API), WebGL renderer,
+  fonts, the [audio stack](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API),
+  screen, the whole physical-machine picture. This is decided by the
   browser build and the host, and no page-level script can rewrite it convincingly.
 
 undetected-playwright works on the first. patchright works mostly on the second. A
@@ -83,8 +85,9 @@ with InvisiblePlaywright(seed=42) as browser:
     print(page.title())
 ```
 
-The `browser` object is a real Playwright `Browser`. Every method you already use works
-unchanged. The `seed=42` makes the whole identity reproducible: same seed, same GPU, same
+The `browser` object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser). Every method you already
+use works unchanged. The `seed=42` makes the whole identity reproducible: same seed, same GPU, same
 canvas hash, same fonts, every run, which is what makes a failing run replayable instead
 of a guess. Drop the seed and each session gets a fresh, distinct machine.
 
@@ -172,6 +175,12 @@ real-looking browser on a known-bad address is still on a known-bad address.
   rather than from summaries, for what each one patches and at which layer.
 - This project's own fingerprint generation and release gates, for how a seed-derived,
   engine-level fingerprint stays internally consistent across surfaces.
+- [MDN, Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) and
+  [MDN, Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API),
+  read 2026-08-06, for what the browser-reported surfaces named in the fingerprint layer
+  actually are.
+- [Playwright's own `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  read 2026-08-06, for what the `browser` object in the code example is and does.
 
 **See also:** [invisible_playwright vs Patchright](vs-patchright.md),
 [invisible_playwright vs rebrowser-patches](vs-rebrowser-patches.md), and

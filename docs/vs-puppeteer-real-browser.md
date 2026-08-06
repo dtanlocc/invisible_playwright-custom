@@ -62,8 +62,8 @@ a compiled build moves the same work to a place the page cannot query.
 ## The same task in invisible_playwright
 
 Switching from stock Playwright is two lines, and every Playwright method you
-already use works unchanged, because the object you get back is a real Playwright
-`Browser`.
+already use works unchanged, because the object you get back is a real
+[Playwright `Browser`](https://playwright.dev/python/docs/api/class-browser).
 
 ```python
 from invisible_playwright import InvisiblePlaywright

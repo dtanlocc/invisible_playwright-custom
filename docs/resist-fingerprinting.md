@@ -51,8 +51,8 @@ around it, and anything that needs a canvas read either prompts or fails.
 
 ## Why it is the wrong tool for automation
 
-Because of what "not fingerprintable" means here.
-
+RFP is the wrong tool for automation because of what "not fingerprintable" means
+here: it optimises for anonymity within a group, not plausibility as an individual.
 RFP does not make you look like a typical user. It makes you look **identical to
 every other RFP user**. That is exactly right when the population is large and the
 goal is to disappear into it: this is the Tor Browser model, where uniformity is the

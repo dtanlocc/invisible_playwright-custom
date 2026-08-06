@@ -60,7 +60,8 @@ mismatch lives in the browser, not in the crawler wrapped around it.
 ## Swap the browser, keep the crawler
 
 Because `scrapy-playwright` forwards `PLAYWRIGHT_LAUNCH_OPTIONS` straight into
-Playwright's `launch()`, you can hand it a different Firefox binary and a full set of
+Playwright's own [`launch()`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch),
+you can hand it a different Firefox binary and a full set of
 stealth preferences without touching your spiders. Scrapy's scheduler, retry
 middleware and item pipelines stay exactly as they were; only the engine under the
 handler changes.
@@ -211,6 +212,9 @@ neither produces alone. Pick one layer.
 - `scrapy-playwright`'s own repository and README, which document the download handler,
   `PLAYWRIGHT_LAUNCH_OPTIONS`, and a pluggable browser-provider interface, verified
   against version 0.0.48.
+- Playwright's own [`launch()` API reference](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch),
+  for `executable_path` and `firefox_user_prefs`, the two options that carry the
+  patched binary and its stealth preferences into the browser.
 - Scrapy's documented throttling settings: `CONCURRENT_REQUESTS_PER_DOMAIN`,
   `DOWNLOAD_DELAY`, and the AutoThrottle extension.
 - This project's own [quickstart](quickstart.md) and [configuration](configuration.md)

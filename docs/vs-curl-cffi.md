@@ -25,7 +25,8 @@ skeleton key, and any page selling you one is selling you a lawsuit.
 `curl_cffi` is a Python binding over curl-impersonate, a build of curl linked against
 the same TLS and HTTP/2 stacks a real browser ships. Its whole point is byte-level
 impersonation: the JA3/JA4 class of TLS fingerprint, the cipher and extension ordering,
-the HTTP/2 SETTINGS frame, the header order. To a server reading only the handshake, a
+the [HTTP/2 SETTINGS frame](https://datatracker.ietf.org/doc/html/rfc9113#name-settings),
+the header order. To a server reading only the handshake, a
 `curl_cffi` request is indistinguishable from the browser it imitates. That is a real,
 well-engineered capability, and for a plain JSON endpoint behind a network-layer check
 it is often all you need.
@@ -45,16 +46,17 @@ library gets blocked the instant that handshake disagrees with the user agent, s
 
 ## The wall: there is no JavaScript surface
 
-Here is the architectural fact that decides most real cases. `curl_cffi` has no JS
-engine. There is no DOM, no `document`, no `navigator`, no canvas, no WebGL context, no
-event loop, no timers. It fetches bytes and hands them back.
+`curl_cffi` has no JS engine, and that single fact decides most real cases. There is no
+DOM, no `document`, no `navigator`, no canvas, no WebGL context, no event loop, no
+timers. It fetches bytes and hands them back.
 
 So any challenge that ships JavaScript and waits for the client to execute it sees an
-empty surface. A script that reads `navigator.hardwareConcurrency`, draws to a canvas
-and hashes it, enumerates fonts, times an animation frame, or simply sets a cookie from
-JS and reloads, gets nothing back from a client that cannot run it. The handshake looked
-perfect and the page still fails, because the page was never asking the network a
-question. It was asking the browser one.
+empty surface. A script that reads
+[`navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency),
+draws to a canvas and hashes it, enumerates fonts, times an animation frame, or simply
+sets a cookie from JS and reloads, gets nothing back from a client that cannot run it.
+The handshake looked perfect and the page still fails, because the page was never
+asking the network a question. It was asking the browser one.
 
 This is not a bug in `curl_cffi`. It is the category. An HTTP client answers network
 questions. It cannot answer browser questions because it is not a browser.
@@ -168,6 +170,10 @@ tool its target actually tests.
 
 - The `curl_cffi` project's own README and its curl-impersonate basis, read for what it
   claims: browser-grade TLS and HTTP/2 impersonation, and no JavaScript engine.
+- [RFC 9113 section 6.5](https://datatracker.ietf.org/doc/html/rfc9113#name-settings),
+  which defines the HTTP/2 SETTINGS frame a TLS-impersonation client has to match.
+- [MDN, `navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency),
+  one example of the JS-surface properties a client with no JS engine cannot answer.
 - This project's release gates and fingerprint measurements, which exercise the DOM,
   canvas, WebGL, fonts and audio surfaces a request client does not have.
 

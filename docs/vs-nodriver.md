@@ -16,7 +16,8 @@ really one decision: whether you are willing to leave the Playwright ecosystem a
 These two are one lineage, not two separate comparisons. `undetected-chromedriver` patched
 Selenium's chromedriver binary to stop Chrome announcing itself as automated.
 `nodriver`, from the same author, is its successor: it removes the chromedriver binary
-and the WebDriver protocol entirely, and speaks the Chrome DevTools Protocol directly.
+and the [WebDriver protocol](https://www.w3.org/TR/webdriver2/) entirely, and speaks the
+Chrome DevTools Protocol directly.
 
 The comparison with this project is unusual for a reason worth stating up front: these
 are not Playwright tools. They have their own API. That changes what "choosing between

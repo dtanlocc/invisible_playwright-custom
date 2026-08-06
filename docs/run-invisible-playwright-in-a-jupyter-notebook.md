@@ -9,21 +9,25 @@ nav_order: 91
 
 # Run invisible_playwright in a Jupyter notebook
 
-A notebook is one of the better places to develop a browser session, because you can
-launch once, then poke at the live page cell by cell and read a screenshot after each
-step instead of rerunning a whole script. There is exactly one thing that trips people
-up on the first try, and it is not specific to this library: the Jupyter kernel is
-already running an asyncio event loop, and the synchronous Playwright API refuses to
-start inside one.
+Run invisible_playwright in a notebook by importing from
+`invisible_playwright.async_api` instead of the top-level package and awaiting each
+call in a cell - the ordinary synchronous API raises because the Jupyter kernel
+already runs its own asyncio event loop, and it refuses to start a second one inside
+that. That one swap is the only thing that trips people up on the first try, and it is
+not specific to this library.
 
-This page shows the error, the one-line change that fixes it, and how to keep a stealth
-session alive across cells so you can inspect it as you build. It also answers the
-question honestly at the end: the notebook is a development convenience and changes
-nothing about how detectable the session is.
+A notebook is otherwise one of the better places to develop a browser session, because
+you can launch once, then poke at the live page cell by cell and read a screenshot
+after each step instead of rerunning a whole script. This page shows the error, the
+fix, and how to keep a stealth session alive across cells so you can inspect it as you
+build. It also answers the question honestly at the end: the notebook is a development
+convenience and changes nothing about how detectable the session is.
 
 ## Why the sync API fails in a notebook
 
-Drop the ordinary two-line launch into a cell and it raises immediately:
+Here is why: the synchronous API tries to start its own event loop, and Jupyter's
+kernel is already running one. Drop the ordinary two-line launch into a cell and it
+raises immediately:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -62,9 +66,13 @@ async with InvisiblePlaywright(seed=42) as browser:
     print(await page.title())
 ```
 
-The `browser` object is a real `playwright.async_api.Browser`. Every method is the one
-documented upstream, with `await` in front of it. There is no wrapped subset to learn,
-and nothing about the API changes because you are in a notebook rather than a script.
+The `browser` object is a real `playwright.async_api.Browser`. Playwright documents
+[both a sync and an async Python API](https://playwright.dev/python/docs/library) as
+first-class, and recommends the async one for any project that already runs an
+asyncio event loop - which is exactly the notebook's situation. Every method on the
+async side is the same one documented upstream, just with `await` in front of it.
+There is no wrapped subset to learn, and nothing about the API changes because you are
+in a notebook rather than a script.
 
 That single cell opens the browser, does its work, and closes it when the `async with`
 block ends. For interactive development you usually want the opposite: a browser that
@@ -187,6 +195,9 @@ still yours to handle.
   and the async context-manager protocol used above.
 - The upstream Playwright error text raised when the sync API is started inside a
   running asyncio loop, reproduced in a Jupyter kernel.
+- Playwright's own documentation on the
+  [sync and async Python API](https://playwright.dev/python/docs/library), which
+  recommends the async API for any project already running an asyncio event loop.
 
 **See also:** [Configuration](configuration.md) for proxy and timezone setup, the
 [detection checklist](playwright-detected-as-bot.md) for when a session is flagged, and

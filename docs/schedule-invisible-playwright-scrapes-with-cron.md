@@ -68,9 +68,9 @@ if __name__ == "__main__":
         print(row)
 ```
 
-The `browser` object is a real `playwright.sync_api.Browser`, so anything you already
-do with Playwright works unchanged. There is no scheduler-specific API to learn: you
-wrap `run_once()` in whatever trigger you like.
+The `browser` object is a real [`playwright.sync_api.Browser`](https://playwright.dev/python/docs/api/class-browser),
+so anything you already do with Playwright works unchanged. There is no
+scheduler-specific API to learn: you wrap `run_once()` in whatever trigger you like.
 
 Whether to reuse `seed=42` (one stable identity that returns each run) or drop the
 seed (a distinct identity per run) is a real decision. A recurring job that always
@@ -81,9 +81,10 @@ just as odd. Pick deliberately, and log `browser` runs the way the
 
 ## Cadence is a detection axis of its own
 
-Here is the specific fact worth the page. Imagine two scrapers with identical,
-flawless fingerprints. One runs from a shell script that a human happens to launch at
-scattered moments through the day. The other runs from:
+Two scrapers can share an identical, flawless fingerprint and still be trivially
+separable server-side, because timing alone is enough to tell them apart. Imagine one
+running from a shell script that a human happens to launch at scattered moments
+through the day, and the other running from:
 
 ```
 */5 * * * *  python /srv/scrape_job.py
@@ -252,6 +253,8 @@ about. Add a random sleep before the work.
 
 - The invisible_playwright quickstart and configuration pages, for the launch API,
   proxy dict and engine cache variable used in the examples above.
+- [Playwright's `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for the `browser` object's API surface used unchanged in the job function above.
 - This project's own testing notes on cadence: a scheduled probe run at a fixed
   interval flagged as automated on timing while every in-page fingerprint check
   stayed clean, which is the separation of axes this page describes.

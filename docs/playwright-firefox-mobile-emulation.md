@@ -48,7 +48,8 @@ mobile = {
 ```
 
 Two of those fields are the interesting ones for Firefox. `is_mobile` is what makes the
-meta viewport tag take effect and turns on touch semantics. `screen` is the physical
+[meta viewport tag](https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
+take effect and turns on touch semantics. `screen` is the physical
 display the page believes it is running on, which is distinct from the `viewport`, the
 part of that display the content occupies. On Chromium both take effect. On Firefox one
 of them is rejected outright by Playwright, and the other is overridden by the browser.
@@ -60,7 +61,9 @@ of them is rejected outright by Playwright, and the other is overridden by the b
 
 ## Why the iPhone preset does not translate to Firefox
 
-Spread that preset into a Firefox context and it does not silently degrade. It raises:
+An iPhone-class preset that still carries `is_mobile` does not silently degrade when
+spread into a Firefox context: Playwright rejects the option outright, and the call
+raises before a context is even created.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -81,8 +84,8 @@ of a preset if you like, but never spread it whole.
 ## isMobile is unsupported on Firefox, and that is upstream
 
 `isMobile` not working on Firefox is a property of Playwright's own Firefox support,
-documented upstream, and it holds for stock Playwright against a stock Firefox exactly as
-it holds here. This is the part people misattribute. It is not something a stealth layer
+[documented upstream in Playwright's own API reference](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-is-mobile),
+and it holds for stock Playwright against a stock Firefox exactly as it holds here. This is the part people misattribute. It is not something a stealth layer
 adds or could remove; the automation protocol Playwright speaks to Firefox has no mobile
 emulation on this axis to begin with.
 
@@ -97,11 +100,12 @@ Firefox one dressed up as a phone.
 
 ## The engine owns the screen size, not the client
 
-Now remove `is_mobile` and try to force just the screen dimensions. Recent Playwright
-versions send a `screenSize` alongside the viewport on the commands that build and resize
-a context, part of the same 1.61 change that also [added fields a strict wire protocol
-rejected](playwright-protocol-drift.md). Here the browser accepts the command and then
-does not do what you asked:
+The screen size on a Firefox context belongs to the seeded engine, not to whatever a
+client script asks for. Recent Playwright versions send a `screenSize` alongside the
+viewport on the commands that build and resize a context, part of the same 1.61 change
+that also [added fields a strict wire protocol rejected](playwright-protocol-drift.md),
+and Firefox accepts that field at the protocol level without acting on it. Drop
+`is_mobile` and try to force just the screen dimensions to see it happen:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -197,8 +201,9 @@ deliberate choice, so the fingerprint cannot be broken by a client-side viewport
 
 ## Sources
 
-- Playwright's device descriptors and the documented note that `isMobile` is not supported
-  on Firefox, read from the library rather than from a tutorial.
+- Playwright's own API reference for the `is_mobile` context option, which
+  [states outright that the option is not supported in Firefox](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-is-mobile),
+  read from the library rather than from a tutorial.
 - The Playwright 1.61 viewport commands that began sending a screen size, and this
   project's decision to accept those fields at the protocol level and ignore them so the
   seeded screen stays authoritative.

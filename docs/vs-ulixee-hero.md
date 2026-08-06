@@ -106,7 +106,8 @@ with sf as browser:
     page.goto("https://example.com")
 ```
 
-Async is the same shape, so async test suites port without a rewrite:
+Async is [the same shape](https://playwright.dev/python/docs/library), so async test suites
+port without a rewrite:
 
 ```python
 from invisible_playwright.async_api import InvisiblePlaywright
@@ -116,9 +117,11 @@ async with InvisiblePlaywright(seed=42) as browser:
     await page.goto("https://example.com")
 ```
 
-Because the browser object is a real Playwright `Browser`, nothing above this line changes:
-your existing page objects, selectors and fixtures keep working. There is no separate
-automation dialect to learn, which is a difference from a tool that ships its own API.
+Because the browser object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), nothing above this line
+changes: your existing page objects, selectors and fixtures keep working. There is no
+separate automation dialect to learn, which is a difference from a tool that ships its own
+API.
 
 ## One honest caveat
 
@@ -191,6 +194,10 @@ already-blocked exit sinks a perfect browser, and that is a separate problem.
   and why an override is the artifact it hunts, rather than the value.
 - This project's [Quickstart](quickstart.md) and [Configuration](configuration.md) for the
   real API used in the examples above.
+- Playwright's own [`Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for the stock object the examples above hand back unchanged.
+- Playwright's [sync and async Python API](https://playwright.dev/python/docs/library),
+  for the parity behind the async example above.
 
 **See also:** [three ways to make Playwright undetected](playwright-stealth-levels.md) for
 where an engine-level patch sits relative to a data-replay approach, and

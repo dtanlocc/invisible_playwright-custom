@@ -1,12 +1,18 @@
 ---
 title: "playwright-extra stealth plugins vs a patched browser"
-description: "playwright-extra applies puppeteer-extra stealth plugins as injected JavaScript a detector can read back; a patched Firefox moves the same goals into the compiled engine."
+description: "playwright-extra applies puppeteer-extra stealth plugins as injected JavaScript a detector reads back; a patched Firefox moves those goals into the engine."
 parent: "Comparisons"
 nav_order: 31
 ---
 
 
 # playwright-extra stealth plugins vs a patched browser
+
+`playwright-extra` and a patched browser both aim to make automation look human, from
+two different layers: `playwright-extra` injects JavaScript into the page to override
+what a script reads back; a patched browser changes the compiled engine itself, so
+there is nothing injected to catch. The rest of this page works through why that
+layer choice matters and what each one still leaves for you to handle.
 
 This site already has a page on [playwright-stealth, the page-level init-script approach](vs-playwright-stealth.md).
 `playwright-extra` is a different thing that people reach for at the same moment, so it
@@ -15,9 +21,8 @@ ecosystem: a small wrapper around Playwright that lets you register evasion plug
 the best known of which is the stealth plugin ported from `puppeteer-extra`.
 
 The mechanism underneath is the same one the page-level approach uses, and so is the
-structural limit. The two differences worth understanding before you pick a layer are
-where the disguise lives (in the page, or in the compiled browser) and what language
-the whole thing is written in. This page is about both.
+structural limit - covered next, along with the separate cost of the language it is
+written in.
 
 ## What playwright-extra actually is
 
@@ -25,8 +30,8 @@ the whole thing is written in. This page is about both.
 `chromium.use(StealthPlugin())` and each registered plugin gets a hook that runs when a
 page is created. The stealth plugin then does its work as a bundle of smaller evasions,
 each one redefining a property or a method a detector is likely to read:
-`navigator.webdriver`, the plugins array, `navigator.languages`, the WebGL vendor
-strings, and so on.
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+the plugins array, `navigator.languages`, the WebGL vendor strings, and so on.
 
 Every one of those evasions is delivered the same way: JavaScript injected into the
 page before the site's own code runs. That is the important sentence, because it is
@@ -47,7 +52,8 @@ one runtime, the override is visible to that code by construction.
 Three ways it shows, all of which detectors in the public suites already do:
 
 - **Source of a function.** A native method printed with
-  `Function.prototype.toString` returns `[native code]`. A replacement getter is an
+  [`Function.prototype.toString`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/toString)
+  returns `[native code]`. A replacement getter is an
   ordinary function whose source is the patch you wrote. Patch `toString` itself to
   hide that and the patched `toString` becomes the new anomaly, checkable the same way.
   [The general version of this race has its own page](tostring-native-code-detection.md).
@@ -66,8 +72,9 @@ override answers no.
 
 ## The language boundary
 
-There is a second, more practical difference that has nothing to do with detection.
-The whole `puppeteer-extra` and `playwright-extra` ecosystem is **Node**. The plugins
+There is a practical difference between the two layers that has nothing to do with
+detection: the language you drive them from. The whole `puppeteer-extra` and
+`playwright-extra` ecosystem is **Node**. The plugins
 are npm packages, the hooks are JavaScript, and the API you drive is the Node Playwright
 API. If your automation is written in Python, adopting it means either rewriting the
 driving code in Node or standing up a Node service beside your Python one.
@@ -86,7 +93,7 @@ carry the disguise, so there is no injected layer for `toString`, descriptor ord
 timing to catch. What a script reads is what a native accessor returns, because it is
 the native accessor.
 
-It is driven from **Python**, with stock Playwright. Switching from a plain Playwright
+It is driven from **Python**, with [stock Playwright](https://playwright.dev/python/docs/api/class-page). Switching from a plain Playwright
 script is two lines, and every method after that is the upstream Playwright API,
 unchanged:
 

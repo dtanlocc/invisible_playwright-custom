@@ -25,14 +25,16 @@ cannot do for you.
 A site does not "see a phone". It sees an address, looks up what is publicly known about
 that address, and reads three things off it.
 
-**The ASN belongs to a mobile operator.** Every IP maps to an Autonomous System Number,
-and the registries record who owns each block. A mobile operator's ranges are labelled as
-such. A lookup that returns a mobile network is a different fact from one that returns a
-residential broadband provider or a datacenter host, and sites treat the three categories
-differently before your page has finished loading.
+**The ASN belongs to a mobile operator.** Every IP maps to an [Autonomous System
+Number](https://www.iana.org/assignments/as-numbers/as-numbers.xhtml), and the registries
+record who owns each block. A mobile operator's ranges are labelled as such. A lookup that
+returns a mobile network is a different fact from one that returns a residential broadband
+provider or a datacenter host, and sites treat the three categories differently before your
+page has finished loading.
 
-**It is shared by many subscribers at once.** Carrier-grade NAT (CGNAT) puts hundreds or
-thousands of real phones behind one public address at the same time. So a single mobile IP
+**It is shared by many subscribers at once.** [Carrier-grade NAT
+(CGNAT)](https://datatracker.ietf.org/doc/html/rfc6598) puts hundreds or thousands of real
+phones behind one public address at the same time. So a single mobile IP
 carries a lot of unrelated, genuine traffic. A site that blocks it outright blocks real
 customers, which is exactly why mobile ranges are handled with a lighter touch than a
 datacenter range that only ever emits automated traffic.
@@ -45,8 +47,9 @@ it might elsewhere.
 
 ## Why a site weights it differently from a static line
 
-Put those three together and the reason for the different weighting is plain. A static
-consumer broadband line is roughly one household, stable for months. If it starts behaving
+**Operator ASN, shared NAT and meaningless churn together are why sites weight a mobile IP
+differently from a static line.** A static consumer broadband line is roughly one household,
+stable for months. If it starts behaving
 oddly, an IP-level action is precise: it affects that one line. A mobile IP is the
 opposite on all three counts, so the same IP-level action is blunt and the same "same
 address" reasoning is unreliable.
@@ -192,8 +195,11 @@ whole-device decision, not a header - see the mobile emulation page before attem
 
 ## Sources
 
-- Public IP registry and ASN ownership records, which is where the mobile-operator label a
-  site reads actually lives.
+- [IANA's Autonomous System Number
+  registry](https://www.iana.org/assignments/as-numbers/as-numbers.xhtml), which is where
+  the mobile-operator label a site reads actually lives, and [RFC 6598's Shared Address
+  Space](https://datatracker.ietf.org/doc/html/rfc6598), the IETF allocation carrier-grade
+  NAT deployments use.
 - This project's configuration behaviour: the proxy dict, seed-reproducible identities, and
   the egress-derived timezone, each documented on its own page in this set.
 - Our own release gates comparing a desktop fingerprint field by field against a stock

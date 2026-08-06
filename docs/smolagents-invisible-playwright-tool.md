@@ -1,6 +1,6 @@
 ---
 title: "smolagents: hand the agent an invisible_playwright tool"
-description: "smolagents is code-first and its bundled vision browser drives Chromium through helium, not Playwright, so you register a custom tool backed by invisible_playwright instead."
+description: "smolagents is code-first; its bundled vision browser drives Chromium via helium, not Playwright, so you register a custom invisible_playwright tool instead."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 13
@@ -8,6 +8,11 @@ nav_order: 13
 
 
 # smolagents: hand the agent an invisible_playwright tool
+
+To hand a smolagents agent an invisible_playwright browser, skip the framework's
+built-in vision-browser tool and register a custom tool function instead: launch
+invisible_playwright directly, then pass that function to the agent so every browser
+call drives a real stealth Firefox rather than the bundled Chromium-over-Selenium one.
 
 smolagents is code-first. The agent does not pick from a menu of actions; it writes
 Python and runs it, step after step, and it drives a browser through whatever tools you
@@ -33,8 +38,8 @@ that browser's fingerprint, TLS handshake and driver layer look like from the pa
 
 ## The two-line launch the tool wraps
 
-Everything below wraps this. The wrapper returns a real Playwright `Browser`, so every
-method you already know works unchanged:
+Every tool below wraps this two-line launch, which returns a real Playwright `Browser`,
+so every method you already know keeps working unchanged:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -110,7 +115,9 @@ when the run is done.
 
 ## What the swap fixes, and what it does not
 
-This is the honest part, and skipping it is how people end up surprised.
+Swapping the browser fixes the fingerprint, TLS handshake and driver layer - the tells
+that give automation away - and nothing past that. Skipping this distinction is how
+people end up surprised.
 
 invisible_playwright is built to **look like a real browser driven by a real person**.
 That is why it passes most detection checks: the fingerprint surface (GPU, audio, fonts,

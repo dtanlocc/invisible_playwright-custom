@@ -181,8 +181,8 @@ them from JavaScript. On a real Windows host the native backend already produces
 canonical values and nothing is overridden. On a Linux host presenting as Windows, the
 numeric block, the extension list and the twelve shader precision triples are all pinned to
 the same canonical Windows ANGLE values, so the third hash lands on the Windows block
-rather than the Mesa one. The [renderer string is chosen from real Windows GPU
-personas](webgl-renderer-strings.md) to sit consistently on top of that block.
+rather than the Mesa one. The [renderer string names a real Windows
+GPU](webgl-renderer-strings.md) that sits consistently on top of that block.
 
 None of this is something you configure. It is the default behaviour of the seed-derived
 identity, and the probe above is how you verify it rather than trust it.

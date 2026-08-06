@@ -26,10 +26,11 @@ invisible_playwright is built to pass two of them and cannot touch the other two
 because the other two are not browser properties at all.
 
 - **Fingerprint and driver.** What the browser reports about itself: GPU, canvas,
-  audio, fonts, screen, and the automation tells like `navigator.webdriver`. Plus the
-  TLS handshake, which is decided before any page loads. This is the layer the product
-  owns. A patched Firefox driven by stock Playwright reads as a genuine Firefox because
-  it is one.
+  audio, fonts, screen, and the automation tells like
+  [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver).
+  Plus the TLS handshake, which is decided before any page loads. This is the layer the
+  product owns. A patched Firefox driven by stock Playwright reads as a genuine Firefox
+  because it is one.
 - **IP reputation.** Whether your exit address is a datacenter range, a known proxy, or
   an address a thousand other automated clients are using this minute. Not a property of
   the browser. You supply this, with a clean proxy.
@@ -50,7 +51,9 @@ because you keep improving the one number that was already fine.
 The point of a real-browser engine is that it takes the fingerprint and driver layer
 off the table, so when you debug you are debugging the other three instead of chasing
 ghosts in the first. Switching from plain Playwright is a two-line change, and the
-returned object is a real Playwright `Browser` with every method intact:
+returned object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser) with every method
+intact:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -177,6 +180,10 @@ supply a clean IP, human pacing, and session reuse for the layers a browser cann
   or session layers.
 - The detection-checklist and rate-limiting notes in this documentation set, linked
   throughout, each written from a specific failure on one of the four layers.
+- MDN, [`Navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver) -
+  the specification for the automation flag referenced above.
+- Playwright, [`Browser` class reference](https://playwright.dev/python/docs/api/class-browser) -
+  the API the returned object implements unchanged.
 
 **See also:** [the full detection checklist in working order](playwright-detected-as-bot.md),
 [how to test whether the browser itself is the problem](how-to-test-bot-detection.md), and

@@ -20,9 +20,7 @@ contradict everything around it.
 Every Playwright tutorial reaches for `browser.new_page()` first, because it is
 one line and it gives you a page. What none of them mention is that the same
 convenience decides your viewport for you, and the value it picks is the stock
-default: 1280 by 720. On a fresh browser that is harmless. On a browser whose
-whole job is to carry a coherent per-session fingerprint, a viewport nobody chose
-is a value that can disagree with everything around it.
+default: 1280 by 720.
 
 This page is about a specific gap between `new_page` and `new_context`, why it is
 easy to miss, what it measured on our own product before we closed it, and how to
@@ -95,9 +93,6 @@ to advertise it.
 
 ## Why new_page could slip past the defaults
 
-This is worth understanding as a mechanism, because the same trap exists in any
-wrapper over Playwright, not just this one.
-
 Playwright's public `Browser.new_page` does not create the page itself. It forwards
 to an internal implementation object, and that implementation's own `new_page`
 calls *its own* `new_context` to build the implicit context. So if a wrapper
@@ -107,11 +102,13 @@ layer down, by a `new_context` the wrapper never wrapped. `browser.new_context()
 called directly hits the wrapped method and gets the defaults; `browser.new_page()`
 routes around it and gets Playwright's.
 
-The lesson generalises. Any layer that customises contexts has to cover *both*
-entry points, because `new_page` is not sugar over the public `new_context` you
-can see. It has its own path to a context, and a wrapper that only knows about one
-of the two paths will be right half the time and quietly wrong the other half,
-depending on which call the caller reached for first.
+This is worth understanding as a mechanism, not a one-off bug, because the same
+trap exists in any wrapper over Playwright, not just this one. Any layer that
+customises contexts has to cover *both* entry points, because `new_page` is not
+sugar over the public `new_context` you can see. It has its own path to a context,
+and a wrapper that only knows about one of the two paths will be right half the
+time and quietly wrong the other half, depending on which call the caller reached
+for first.
 
 ## The fix, and what it changes for your code
 

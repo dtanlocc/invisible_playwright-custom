@@ -38,15 +38,19 @@ and usually in the first few milliseconds.
   `colorDepth`, and `devicePixelRatio`. An `availHeight` equal to `height` means
   no taskbar, which means no desktop, which means a server.
 - **canvas**: the page draws text and shapes to an offscreen canvas, reads the
-  pixels back, and hashes them. Tiny differences in the font rasteriser, the GPU
+  pixels back with
+  [`getImageData()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData),
+  and hashes them. Tiny differences in the font rasteriser, the GPU
   and the anti-aliasing make the hash stable per machine and different across
   machines. It is read twice and compared; a hash that changes between two reads
   in one session is itself a tell.
-- **WebGL**: the renderer and vendor strings, plus dozens of numeric limits
+- **WebGL**: the renderer and vendor strings, plus dozens of numeric limits read
+  via [`getParameter()`](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/getParameter)
   (`MAX_TEXTURE_SIZE`, shader precision ranges, and so on). A software renderer
   string, or a plausible string whose numbers do not match a real card, both
   read as datacenter.
-- **AudioContext**: the browser renders a short audio buffer through an
+- **[AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)**:
+  the browser renders a short audio buffer through an
   oscillator and a compressor and hashes the floating-point output. Sample rate,
   latency and channel count trace back to a real audio device, which a bare
   container does not have, which answers with tell-tale default values.
@@ -54,7 +58,8 @@ and usually in the first few milliseconds.
   and infers which ones are present. A Linux font set under a Windows user agent
   is a one-line contradiction - see
   [detecting installed fonts from JavaScript](detect-installed-fonts-javascript.md).
-- **timezone and locale**: `Intl.DateTimeFormat().resolvedOptions().timeZone`
+- **timezone and locale**:
+  [`Intl.DateTimeFormat().resolvedOptions().timeZone`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
   and the accept-languages list, both cross-checked against the exit IP's
   country.
 - **WebRTC ICE candidates**: opening a peer connection surfaces network
@@ -67,13 +72,14 @@ and usually in the first few milliseconds.
 Two surfaces are collected before a single line of JavaScript executes, purely
 from how the connection is made:
 
-- **The TLS handshake.** The ordered list of cipher suites, extensions and
-  curves your client offers is distinctive per implementation. A handshake that
-  is not Firefox's, arriving with a user agent that says Firefox, is a decisive
-  mismatch that no page-level patch can reach.
-- **HTTP/2 settings and header order.** The settings frame values and the exact
-  order of request headers differ between real browsers and most scripting
-  stacks.
+- **[The TLS handshake](https://datatracker.ietf.org/doc/html/rfc8446).** The
+  ordered list of cipher suites, extensions and curves your client offers is
+  distinctive per implementation. A handshake that is not Firefox's, arriving
+  with a user agent that says Firefox, is a decisive mismatch that no
+  page-level patch can reach.
+- **[HTTP/2 settings and header order](https://datatracker.ietf.org/doc/html/rfc9113#section-6.5.2).**
+  The settings frame values and the exact order of request headers differ
+  between real browsers and most scripting stacks.
 
 You cannot fix either of these from inside the page. Either the request is made
 by a real browser engine, or it is made by something impersonating the handshake

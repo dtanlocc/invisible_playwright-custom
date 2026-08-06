@@ -1,6 +1,6 @@
 ---
 title: "Why Playwright's bundled Firefox is easy to detect"
-description: "Playwright's Firefox carries detectable version markers. See the concrete tells and how swapping to a released binary removes them."
+description: "Playwright's Firefox carries version markers no real release has. See the concrete tells, why editing the user agent does not fix them, and the fix that works."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 28
@@ -24,10 +24,11 @@ browser that looks real does not fix an address that is not.
 
 ## The bundled build is not a shipped Firefox
 
-When you install Playwright, it fetches a browser it calls "firefox" into its own
-cache. That binary is compiled from Firefox source with a control protocol added on
-top so Playwright can attach to it. It is a genuine Firefox engine. It is not any
-Firefox that a human ever installed.
+When you install Playwright, it fetches a browser it calls "firefox" into
+[its own cache](https://playwright.dev/python/docs/browsers), a documented step of
+every install. That binary is compiled from Firefox source with a control protocol
+added on top so Playwright can attach to it. It is a genuine Firefox engine. It is not
+any Firefox that a human ever installed.
 
 The gap shows up in several places at once:
 
@@ -47,10 +48,9 @@ notice that the browser in front of it is not the browser it claims to be.
 
 ## The concrete tell: version markers that no real user has
 
-Take the simplest of the differences, the version. A real Firefox reports a version
-that a fingerprinting service has seen from millions of real installs, on the release
-cadence everyone else is on. The bundled automation build reports a version tied to
-Playwright's own pin.
+The version string is the simplest of these tells: a real Firefox reports one drawn
+from millions of real installs, on the release cadence everyone else is on, while the
+bundled automation build reports one tied to Playwright's own pin instead.
 
 A detector does not need a secret list to use this. It already has the population
 distribution of real Firefox versions, because it sees real traffic. A version that
@@ -68,8 +68,10 @@ signal.
 
 ## Why a user agent string does not fix it
 
-The reflex is to override the user agent so it reports a normal release version. That
-edits one string. It does not edit the build.
+The reflex is to override the
+[user agent](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/userAgent)
+so it reports a normal release version. That edits one string. It does not edit the
+build.
 
 The version a page reads is not only the user agent header. It is also what the
 browser reports through several JavaScript surfaces, what the build markers imply, and
@@ -86,9 +88,9 @@ version consistently is to be running a real Firefox version.
 
 ## The integration point: swap the binary, keep the API
 
-This is where invisible_playwright plugs in, and the plug is deliberately narrow.
-Stock Playwright is designed to launch its bundled browser, but it will just as
-happily attach to a different Firefox that speaks the same control protocol. So the
+invisible_playwright plugs in at exactly this point, and the plug is deliberately
+narrow. Stock Playwright is designed to launch its bundled browser, but it will just
+as happily attach to a different Firefox that speaks the same control protocol. So the
 integration point is to hand Playwright a differently-patched, real-version Firefox
 and let every line of your automation stay exactly as it was.
 
@@ -195,8 +197,9 @@ documented upstream.
 
 ## Sources
 
-- Playwright's own browser-download behaviour: it fetches and pins its own Firefox
-  build into its cache rather than using an installed release.
+- [Playwright's own browser-download behaviour](https://playwright.dev/python/docs/browsers):
+  it fetches and pins its own Firefox build into its cache rather than using an
+  installed release.
 - This project's fingerprint parity work, which compares a released Firefox against the
   driven browser field by field, including the version markers and build identifiers
   that separate a shipped build from an automation vendor's build.

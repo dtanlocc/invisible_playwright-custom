@@ -27,7 +27,8 @@ API and blocking-free operation.
 
 The thing it does well follows from that architecture. Because there is no
 chromedriver and no WebDriver protocol, the classic automation tells are gone:
-`navigator.webdriver` reads as a normal browser rather than `true`, and the
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+reads as a normal browser rather than `true`, and the
 Selenium-era globals a driver used to inject are not there. That is a real and
 useful property, and it is [most of what "undetected" meant for the
 Chrome-CDP lineage](vs-nodriver.md).
@@ -116,9 +117,10 @@ next random draw brings it back.
 
 ## What neither tool fixes
 
-This is the honest part, and skipping it is how people ship a "stealth" setup
-that still gets blocked on day one. A clean driver layer and a consistent
-fingerprint are the browser's contribution. They are not the whole session.
+Neither tool touches IP reputation, per-account quotas and rate limits, or the
+pacing of human behaviour - a clean driver layer and a consistent fingerprint
+are the browser's contribution, not the whole session. Skipping this list is
+how people ship a "stealth" setup that still gets blocked on day one.
 
 - **IP reputation.** A perfect browser on a known datacenter or already-listed
   address still loses. Neither tool changes your exit. You supply a clean proxy;

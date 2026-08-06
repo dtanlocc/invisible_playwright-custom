@@ -77,8 +77,8 @@ Two details of that native dispatch are worth naming, because they are what a ca
 detector looks at next after `isTrusted`:
 
 - **Input source.** The synthesized event is tagged as coming from a real mouse device
-  rather than from an unknown or synthetic source. A page reading the pointer type sees a
-  mouse, not a null device.
+  rather than from an unknown or synthetic source. A page reading the
+  [pointer type](https://www.w3.org/TR/pointerevents/) sees a mouse, not a null device.
 - **Pressure.** The event carries a pressure value that moves with button state, the way a
   real pointer's does, rather than a flat constant that reads as fabricated.
 
@@ -206,6 +206,9 @@ separate questions.
 - The [WHATWG DOM specification for `Event.isTrusted`](https://dom.spec.whatwg.org/#dom-event-istrusted):
   set at construction, read-only, true only for user-agent-generated events. See also
   [MDN's `Event.isTrusted` reference](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted).
+- The [W3C Pointer Events specification](https://www.w3.org/TR/pointerevents/): defines
+  `pointerType` and `pressure` as attributes of a pointer event, the input-origin details a
+  detector reads right after `isTrusted`.
 - This project's own measurements of the native input path: driven input synthesized as a
   real mouse with a pressure value, and the humanised motion path passing arguments
   identical to a plain mouse move through the same engine call.

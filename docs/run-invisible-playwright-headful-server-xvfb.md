@@ -110,11 +110,12 @@ with InvisiblePlaywright(seed=42, headless=False) as browser:
     page.screenshot(path="out.png")   # opening the PNG is the real check
 ```
 
-The `browser` object is a real Playwright `Browser`, so every standard method works
-exactly as documented upstream. Nothing about driving the page changes between the two
-display modes; only where the window is drawn changes. Reach for this deliberately, for
-one of the reasons above, not as a reflexive stealth step. The stealth comes from the
-patched engine either way.
+The `browser` object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every standard
+method works exactly as documented upstream. Nothing about driving the page changes
+between the two display modes; only where the window is drawn changes. Reach for this
+deliberately, for one of the reasons above, not as a reflexive stealth step. The stealth
+comes from the patched engine either way.
 
 ## Installing Xvfb and a minimal container
 
@@ -210,6 +211,8 @@ That single package covers both the automatic virtual display and manual `xvfb-r
 - The project's fingerprint, TLS and driver patches, which are what clear the detectors
   independently of the display mode, verified against the public detection suites
   (CreepJS, BotD, FingerprintJS, sannysoft, BrowserLeaks).
+- Playwright's own [`Browser` class API](https://playwright.dev/python/docs/api/class-browser),
+  which every method on the `browser` object above implements unchanged.
 
 **See also:** [headless versus headful and what actually differs](headless-vs-headful.md),
 [running it in Docker](how-to-use-invisible-playwright-in-docker.md), and

@@ -78,10 +78,10 @@ voice list trades a platform mismatch for a lie about the API, which scores wors
 
 ## Why a real browser on a real OS passes it
 
-This is the part that is structural rather than clever. invisible_playwright runs
-a genuine Firefox, patched at the C++ level, on the real operating system of the
-machine you launch it from. It does not shim `getVoices()` and it does not need
-to. When the browser asks the host for its speech voices, the host answers with
+A real browser on a real OS passes because nothing about the voice list is
+faked: invisible_playwright runs a genuine Firefox, patched at the C++ level, on
+the real operating system of the machine you launch it from. It does not shim
+`getVoices()` and it does not need to. When the browser asks the host for its speech voices, the host answers with
 its actual voices, and if you are running on Windows those are the Windows voices,
 consistent with the platform the rest of the fingerprint reports.
 

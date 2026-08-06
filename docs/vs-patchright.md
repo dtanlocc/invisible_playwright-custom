@@ -27,8 +27,8 @@ checked CDP artifacts, by executing JavaScript through isolated execution contex
 instead; it disables `Console.enable` outright, at the cost of console functionality not
 working under Patchright at all; and it changes the default launch flags, adding
 `--disable-blink-features=AutomationControlled` and dropping `--enable-automation`, so
-`navigator.webdriver` is never set to begin with rather than being set and then patched
-back to false.
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+is never set to begin with rather than being set and then patched back to false.
 
 That last distinction is the entire case for driver-level patching, and it is worth
 stating precisely because [the levels page](playwright-stealth-levels.md) makes the same
@@ -92,7 +92,10 @@ but not the Widevine one - unless you also set `channel="chrome"` yourself.
 [That remaining gap is not a driver-level problem](chromium-is-not-chrome.md) and patching
 the driver does not close it. It is worth keeping the two concerns separate when evaluating
 any Chromium-based stealth tool: driver-level patches fix automation tells, they do not fix
-DRM tells, and nothing in Patchright's README claims they do.
+DRM tells, and nothing in Patchright's README claims they do. The
+[`channel="chrome"`](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-channel)
+launch option is Playwright's own documented setting for opting into a branded browser,
+unrelated to anything a driver fork patches.
 
 ## How to actually choose
 
@@ -154,6 +157,10 @@ project that independently converged on close to the same `Runtime.enable` fix.
   Playwright test suite).
 - This project's own patch catalogue and `debugger-timing-detection.md` for the
   equivalent Firefox-side automation-layer fixes.
+- [MDN, `navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+  read 2026-08-06, for what the property indicates and when a browser sets it.
+- [Playwright's own `BrowserType.launch()` docs, `channel` option](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-channel),
+  read 2026-08-06, for the `channel="chrome"` launch setting.
 - Where a claim about Patchright's internals could not be checked beyond its own
   documentation, this page does not assert one.
 

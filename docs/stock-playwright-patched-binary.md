@@ -9,24 +9,28 @@ nav_order: 30
 
 # Stock Playwright, patched Firefox: how they connect
 
-Most stealth tooling in this space works by editing the automation library: a fork of
-Playwright, a monkeypatch that rewrites methods at import time, or a page-level script
-that overrides browser APIs after the page loads. All three couple your disguise to a
-specific version of the driver, and all three break the day you upgrade it.
+invisible_playwright joins unmodified Playwright to a patched Firefox binary: you keep
+stock Playwright exactly as it ships from upstream, and the stealth lives one layer down,
+inside the patched binary and the preferences it reads. It does not fork or patch
+Playwright at all.
 
-invisible_playwright takes the other route. It does not fork or patch Playwright at all.
-You keep stock Playwright, exactly as it ships from upstream, and the stealth lives one
-layer down, inside a patched Firefox binary and the preferences it reads. This page is
-about that seam: what connects the unmodified driver to the patched engine, why that
-choice keeps upgrades clean, and the one thing it deliberately does not do for you.
+Most stealth tooling in this space instead works by editing the automation library: a
+fork of Playwright, a monkeypatch that rewrites methods at import time, or a page-level
+script that overrides browser APIs after the page loads. All three couple your disguise
+to a specific version of the driver, and all three break the day you upgrade it.
+
+This page is about the seam that avoids that: what connects the unmodified driver to the
+patched engine, why that choice keeps upgrades clean, and the one thing it deliberately
+does not do for you.
 
 ## What "stock Playwright" actually means here
 
 Stock means the Playwright you already installed from PyPI, unmodified. The classes,
 the methods, the async and sync flavours, the return types are all the upstream ones.
 When you launch through invisible_playwright, the `browser` object you get back is a
-real `playwright.sync_api.Browser` (or its async twin), and every method on it behaves
-exactly as the upstream documentation says.
+real [`playwright.sync_api.Browser`](https://playwright.dev/python/docs/api/class-browser)
+(or its async twin), and every method on it behaves exactly as the upstream
+documentation says.
 
 There is no wrapped subset to learn and no shimmed method that behaves differently from
 the documented one. If a snippet works against plain Playwright, it works here after a
@@ -37,7 +41,9 @@ reinvented one.
 
 ## The integration seam: a launch path and a prefs contract
 
-Here is the whole mechanism, without the internals.
+The seam is a launch path plus a preferences contract: three things happen before
+Playwright ever launches anything, and then Playwright drives the resulting binary
+exactly like any other Firefox.
 
 When you construct `InvisiblePlaywright`, three things happen before Playwright is ever
 asked to launch. First, the patched Firefox binary is located, downloading and caching
@@ -59,8 +65,11 @@ on one side, the engine on the other. Neither side reaches into the other. Playw
 does not know the browser is patched, and the browser does not care which version of
 Playwright launched it, because they meet only at that prefs and launch-path boundary.
 
-If you ever drive `firefox.launch()` yourself instead of using the class, the same
-contract is available directly, which is why [Configuration](configuration.md) shows
+If you ever drive
+[`firefox.launch()`](https://playwright.dev/python/docs/api/class-browsertype) yourself
+instead of using the class, the same contract is available directly through Playwright's
+own `executable_path`, `firefox_user_prefs` and `env` launch options, which is why
+[Configuration](configuration.md) shows
 passing the proxy dict into the preferences helper. And when a preference you expect does
 not seem to take effect, the fix is usually in that contract rather than in Python, which
 is what [firefox prefs not applying](firefox-prefs-not-applying.md) walks through.
@@ -98,7 +107,9 @@ the binary the constructor launched.
 
 ## Why a Playwright upgrade does not break the fingerprint
 
-This is the payoff of putting the stealth in the binary rather than in Python overrides.
+An upgrade does not break the fingerprint because the identity lives in Firefox
+preferences read at startup, not in Python code a new Playwright version might touch.
+That is the payoff of putting the stealth in the binary rather than in Python overrides.
 
 A page-level override script has to run inside the page and win a race against the site's
 own code, and it depends on the exact API surface the driver exposes. A monkeypatch
@@ -117,8 +128,10 @@ monkeypatch signs you up for.
 
 ## The honest caveat: identity is not the whole session
 
-Being blunt about the boundary is the point of this section, because the seam above is
-about browser identity and nothing else.
+Identity is not the whole session: this integration owns the browser's fingerprint and
+nothing about your IP reputation, quotas, or behaviour. Being blunt about that boundary
+is the point of this section, because the seam above is about browser identity and
+nothing else.
 
 What the integration delivers is a browser that reads as a genuine Firefox driven by a
 real person: the fingerprint is internally consistent, the TLS handshake is a real
@@ -187,6 +200,10 @@ works as written.
 - This project's own [Quickstart](quickstart.md) and [Configuration](configuration.md)
   pages, which describe the two-line launch, the returned real `Browser` object, and the
   environment contract.
+- Playwright's own [Browser](https://playwright.dev/python/docs/api/class-browser) and
+  [BrowserType](https://playwright.dev/python/docs/api/class-browsertype) API
+  documentation, which describe the object this integration returns unchanged and the
+  `executable_path` / `firefox_user_prefs` / `env` launch options the contract relies on.
 - The release gates that measure the fingerprint, TLS and driver layers against public
   detection suites, run through a proxy and compared field by field against a stock
   Firefox.

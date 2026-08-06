@@ -44,14 +44,15 @@ together by state the site handed you on the way in.
 
 Three pieces of that state assume the requests keep leaving from the same place:
 
-- **Cookies.** The session cookie a site sets on the first response is presented
-  on every request after it. The site issued that cookie to whoever arrived on the
-  first IP.
+- **Cookies.** The [session cookie](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies)
+  a site sets on the first response is presented on every request after it. The
+  site issued that cookie to whoever arrived on the first IP.
 - **A session token.** Anything the site minted for your visit - a CSRF token, an
   auth token, a server-side session id - is bound to the context it was created in.
-- **The Referer chain.** Each in-site navigation carries the previous URL, so the
-  requests form an ordered path through the site rather than a set of unrelated
-  hits.
+- **The Referer chain.** Each in-site navigation carries the [previous
+  URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referer),
+  so the requests form an ordered path through the site rather than a set of
+  unrelated hits.
 
 Cookies, a session token, and a Referer chain all assume the same exit. That is
 why the natural unit here is one launch, one proxy, for the life of a session.
@@ -199,6 +200,10 @@ or challenge the session.
 - The product's default behaviour: fingerprint and TLS read as a genuine Firefox,
   while IP reputation, quotas, rate limits and behaviour are supplied by the caller -
   the honest boundary this page is built around.
+- MDN, [Using HTTP cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies) -
+  how a server-issued session cookie is presented back on later requests.
+- MDN, [Referer header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referer) -
+  how the header carries the previous page's address on each navigation.
 
 **See also:** [rotating proxies per run](how-to-rotate-proxies-playwright.md) for
 doing rotation at the right boundary, [proxy per browser context](playwright-proxy-per-context.md)

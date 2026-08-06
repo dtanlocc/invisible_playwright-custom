@@ -11,9 +11,10 @@ nav_order: 12
 
 You wrote the script, it worked on your laptop, you moved it to a server or a CI
 runner, and now the same script gets a challenge page, a short body, or an outright
-block. Nothing in the code changed. This is one of the most common and most
-misdiagnosed failures in browser automation, and the answer is usually not in your
-code at all.
+block. Nothing in the code changed. What changed is the exit IP: a home connection is
+residential, a cloud or CI runner is datacenter, and that difference gets scored
+before your page ever loads. This is one of the most common and most misdiagnosed
+failures in browser automation, and the answer is usually not in your code at all.
 
 This page explains what actually changed between the two environments, how to prove
 it in a few minutes, and the one variable you have to supply yourself because no

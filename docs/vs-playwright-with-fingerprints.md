@@ -37,8 +37,8 @@ device - and diverge on where the value is produced and where it lands.
 
 ## What playwright-with-fingerprints actually does
 
-It sources fingerprint values from a remote service and applies them through the
-page, rather than generating them locally. The plugin calls out to
+playwright-with-fingerprints sources fingerprint values from a remote service and
+applies them through the page, rather than generating them locally. The plugin calls out to
 `FingerprintSwitcher`, a hosted service the same organisation runs, which returns
 a set of browser property values sourced from real devices. The plugin then
 replaces the corresponding properties in a running Chromium session with those
@@ -76,8 +76,8 @@ cost.
 
 ## The dependency this project does not have
 
-Because the values come from a remote service the plugin calls out to, that
-service is part of the runtime path on every session. Their availability and
+Because playwright-with-fingerprints' values come from a remote service it calls
+out to, that service is part of the runtime path on every session. Their availability and
 their consistency depend on that service being reachable and returning what the
 plugin expects, every time one is needed. That is a real architectural difference
 from every locally-seeded approach covered elsewhere on this site. A locally
@@ -98,6 +98,18 @@ offline](pinning.md) - has no equivalent external dependency to fail.
   session claims](chromium-is-not-chrome.md), rather than assuming either answer,
   and [test which layer a target actually checks](how-to-test-bot-detection.md)
   instead of guessing which gap matters.
+
+## Conclusion
+
+playwright-with-fingerprints answers "where does a believable fingerprint come
+from" by sourcing it from real devices through a hosted service, rather than
+generating it locally - a genuine, different answer, not a strictly worse one.
+Its own documentation states the terms plainly: Windows only, a specific pinned
+Chromium build, and a service that has to be reachable every session. Where
+those terms are acceptable, it does something none of the locally-generated
+options on this site do. Where they aren't - Linux infrastructure, no interest
+in an external dependency, or a need for engine-level coverage - the fingerprint
+source isn't the axis to be deciding on in the first place.
 
 ## Short answers to the questions that lead here
 

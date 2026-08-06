@@ -64,8 +64,9 @@ specific patches to apply to.
 rebrowser-patches is also explicit, in its own documentation, about what it
 doesn't touch: proxies, user agent consistency, and canvas/WebGL fingerprinting
 are named directly as separate concerns the patches don't address, alongside a
-warning that page-level JavaScript overrides of browser internals (via `Proxy`
-objects or `Object.defineProperty`) are themselves detectable - the same
+warning that page-level JavaScript overrides of browser internals (via
+[`Proxy`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy)
+objects or [`Object.defineProperty`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty)) are themselves detectable - the same
 overwrite-is-a-signal point [made elsewhere on this site](tostring-native-code-detection.md)
 about any page-level patch, regardless of which tool applies it.
 

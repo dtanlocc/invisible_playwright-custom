@@ -89,7 +89,8 @@ The one thing that does not work is claiming a better GPU harder.
 
 ## The other half of the story, which is about testing
 
-While chasing the above, the same reports carried a second flag: `high_activity`.
+The same fingerprinting reports that carried the tampering flag also carried a
+second flag: `high_activity`.
 
 It was not the product. It was us, running the same detector demo repeatedly through
 the same small set of exit addresses over an afternoon. The service was measuring

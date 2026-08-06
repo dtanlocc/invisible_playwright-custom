@@ -45,7 +45,9 @@ they name the same browser.
 
 ## Why the mismatch is decisive, not just suspicious
 
-A single unusual value is ambiguous. A rare cipher order might be a corporate proxy, an
+A disagreement between the header and the handshake is decisive because, unlike a
+single odd value, it has no innocent explanation. A single unusual value is
+ambiguous. A rare cipher order might be a corporate proxy, an
 old build, a niche operating system. Detectors that block on one odd value alone get
 false positives, and they know it, so the good ones do not.
 
@@ -69,7 +71,9 @@ every request.
 
 ## The catch is not a "bad" fingerprint - it is a disagreeing one
 
-The distinction matters because it changes what a fix has to do.
+The catch is not that the fingerprint is "bad" on its own - it is that it disagrees
+with the header the same request sends. The distinction matters because it changes
+what a fix has to do.
 
 If the problem were "our TLS fingerprint is bad", you could imagine papering over it. It
 is not. The problem is that the handshake and the User-Agent disagree, and the only way

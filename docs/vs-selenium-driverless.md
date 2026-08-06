@@ -20,19 +20,20 @@ touch, how a patched-binary approach differs, and the caveat that applies equall
 
 ## The gap selenium-driverless closes
 
-Classic Selenium launches a browser and talks to it through a driver binary
+selenium-driverless removes the middleman between your code and the browser. It speaks CDP
+straight to the browser, so there is no `chromedriver` process to fingerprint and
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+is not forced on for you. That is a genuine improvement, and it is the same category of fix
+that other modern tools make in their own way: [SeleniumBase UC Mode detaches the driver
+during sensitive actions](vs-seleniumbase-uc-mode.md) rather than removing it, and stock
+Playwright already avoids the Selenium driver model entirely. The driver layer, in 2026, is
+[mostly a solved and mostly not-your-problem tell](navigator-webdriver-explained.md).
+
+Classic Selenium, by contrast, launches a browser and talks to it through a driver binary
 (`chromedriver` for Chrome). That binary is a process on the machine, and its presence and
 behaviour have historically been detectable: it flips `navigator.webdriver` to `true`, it
 leaves recognisable command-and-control patterns, and on some builds it is visible as a
 distinct automation channel.
-
-selenium-driverless removes the middleman. It speaks CDP straight to the browser, so there
-is no `chromedriver` to fingerprint and `navigator.webdriver` is not forced on for you.
-That is a genuine improvement, and it is the same category of fix that other modern tools
-make in their own way: [SeleniumBase UC Mode detaches the driver during sensitive
-actions](vs-seleniumbase-uc-mode.md) rather than removing it, and stock Playwright already
-avoids the Selenium driver model entirely. The driver layer, in 2026, is
-[mostly a solved and mostly not-your-problem tell](navigator-webdriver-explained.md).
 
 ## What it leaves as stock Chrome
 

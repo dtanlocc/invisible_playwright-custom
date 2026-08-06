@@ -152,8 +152,9 @@ that element, and a listener can read `event.isTrusted` on them. On a real user'
 selection those events are trusted, `isTrusted` is `true`, because the browser generated
 them internally in response to a genuine input change. An event synthesised from page
 JavaScript, `element.dispatchEvent(new Event("change"))`, carries `isTrusted: false`
-permanently, because that flag is set by the browser and cannot be assigned. That is the
-same one-line check that
+permanently, because
+[that flag is set by the browser and cannot be assigned](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted).
+That is the same one-line check that
 [separates a real pointer from a scripted one](human-mouse-movement.md), applied to the
 upload surface.
 
@@ -268,7 +269,8 @@ browser fire it by attaching the file through `set_input_files`.
   through the automation channel instead of opening the operating system's native picker.
 - The `isTrusted` flag on `change` and `input` events, set by the browser and not
   assignable from page JavaScript, which is what makes a properly attached upload
-  distinguishable from a dispatched one.
+  distinguishable from a dispatched one:
+  [MDN, Event: isTrusted property](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted).
 
 **See also:** [downloading files with Playwright and Firefox](playwright-download-files-firefox.md)
 for the same distinction on the download side, [the detection checklist](playwright-detected-as-bot.md)

@@ -72,11 +72,13 @@ viewer has pictures but no inspectable tree.
 
 If you drive `firefox.launch()` yourself rather than using the class, the call is
 identical, because `context.tracing` is a Playwright surface and invisible_playwright
-does not touch it.
+does not touch it: [Playwright's tracing API](https://playwright.dev/python/docs/api/class-tracing)
+works exactly as documented upstream, with no wrapping in between.
 
 ## Open trace.zip in the trace viewer
 
-You do not unzip it. Point the bundled viewer at the file:
+You do not unzip it. Point the bundled [trace viewer](https://playwright.dev/python/docs/trace-viewer)
+at the file:
 
 ```bash
 playwright show-trace trace.zip
@@ -180,8 +182,9 @@ reputation. Those live in the exit and the pacing you supply.
 
 ## Sources
 
-- Playwright's tracing API (`context.tracing.start` / `stop`) and the `show-trace`
-  viewer, read from the upstream documentation.
+- Playwright's [tracing API](https://playwright.dev/python/docs/api/class-tracing)
+  (`context.tracing.start` / `stop`) and the [`show-trace` viewer](https://playwright.dev/python/docs/trace-viewer),
+  read from the upstream documentation.
 - This project's own release checklist, whose rule to open and inspect any screenshot
   before sharing is the same content-leak concern applied to a trace.
 

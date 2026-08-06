@@ -32,7 +32,7 @@ than any of them alone.
 
 ## The detail that catches almost everybody
 
-**`availHeight` should be smaller than `height`.**
+**[`availHeight`](https://developer.mozilla.org/en-US/docs/Web/API/Screen/availHeight) should be smaller than `height`.**
 
 On a real Windows desktop the taskbar occupies the bottom of the screen, so the
 available area is shorter than the display by the height of that bar. Typically around
@@ -57,7 +57,7 @@ The related traps:
 headless browser is told to use a large viewport while reporting a small display. This
 is a documented, widely used check.
 
-**`outerHeight` should exceed `innerHeight`.** The difference is the browser's own
+**[`outerHeight`](https://developer.mozilla.org/en-US/docs/Web/API/Window/outerHeight) should exceed `innerHeight`.** The difference is the browser's own
 chrome: tab strip, address bar. A window where they are equal is a browser with no
 interface, which is what headless actually is.
 

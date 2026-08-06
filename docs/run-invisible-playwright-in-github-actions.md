@@ -75,11 +75,13 @@ with InvisiblePlaywright(seed=42, headless=True) as browser:
     page.screenshot(path="out.png")
 ```
 
-The `browser` here is a real `playwright.sync_api.Browser`, so every Playwright method
-works exactly as documented upstream. Passing `seed=42` fixes the identity: the same
-seed produces the same GPU, canvas hash, audio context and screen on every run, which
-is what makes a CI failure reproducible instead of a new random machine each time. Log
-`InvisiblePlaywright().seed` if you let it pick one for you.
+The `browser` here is a real
+[`playwright.sync_api.Browser`](https://playwright.dev/python/docs/api/class-browser),
+so every Playwright method works exactly as documented upstream. Passing `seed=42`
+fixes the identity: the same seed produces the same GPU, canvas hash, audio context
+and screen on every run, which is what makes a CI failure reproducible instead of a
+new random machine each time. Log `InvisiblePlaywright().seed` if you let it pick
+one for you.
 
 ## Cache the engine so every job does not re-download it
 
@@ -109,10 +111,11 @@ binary in the image, `INVPW_BINARY_PATH` skips the download entirely.
 
 ## The real limiting factor: the runner's IP
 
-Here is the measurement that reframes the whole exercise. Run the job above with no
+The runner's IP, not the browser, is what gets scored: run the job above with no
 proxy and read the exit address from inside the browser, the same way you would
-[check for a proxy IP leak](how-to-check-proxy-ip-leak.md). It comes back as a hosting
-provider's range. That is not a bug in the browser; it is the runner.
+[check for a proxy IP leak](how-to-check-proxy-ip-leak.md), and it comes back as a
+hosting provider's range. That is not a bug in the browser; it is the runner, and
+this is the measurement that reframes the whole exercise.
 
 The order in which a site decides matters. The connection and its TLS handshake arrive
 first, and the source address is attached to both. A scoring system can raise a
@@ -218,6 +221,8 @@ and none is needed.
   the [configuration](configuration.md) page.
 - The exit-address reading taken from inside a headless runner job, compared against the
   same script run from a residential connection.
+- Playwright's own [`Browser` API reference](https://playwright.dev/python/docs/api/class-browser)
+  for the methods and properties that `browser` exposes once launched.
 
 **See also:** [how to check for a proxy IP leak](how-to-check-proxy-ip-leak.md),
 [rotating proxies across requests](how-to-rotate-proxies-playwright.md), and

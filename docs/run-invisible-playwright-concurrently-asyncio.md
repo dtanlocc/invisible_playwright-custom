@@ -45,8 +45,8 @@ print(asyncio.run(one_identity_many_pages()))
 ```
 
 `browser` here is a real `playwright.async_api.Browser`, so `new_page`, `new_context`
-and every other method behave exactly as documented upstream. There is no wrapped subset
-to learn.
+and every other method behave exactly as [documented upstream](https://playwright.dev/python/docs/api/class-browser).
+There is no wrapped subset to learn.
 
 **Many launched browsers, one identity each.** When each unit of work should look like a
 different person, launch a separate seeded browser per worker. That is the section below.
@@ -120,11 +120,11 @@ on, applied across many workers at once.
 
 ## What concurrency does not buy you
 
-This is the part the throughput framing hides. invisible_playwright is built to look like
-a real Firefox driven by a real person, and that is why it clears most fingerprint, TLS
-and driver-layer checks: the engine is a genuine patched Firefox, so those surfaces read
-as genuine. Concurrency changes none of that for better, and it can change the parts it
-does not cover for worse.
+invisible_playwright is built to look like a real Firefox driven by a real person, and
+that is why it clears most fingerprint, TLS and driver-layer checks: the engine is a
+genuine patched Firefox, so those surfaces read as genuine. This is the part the
+throughput framing hides: concurrency changes none of that for better, and it can change
+the parts it does not cover for worse.
 
 - **IP reputation is unchanged.** Ten workers behind one address are ten sessions from
   one address. If that address is a known or datacenter exit, running ten at once makes
@@ -198,7 +198,8 @@ bound many overlapping page loads; the sync API runs one call at a time.
 - This project's async API and seed model, as documented on the
   [Quickstart](quickstart.md) and [Configuration](configuration.md) pages.
 - Standard library `asyncio` - `gather`, `Semaphore` and `run` - used exactly as
-  documented upstream, over a real `playwright.async_api.Browser`.
+  documented upstream, over a real
+  [`playwright.async_api.Browser`](https://playwright.dev/python/docs/api/class-browser).
 - This project's own release runs, where raising the parallel count cut wall-clock time
   and multiplied the per-exit request rate by roughly the same factor.
 

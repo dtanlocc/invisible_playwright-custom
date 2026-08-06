@@ -32,7 +32,9 @@ past is genuinely unusual, and the score is measuring exactly that.
 
 ## What a browser that has been used actually carries
 
-Three groups, and they are not interchangeable:
+A browser that has actually been used carries three groups of cookies a fresh profile
+lacks: Google's own, third-party analytics/advertising cookies, and consent-manager
+cookies. They are not interchangeable.
 
 **Google's own cookies.** A browser that has loaded anything Google, which in practice
 is every browser, carries a set of them on `.google.com`: a visitor identifier, a
@@ -52,7 +54,8 @@ second looks like a week of normal use.
 
 ## The trap: an anachronism is worse than an absence
 
-This is the part that is genuinely easy to get wrong, and we did.
+A stale cookie is a stronger signal against you than a missing one, and it is the part
+that is genuinely easy to get wrong - we did.
 
 Google **deprecated one of its long-standing cookies in 2022**. If you seed a profile
 from an article written before that, or from a capture taken years ago, your browser
