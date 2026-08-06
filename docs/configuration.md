@@ -70,10 +70,29 @@ row is for a specific situation.
 | `STEALTHFOX_GITHUB_TOKEN` | A rate-limited or corporate network that refuses anonymous GitHub downloads |
 | `INVISIBLE_PLAYWRIGHT_SKEW=allow` | Run a Playwright version outside the tested range anyway |
 | `INVPW_CURSOR_ENGINE` | `python` (default), `binary`, or `off` |
+| `INVISIBLE_DOWNLOAD_DEADLINE` | Seconds allowed for one engine download, default `1800`. Raise it on a very slow link; `0` removes the bound |
 
 ```bash
 export INVISIBLE_PLAYWRIGHT_CACHE_DIR=/mnt/big/engines
 ```
+
+### Why the download has a deadline at all
+
+`requests` timeouts are per socket operation, not per transfer. A connection
+that delivers one byte every 59 seconds satisfies a 60-second timeout forever,
+so before `invisible-core` 18.13.0 the engine download had no upper limit: it
+could sit there as long as whatever was above it allowed. A CI job did exactly
+that for 39 minutes and was killed by its own limit; on a laptop the same thing
+is a launch that never returns and writes nothing to a log.
+
+The bound is checked between chunks and the refusal names the deadline, how long
+it had been running and how many bytes arrived, so a genuinely slow link is
+distinguishable from a stalled one. The engine archives are 217 to 238 MB
+depending on platform, so the default finishes anything above roughly 140 KB/s.
+If your connection is honestly slower than that, raise the number rather than
+removing the bound - `0` is there for the case where you are downloading over
+something too unusual to put a number on, and it restores the old behaviour of
+waiting indefinitely.
 
 ## Next
 
