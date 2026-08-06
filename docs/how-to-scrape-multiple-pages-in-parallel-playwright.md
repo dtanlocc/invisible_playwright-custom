@@ -120,7 +120,8 @@ only when the seed and the exit vary together.
 
 ## Fanning workers out with asyncio.gather
 
-`asyncio.gather` schedules the coroutines onto one event loop and lets their network waits
+[`asyncio.gather`](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather)
+schedules the coroutines onto one event loop and lets their network waits
 overlap; it does not use threads, so nothing here needs a lock. Two mechanical details
 decide whether the fan-out behaves under load.
 
@@ -146,7 +147,9 @@ signal. Every launch is a real browser process, and a thousand of them will exha
 long before the network does. From the site's side, a wall of simultaneous first-requests is
 itself the pattern worth flagging.
 
-Bound both with a semaphore, and space the work inside each worker:
+Bound both with an
+[`asyncio.Semaphore`](https://docs.python.org/3/library/asyncio-sync.html#asyncio.Semaphore),
+and space the work inside each worker:
 
 ```python
 import asyncio, random
@@ -216,10 +219,12 @@ clean bisect.
 
 ## Sources
 
-- Python's `asyncio.gather` and its `return_exceptions` behaviour, and `asyncio.Semaphore`
+- Python's [`asyncio.gather`](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather)
+  and its `return_exceptions` behaviour, and
+  [`asyncio.Semaphore`](https://docs.python.org/3/library/asyncio-sync.html#asyncio.Semaphore)
   for bounding concurrency.
-- Playwright's context model, in which a `BrowserContext` isolates storage and the proxy but
-  not the hardware the browser reports.
+- Playwright's [context model](https://playwright.dev/python/docs/browser-contexts), in which a
+  `BrowserContext` isolates storage and the proxy but not the hardware the browser reports.
 - This project's per-launch identity: fingerprint derived from the seed, and timezone, locale
   and exit address resolved once per launch from that launch's proxy.
 

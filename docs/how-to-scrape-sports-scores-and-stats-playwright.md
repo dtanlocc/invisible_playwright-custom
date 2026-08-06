@@ -50,7 +50,8 @@ tuned for finished matches will find nothing during play.
 ## Subscribe to the score feed instead of re-reading the DOM
 
 The score you want is arriving over a socket. Read the socket, not the node it writes
-to. Playwright exposes every WebSocket frame through `page.on("websocket", ...)`, so
+to. Playwright exposes every WebSocket frame through
+[`page.on("websocket", ...)`](https://playwright.dev/python/docs/network#websockets), so
 you can capture each update at the moment it is delivered rather than polling the
 rendered value and hoping your timer lines up.
 
@@ -78,7 +79,8 @@ with InvisiblePlaywright(seed=42) as browser:
 
 If the site short-polls instead of using a socket, the same idea applies one layer
 over: the updates come back as repeated XHR responses, and you subscribe to those with
-`page.on("response", ...)` filtered to the polling endpoint. Reading the transport
+[`page.on("response", ...)`](https://playwright.dev/python/docs/network#network-events)
+filtered to the polling endpoint. Reading the transport
 directly, in either form, is the whole technique in
 [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md), and
 it is strictly better than scraping the widget because it gives you every update with
@@ -117,7 +119,8 @@ with InvisiblePlaywright(seed=42) as browser:
         print(tab, "->", len(data), "rows")
 ```
 
-`expect_response` arms the wait before the click, so there is no race between the
+[`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+arms the wait before the click, so there is no race between the
 request going out and your code starting to listen. If a panel renders progressively
 rather than in one response, the same discipline applies to the render: prefer waiting
 for a concrete element or a specific response over a blind sleep, which is the argument
@@ -255,9 +258,11 @@ than hoping the next random draw looks the same.
 - The real `invisible_playwright` API used throughout: `InvisiblePlaywright(seed=...)`
   returns a standard Playwright `Browser`, and the seed pins every fingerprint surface
   across runs. See [Quickstart](quickstart.md) and [Configuration](configuration.md).
-- Standard Playwright event and waiting APIs: `page.on("websocket")`,
-  `page.on("response")`, `page.expect_response`, `page.wait_for_selector`, read from
-  their documented behaviour.
+- Standard Playwright event and waiting APIs:
+  [`page.on("websocket")`](https://playwright.dev/python/docs/network#websockets),
+  [`page.on("response")`](https://playwright.dev/python/docs/network#network-events),
+  [`page.expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response),
+  `page.wait_for_selector`, read from their documented behaviour.
 - This project's release gates, including the velocity flag raised by a poll that read
   a scoring endpoint faster than a human would, which turned out to be the test harness
   rather than the browser.

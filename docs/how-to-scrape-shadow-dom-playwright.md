@@ -27,7 +27,8 @@ inside that root instead of in the main document tree. That is the whole point: 
 component's internals are encapsulated so that page-level CSS and page-level scripts do
 not accidentally reach in.
 
-The root is created in one of two modes:
+The root is created in one of two modes, per the
+[`attachShadow` specification](https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow):
 
 - **Open.** `attachShadow({ mode: "open" })`. The host exposes an `.shadowRoot`
   property, so anything with a reference to the host can walk into the tree.
@@ -63,11 +64,11 @@ are already holding.
 
 ## Playwright locators cross open shadow roots with no special API
 
-Playwright's selector engine is not the DOM's. When you write `page.locator("css=...")`
-or a text selector, the engine walks open shadow roots as part of its normal descent.
-You do not opt in, you do not name the host, and you do not chain through `shadowRoot`.
-The same selector you would write for an ordinary element finds the element inside an
-open component.
+Playwright's [selector engine](https://playwright.dev/python/docs/locators) is not the
+DOM's. When you write `page.locator("css=...")` or a text selector, the engine walks
+open shadow roots as part of its normal descent. You do not opt in, you do not name the
+host, and you do not chain through `shadowRoot`. The same selector you would write for
+an ordinary element finds the element inside an open component.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -205,11 +206,13 @@ respects encapsulation and will not match across the root. Chain locators instea
 
 ## Sources
 
-- The Playwright selector-engine behaviour described here, confirmed by the direct A/B on
-  the same element: the DOM's `document.querySelector` returning `null` while
+- [Playwright's own locators documentation](https://playwright.dev/python/docs/locators),
+  which states that locators work with shadow DOM by default, confirmed here by the direct
+  A/B on the same element: the DOM's `document.querySelector` returning `null` while
   `page.locator` with the identical CSS returns the element.
-- The DOM specification's open/closed shadow-root modes and the `.shadowRoot` handle that
-  reads back `null` for closed roots.
+- [MDN's `Element.attachShadow()` reference](https://developer.mozilla.org/en-US/docs/Web/API/Element/attachShadow)
+  for the open/closed shadow-root modes and the `.shadowRoot` handle that reads back
+  `null` for closed roots.
 
 **See also:** [waiting for content that renders after interaction](how-to-scrape-infinite-scroll-playwright.md),
 [the checklist for when automation gets a different page than a human](playwright-detected-as-bot.md),

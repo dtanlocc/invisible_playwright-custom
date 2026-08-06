@@ -29,9 +29,10 @@ That is the seam.
 
 invisible_playwright returns exactly that. `InvisiblePlaywright(...)` used as an
 async context manager yields a real `playwright.async_api.Browser` - every
-Playwright method works as documented upstream, there is no wrapped subset. So you
-launch the invisible_playwright browser, pass it straight to `from_browser`, and the
-toolkit builds its tools on top of it without knowing anything changed.
+[Browser method works as documented upstream](https://playwright.dev/python/docs/api/class-browser),
+there is no wrapped subset. So you launch the invisible_playwright browser, pass it
+straight to `from_browser`, and the toolkit builds its tools on top of it without
+knowing anything changed.
 
 The consequence is concrete. The toolkit's `navigate_browser`, `click_element`,
 `extract_text` and the rest all drive a browser whose GPU, audio, fonts, screen and
@@ -87,12 +88,13 @@ Proxy schemes, DNS routing and how the timezone auto-derives from the exit IP ar
 
 ## Why the page loads pass but the session can still fail
 
-Here is the caveat, and it is specific to agents rather than a general disclaimer.
+The browser swap changes what each page load looks like; it does not change how the
+agent acts once the page is open, and that gap - specific to agents, not a general
+disclaimer - is where a session can still fail after individual loads pass.
 
-Swapping the browser changes what each page load looks like. It does not change how
-the agent acts once the page is open. An LLM agent reads the page, calls a model,
-waits for the response, then acts. That produces a rhythm with a shape no person
-makes: long pauses clustered around model latency rather than reading speed, no
+An LLM agent reads the page, calls a model, waits for the response, then acts. That
+produces a rhythm with a shape no person makes: long pauses clustered around model
+latency rather than reading speed, no
 pointer drift during those pauses, actions landing dead centre on their targets
 because the coordinates come from an accessibility tree rather than a hand, and no
 wasted hovers or changes of mind.
@@ -193,6 +195,8 @@ clean IP; pass a `proxy` dict as shown in [configuration](configuration.md).
 
 - LangChain's `PlayWrightBrowserToolkit.from_browser(async_browser=...)` signature,
   which accepts an already-launched async Playwright `Browser`.
+- Playwright's own [Browser class API](https://playwright.dev/python/docs/api/class-browser),
+  which is what "no wrapped subset" is checked against.
 - This project's own API: `InvisiblePlaywright` returns a real
   `playwright.async_api.Browser`, documented in
   [the quickstart](quickstart.md).

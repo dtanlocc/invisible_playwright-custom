@@ -89,7 +89,8 @@ for its whole duration.
 ## SOCKS5 with a username and password
 
 Most proxy pools that matter for scraping are SOCKS5 with per-account credentials, and
-Playwright's own `proxy` option documents username and password for HTTP proxies only.
+Playwright's own [`proxy` option](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)
+documents username and password for HTTP proxies only.
 Passing them on a `socks5://` server does not raise an error; it just does not
 authenticate, and the failure shows up later as requests that silently fall through or
 never arrive. The full evidence and the workarounds that exist for plain Playwright are
@@ -251,8 +252,8 @@ for where proxy rotation sits among the other layers a block can come from.
 
 ## Sources
 
-- Playwright's `proxy` API reference, whose credential fields are documented for HTTP
-  proxies and not for `socks5://` servers.
+- Playwright's [`proxy` API reference](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch),
+  whose credential fields are documented for HTTP proxies and not for `socks5://` servers.
 - [Playwright timezone does not match the proxy IP](timezone-proxy-mismatch.md) and
   [WebRTC leak with a proxy](webrtc-leak-proxy.md), both grounding the exit-consistency
   section above.

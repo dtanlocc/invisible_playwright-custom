@@ -208,8 +208,9 @@ rest on `requests`.
 
 - The invisible_playwright [quickstart](quickstart.md) and [configuration](configuration.md)
   pages for the launch API and proxy wiring shown above.
-- Playwright's documented `Page.content()` and `Page.wait_for_selector()`, which behave
-  identically here because the returned object is a real Playwright `Browser`.
+- Playwright's documented [`Page.content()`](https://playwright.dev/python/docs/api/class-page#page-content)
+  and `Page.wait_for_selector()`, which behave identically here because the returned object
+  is a real Playwright `Browser`.
 - This project's own measurements of what the engine covers (fingerprint, TLS, driver
   layer) versus what it does not (IP, pacing, quotas), reflected in the boundary drawn
   above.

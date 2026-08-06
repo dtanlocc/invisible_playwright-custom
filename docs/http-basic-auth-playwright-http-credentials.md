@@ -21,10 +21,12 @@ keep the password out of your repository.
 
 ## What http_credentials actually answers
 
-`http_credentials` supplies the username and password Playwright sends back when a
-server replies to a request with `401` and a `WWW-Authenticate` challenge. Playwright
-retries the request with an `Authorization: Basic <base64>` header, the server accepts
-it, and the page loads. No dialog, no interaction, nothing to click.
+[`http_credentials`](https://playwright.dev/python/docs/api/class-browser#browser-new-context)
+supplies the username and password Playwright sends back when a server replies to a
+request with `401` and a [`WWW-Authenticate`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/WWW-Authenticate)
+challenge. Playwright retries the request with an `Authorization: Basic <base64>`
+header, the server accepts it, and the page loads. No dialog, no interaction, nothing
+to click.
 
 It is a property of the browser context, so every page and every request in that
 context inherits it. You set it once when you create the context, not per navigation.
@@ -187,9 +189,9 @@ limits and timing are still yours to supply with a clean proxy and human pacing.
 
 ## Sources
 
-- The Playwright browser-context documentation for `http_credentials` and the
-  `WWW-Authenticate` / `401` exchange it answers, read from upstream rather than from a
-  rendered guide.
+- [The Playwright browser-context documentation](https://playwright.dev/python/docs/api/class-browser#browser-new-context)
+  for `http_credentials`, and [the WWW-Authenticate header reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/WWW-Authenticate)
+  for the `401` exchange it answers.
 - This project's own launch API, where the returned object is a real Playwright
   `Browser` and every context option passes through unchanged.
 

@@ -1,6 +1,6 @@
 ---
 title: "Is changing the user agent enough to avoid detection?"
-description: "User agent changes alone do not avoid bot detection - detectors cross-check against navigator.platform, oscpu, TLS, WebGL and Client Hints. Mismatches flag harder."
+description: "User agent changes alone do not avoid bot detection - detectors cross-check navigator.platform, oscpu, TLS, WebGL and Client Hints. Mismatches flag harder."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 24

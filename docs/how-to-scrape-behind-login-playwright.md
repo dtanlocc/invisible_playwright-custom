@@ -44,7 +44,8 @@ imitating unusual behaviour, it is doing what most non-first-time sessions alrea
 ## Step 1: log in once and save the session
 
 Log in interactively or with a script you only run once, then capture the context's
-`storage_state` immediately afterward. This is standard Playwright - the object
+[`storage_state`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+immediately afterward. This is standard Playwright - the object
 `InvisiblePlaywright` returns is a real `Browser`, so nothing about session capture is
 special-cased, and the API-level details are in
 [save and reuse a login with storage_state](save-reuse-login-storage-state-playwright.md):
@@ -118,18 +119,19 @@ because the file on disk carries no note of which seed created it.
 
 ## The gotcha: a stored permission that quietly disables WebRTC protection
 
-If the site's login or verification flow ever asked for camera or microphone access,
-and you are replaying that session against a **persistent profile** rather than a bare
-`storage_state` file, check what got granted.
-
 Firefox turns off two WebRTC privacy behaviours - restricting ICE candidates to the
 default route, and masking the host address behind an mDNS name - the moment a camera
-or microphone permission is present for that origin. The check counts a **persisted**
-grant, not only an active capture, so a permission accepted once, in a profile
-directory you keep reusing, disables that protection for every future session on the
-same profile until the permission is removed. Nothing warns you when this happens; the
-session just starts reporting more than it used to. The full mechanism, and the audit
-step to run against any reused profile, is in
+or microphone permission is present for that origin, and the check counts a
+**persisted** grant, not only an active capture. That matters here if the site's login
+or verification flow ever asked for camera or microphone access, and you are replaying
+that session against a **persistent profile** rather than a bare `storage_state` file:
+check what got granted.
+
+A permission accepted once, in a profile directory you keep reusing, disables that
+protection for every future session on the same profile until the permission is
+removed. Nothing warns you when this happens; the session just starts reporting more
+than it used to. The full mechanism, and the audit step to run against any reused
+profile, is in
 [Playwright persistent profile: what it fixes and breaks](persistent-profiles.md).
 
 `storage_state` alone does not carry permissions - it is cookies and local storage
@@ -218,8 +220,9 @@ for the layers this page does not cover.
 
 ## Sources
 
-- Playwright's own `storage_state` / `storageState` and `new_context` APIs, for the
-  session capture and reuse mechanism used throughout.
+- Playwright's own [`storage_state`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state) /
+  `storageState` and [`new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context) APIs,
+  for the session capture and reuse mechanism used throughout.
 - The two upstream Playwright issues on persistent-context cookie handling linked
   above.
 - This project's own notes on seed-derived fingerprints and the WebRTC permission

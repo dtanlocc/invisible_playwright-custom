@@ -78,10 +78,11 @@ is trivially detectable.
 
 ## Reading both values with invisible_playwright
 
-Switching from stock Playwright is the usual two lines, and after that the
-`browser` object is a real Playwright `Browser`, so `evaluate` works exactly as
-upstream documents it. Read the navigator property and the media queries in one
-call so you are looking at a single consistent snapshot:
+Read `navigator.maxTouchPoints` and the pointer media queries in a single
+`evaluate` call, so you are looking at one consistent snapshot instead of two
+separate reads that could drift apart. Switching from stock Playwright is the
+usual two lines, and after that the `browser` object is a real Playwright
+`Browser`, so `evaluate` works exactly as upstream documents it:
 
 ```python
 from invisible_playwright import InvisiblePlaywright

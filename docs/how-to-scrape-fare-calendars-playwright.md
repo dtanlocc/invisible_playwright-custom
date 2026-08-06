@@ -44,9 +44,10 @@ That is the thing to wait on.
 ## Wait for the month's prices before you read the grid
 
 The reliable signal is the network response, not a fixed sleep and not `networkidle` on a
-page that keeps a socket open. Stock Playwright's `expect_response` lets you name the call
-that carries the prices and block until it lands. The `browser` object below is a real
-Playwright `Browser`, so every method is the documented one.
+page that keeps a socket open. Stock Playwright's
+[`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+lets you name the call that carries the prices and block until it lands. The `browser`
+object below is a real Playwright `Browser`, so every method is the documented one.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -218,6 +219,9 @@ reproduces it.
   behaviour described above.
 - Direct observation of how flexible-date calendars fetch and repaint prices per month,
   read from the network activity rather than the rendered grid.
+- Playwright's documented
+  [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+  primitive, used above to wait on each month's price call rather than a fixed sleep.
 
 **See also:** [pinning specific fingerprint fields](pinning.md) when you want a fixed screen
 or GPU across the sweep rather than a fully seed-derived one, and

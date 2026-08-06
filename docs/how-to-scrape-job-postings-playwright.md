@@ -49,9 +49,10 @@ response, not the network going quiet. Both are plain Playwright once the browse
 ## Drive the facet controls, then wait for the results response
 
 Fill the search fields and click the filters the way the page expects, then wait for the
-specific XHR that returns results. `page.expect_response` lets you arm the wait before the
-click that triggers it, so there is no race between the request firing and you starting to
-listen.
+specific XHR that returns results.
+[`page.expect_response()`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+lets you arm the wait before the click that triggers it, so there is no race between the
+request firing and you starting to listen.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -264,6 +265,9 @@ minutes from one address. Jitter the interval and cap concurrency as well.
 
 - The real wrapper API used above: [Quickstart](quickstart.md) and
   [Configuration](configuration.md), read from this project's own documentation.
+- [`page.expect_response()`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response),
+  read from Playwright's own documentation, is the primary-source method behind the
+  wait-for-the-response pattern this page builds on.
 - The `JobPosting` type is a public schema.org vocabulary; the fields named here are the
   ones a job board embeds for search engines to read.
 - This project's own velocity experience, where a scheduled sweep flagged itself and the

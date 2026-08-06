@@ -74,7 +74,8 @@ with InvisiblePlaywright(seed=42, proxy=proxy, timezone="America/New_York") as b
     page.wait_for_selector("[data-selected-store]")
 ```
 
-The `browser` here is a real Playwright `Browser`, so `new_page`, `click`, `fill` and
+The `browser` here is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so `new_page`, `click`, `fill` and
 `wait_for_selector` behave exactly as they do upstream. The only difference from plain
 Playwright is that the pointer arcs to each control on a curve and the fingerprint is
 whole and consistent, which matters because a store picker is often the most heavily
@@ -99,8 +100,8 @@ assert store is not None, "picker did not set a store cookie; still on the defau
 print("bound to store:", store)
 ```
 
-`page.context.cookies()` is stock Playwright and it reads the jar the site actually
-wrote, not the one you hoped for. If it comes back without a store entry, stop: every
+[`page.context.cookies()`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-cookies)
+is stock Playwright and it reads the jar the site actually wrote, not the one you hoped for. If it comes back without a store entry, stop: every
 price you scrape from here is the default, and no amount of parsing fixes that. This is
 the same principle the [how to test whether your browser is detected](how-to-test-bot-detection.md)
 page insists on for fingerprints. Assert the presence of the right signal, not the
@@ -244,6 +245,9 @@ so the cookie jar survives a restart.
 
 ## Sources
 
+- Playwright's own API reference for the calls used here:
+  [`Browser`](https://playwright.dev/python/docs/api/class-browser) and
+  [`BrowserContext.cookies()`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-cookies).
 - This project's configuration behaviour: proxy schemes, and the browser timezone being
   auto-derived from the egress IP unless an explicit IANA zone is passed.
 - Direct observation of retail store-scoping: the store cookie written by the picker, read

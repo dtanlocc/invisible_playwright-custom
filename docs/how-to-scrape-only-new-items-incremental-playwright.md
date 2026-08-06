@@ -114,10 +114,12 @@ if fresh:
 print(f"{len(fresh)} new items")
 ```
 
-`browser` here is a real Playwright `Browser`, so `new_page`, `query_selector_all`,
-`get_attribute` and `inner_text` are the stock methods you already know. The only thing the
-wrapper changes is that the session behind them carries a full, consistent fingerprint. The
-`seed=42` is deliberate and the next sections explain why it stays fixed.
+`browser` here is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so `new_page`,
+`query_selector_all`, `get_attribute` and `inner_text` are the stock methods you already
+know. The only thing the wrapper changes is that the session behind them carries a full,
+consistent fingerprint. The `seed=42` is deliberate and the next sections explain why it
+stays fixed.
 
 ## Handling out-of-order inserts and edits to items you already have
 
@@ -308,6 +310,8 @@ whole point.
 
 - This project's [quickstart](quickstart.md) and [configuration](configuration.md) pages for
   the real launch API and the seeded, reproducible identity used above.
+- [Playwright's `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for what a launched `Browser` object exposes once the wrapper hands it back.
 - This project's own rate-limiting notes, where request velocity is treated as a scored
   signal rather than politeness, and the self-flag incident behind that rule.
 

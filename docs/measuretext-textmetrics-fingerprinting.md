@@ -19,7 +19,9 @@ is fast, and it is a genuine font and platform signal.
 
 ## What measureText actually returns
 
-Calling it on a string returns more than a width:
+Calling `measureText()` on a string returns more than a width: a `TextMetrics`
+object carrying ten-plus numeric fields covering width, bounding box, and baseline
+offsets.
 
 ```js
 const m = ctx.measureText("some probe string")

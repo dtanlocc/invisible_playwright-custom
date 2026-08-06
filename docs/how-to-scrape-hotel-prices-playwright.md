@@ -113,7 +113,7 @@ with InvisiblePlaywright(seed=42) as browser:
     print(rates["nightly"], rates["currency"])
 ```
 
-Arming `expect_response` before the click that causes it is the part people get wrong: if
+Arming [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response) before the click that causes it is the part people get wrong: if
 you click first and wait second, the response can arrive in the gap and you wait forever.
 Keying the predicate on both the URL fragment and `status == 200` matters too, because a
 rate call that comes back empty or with a non-200 is exactly the failure mode the next
@@ -263,7 +263,9 @@ breakdown the rendered box only summarizes.
 - This project's own measurements on long single-session search loops, where a coherent
   seed-derived identity kept a rate endpoint quoting across dozens of queries while a
   drifting one did not.
-- The stock Playwright response and event API (`page.expect_response`, `page.on`), used
+- Playwright's [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+  and [`page.on`](https://playwright.dev/python/docs/network#network-events) APIs, read
+  from Playwright's own documentation rather than a rendered example, and exercised
   unchanged because the wrapper returns a real Playwright `Browser`.
 
 **See also:** [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)

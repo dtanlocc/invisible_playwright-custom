@@ -29,7 +29,10 @@ options are the whole story here:
   Firefox channel instead of the default Chromium one.
 - `--executable-path <path>` (also `launchOptions.executablePath` in a config file,
   or the `PLAYWRIGHT_MCP_EXECUTABLE_PATH` environment variable) tells Playwright to
-  launch that exact binary instead of the one it downloaded for itself.
+  launch that exact binary instead of the one it downloaded for itself. This is the
+  same [`executablePath` launch option](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-executable-path)
+  documented on `BrowserType.launch` for any Playwright script, not something
+  specific to the MCP server.
 
 Because the patched Firefox this project ships is a real Firefox binary that stock
 Playwright launches unmodified, those two options are enough to point the MCP server
@@ -215,6 +218,8 @@ rather than hoping the next random draw reproduces it.
 - Microsoft's Playwright MCP launch options: `--browser`, `--executable-path` and the
   `PLAYWRIGHT_MCP_EXECUTABLE_PATH` environment variable, read from its own
   documentation rather than assumed.
+- The underlying [`executablePath` launch option on `BrowserType.launch`](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-executable-path),
+  Playwright's own documentation for the mechanism `--executable-path` maps to.
 - This project's own launch path, which applies the per-seed profile that a bare
   `executablePath` does not, and the `invisible-playwright fetch` command that prints
   the verified engine path.

@@ -9,10 +9,12 @@ nav_order: 9
 
 # Run parallel browser agents with distinct fingerprints
 
-You want to run several browser agents at once, and you want each of them to look
-like a different person on a different machine. That is a reasonable thing to want,
-and it is achievable at the browser layer with almost no code. It is also only half
-of the problem, and the half people skip is the half that gets them linked.
+You want to run several browser agents at once, each looking like a different person
+on a different machine. The direct answer: give every agent its own process and its
+own seed, and each process derives a full, internally-consistent set of fingerprint
+values that differs from every other process's, with almost no code beyond one launch
+call per worker. That covers the browser layer. It is also only half of the problem,
+and the half people skip is the half that gets them linked.
 
 This page shows the working pattern, states exactly what it separates, and is equally
 clear about what it does not: distinct fingerprints behind one exit address are still
@@ -38,7 +40,8 @@ def run_agent(seed):
 ```
 
 The two-line launch is the whole integration. The `browser` returned is a real
-Playwright `Browser`, so every method your agent already calls works unchanged.
+Playwright [`Browser`](https://playwright.dev/python/docs/api/class-browser), so
+every method your agent already calls works unchanged.
 
 To actually run these side by side, put each one in its own process. Separate
 processes keep the identities from sharing any in-memory state, and they let the work
@@ -205,15 +208,16 @@ separate seeds, no shared in-memory state, and it uses multiple cores.
 
 ## Sources
 
-- This project's quickstart and configuration pages for the launch API, the seed
-  behaviour and the proxy dict shape used in every example above.
-- This project's fingerprint generation, which derives roughly 400 correlated fields
-  from a single seed, so identities are distinct across seeds and consistent within
-  one.
+- This project's [quickstart](quickstart.md) and [configuration](configuration.md)
+  pages for the launch API, the seed behaviour and the proxy dict shape used in every
+  example above.
+- This project's [fingerprint generation](reproducible-agent-browser-identity-seed.md),
+  which derives roughly 400 correlated fields from a single seed, so identities are
+  distinct across seeds and consistent within one.
 - The release gates for the network-layer caveat: a self-inflicted velocity flag that
   turned out to be one address making too many requests, not the fingerprints.
 
-**See also:** [running invisible_playwright concurrently with asyncio](run-invisible-playwright-concurrently-asyncio.md) for the I/O-bound version of this pattern, [whether two devices can share a fingerprint](can-two-devices-share-a-browser-fingerprint.md) for why distinct seeds read as distinct machines, and [whether a datacenter exit IP is detectable](can-websites-detect-a-datacenter-proxy-ip.md) for the network half you still have to solve.
+**See also:** [running invisible_playwright concurrently with asyncio](run-invisible-playwright-concurrently-asyncio.md) for the I/O-bound version of this pattern, [whether two devices can share a fingerprint](can-two-devices-share-a-browser-fingerprint.md) for why distinct seeds read as distinct machines, [whether a datacenter exit IP is detectable](can-websites-detect-a-datacenter-proxy-ip.md) for the network half you still have to solve, and [giving one agent a reproducible identity](reproducible-agent-browser-identity-seed.md) for the seed-to-fingerprint pipeline behind the consistency claim above.
 
 ---
 

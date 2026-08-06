@@ -1,6 +1,6 @@
 ---
 title: "Intercept and mock network requests with page.route"
-description: "Use Playwright page.route in invisible_playwright to intercept, mock, abort, or rewrite network requests, with the honest caveat on forged responses and edited headers."
+description: "Use Playwright page.route in invisible_playwright to intercept, mock, abort, or rewrite network requests, with the caveat on forged responses and headers."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 31
@@ -43,10 +43,14 @@ with InvisiblePlaywright(seed=42) as browser:
     page.goto("https://example.com")
 ```
 
-The `browser` here is a real `playwright.sync_api.Browser`, so `page.route`,
-`route.fulfill`, `route.abort` and `route.continue_` are the upstream methods with the
-upstream signatures. The `seed=42` argument only fixes the fingerprint so the run is
-reproducible; it has nothing to do with routing. Everything below is plain Playwright.
+The `browser` here is a real `playwright.sync_api.Browser`, so
+[`page.route`](https://playwright.dev/python/docs/api/class-page#page-route),
+[`route.fulfill`](https://playwright.dev/python/docs/api/class-route#route-fulfill),
+[`route.abort`](https://playwright.dev/python/docs/api/class-route#route-abort) and
+[`route.continue_`](https://playwright.dev/python/docs/api/class-route#route-continue) are
+the upstream methods with the upstream signatures. The `seed=42` argument only fixes the
+fingerprint so the run is reproducible; it has nothing to do with routing. Everything below
+is plain Playwright.
 
 ## fulfill: return a canned body
 
@@ -199,7 +203,10 @@ pacing, which you supply.
 
 ## Sources
 
-- Playwright's own `page.route`, `Route.fulfill`, `Route.abort` and `Route.continue`
+- Playwright's own [`page.route`](https://playwright.dev/python/docs/api/class-page#page-route),
+  [`Route.fulfill`](https://playwright.dev/python/docs/api/class-route#route-fulfill),
+  [`Route.abort`](https://playwright.dev/python/docs/api/class-route#route-abort) and
+  [`Route.continue`](https://playwright.dev/python/docs/api/class-route#route-continue)
   documentation, which invisible_playwright uses unchanged.
 - This project's stealth notes on request-shaped signals: client hints, Accept-Language
   consistency, and the TLS handshake that no header edit reaches.

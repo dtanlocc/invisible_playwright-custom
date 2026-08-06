@@ -22,7 +22,7 @@ close to nothing.
 
 Here is why, and what the property actually tells a detector.
 
-## The property is a standard, not a leak
+## navigator.webdriver is a standard, not a leak
 
 `navigator.webdriver` is specified. It is not something that slipped out by
 accident: the [WebDriver spec](https://www.w3.org/TR/webdriver2/) requires a conforming browser to expose it as `true`
@@ -32,9 +32,12 @@ which means a page checking it is using it exactly as intended.
 Start from that. You are not defeating a bug. You are
 contradicting a value the browser is required to publish about itself.
 
-## Why setting it to false is worse than leaving it true
+## Why setting navigator.webdriver to false is worse than leaving it true
 
-The usual first attempt looks like this:
+Setting `navigator.webdriver` to `false` is worse than leaving it `true`, because a
+clean browser never reports `false` in the first place - it swaps one honest
+signal for a value no real browser sends, and adds two more tells in the
+process. The usual first attempt looks like this:
 
 ```js
 Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -68,13 +71,12 @@ disguise is a new surface.
 
 ## The timing problem, which is why "it works locally" happens
 
-There is a fourth failure that has nothing to do with the value and everything to do
-with when your code runs.
-
-A patch injected into the page has to execute before the page's own scripts, or the
-page has already read the original. Automation frameworks expose an "on new document"
-or "init script" hook for exactly this, and it is not the same thing as running code
-after `goto` returns.
+A page-level patch only works if it runs before the page's own scripts read
+`navigator.webdriver` - miss that window and the page has already read the
+original value, which has nothing to do with what value you set and everything
+to do with when your code runs. Automation frameworks expose an "on new document"
+or "init script" hook for exactly this, and it is not the same thing as running
+code after `goto` returns.
 
 Two consequences people meet in this order:
 
@@ -96,9 +98,12 @@ which it was something else.
 
 ## What a real audit checks instead
 
-Open any of the public fingerprinting test suites and look at what they collect.
-[CreepJS](creepjs-explained.md), [BotD](botd-explained.md), [sannysoft](sannysoft-explained.md), fpscanner: they do not stop at one boolean. They build a
-picture and then check whether the picture is internally consistent.
+A real audit checks a whole fingerprint, not one boolean: descriptor hygiene,
+cross-surface consistency, rendering output, and behaviour. Open any of the public
+fingerprinting test suites and look at what they collect -
+[CreepJS](creepjs-explained.md), [BotD](botd-explained.md), [sannysoft](sannysoft-explained.md), fpscanner - and none of them
+stop at `navigator.webdriver`. They build a picture and then check whether the
+picture is internally consistent.
 
 A rough map of what that picture contains:
 
@@ -106,8 +111,8 @@ A rough map of what that picture contains:
   are native, whether anything has been redefined. Cheap to check, expensive to
   fake completely.
 - **Consistency across surfaces.** The user agent string says one platform. So do
-  [`navigator.platform`](navigator-platform-oscpu-consistency.md), the Client
-  Hints, the fonts that are actually installed, the
+  [`navigator.platform`](navigator-platform-oscpu-consistency.md), the
+  [Client Hints](client-hints-sec-fetch.md), the fonts that are actually installed, the
   [WebGL renderer string](webgl-renderer-strings.md), the timezone, the
   language list, and [the way the audio stack rounds floating point](audiocontext-fingerprinting.md).
   Any one of those can be spoofed. Making all of them agree, on a machine that

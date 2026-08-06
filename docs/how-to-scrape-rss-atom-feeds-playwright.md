@@ -28,14 +28,14 @@ that is really two incompatible formats wearing the same name.
 
 ## Find the feed URL from the page, do not guess it
 
+Read the feed URL from the page itself instead of guessing a path: a site that
+publishes a feed advertises it in the document head with a
+[`<link rel="alternate">`](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel)
+element whose `type` is `application/rss+xml` or `application/atom+xml`.
+
 There is no fixed path for a feed. `/rss`, `/feed`, `/atom.xml`, `/index.xml` and a
 dozen others are all in use, and guessing wastes requests against exactly the kind of
-endpoint that counts requests.
-
-The reliable source is the page itself. A site that publishes a feed advertises it in
-the document head with a `<link rel="alternate">` element whose `type` is
-`application/rss+xml` or `application/atom+xml`. Read that attribute instead of
-guessing:
+endpoint that counts requests. Read that attribute instead:
 
 ```python
 from urllib.parse import urljoin
@@ -67,7 +67,8 @@ read `href` from each.
 ## Fetch the XML through the browser, not a side client
 
 Fetch the feed by navigating to its URL in the same browser that loaded the page and
-reading `page.content()`, not by handing the URL to a separate HTTP client. This is the
+reading [`page.content()`](https://playwright.dev/python/docs/api/class-page#page-content),
+not by handing the URL to a separate HTTP client. This is the
 part that trips up feed scrapers built the old way. Once you have the feed URL, the
 instinct is to hand it to a separate HTTP library, because it is "just XML". On a protected site that separate request is a fresh visitor with none of the
 context the browser accumulated, and it draws the challenge the page navigation did
@@ -114,7 +115,8 @@ other. The differences that matter:
 - **RSS** wraps items in a `<channel>`, each item is `<item>`, the date is
   `<pubDate>` in RFC 822 format, and the body is `<description>`.
 - **Atom** has no channel, each item is `<entry>`, the date is `<updated>` in
-  ISO 8601 format, the body is `<content>` or `<summary>`, and the link is an
+  ISO 8601 format per [RFC 4287](https://datatracker.ietf.org/doc/html/rfc4287), the
+  body is `<content>` or `<summary>`, and the link is an
   attribute (`<link href="...">`) rather than element text.
 
 So the first thing to do after parsing is look at the root element and decide which
@@ -198,7 +200,8 @@ the rest of your code does not care which schema produced the item. If you need 
 media type as well, read the `type` attribute off the same node.
 
 Dates are the other normalization worth doing at parse time rather than later. RSS
-`pubDate` is RFC 822 (`Mon, 05 Aug 2026 12:00:00 +0000`) and Atom `updated` is
+`pubDate` is [RFC 822](https://datatracker.ietf.org/doc/html/rfc822)
+(`Mon, 05 Aug 2026 12:00:00 +0000`) and Atom `updated` is
 ISO 8601 (`2026-08-05T12:00:00Z`). Parsing both into a single `datetime` at the edge
 keeps every downstream comparison honest, the same normalize-at-the-edge approach used
 for [cleaning scraped dates into UTC](how-to-clean-scraped-prices-and-dates-playwright.md):
@@ -304,8 +307,13 @@ the tags yourself if you only want text.
 
 ## Sources
 
-- The RSS 2.0 and Atom (RFC 4287) specifications for the element and namespace
-  differences described above.
+- The RSS 2.0 specification and the Atom Syndication Format
+  ([RFC 4287](https://datatracker.ietf.org/doc/html/rfc4287)) for the element and
+  namespace differences described above, and
+  [RFC 822](https://datatracker.ietf.org/doc/html/rfc822) for the date format RSS reuses.
+- The [`rel="alternate"` link relation](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel)
+  and [`Page.content()`](https://playwright.dev/python/docs/api/class-page#page-content)
+  for the feed-discovery and fetch mechanics described above.
 - This project's own testing method: discover from the page, fetch through the real
   browser past the same protection, and compare against a stock browser rather than
   reading a verdict, covered in

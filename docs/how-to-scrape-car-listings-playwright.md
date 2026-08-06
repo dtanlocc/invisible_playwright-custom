@@ -79,9 +79,10 @@ signal is "the first card exists", not "the document parsed".
 ## Operate the sliders and wait on the results XHR
 
 The core loop is: change one facet, wait on the XHR that the change triggers, read the
-response. Playwright's `expect_response` is built for exactly this. It arms a wait, then
-you perform the action inside the block, and it returns the matching response once it
-arrives, so there is no sleep and no race.
+response. Playwright's
+[`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+is built for exactly this. It arms a wait, then you perform the action inside the block,
+and it returns the matching response once it arrives, so there is no sleep and no race.
 
 Checkboxes are the easy half:
 
@@ -284,8 +285,13 @@ any price-history XHR that loads on demand.
 - This project's own API and defaults, from the [Quickstart](quickstart.md) and
   [Configuration](configuration.md) pages: the two-line launch, the real Playwright `Browser`
   it returns, and the seed that fixes the fingerprint across a run.
-- Playwright's documented interaction and network APIs used above (`expect_response`,
-  `page.mouse`, roles and test-id locators), read from the upstream docs rather than guessed.
+- Playwright's documented interaction and network APIs used above:
+  [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response),
+  [`page.mouse`](https://playwright.dev/python/docs/api/class-mouse) for the slider drag,
+  [`get_by_role`](https://playwright.dev/python/docs/api/class-page#page-get-by-role) for the
+  checkbox and slider locators, and
+  [`get_by_test_id`](https://playwright.dev/python/docs/api/class-page#page-get-by-test-id) for
+  the specs table - read from the upstream docs rather than guessed.
 
 **See also:** [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)
 for reading the filter response directly, [waiting for a page to load](how-to-wait-for-page-load-playwright.md)

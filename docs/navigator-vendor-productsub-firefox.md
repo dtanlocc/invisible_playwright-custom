@@ -30,9 +30,9 @@ it to or not.
 
 ## The two brand constants, and what each engine actually reports
 
-Both of these are read-only properties. Neither is derived from your machine, your OS or
-your locale. They are baked into the engine, and they differ by engine in a way that has
-been stable for years:
+Both of these are [read-only properties fixed by the HTML standard](https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendor)
+itself. Neither is derived from your machine, your OS or your locale. They are baked into
+the engine, and they differ by engine in a way that has been stable for years:
 
 | Property | Gecko (Firefox) | Blink (Chromium family) |
 |---|---|---|
@@ -231,8 +231,12 @@ your problem.
 
 ## Sources
 
-- The HTML standard's definitions of `navigator.vendor`, `navigator.productSub` and
-  `navigator.product`, including the frozen values each engine is specified to report.
+- [The HTML standard's `NavigatorID` definitions](https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendor)
+  for `navigator.vendor`, `navigator.productSub` and `navigator.product`, including the
+  frozen per-engine values each is specified to report.
+- MDN's reference pages for [`navigator.vendor`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/vendor)
+  and [`navigator.productSub`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/productSub),
+  which document the same empty-string and `20100101` values on Firefox.
 - Direct reads taken from a patched Firefox driven by stock Playwright and from a stock
   Firefox on the same machine, compared field by field.
 - This project's own notes on capability-versus-value tells, of which these two fields are

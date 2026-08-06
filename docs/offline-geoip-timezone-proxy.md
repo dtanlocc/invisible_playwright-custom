@@ -161,7 +161,10 @@ exit is a fresh resolution, and each one either agrees with its browser or refus
 ## Measuring it: one launch, zero geo-API calls
 
 The claim worth checking is not "the timezone is set" but "the timezone was set without an
-online geolocation call". You can confirm both from inside the session.
+online geolocation call". You can confirm both from inside the session, using two standard
+browser APIs: [`Intl.DateTimeFormat().resolvedOptions()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions)
+for the zone, and [`Date.prototype.getTimezoneOffset()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getTimezoneOffset)
+for the offset it must agree with.
 
 ```python
 from invisible_playwright import InvisiblePlaywright

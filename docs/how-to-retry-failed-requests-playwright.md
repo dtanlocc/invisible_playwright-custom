@@ -63,9 +63,10 @@ retry, that minute is mostly dead waiting.
 ## A budgeted retry in real Playwright
 
 `InvisiblePlaywright` returns a real Playwright `Browser`, so every method below is the
-stock API. The only project-specific line is the launch. The helper takes a deadline in
-seconds and never lets the sum of attempts cross it; each attempt gets whatever time is
-left, so a slow attempt shortens the next one instead of extending the total.
+stock API, including [`page.goto`'s own `timeout` and `wait_until` parameters](https://playwright.dev/python/docs/api/class-page#page-goto).
+The only project-specific line is the launch. The helper takes a deadline in seconds and
+never lets the sum of attempts cross it; each attempt gets whatever time is left, so a slow
+attempt shortens the next one instead of extending the total.
 
 ```python
 import time
@@ -113,7 +114,8 @@ with InvisiblePlaywright(seed=42) as browser:
 
 Two details carry the whole idea. `per_attempt_ms` is `min(15.0, remaining)`, the direct
 translation of `min(timeout, remaining)` from the launch fix, so the last attempt cannot
-overshoot the deadline waiting for a server that will not answer. And the backoff sleep is
+overshoot the deadline waiting for a server that will not answer before Playwright's own
+[`TimeoutError`](https://playwright.dev/python/docs/api/class-timeouterror) fires. And the backoff sleep is
 clamped to `deadline - time.monotonic()`, because a retry loop that sleeps past its own
 deadline has simply moved the unbounded wait from the request into the `sleep`.
 
@@ -210,6 +212,9 @@ replayed, only guessed at again.
   each request `min(timeout, remaining)`.
 - This project's release gates, including the velocity flag that turned out to be the test
   harness generating the exact request-rate signal it was measuring.
+- Playwright's own documented [`page.goto` timeout and `wait_until` behaviour](https://playwright.dev/python/docs/api/class-page#page-goto)
+  and its [`TimeoutError`](https://playwright.dev/python/docs/api/class-timeouterror), both
+  used verbatim in the budgeted retry example above.
 
 **See also:** [why a per-request timeout did not fix a slow launch](slow-browser-launch-timeout-budget.md)
 for the bug this page generalizes, [how to scrape without getting blocked](how-to-scrape-without-getting-blocked.md)

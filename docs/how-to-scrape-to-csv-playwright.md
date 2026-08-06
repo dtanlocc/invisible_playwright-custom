@@ -86,11 +86,12 @@ Real cell text carries the three things that break a hand-built CSV.
   becomes a row boundary.
 - A **double quote** inside a value has to be doubled, or it closes the field early.
 
-The CSV format has escaping rules for all three: fields that contain the delimiter, a
-newline or a quote are wrapped in double quotes, and literal quotes inside are doubled.
-`csv.DictWriter` applies those rules for you. This is the entire reason to use it over an
-f-string. The naive version below and the correct version above differ only in whether the
-data happens to contain a comma today:
+The CSV format has escaping rules for all three, formalized in
+[RFC 4180](https://datatracker.ietf.org/doc/html/rfc4180): fields that contain the
+delimiter, a newline or a quote are wrapped in double quotes, and literal quotes inside
+are doubled. `csv.DictWriter` applies those rules for you. This is the entire reason to
+use it over an f-string. The naive version below and the correct version above differ
+only in whether the data happens to contain a comma today:
 
 ```python
 # WRONG: splits columns the first time a name contains a comma,
@@ -281,6 +282,8 @@ children, or one row is a child and the parent columns repeat. Pick the grain up
 
 ## Sources
 
+- [RFC 4180](https://datatracker.ietf.org/doc/html/rfc4180), the CSV format specification,
+  for the delimiter/newline/quote escaping rules and the doubled-quote convention.
 - The Python standard library `csv` module and its quoting rules, and the `utf-8-sig`
   codec's byte order mark behaviour.
 - This project's own crash-safe append and resume pattern, keyed on a stable per-row URL,

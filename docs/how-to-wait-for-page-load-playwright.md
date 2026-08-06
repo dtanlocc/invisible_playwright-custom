@@ -71,7 +71,8 @@ which no waiting logic can fix.
 
 ## Why networkidle is not the default you want
 
-`page.wait_for_load_state("networkidle")` waits until there have been no network
+[`page.wait_for_load_state("networkidle")`](https://playwright.dev/python/docs/api/class-page#page-wait-for-load-state)
+waits until there have been no network
 requests for a short quiet window. It reads like "wait until the page is done", and on a
 static page it is fine. On a modern application it is a trap for a specific reason: many
 pages never go idle.
@@ -121,14 +122,16 @@ traffic.
 
 The `locator` API waits implicitly too - `page.locator("#results .item").inner_text()`
 auto-waits for the element before reading it - so in a lot of code you do not need an
-explicit `wait_for_selector` at all. Reach for the explicit form when you want to wait
+explicit [`wait_for_selector`](https://playwright.dev/python/docs/api/class-page#page-wait-for-selector)
+at all. Reach for the explicit form when you want to wait
 at one point and act at another, or when you want a clear timeout at a known step.
 
 ## wait_for_function: when the signal is a state, not an element
 
 Sometimes the thing you are waiting for is not "an element appeared" but "a condition
 became true": a counter reached a value, a spinner attribute cleared, the list stopped
-growing. `wait_for_function` evaluates a predicate in the page until it returns truthy.
+growing. [`wait_for_function`](https://playwright.dev/python/docs/api/class-page#page-wait-for-function)
+evaluates a predicate in the page until it returns truthy.
 
 The infinite-scroll case is the clearest example. There, the condition is content
 growth, and the reliable loop waits for `document.body.scrollHeight` to actually
@@ -244,8 +247,11 @@ for the navigation and re-querying afterwards is the reliable fix.
 
 ## Sources
 
-- Playwright's own waiting primitives - `wait_for_selector`, `wait_for_function`,
-  `wait_for_load_state`, `expect_navigation` - used here for the condition you actually
+- Playwright's own waiting primitives -
+  [`wait_for_selector`](https://playwright.dev/python/docs/api/class-page#page-wait-for-selector),
+  [`wait_for_function`](https://playwright.dev/python/docs/api/class-page#page-wait-for-function),
+  [`wait_for_load_state`](https://playwright.dev/python/docs/api/class-page#page-wait-for-load-state),
+  `expect_navigation` - used here for the condition you actually
   have rather than a fixed duration.
 - This project's notes on the context-destroyed error, where racing the load and redirect
   chains are the two timing causes, and the prescription is to wait for the navigation,

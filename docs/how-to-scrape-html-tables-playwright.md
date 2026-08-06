@@ -55,9 +55,9 @@ The fix is to do the walking inside the page and hand back the finished result o
 
 ## Pull the whole table in one call
 
-`locator.evaluate_all` runs a single JavaScript function over every element the locator
-matched and returns the result to Python in one message. That is the whole table in one
-call:
+[`locator.evaluate_all`](https://playwright.dev/python/docs/api/class-locator#locator-evaluate-all)
+runs a single JavaScript function over every element the locator matched and returns the
+result to Python in one message. That is the whole table in one call:
 
 ```python
 with InvisiblePlaywright(seed=42) as browser:
@@ -73,8 +73,8 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 If you want the header separately, or you want to key each row by its column name,
-`page.evaluate` gives you the same one-message round trip with room for a little more
-logic:
+[`page.evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate) gives
+you the same one-message round trip with room for a little more logic:
 
 ```python
     table = page.evaluate("""() => {
@@ -132,11 +132,10 @@ text out of the DOM.
 
 ## The gotcha: a handle dies when the page navigates
 
-Now the bug that costs people a day.
-
-An element handle, or anything you got from `query_selector`, is bound to the document it
-came from. Navigate - a click that loads a new page, a "next" link, a form submit - and
-that document is gone, and every handle into it is now pointing at nothing:
+An element handle - or anything you got from `query_selector` - is bound to the document
+it came from, and navigating away destroys that document, which is the bug that costs
+people a day. Navigate - a click that loads a new page, a "next" link, a form submit - and
+the document is gone, and every handle into it is now pointing at nothing:
 
 ```python
     handle = page.query_selector("table")   # bound to THIS document
@@ -250,16 +249,20 @@ Python.
 
 ## Sources
 
-- The upstream Playwright locator and page API: `locator.evaluate_all`, `page.evaluate`,
+- The upstream Playwright locator and page API:
+  [`locator.evaluate_all`](https://playwright.dev/python/docs/api/class-locator#locator-evaluate-all),
+  [`page.evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate),
   `page.expect_navigation`, `query_selector`, read from their own documentation rather
   than from a rendered example.
 - This project's notes on the execution-context error and on where in-page evaluation
   runs, linked throughout.
 
 **See also:** [scraping numbered and next-page pagination](how-to-scrape-paginated-pages-playwright.md)
-for the general page-turn pattern, and
+for the general page-turn pattern,
 [the execution-context-destroyed page](execution-context-destroyed.md) for the case where
-the same error means the site moved you rather than your own code racing.
+the same error means the site moved you rather than your own code racing, and
+[scraping into a pandas DataFrame](how-to-scrape-into-a-pandas-dataframe-playwright.md)
+for the typed-output step once the table is out as plain Python.
 
 ---
 

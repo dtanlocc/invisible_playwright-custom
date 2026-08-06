@@ -47,19 +47,20 @@ the browser's own input path decides every field the way a real device would.
 
 **Page JavaScript.** `element.dispatchEvent(new MouseEvent('mousemove', ...))`. The
 path can be as human as you like and the events are `isTrusted: false`, permanently,
-because the flag is set by the browser and is not writable. This is the layer most
-"humanize" snippets on the web operate at, and it fails the cheapest possible check.
+because [the flag is set by the browser and is not writable by page script](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted).
+This is the layer most "humanize" snippets on the web operate at, and it fails the
+cheapest possible check.
 
-**The automation driver.** `page.mouse.move()` in Playwright, and the equivalents
-elsewhere. These produce genuinely trusted events, because the browser generates them
-internally rather than the page. This is a real improvement and it is where the
-Bezier libraries plug in: they call `mouse.move()` many times along a curve instead of
-once at the destination.
+**The automation driver.** [`page.mouse.move()`](https://playwright.dev/python/docs/api/class-mouse)
+in Playwright, and the equivalents elsewhere. These produce genuinely trusted events,
+because the browser generates them internally rather than the page. This is a real
+improvement and it is where the Bezier libraries plug in: they call `mouse.move()`
+many times along a curve instead of once at the destination.
 
 What the driver does not fix by itself is the *content* of those events. Whether
-`pressure` changes when a button goes down, whether `pointerType` is set, whether the
-timing between events looks like a device rather than a loop, all depend on what the
-driver fills in.
+`pressure` changes when a button goes down, whether [`pointerType`](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerType)
+is set, whether the timing between events looks like a device rather than a loop, all
+depend on what the driver fills in.
 
 **The browser's own input path.** Values decided where the browser builds the event.
 At this level `pressure`, `pointerType` and the trusted flag are simply what a real

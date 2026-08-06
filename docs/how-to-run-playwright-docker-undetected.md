@@ -47,9 +47,14 @@ page can read all of them without asking permission:
   [why headless browsers render different fonts](headless-fonts-differ.md) for the
   three causes, none of which is "fonts are missing."
 - **No audio device**, so `AudioContext` values fall back to defaults that say there
-  is no sound card.
+  is no sound card. See
+  [AudioContext fingerprinting](audiocontext-fingerprinting.md) for the values a page
+  checks and why adding noise to them made sessions easier to catch, not harder.
 - **A screen nobody has** - `availHeight` equal to `height` because there is no
-  taskbar, a device pixel ratio of exactly 1.
+  taskbar, a device pixel ratio of exactly 1. See
+  [screen size and viewport tells](screen-size-headless-tells.md) and
+  [the devicePixelRatio pref](devicepixelratio-firefox-pref.md) for the exact
+  combinations that never occur on a real machine.
 
 None of this is about automation. `navigator.webdriver` can be perfectly clean and
 every one of these four still fires, because they are facts about the machine, not
@@ -101,7 +106,8 @@ different layer than the one that is actually visible:
   stronger tell than a small honest one.
 - Patching WebGL's `getParameter` in JavaScript can make the renderer string say
   NVIDIA. It does not change what draws the pixels, so the string and the render then
-  disagree, which is a worse contradiction than an honest software renderer.
+  disagree, which is
+  [a worse contradiction than an honest software renderer](renderer-string-vs-render.md).
 - `navigator.webdriver` was never the problem here. It is an automation tell, and a
   server describing itself as a server is a machine tell. They need different fixes,
   which is the whole argument of

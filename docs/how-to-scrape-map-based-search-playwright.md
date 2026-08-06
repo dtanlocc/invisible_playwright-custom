@@ -9,15 +9,16 @@ nav_order: 67
 
 # Scrape a map-based search with Playwright
 
-A map-based search is the one layout where the usual scraping instinct fails
-completely. There is no list. You cannot read the results off the page, because the
-results only exist for the exact rectangle of the world you are currently looking at,
-and the page has never held the full set at any single moment.
+To scrape a map-based search with Playwright, capture the bounding-box marker request
+the map fires for the visible rectangle, drive pan and zoom to move that viewport across
+the area, tile the area into a grid to beat the per-box marker cap, and deduplicate the
+results by each item's own ID. There is no list to read off the page: results only exist
+for the exact rectangle you are currently looking at, and the page never holds the full
+set at any single moment.
 
-This page is how that layout actually works, why the DOM is the wrong place to read
-from, how to pan and zoom the viewport under Playwright, how to "page" across an area
-by moving the viewport on a grid, and the one stealth surface that this specific task
-lights up harder than almost any other.
+This page covers why the DOM is the wrong place to read from, how to drive pan and zoom
+under Playwright, how to grid an area to cover it fully, and the one stealth surface that
+this specific task lights up harder than almost any other.
 
 ## Why a map search has no list to scrape
 

@@ -85,11 +85,12 @@ The contrast between the two containers, on the properties that matter for a lon
 
 ## Stream a crawl to JSON Lines with the real API
 
-The values come straight out of the rendered DOM. `page.evaluate` runs JavaScript in the
-page and returns whatever that JavaScript returns, and if you return a plain object or
-array it arrives in Python as a plain `dict` or `list`, already serializable. There is no
-marshalling step to write and no schema to declare in advance: the shape of the record is
-whatever the page function builds.
+The values come straight out of the rendered DOM.
+[`page.evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate) runs
+JavaScript in the page and returns whatever that JavaScript returns, and if you return a
+plain object or array it arrives in Python as a plain `dict` or `list`, already
+serializable. There is no marshalling step to write and no schema to declare in advance:
+the shape of the record is whatever the page function builds.
 
 Switching from stock Playwright is the two-line change from the
 [quickstart](quickstart.md), after which every Playwright method works as documented.
@@ -254,6 +255,8 @@ into two, which is its own signal.
   complete JSON Lines record intact and only the truncated final line unusable.
 - The `json` module's `dumps` behaviour and Python file-object buffering, which is why the
   per-line flush is load-bearing rather than decorative.
+- Playwright's own [`page.evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate)
+  documentation, for the plain-object return value that lands in Python ready to serialize.
 - The real wrapper API in [quickstart](quickstart.md) and [configuration](configuration.md).
 
 **See also:** [how to capture XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)

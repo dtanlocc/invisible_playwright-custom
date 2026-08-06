@@ -164,7 +164,7 @@ tested invariant, not a happy accident.
 
 ## Verifying the capture is real pixels
 
-You do not have to take the previous section on faith. Read both paths in one session
+You do not have to take that claim on faith. Read both paths in one session
 and compare.
 
 ```python
@@ -253,9 +253,10 @@ image rather than a software fallback.
   privileged-readback check that exists because a dropped patch once corrupted every
   screenshot, and the cross-platform validation (same-seed byte-identical canvas hashes
   on Windows and Linux).
-- Playwright's own screenshot documentation for `full_page`, `clip`, and locator
-  screenshots, which apply unchanged because the returned browser is a real Playwright
-  `Browser`.
+- Playwright's own screenshot documentation for
+  [`full_page` and `clip`](https://playwright.dev/python/docs/api/class-page#page-screenshot),
+  and locator screenshots, which apply unchanged because the returned browser is a real
+  Playwright `Browser`.
 
 **See also:** [canvas and WebGL fingerprints identical across OSes](canvas-webgl-cross-platform-consistency.md)
 for the substitution path your fingerprint comes off, and

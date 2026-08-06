@@ -237,15 +237,20 @@ the widget in a real browser.
 
 ## Sources
 
+- Stock Playwright's `wait_for_selector`, `wait_for_function`, `query_selector_all` and
+  `select_option`, from the upstream
+  [Playwright for Python API](https://playwright.dev/python/docs/api/class-page).
 - This project's own measurements of how review widgets load: the product HTML carrying
   only a count while the reviews paginate on a separate, sortable, filterable endpoint
   whose fields are client-rendered.
 - Our notes on deep single-session walks and why a seed-stable fingerprint keeps one
   identity across many sequential loads to the same endpoint.
 
-**See also:** [how to scrape paginated pages with Playwright](how-to-scrape-paginated-pages-playwright.md)
-for the general page-turn pattern, [how to scrape infinite scroll pages](how-to-scrape-infinite-scroll-playwright.md)
-for review sets that grow on scroll instead of paging, and
+**See also:** [how to scrape reviews and ratings](how-to-scrape-reviews-and-ratings-playwright.md)
+for the star-rating and "read more" fields on each row, [how to scrape paginated pages with
+Playwright](how-to-scrape-paginated-pages-playwright.md) for the general page-turn pattern,
+[how to scrape infinite scroll pages](how-to-scrape-infinite-scroll-playwright.md) for review
+sets that grow on scroll instead of paging, and
 [how to scrape HTML tables](how-to-scrape-html-tables-playwright.md) once each review is a
 row you want to write out.
 

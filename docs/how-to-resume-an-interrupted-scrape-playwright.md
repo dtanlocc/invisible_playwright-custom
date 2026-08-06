@@ -1,5 +1,5 @@
 ---
-title: "Resume an interrupted scrape with Playwright"
+title: "How to resume an interrupted scrape with Playwright"
 description: "Resume an interrupted Playwright scrape: write a durable checkpoint, skip completed work, re-validate the boundary item, and reload the same seeded identity."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 74
 ---
 
 
-# Resume an interrupted scrape with Playwright
+# How to resume an interrupted scrape with Playwright
 
 To resume an interrupted Playwright scrape, write a small durable checkpoint after each
 unit of work, then on restart skip the work already done, re-validate the boundary item,

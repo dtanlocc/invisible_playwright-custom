@@ -113,9 +113,10 @@ def promote_tile(page, handle):
 
 ## Resolve the highest-resolution srcset candidate
 
-Once a tile is real, you often have a choice rather than a URL. A `srcset` is a list of
-`url widthDescriptor` pairs, and the browser picks one for its layout, which is not the
-one you want. You want the largest. Parse the attribute yourself and take the widest
+Once a tile is real, you often have a choice rather than a URL. A
+[`srcset`](https://html.spec.whatwg.org/multipage/images.html) is a list of `url
+widthDescriptor` pairs, and the browser picks one for its layout, which is not the one
+you want. You want the largest. Parse the attribute yourself and take the widest
 candidate, falling back to the lazy attributes and then to `src`:
 
 ```python
@@ -173,8 +174,9 @@ def full_res_url(page, tile_selector):
     return url
 ```
 
-Read `currentSrc`, not `src`. `currentSrc` is the URL the browser resolved and actually
-fetched after applying `srcset` and the viewport, so it is the truth about what loaded.
+Read [`currentSrc`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/currentSrc),
+not `src`. `currentSrc` is the URL the browser resolved and actually fetched after
+applying `srcset` and the viewport, so it is the truth about what loaded.
 
 If the lightbox swaps in a `blob:` URL or a base64 `data:` string, there is no plain
 link to hand anyone. The bytes already live in the page, so pull them out where they
@@ -228,8 +230,9 @@ the URL was never the gate, the request identity was.
 Two ways to keep the identity. The first, shown above, is to fetch inside the page with
 `fetch()`, which carries the tab's `Referer`, cookies, headers and Client-Hints for free
 because the browser builds the request. The second, when you want the fetch to run from
-Python but still share the session, is Playwright's request context, which reuses the
-browsing context's cookies and user agent:
+Python but still share the session, is
+[Playwright's request context](https://playwright.dev/python/docs/api/class-apirequestcontext),
+which reuses the browsing context's cookies and user agent:
 
 ```python
 def download_via_context(page, url, out_path, referer):
@@ -293,10 +296,13 @@ replayed instead of re-rolled.
 
 ## Sources
 
-- Playwright's documented page, mouse, keyboard and request-context APIs, used here
-  exactly as upstream since the returned object is a real Playwright `Browser`.
-- The HTML `srcset` and `currentSrc` behaviour these steps depend on, read from the
-  living specification rather than from any single page's rendering.
+- Playwright's documented page, mouse, keyboard and
+  [request-context](https://playwright.dev/python/docs/api/class-apirequestcontext) APIs,
+  used here exactly as upstream since the returned object is a real Playwright `Browser`.
+- The [`srcset`](https://html.spec.whatwg.org/multipage/images.html) candidate-selection
+  rules and the [`currentSrc`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/currentSrc)
+  property these steps depend on, per the HTML Living Standard and MDN, rather than any
+  single page's rendering of them.
 - This project's own gallery and hotlink notes, including the 403-versus-200 measurement
   above, taken through the patched engine against a host that checks the `Referer`.
 

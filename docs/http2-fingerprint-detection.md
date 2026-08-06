@@ -44,29 +44,32 @@ a stack that gets one right and the other wrong answers itself.
 Four things travel in that opening exchange, and each is characteristic of the
 implementation.
 
-- **The SETTINGS frame.** The client announces its parameters: header table size,
-  whether server push is enabled, the maximum concurrent streams it will accept, the
-  initial window size, the maximum frame size, the maximum header list size. The exact
-  set present, their order, and the values chosen differ between a browser and a scripting
-  library. A browser picks one recognisable profile; an HTTP library picks another.
+- **The [SETTINGS frame](https://datatracker.ietf.org/doc/html/rfc9113#section-6.5.2).**
+  The client announces its parameters: header table size, whether server push is enabled,
+  the maximum concurrent streams it will accept, the initial window size, the maximum frame
+  size, the maximum header list size. The exact set present, their order, and the values
+  chosen differ between a browser and a scripting library. A browser picks one recognisable
+  profile; an HTTP library picks another.
 - **The initial WINDOW_UPDATE.** Right after SETTINGS, most clients grow the connection
   level flow-control window by a fixed increment. The size of that bump is a per-stack
   constant.
 - **The priority tree.** Older HTTP/2 clients build a dependency and weight structure for
   streams, and the shape of that tree, or its absence, is a strong tell. Browsers and
   libraries build very different trees, or none.
-- **Pseudo-header order.** Every HTTP/2 request carries `:method`, `:authority`,
-  `:scheme` and `:path` as pseudo-headers before the ordinary ones. The order in which a
-  client emits those four is fixed per implementation, and it is one of the cheapest
-  checks a server can run because it is present on every single request, not just the
-  session opener.
+- **[Pseudo-header order](https://datatracker.ietf.org/doc/html/rfc9113#section-8.3.1).**
+  Every HTTP/2 request carries `:method`, `:authority`, `:scheme` and `:path` as
+  pseudo-headers before the ordinary ones. The order in which a client emits those four is
+  fixed per implementation, and it is one of the cheapest checks a server can run because it
+  is present on every single request, not just the session opener.
 
 None of these are things you set. They are emitted by the networking code the moment the
 session starts, the same way the ClientHello is emitted the moment the socket opens.
 
 ## Why JavaScript cannot reach this layer
 
-This is the property HTTP/2 shares with TLS and shares with nothing in the page.
+JavaScript cannot reach the HTTP/2 frame layer because those frames are emitted by the
+networking stack before any document or script exists, the same property the TLS handshake
+has and nothing else on the page shares.
 
 `navigator.webdriver` is a value the browser reports, and a patch can change what it
 reports. A canvas hash is an output the page produces, and a patch can shape the output.

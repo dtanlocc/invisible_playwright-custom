@@ -85,10 +85,12 @@ the whole point of [why its clicks and keystrokes report isTrusted](playwright-c
 
 ## Get past a submit button that is gated
 
-Once the fields are set correctly the gated button usually enables itself, because you
-have satisfied the exact validation the gate was waiting on. The failure to plan for is
-the one where it does not: a required field you missed, an async validity check that
-has not resolved, a dependent dropdown still empty.
+**Wait for a gated submit button to enable itself once every field the site's own
+validation checks has actually been set, rather than forcing the click.** Once the
+fields are set correctly the button usually enables itself, because you have satisfied
+the exact validation the gate was waiting on. The failure to plan for is the one where
+it does not: a required field you missed, an async validity check that has not
+resolved, a dependent dropdown still empty.
 
 Do not force it. Clicking a disabled button, or removing the `disabled` attribute from
 script and clicking, both diverge from what a person can do and neither submits the form
@@ -275,8 +277,8 @@ grid. The submitted query and its results both live in that request.
   fingerprint surface across runs.
 - This project's own rule that a suppressed or empty signal is a failure to be asserted
   against, not a pass to be inferred, applied here to the zero-results state.
-- Playwright's documented input methods (`fill`, `type`, `select_option`,
-  `wait_for_selector`) and their event behaviour.
+- Playwright's [documented input methods](https://playwright.dev/python/docs/input)
+  (`fill`, `type`, `select_option`, `wait_for_selector`) and their event behaviour.
 
 **See also:** [capture the XHR an API-backed form returns](how-to-capture-xhr-api-responses-playwright.md),
 [why driven clicks and keystrokes report isTrusted](playwright-clicks-istrusted.md), and

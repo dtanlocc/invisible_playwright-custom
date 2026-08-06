@@ -101,9 +101,9 @@ too.
 
 ## Knowing when to stop
 
-The loop above already answers this: `max_stable_rounds` counts consecutive scrolls that
-did not grow the page, and stops once that streak is long enough that "still loading" is
-no longer the likely explanation.
+A scroll loop knows the feed ended when `max_stable_rounds` consecutive scrolls fail to
+grow the page: once that streak is long enough, "still loading" is no longer the likely
+explanation.
 
 One round of no growth is not proof the feed ended. A slow response, a lazy-loaded image
 block still resolving, or a scroll that landed just before a batch was pushed can all
@@ -153,10 +153,10 @@ already uses to key the item - it is far less likely to collide.
 
 ## The tell a robotic scroll loop creates
 
-Everything above solves the reliability problem. It does nothing about a second problem
-that only shows up once a session runs for a while: the loop is a perfect, identical
-motion repeated hundreds of times, and that pattern is itself something a page can watch
-for.
+Waiting for growth instead of a fixed sleep solves the reliability problem, but it does
+nothing about a second problem that only shows up once a session runs for a while: the
+loop is a perfect, identical motion repeated hundreds of times, and that pattern is
+itself something a page can watch for.
 
 A constant wheel delta, a scroll that never pauses, never overshoots, never slows down to
 read anything, and fires at a rate no human scrolling with a mouse or trackpad produces -

@@ -140,9 +140,11 @@ def reveal_code(page, card):
     return captured["code"]
 ```
 
-Two practical notes. Clipboard reads need the permission granted on the context
-(`browser.new_context(permissions=["clipboard-read"])` and open the page from that
-context), or `navigator.clipboard.readText()` rejects. And a reveal that opens a tab is a
+Two practical notes. Clipboard reads need the [`clipboard-read`
+permission](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-grant-permissions)
+granted on the context (`browser.new_context(permissions=["clipboard-read"])` and open the
+page from that context), or [`navigator.clipboard.readText()`](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/readText)
+rejects. And a reveal that opens a tab is a
 popup: if the site also throws a confirmation dialog in the middle, Playwright's default is
 to silently dismiss it, which stalls the reveal. See
 [dialog and popup handling without a tell](playwright-dialog-popup-handling.md) for the
@@ -286,8 +288,10 @@ real fingerprint can do.
 - This project's own measurements of interaction-gated reveals: the same extraction that
   returns `None` under a dispatched event returns the code under a trusted click on a reveal
   that reads `event.isTrusted`.
-- The Playwright API for tab, dialog, response and clipboard handling, read from its
-  documented behaviour rather than from a tutorial.
+- Playwright's documented [context permissions](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-grant-permissions)
+  (including `clipboard-read`) and the [`Clipboard.readText()`](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/readText)
+  method it unlocks, plus its tab, dialog and response handling, read from the documented
+  behaviour rather than from a tutorial.
 
 **See also:** [Playwright isTrusted: are automated clicks real?](playwright-clicks-istrusted.md)
 for why the reveal fires at all, and

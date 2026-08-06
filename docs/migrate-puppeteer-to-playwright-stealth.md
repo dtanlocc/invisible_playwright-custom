@@ -1,6 +1,6 @@
 ---
 title: "Migrating from Puppeteer to Playwright for stealth"
-description: "Migrate from Puppeteer to Playwright: API mapping one-to-one, and the one thing for bot detection - off Chromium CDP and onto patched Firefox."
+description: "Migrate from Puppeteer to Playwright: API mapping one-to-one, and the one thing that matters for bot detection - off Chromium CDP and onto a patched Firefox."
 parent: "Comparisons"
 nav_order: 28
 ---
@@ -58,7 +58,8 @@ find-and-replace. The concepts line up:
 The names shift from camelCase to snake_case in Python, and Playwright leans on
 locators and auto-waiting where Puppeteer leans on explicit waits, but the operation
 you were performing has a direct equivalent. Nothing about the task changes. What
-changes is that Playwright can target Firefox as a first-class engine, not an
+changes is that Playwright can target
+[Firefox as a first-class engine](https://playwright.dev/python/docs/browsers), not an
 experimental one, which is the door the rest of this page walks through. For the
 broader engine comparison see
 [Firefox versus Chromium for anti-detect work](firefox-vs-chromium-antidetect.md).

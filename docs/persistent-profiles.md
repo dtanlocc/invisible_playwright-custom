@@ -79,9 +79,11 @@ Firefox conditions two separate WebRTC privacy behaviours on whether the page ha
 or microphone access:
 
 - restricting ICE gathering to the default route rather than enumerating every local
-  interface, and
+  interface, the "default route only" mode described in
+  [RFC 8828](https://datatracker.ietf.org/doc/html/rfc8828), and
 - masking the host candidate behind an mDNS `.local` name instead of the real LAN
-  address.
+  address, the mechanism specified in
+  [draft-ietf-mmusic-mdns-ice-candidates](https://datatracker.ietf.org/doc/draft-ietf-mmusic-mdns-ice-candidates/).
 
 Both are switched off together when a permission is present.
 
@@ -180,7 +182,8 @@ which is the one profile you should never reuse.
 
 - Playwright persistent context documentation and the two open issues linked above.
 - Firefox's own conditioning of `default_address_only` and `obfuscate_host_addresses` on
-  active-or-permitted capture, which is the mechanism behind the permission trap.
+  active-or-permitted capture, which is the mechanism behind the permission trap, built on
+  the IETF specs linked above (RFC 8828, draft-ietf-mmusic-mdns-ice-candidates).
 - This project's proxy and profile handling, described in the pages linked above.
 
 ---

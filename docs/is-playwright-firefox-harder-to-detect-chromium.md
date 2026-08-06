@@ -17,7 +17,8 @@ again.
 
 ## The one structural difference that is real
 
-Chromium automation is controlled over the Chrome DevTools Protocol (CDP). For
+Chromium automation is controlled over the [Chrome DevTools Protocol
+(CDP)](https://playwright.dev/docs/api/class-cdpsession). For
 years, that control channel has left a document-level trace: property names
 beginning with `cdc_` or `$cdc` attached to page objects. A detector does not
 need to be clever to find those. It greps for a known string, and the string is
@@ -41,7 +42,8 @@ Removing one signal family does not make a browser look human. A plain,
 unmodified Playwright Firefox still announces itself in ways that have nothing to
 do with the control protocol:
 
-- `navigator.webdriver` reports `true`. That is one property read, and it is set
+- [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  reports `true`. That is one property read, and it is set
   the same way regardless of engine. See
   [what navigator.webdriver actually proves](navigator-webdriver-explained.md).
 - The fingerprint is raw. The GPU string, the canvas hash, the audio context,
@@ -156,7 +158,10 @@ human behaviour.
 
 ## Sources
 
-- Playwright's own control mechanisms for Chromium (CDP) and Firefox (Juggler),
+- Playwright's own [CDPSession documentation](https://playwright.dev/docs/api/class-cdpsession),
+  which shows what raw Chrome DevTools Protocol access looks like from
+  Playwright's side, and MDN's
+  [`navigator.webdriver` reference](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
   read for what each exposes to a page rather than from third-party summaries.
 - This project's release gates, which compare a patched build against a stock
   Firefox field by field, and confirm the webdriver flag and fingerprint surfaces

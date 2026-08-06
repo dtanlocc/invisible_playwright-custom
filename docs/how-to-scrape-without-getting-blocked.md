@@ -34,8 +34,9 @@ fix aimed at another:
   loads, and they are distinctive per engine.
 - **The machine.** GPU, fonts, audio device, screen. A server has none of these and its
   defaults say so.
-- **The automation layer.** `navigator.webdriver`, leftover globals, the way the browser
-  is piloted.
+- **The automation layer.**
+  [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+  leftover globals, the way the browser is piloted.
 - **The behaviour.** Pointer motion, typing rhythm, how fast a form is filled, whether the
   page is ever scrolled.
 
@@ -103,8 +104,9 @@ to avoid.
 
 Two consequences fall out of that, and both are counterintuitive:
 
-**A suppressed signal is itself a tell.** Blocking WebRTC, returning an empty canvas, or
-answering a probe with nothing is not stealth, it is a browser announcing that something
+**A suppressed signal is itself a tell.** Blocking
+[WebRTC](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API), returning an empty
+canvas, or answering a probe with nothing is not stealth, it is a browser announcing that something
 is intercepting it. We learned this the expensive way: our own WebRTC gate asserted the
 absence of a leak, passed run after run, and was passing because the feature was returning
 nothing at all behind a proxy. [Assert the presence of the right signal, not the absence
@@ -157,6 +159,10 @@ go blank.
 
 ## Sources
 
+- [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  and the [WebRTC API](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API) on MDN,
+  the two documented browser surfaces this page treats as ground truth for what a real
+  browser actually exposes.
 - [The checklist for being detected on one site](playwright-detected-as-bot.md) and
   [how to test whether your browser is detected](how-to-test-bot-detection.md), which this
   page is the entry point to.

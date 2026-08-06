@@ -52,8 +52,9 @@ the variant you care about, and notice when it changes.
 ## Find the availability XHR
 
 To find the availability XHR, load the page once with a network listener attached and
-let it tell you which request carries the inventory. A patched browser driven by stock Playwright uses the ordinary
-`page.on("response")` event, so this is standard Playwright with nothing extra to learn:
+let it tell you which request carries the inventory. A patched browser driven by stock
+Playwright uses the ordinary [`page.on("response")`](https://playwright.dev/python/docs/network#network-events)
+event, so this is standard Playwright with nothing extra to learn:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -107,11 +108,12 @@ def read_in_stock(page, variant_id):
     )
 ```
 
-Why fire it through `page.evaluate` and a real `fetch` rather than a plain Python
-request library? Because a request library makes its own connection with its own
-handshake and no browser session, and a storefront that sees its inventory endpoint hit
-by something that never loaded a page is looking at a request with no history. The
-in-page `fetch` is the same call the shopper's browser would make.
+Why fire it through [`page.evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate)
+and a real [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) rather
+than a plain Python request library? Because a request library makes its own connection
+with its own handshake and no browser session, and a storefront that sees its inventory
+endpoint hit by something that never loaded a page is looking at a request with no
+history. The in-page `fetch` is the same call the shopper's browser would make.
 
 Diffing is then trivial: read once, store it, read again later, compare. The whole
 tracker is that loop with pacing and an alert on change.
@@ -259,9 +261,13 @@ easier thing to spot.
 
 ## Sources
 
-- This project's own quickstart and configuration pages for the real API used above:
-  `InvisiblePlaywright(seed=...)` returns a stock Playwright `Browser`, so `page.on`,
-  `page.goto` and `page.evaluate` are the documented Playwright methods, unchanged.
+- This project's own [Quickstart](quickstart.md) and [Configuration](configuration.md)
+  pages for the real API used above: `InvisiblePlaywright(seed=...)` returns a stock
+  Playwright `Browser`, so [`page.on("response")`](https://playwright.dev/python/docs/network#network-events),
+  `page.goto` and [`page.evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate)
+  are the documented Playwright methods, unchanged, and the in-page
+  [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) call is the
+  same standard web API a browser tab would use.
 - The seed-reproducibility measurement (identical FingerprintJS visitor ID across every
   poll of one seed versus a distinct ID per unseeded launch) is the same consistency
   property the project's release gates assert: same seed, same machine, every run.

@@ -258,9 +258,9 @@ identity makes the whole session, fingerprint and rhythm, reproducible.
 
 ## Sources
 
-- Playwright's Locator versus ElementHandle semantics, read from the upstream API:
-  a Locator re-resolves its selector on use, an ElementHandle is a reference to one
-  node that can detach.
+- Playwright's own [Locator versus ElementHandle semantics](https://playwright.dev/python/docs/api/class-elementhandle),
+  read from the upstream API: a Locator re-resolves its selector on use, an
+  ElementHandle is a reference to one node that can detach.
 - This project's own behaviour notes on interaction cadence, where a fixed-interval
   action is recorded as a signature the same way a uniform scroll is, and its
   trusted-click path that dispatches the press at the engine level.

@@ -95,7 +95,7 @@ with InvisiblePlaywright(seed=42) as browser:
 print(f"captured {len(ticks)} ticks")
 ```
 
-The `framereceived` handler runs for real frames as the browser receives them, so you
+The [`framereceived`](https://playwright.dev/python/docs/api/class-websocket) handler runs for real frames as the browser receives them, so you
 are recording every tick the page received, not sampling the DOM after the fact. You
 never fight the color flash, because you never touch the node. If you would rather work
 at the HTTP layer for the initial snapshot the page loads before the socket opens, the
@@ -254,8 +254,9 @@ but it does not remove rate limits or make you exempt from a site's terms.
 
 ## Sources
 
-- Stock Playwright's WebSocket and page event API, used unchanged; `invisible_playwright`
-  returns a real Playwright `Browser`, so these are the upstream methods.
+- [Stock Playwright's WebSocket class](https://playwright.dev/python/docs/api/class-websocket),
+  used unchanged; `invisible_playwright` returns a real Playwright `Browser`, so these are the
+  upstream methods.
 - This project's own measurements comparing distinct prices captured from `framereceived`
   frames against a tight DOM poll over the same window, where the frame recorder captures
   several times as many distinct values.

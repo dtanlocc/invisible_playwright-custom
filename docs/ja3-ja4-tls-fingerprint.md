@@ -33,8 +33,8 @@ MD5. One 32-character string that says which stack you are.
 
 **JA4** is the successor, and the readable one. Instead of a single opaque hash it
 produces a string with parts you can inspect, for example the protocol, the number of
-ciphers and extensions, and the ALPN value, followed by truncated hashes of the sorted
-lists.
+ciphers and extensions, and the **[ALPN](https://datatracker.ietf.org/doc/html/rfc7301)**
+value, followed by truncated hashes of the sorted lists.
 
 The `d` in a JA4 string being a `d` rather than something else tells an analyst
 something. An MD5 hash tells them nothing until they look it up.
@@ -72,8 +72,8 @@ worth naming the difference. `navigator.webdriver` is a value the browser report
 the program that opened the connection**. You cannot report it differently, because you
 are not the one reporting it.
 
-The same is true of HTTP/2 settings frames and header ordering, which travel with it and
-are checked alongside.
+The same is true of **[HTTP/2 settings frames](https://datatracker.ietf.org/doc/html/rfc9113)**
+and header ordering, which travel with it and are checked alongside.
 
 ## The two things that actually change it
 

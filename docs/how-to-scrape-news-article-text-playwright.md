@@ -139,11 +139,12 @@ subject of [scraping a site that blocks headless browsers](how-to-scrape-headles
 
 ## Expand "continue reading" before you extract
 
-A lot of article bodies are truncated in the DOM until the reader acts. A "continue
-reading" or "show more" control expands the rest, and lazy-loaded paragraph chunks
-only attach once they scroll into view. If you extract before doing either, you get
-the first few paragraphs and a clean-looking result that is silently incomplete,
-which is worse than an obvious failure.
+To get the full body, click any "continue reading" or "show more" control first,
+then scroll to force lazy-loaded paragraph chunks to attach, and wait for the
+paragraph count to stop growing before you extract. Skip either step and you get
+a clean-looking result that is silently incomplete, which is worse than an obvious
+failure: a lot of article bodies stay truncated in the DOM until the reader acts,
+and chunks below the fold only attach once they scroll into view.
 
 Click the expander if it exists, then scroll to force the lazy chunks to load, then
 wait for the paragraph count to stop growing:
@@ -233,8 +234,11 @@ with InvisiblePlaywright(seed=42) as browser:
 
 ## The paywall caveat, stated honestly
 
-News scraping runs into metered paywalls, and it is worth being exact about what a
-real fingerprint does and does not do here.
+A real fingerprint gets a scraper past a soft metered paywall, the kind that counts
+views per identity and blocks automation outright on suspicion alone; it does
+nothing to a hard paywall where the article body is never sent to an unauthenticated
+client, because that decision happens on the server before any HTML reaches you.
+Confusing the two wastes time chasing a fix that cannot exist.
 
 A soft metered wall counts article views per identity, where the identity is a
 fingerprint plus a cookie. A headless or obviously-automated browser often trips
@@ -251,13 +255,13 @@ identity across sessions are in [persistent profiles](persistent-profiles.md), a
 carrying an authenticated session across runs is covered in
 [scraping behind a login](how-to-scrape-behind-login-playwright.md).
 
-Here is the honest boundary. A real fingerprint does not defeat a hard paywall or a
-server-side entitlement check. If the article body is never sent to an unauthenticated
-client, no browser property changes that, because the decision is made on the server
-before any HTML reaches you. What a real fingerprint stops is the automated-browser
-signal that a soft meter uses to skip you past the free allowance. Anything enforced
-on the server is out of scope, and treating it as a fingerprint problem only wastes
-time.
+That boundary again, precisely: a real fingerprint does not defeat a hard paywall or
+a server-side entitlement check. If the article body is never sent to an
+unauthenticated client, no browser property changes that, because the decision is
+made on the server before any HTML reaches you. What a real fingerprint stops is the
+automated-browser signal that a soft meter uses to skip you past the free allowance.
+Anything enforced on the server is out of scope, and treating it as a fingerprint
+problem only wastes time.
 
 ## Conclusion
 

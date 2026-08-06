@@ -124,6 +124,11 @@ launches and renders, which a packaging bug like this one leaves completely inta
 the failure is specific to the one component a launch-only or screenshot-only gate
 never exercises.
 
+**Does this only break Playwright, or would any driver hit the same failure?** Any
+driver that connects through the browser's automation layer would fail the same way,
+because the missing piece is the layer itself, not anything specific to one client
+library - Playwright is simply the driver that surfaced it first.
+
 **See also:** [why one launch in six was randomly slow](slow-browser-launch-timeout-budget.md)
 and [why a killed test runner leaks Firefox processes on Windows](orphaned-browser-process-windows.md),
 two more cases where every obviously-relevant check passed and the actual gap was

@@ -69,8 +69,11 @@ Measured after the fix, same external-kill probe: zero survivors.
 
 ## Killing by proof, not by guesswork
 
-A second design question sits underneath the fix: once you're cleaning up
-after a killed process, how do you know which processes are actually yours?
+Each process gets killed only after it proves it's yours: an exact, per-session
+random token stamped into its own browser's environment at launch, never a guess
+based on name or start time. A second design question sits underneath the fix:
+once you're cleaning up after a killed process, how do you know which processes
+are actually yours?
 
 The tempting shortcut - "anything named firefox.exe that showed up after we
 started" - eventually kills a browser that belongs to a different, healthy,

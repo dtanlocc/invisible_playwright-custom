@@ -146,12 +146,13 @@ input events the page trusts, and their timing must vary. On a stock automation 
 the key events a page receives can carry the marks of a synthetic dispatch, which is a
 separate problem from cadence; this project's engine delivers key and pointer events
 that the page treats as [genuine trusted input](playwright-clicks-istrusted.md), so the
-debounce and the listbox behave for automation exactly as they do for a person. On top
-of that, `press_sequentially(delay=...)` gives you spacing rather than a machine-gun
-burst, and the same seeded identity keeps every other surface consistent across the
-whole sweep, so two hundred lookups look like one person doing two hundred searches
-instead of two hundred identical robots. The same reasoning covers the pointer path
-when you click an option instead of pressing Enter; see
+debounce and the listbox behave for automation exactly as they do for a person.
+
+On top of that, `press_sequentially(delay=...)` gives you spacing rather than a
+machine-gun burst, and the same seeded identity keeps every other surface consistent
+across the whole sweep, so two hundred lookups look like one person doing two hundred
+searches instead of two hundred identical robots. The same reasoning covers the pointer
+path when you click an option instead of pressing Enter; see
 [human mouse movement](human-mouse-movement.md) for why the cursor arc matters for the
 same reason the typing rhythm does.
 

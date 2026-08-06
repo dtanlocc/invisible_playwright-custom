@@ -67,9 +67,9 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 The `browser` object is a real Playwright `Browser`, so `new_context(storage_state=...)`
-and `context.storage_state(path=...)` are the standard upstream methods, documented and
-unchanged. The wrapper adds a consistent fingerprint underneath them, not a new API to
-learn.
+and `context.storage_state(path=...)` are the standard upstream methods,
+[documented](https://playwright.dev/python/docs/auth) and unchanged. The wrapper adds a
+consistent fingerprint underneath them, not a new API to learn.
 
 ## Pin the seed so the returning session is the same device
 
@@ -177,8 +177,8 @@ to supply.
 
 - This project's quickstart and configuration pages for the seed, proxy and session API
   shown above, read from the shipped wrapper rather than from memory.
-- Standard Playwright `storage_state` and persistent-context behaviour, which the wrapper
-  exposes unchanged because the returned object is a real Playwright `Browser`.
+- Standard [Playwright `storage_state` and persistent-context behaviour](https://playwright.dev/python/docs/auth),
+  which the wrapper exposes unchanged because the returned object is a real Playwright `Browser`.
 - This project's own notes on the profile-and-seed pairing and the stored-permission trap,
   linked below.
 

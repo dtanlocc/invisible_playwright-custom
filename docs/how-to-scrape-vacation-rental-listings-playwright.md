@@ -88,8 +88,9 @@ for](how-to-wait-for-page-load-playwright.md).
 
 When you pick dates and guests, the page calls an availability or pricing endpoint and
 renders the response. That JSON response is the authoritative total, with every fee
-itemised, before any presentation layer rounds or reformats it. Wait for the response
-rather than scraping the redrawn DOM.
+itemised, before any presentation layer rounds or reformats it. Wait for the response with
+Playwright's [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-expect-response)
+context manager rather than scraping the redrawn DOM.
 
 ```python
 def is_pricing_response(response):
@@ -125,8 +126,9 @@ geotargeted content](how-to-scrape-geotargeted-content-playwright.md).
 
 ## Iterate date windows per property without becoming a swarm
 
-Here is where a rentals crawl differs from almost every other kind. To build a real
-picture of a single property you do not read it once. You price it across many windows:
+A vacation-rental crawl differs from most scraping jobs because one listing needs many
+pricing calls, not one: to build a real picture of a single property you do not read it
+once, you price it across many windows:
 a run of weekends, a midweek block, a full week for the discount, two guests and then
 five. That is ten or twenty pricing calls for **one** listing, and across a few hundred
 listings it becomes a burst of thousands of availability requests in a short span.
@@ -286,8 +288,8 @@ rates change, so store the dates, guests and timestamp with every total.
 
 ## Sources
 
-- This project's Quickstart and Configuration pages for the real launch, seed and proxy
-  API used in every example above.
+- This project's [Quickstart](quickstart.md) and [Configuration](configuration.md) pages
+  for the real launch, seed and proxy API used in every example above.
 - The behaviour of date-and-guest-driven pricing endpoints and map-bound pagination, read
   from live rentals marketplaces during testing rather than from any single site's docs.
 - This project's own release notes on why a per-session fingerprint is the wrong default

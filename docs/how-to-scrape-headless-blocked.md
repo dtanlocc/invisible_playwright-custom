@@ -111,9 +111,11 @@ gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
 // "ANGLE (Microsoft, Microsoft Basic Render Driver Direct3D11 vs_5_0 ps_5_0, D3D11)"
 ```
 
-That string is [the loudest tell in a headless deployment](webgl-renderer-strings.md),
-and it is not automation, it is truth: nothing was overridden, the machine really has
-no GPU. Overriding the string in JavaScript to claim an NVIDIA card is not a fix, it
+That string comes from the
+[`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+extension, and it is [the loudest tell in a headless deployment](webgl-renderer-strings.md):
+not automation, but truth - nothing was overridden, the machine really has no GPU.
+Overriding the string in JavaScript to claim an NVIDIA card is not a fix, it
 is a worse problem, because now the string disagrees with the pixels. A canvas hash
 and a WebGL render are outputs, not values you can set, and a rasterizer draws
 different antialiasing edges and different floating-point rounding than a real card
@@ -186,8 +188,9 @@ container with nothing installed.
 A headless browser has no monitor, so every screen value it reports was decided by
 something other than a monitor, and [the relationships between them are the actual
 signal](screen-size-headless-tells.md). The one that catches almost everyone:
-`screen.availHeight` equal to `screen.height` means the browser is claiming a Windows
-desktop with no taskbar, which almost nobody has.
+[`screen.availHeight`](https://developer.mozilla.org/en-US/docs/Web/API/Screen/availHeight)
+equal to `screen.height` means the browser is claiming a Windows desktop with no
+taskbar, which almost nobody has.
 
 ```python
 with InvisiblePlaywright(seed=42, headless=True) as browser:
@@ -281,11 +284,15 @@ comparison method used throughout this page.
   thread-versus-process bug behind the Windows regression described above.
 - [WebGL renderer strings](webgl-renderer-strings.md) and
   [renderer string vs render](renderer-string-vs-render.md), for the GPU string and the
-  tampering flag it produced when the render disagreed with it.
+  tampering flag it produced when the render disagreed with it. The extension itself is
+  documented at MDN's
+  [`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info).
 - [Why headless renders different fonts](headless-fonts-differ.md), for the three
   causes behind a mismatched font set.
 - [Screen size and viewport tells in headless browsers](screen-size-headless-tells.md),
-  for the taskbar relationship and the rest of the screen checklist.
+  for the taskbar relationship and the rest of the screen checklist, and MDN's
+  [`Screen.availHeight`](https://developer.mozilla.org/en-US/docs/Web/API/Screen/availHeight)
+  for the property itself.
 - [Playwright in Docker](playwright-docker-detection.md), for the same six tells read
   as a container problem instead of a headless one.
 

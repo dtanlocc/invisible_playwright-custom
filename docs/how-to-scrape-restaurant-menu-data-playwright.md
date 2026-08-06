@@ -283,9 +283,10 @@ looking for.
 
 - schema.org `Menu`, `MenuSection`, `MenuItem` and `Offer` types, which are the shape the
   JSON-LD path above walks.
-- Playwright's `expect_response`, `get_by_role` and `query_selector_all`, used exactly as
-  documented upstream - the browser returned by this library is a real Playwright
-  `Browser`.
+- Playwright's [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-expect-response),
+  [`get_by_role`](https://playwright.dev/python/docs/api/class-page#page-get-by-role) and
+  `query_selector_all`, used exactly as documented upstream - the browser returned by this
+  library is a real Playwright `Browser`.
 - This project's own configuration behaviour: the browser timezone is derived from the
   egress IP by default, which is what makes a geo-matched proxy carry the locale surfaces
   for you.

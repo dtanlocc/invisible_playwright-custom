@@ -182,11 +182,12 @@ matters.
 `read_html` is only ever as good as the HTML you feed it, and the HTML is only there if
 the site served the real page to your session. A rendered, logged-in, returning session
 is what produces the rows; an automation tell anywhere in the stack produces a login loop
-or an interstitial, and then pandas faithfully parses that instead. This wrapper is stock
-Playwright driving a Firefox patched at the engine level, so the fingerprint the page reads
-is a real browser's: same GPU, fonts, audio and screen every run for a given seed, which is
-why `seed=42` above gives you a reproducible machine to debug against rather than a new
-identity per launch.
+or an interstitial, and then pandas faithfully parses that instead.
+
+This wrapper is stock Playwright driving a Firefox patched at the engine level, so the
+fingerprint the page reads is a real browser's: same GPU, fonts, audio and screen every
+run for a given seed, which is why `seed=42` above gives you a reproducible machine to
+debug against rather than a new identity per launch.
 
 The honest caveat: the fingerprint is handled, the behaviour and the exit are not free.
 A table that only appears after interaction still needs real interaction, and a session on

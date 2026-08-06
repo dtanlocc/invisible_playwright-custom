@@ -211,9 +211,10 @@ looking like the first. The [checklist for when one page starts getting a differ
 response](playwright-detected-as-bot.md) is the same order to work in if a branch deep in
 the tree begins to fail.
 
-The wrapper returns a real Playwright `Browser`, so none of the two-loop structure, the
-cursor, or the pacing changes because you switched to it. The identity is the part that
-comes for free.
+The wrapper returns a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so none of the two-loop
+structure, the cursor, or the pacing changes because you switched to it. The identity is the
+part that comes for free.
 
 ## Conclusion
 
@@ -253,7 +254,8 @@ and a longer varied pause between categories, which matches how a person reads a
 ## Sources
 
 - The real product API as documented in this set: the two-line launch, the seed argument,
-  and the guarantee that the returned object is a stock Playwright `Browser`.
+  and the guarantee that the returned object is a stock Playwright
+  [`Browser`](https://playwright.dev/python/docs/api/class-browser).
 - This project's fingerprint consistency gate, which pairs a seed with a returned visitor
   ID and is the basis for the single-identity measurement above.
 - The sibling scraping pages linked throughout, each read from its own source.

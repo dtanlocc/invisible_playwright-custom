@@ -156,8 +156,11 @@ random machine each time.
 Here is the part specific to video platforms, and the reason a spoofed navigator is not
 enough on them.
 
-Video sites fingerprint the media stack. They call `canPlayType` and
-`MediaSource.isTypeSupported` across a spread of codecs and containers, read what the
+Video sites fingerprint the media stack. They call
+[`canPlayType`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/canPlayType)
+and
+[`MediaSource.isTypeSupported`](https://developer.mozilla.org/en-US/docs/Web/API/MediaSource/isTypeSupported_static)
+across a spread of codecs and containers, read what the
 browser claims to support, and check that the answers are internally consistent and
 consistent with the platform the browser says it is. A browser that reports a Windows
 Firefox user agent but answers the codec probes like a headless Chromium build, or like a
@@ -262,8 +265,11 @@ every time.
 
 - The page's own `application/ld+json` `VideoObject`, read from the DOM rather than from
   rendered text.
-- The engine's `HTMLMediaElement.canPlayType` and `MediaSource.isTypeSupported` answers,
-  compared field by field against a stock Firefox on the same machine.
+- The engine's
+  [`HTMLMediaElement.canPlayType`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/canPlayType)
+  and
+  [`MediaSource.isTypeSupported`](https://developer.mozilla.org/en-US/docs/Web/API/MediaSource/isTypeSupported_static)
+  answers, compared field by field against a stock Firefox on the same machine.
 - This project's fingerprint gates, which treat a codec surface that disagrees with the
   claimed platform as a failure rather than a pass.
 

@@ -111,8 +111,9 @@ but your code will happily "click" it and then read a stale value, which is wors
 an error because it looks like it worked.
 
 Filter to genuinely available cells before you pick. The markers vary by site, so check
-several: the `aria-disabled` attribute, a `disabled` class, `pointer-events: none` in the
-computed style, and the absence of the click handler the enabled cells carry.
+several: the [`aria-disabled`](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-disabled)
+attribute, a `disabled` class, [`pointer-events: none`](https://developer.mozilla.org/en-US/docs/Web/CSS/pointer-events)
+in the computed style, and the absence of the click handler the enabled cells carry.
 
 ```python
 def available_day(page, day):
@@ -140,9 +141,10 @@ one rather than retrying.
 Two failure modes converge here, and both come from the grid re-rendering underneath
 you.
 
-The first is the stale handle. If you grabbed a cell handle, then paged to another
-month and back, that handle points at a DOM node the picker has thrown away. Playwright
-raises on it, or worse, it resolves against a detached node and the click lands nowhere.
+The first is the [stale handle](https://playwright.dev/python/docs/api/class-elementhandle).
+If you grabbed a cell handle, then paged to another month and back, that handle points at
+a DOM node the picker has thrown away. Playwright raises on it, or worse, it resolves
+against a detached node and the click lands nowhere.
 Re-query the cell immediately before you click it, every time, and never carry a cell
 handle across a month change.
 
@@ -176,8 +178,9 @@ flag gets ignored](playwright-clicks-istrusted.md).
 
 ## Sweep a date range under one identity
 
-Here is where scraping a calendar stops being a DOM problem and becomes a stealth
-problem.
+A calendar sweep stays off the radar only when two things hold at once: humanized
+timing between clicks, and one fixed identity held across the entire walk. Here is
+where scraping a calendar stops being a DOM problem and becomes a stealth problem.
 
 Price-by-date and availability scraping is never one date. You want the next sixty days,
 or a check-in cell against every check-out cell, or the same room across three months.
@@ -273,6 +276,11 @@ or contradicts the exit IP mid-walk is what a long session is good at exposing.
 - This project's own testing method, in particular the rule that you assert a value is
   present rather than assuming an action worked, from
   [how to test whether your browser is detected](how-to-test-bot-detection.md).
+- The browser-level behavior behind the disabled-cell and stale-handle checks above:
+  MDN on [`aria-disabled`](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-disabled)
+  and [`pointer-events`](https://developer.mozilla.org/en-US/docs/Web/CSS/pointer-events),
+  and Playwright's own docs on [`ElementHandle`](https://playwright.dev/python/docs/api/class-elementhandle)
+  staleness.
 
 **See also:** [why a synthetic click without the trusted flag is ignored](playwright-clicks-istrusted.md),
 [the shape of human pointer motion and pauses](human-mouse-movement.md), and

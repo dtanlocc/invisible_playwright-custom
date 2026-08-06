@@ -82,12 +82,13 @@ You climb when the response does not contain the answer. Three shapes force this
 
 For all three you need something that executes JavaScript and builds a real DOM, which
 means a browser. The catch is that most automated browsers announce themselves - the
-driver flag, a mismatched TLS handshake, a datacenter-shaped machine with no GPU or
-fonts. That is the layer invisible_playwright works on: a Firefox patched at the C++
-level so the fingerprint, the TLS handshake and the driver surface read as a genuine
-browser, driven by stock Playwright with no API to relearn. If you are unsure which shape
-you are facing, [how websites actually detect bots](how-do-websites-detect-bots.md) maps
-the signals to the tier that answers them.
+[driver flag](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver), a
+mismatched TLS handshake, a datacenter-shaped machine with no GPU or fonts. That is the
+layer invisible_playwright works on: a Firefox patched at the C++ level so the
+fingerprint, the TLS handshake and the driver surface read as a genuine browser, driven
+by stock Playwright with no API to relearn. If you are unsure which shape you are facing,
+[how websites actually detect bots](how-do-websites-detect-bots.md) maps the signals to
+the tier that answers them.
 
 ## The resource cost that pushes you back down a tier
 
@@ -207,6 +208,8 @@ the bulk of the job through a cheap HTTP client.
 
 - This project's own measurements of per-page resource cost, the basis for the "roughly
   two orders of magnitude" figure comparing a rendered page against a plain request.
+- [MDN's `navigator.webdriver` reference](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+  the standard property behind "the driver flag" that automated browsers expose.
 - The tier-one companion pages in this set on TLS impersonation and the hybrid
   browser-then-client pattern, linked throughout.
 

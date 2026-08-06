@@ -1,6 +1,6 @@
 ---
 title: "Is Playwright Headless Detectable?"
-description: "Yes, classic headless mode leaks a distinct user agent token, degraded WebGL, default window metrics and thin fonts - here is why output parity beats per-tell patching."
+description: "Yes, classic headless leaks a distinct user agent token, degraded WebGL, default window metrics and thin fonts - why output parity beats per-tell patching."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 10
@@ -30,7 +30,8 @@ window did not.
   `HeadlessChrome` token in `navigator.userAgent`. A single substring answered the whole
   question. This is the one everyone knows and the one every tool fixes first.
 - **Missing or degraded WebGL.** No window often meant no real graphics context, so the
-  GPU vendor and renderer strings came back as a software rasterizer, or empty. A software
+  [GPU vendor and renderer strings](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+  came back as a software rasterizer, or empty. A software
   renderer under a desktop user agent is a datacenter tell, and
   [the string can even disagree with the pixels](webgl-renderer-strings.md).
 - **Zero-size or default window metrics.** `window.outerWidth` and `outerHeight` at zero,
@@ -41,8 +42,10 @@ window did not.
   fonts that are actually installed, which is a shorter and different list than a real
   desktop, so [headless renders text with different fonts](headless-fonts-differ.md) and
   a font-probing page reads the gap.
-- **Automation globals alongside all of the above.** `navigator.webdriver` and friends,
-  which are [mostly solved and mostly not the interesting part](navigator-webdriver-explained.md),
+- **Automation globals alongside all of the above.**
+  [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  and friends, which are
+  [mostly solved and mostly not the interesting part](navigator-webdriver-explained.md),
   but which correlate with headless in a detector's mind.
 
 Notice the shape: only the first is really about being headless. The rest are about the
@@ -96,9 +99,10 @@ ships, and testing the headful path would be testing something it does not deplo
 
 ## A runnable example
 
-Switching from plain Playwright is two lines, and headless is the default posture you want
-for a server anyway. The `browser` object is a real Playwright `Browser`, so every method
-is the one you already know.
+Switching from plain Playwright is two lines, and
+[headless](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)
+is the default posture you want for a server anyway. The `browser` object is a real
+Playwright `Browser`, so every method is the one you already know.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -196,6 +200,10 @@ it twice and disagree.
   their rendered verdict.
 - This project's release gates, which run `headless=True` against those suites and compare
   the fingerprint field by field against the headful run.
+- MDN's reference pages for the two automation-adjacent browser APIs named above:
+  [`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+  and [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver).
+- Playwright's own docs for the [`headless` launch option](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch).
 
 **See also:** [headless versus headful output](headless-vs-headful.md),
 [why headless renders different fonts](headless-fonts-differ.md), and

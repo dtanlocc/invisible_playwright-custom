@@ -69,14 +69,15 @@ with InvisiblePlaywright(seed=42) as browser:
 
 ## Drive the search form, do not guess its URL
 
+Drive the form instead of guessing the results URL: fill the location and category fields,
+submit, wait for the results container to actually appear, and only then read. That is more
+robust because it is what a browser does, not a reconstruction of what one did.
+
 It is tempting to reverse-engineer the results URL and skip the form: notice that a search
 lands on `?loc=Springfield&cat=plumbers` and just build that string. Sometimes it works.
 Often the site signs the query, sets a cookie during the form submit, or reads a hidden
 token that only exists once the page has run its own JavaScript, and the hand-built URL
 returns an empty result or a challenge.
-
-Driving the form is more robust because you are doing what a browser does. Fill the fields,
-submit, wait for the results container to actually appear, and only then read.
 
 ```python
 def crawl_filter(page, city, category):
@@ -184,13 +185,14 @@ click is only meaningful while the search that produced the list is still the ac
 
 ## Keep the sweep coherent, and know what that does not buy you
 
-Here is the honest division of labour, because it is the part most guides skip.
+A stable fingerprint solves the coherence problem, not the volume problem, and keeping the
+two apart is the honest division of labour most guides skip.
 
-A stable fingerprint solves the coherence problem. Across the whole city-by-category
-matrix you present as one consistent device: the same GPU, the same fonts, the same screen,
-the same audio stack, session after session, because they all come from one seed. The site
-sees a single visitor doing a lot of browsing, which is an ordinary thing, instead of a
-thousand devices each doing one search, which is not. That is real and it is worth having,
+Across the whole city-by-category matrix a stable fingerprint presents as one consistent
+device: the same GPU, the same fonts, the same screen, the same audio stack, session after
+session, because they all come from one seed. The site sees a single visitor doing a lot of
+browsing, which is an ordinary thing, instead of a thousand devices each doing one search,
+which is not. That is real and it is worth having,
 and it is also why the reveal clicks land: a coherent, genuinely-driven browser is what a
 trusted event requires.
 

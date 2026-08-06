@@ -72,11 +72,12 @@ Requested by a plain HTTP client with a default TLS handshake and no browser fin
 returns a challenge or a block, not the XML. Requested by the real browser you are already
 driving, it returns the file.
 
-So fetch it through the browser context. Playwright's request API sends the fetch through the
-same browser network stack, sharing its cookies, its proxy, and its engine-level handshake,
-which is the whole point of using a patched engine rather than a header generator. With
-`invisible_playwright` that browser is a real Firefox patched at the C++ level and driven by
-stock Playwright, so switching to it is the launch line and nothing else:
+So fetch it through the browser context.
+[Playwright's request API](https://playwright.dev/python/docs/api/class-apirequestcontext) sends
+the fetch through the same browser network stack, sharing its cookies, its proxy, and its
+engine-level handshake, which is the whole point of using a patched engine rather than a
+header generator. With `invisible_playwright` that browser is a real Firefox patched at the
+C++ level and driven by stock Playwright, so switching to it is the launch line and nothing else:
 
 ```python
 import gzip
@@ -99,7 +100,8 @@ def fetch_xml(page, url):
 ```
 
 `resp.body()` gives you the raw bytes rather than a decoded string, which matters because a
-`.xml.gz` leaf is not text yet. Checking the two-byte gzip magic and calling
+`.xml.gz` leaf is not text yet. Checking the
+[two-byte gzip magic](https://datatracker.ietf.org/doc/html/rfc1952) and calling
 `gzip.decompress` handles the compressed case; a file the server already decompressed for you
 (via transport `Content-Encoding`) falls straight through, because its bytes start with `<`.
 
@@ -230,9 +232,12 @@ walk read as one returning visitor rather than a burst.
 
 - The sitemaps.org protocol schema for the `<sitemapindex>`, `<urlset>`, `<loc>` and
   `<lastmod>` elements and the gzip transport convention.
+- [RFC 1952](https://datatracker.ietf.org/doc/html/rfc1952), the gzip file format
+  specification, which defines the `0x1f 0x8b` identification header a `.xml.gz` leaf starts
+  with.
 - Python's standard `gzip` and `xml.etree.ElementTree` modules.
-- Playwright's request API, which routes a fetch through the browser context rather than a
-  separate client.
+- [Playwright's request API](https://playwright.dev/python/docs/api/class-apirequestcontext),
+  which routes a fetch through the browser context rather than a separate client.
 - This project's own crawl gates, where fetching a protected sitemap with a plain client
   returned a challenge and the browser context returned the file.
 

@@ -163,11 +163,11 @@ for the new step's marker before you touch anything is what removes it.
 
 ## Keep the identity stable, and do not rush the steps
 
-This is the stealth part, and it is specific to long flows rather than single page loads.
-
-A wizard is precisely where a shifting disguise falls apart. A single request can hide a
-lot; five sequential steps in one session cannot, because now there is a story to be
-consistent with. Two things break that story:
+Keep the seed-derived identity and the pace between steps constant for the whole flow: a
+wizard is precisely where a shifting disguise falls apart, because five sequential steps
+in one session build a story that has to stay consistent, unlike a single request that can
+hide almost anything. This is the stealth part, and it is specific to long flows rather
+than single page loads. Two things break that story:
 
 - **An identity that shifts mid-flow.** If the canvas hash, the GPU string or the screen
   changes between step two and step four, no human sits behind that. One person's machine

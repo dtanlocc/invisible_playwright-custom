@@ -47,9 +47,11 @@ this whole topic.
 Two numbers per key, both in milliseconds, and both easy to collect from ordinary DOM
 events.
 
-**Dwell time** is how long a single key is held: the gap between its `keydown` and its
-own `keyup`. On a human hand this varies with the finger, the key, and whether you were
-mid-word or reaching for a symbol. It is rarely constant.
+**Dwell time** is how long a single key is held: the gap between its
+[`keydown`](https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event) and its
+own [`keyup`](https://developer.mozilla.org/en-US/docs/Web/API/Element/keyup_event). On a
+human hand this varies with the finger, the key, and whether you were mid-word or reaching
+for a symbol. It is rarely constant.
 
 **Flight time** is the gap between releasing one key and pressing the next: the `keyup`
 of one character to the `keydown` of the following one. This is where human typing is
@@ -80,7 +82,9 @@ Here is the trap, and it is a comfortable one to fall into because it looks like
 responsible thing to do.
 
 Playwright's `page.type()` sends a real `keydown`/`keyup` pair per character, and it
-accepts a `delay` argument meant to slow typing down. So people reach for it:
+accepts a
+[`delay` argument](https://playwright.dev/python/docs/api/class-keyboard#keyboard-type)
+meant to slow typing down. So people reach for it:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -215,8 +219,14 @@ Timing is one behavioural surface among several.
 
 ## Sources
 
-- Standard Playwright keyboard API: `page.type`, `page.keyboard.press`, and the `delay`
-  argument, read from the upstream documentation rather than a summary of it.
+- Standard Playwright keyboard API:
+  [`keyboard.press()`](https://playwright.dev/python/docs/api/class-keyboard#keyboard-press)
+  and [`keyboard.type()`](https://playwright.dev/python/docs/api/class-keyboard#keyboard-type),
+  which documents the `delay` argument and the per-character event dispatch, read from the
+  upstream documentation rather than a summary of it. See also MDN's
+  [`keydown`](https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event) and
+  [`keyup`](https://developer.mozilla.org/en-US/docs/Web/API/Element/keyup_event) event
+  references for the two events a detector listens to.
 - This project's release gates and behavioural notes, including the measurement that a
   constant inter-key interval collapses the flight-time histogram to a single bar while
   the events themselves remain fully trusted.

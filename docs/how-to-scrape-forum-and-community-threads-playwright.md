@@ -108,10 +108,12 @@ with InvisiblePlaywright(seed=42) as browser:
     tree = [extract_node(r) for r in roots]
 ```
 
-The load-bearing detail is `:scope > .comment__children > .comment`. Without the
-`:scope >` combinator a descendant selector matches every reply anywhere below the node,
-including grandchildren, and your recursion visits them again at the wrong depth. The
-direct-child combinator is what keeps each post counted once and placed correctly.
+The load-bearing detail is `:scope > .comment__children > .comment`. The
+[`:scope` pseudo-class](https://developer.mozilla.org/en-US/docs/Web/CSS/:scope) anchors
+the match to the node you called the query on; without the `:scope >` combinator a plain
+descendant selector matches every reply anywhere below the node, including grandchildren,
+and your recursion visits them again at the wrong depth. The direct-child combinator is
+what keeps each post counted once and placed correctly.
 
 ## Expand collapsed branches before you read
 
@@ -245,6 +247,8 @@ not out of the body text.
   Playwright `Browser`.
 - Standard Playwright element-handle and evaluation methods, used exactly as documented
   upstream, for the tree walk and the quote-stripping.
+- [MDN: the `:scope` pseudo-class](https://developer.mozilla.org/en-US/docs/Web/CSS/:scope),
+  for why `:scope > .comment` matches direct children only, not every descendant.
 - This project's own measurements on identity-based throttling across broad crawls,
   summarised in the pacing section above.
 

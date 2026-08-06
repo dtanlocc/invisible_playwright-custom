@@ -46,8 +46,8 @@ scraper should do is check which case it is in, before writing a single selector
 ## The same-origin case: frame_locator and content_frame
 
 When the iframe shares the parent's origin, Playwright gives you two ways in and both
-work exactly as documented. `frame_locator` is the modern one and it auto-waits, so it
-is what you want in almost every case:
+work exactly as documented. [`frame_locator`](https://playwright.dev/python/docs/api/class-framelocator)
+is the modern one and it auto-waits, so it is what you want in almost every case:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -81,15 +81,17 @@ with InvisiblePlaywright(seed=42) as browser:
         print(len(rows), "rows inside the frame")
 ```
 
-For a same-origin iframe, `content_frame()` returns a real `Frame`. Keep the `is not
-None` check anyway, because the exact same call is what fails in the cross-origin case,
-and a scraper that assumes success will crash on the first third-party widget it meets.
+For a same-origin iframe, [`content_frame()`](https://playwright.dev/python/docs/api/class-elementhandle)
+returns a real `Frame`. Keep the `is not None` check anyway, because the exact same call
+is what fails in the cross-origin case, and a scraper that assumes success will crash on
+the first third-party widget it meets.
 
 ## Reading and extracting from inside the frame
 
 Once you hold a same-origin `Frame`, it behaves like a miniature page. Every locator and
-extraction method you use on `page` works on `frame`, and `frame.evaluate` runs
-JavaScript in the frame's own execution context:
+extraction method you use on `page` works on `frame`, and
+[`frame.evaluate`](https://playwright.dev/python/docs/api/class-frame) runs JavaScript in
+the frame's own execution context:
 
 ```python
 with InvisiblePlaywright(seed=42) as browser:
@@ -119,20 +121,19 @@ random identity each time. That is the whole point of a
 
 ## The cross-origin case, and the process boundary behind it
 
-Now the hard case, and the reason a selector cannot fix it.
-
-When you point the same code at a cross-origin iframe, three things fail together and
-they look like three separate bugs:
+Cross-origin iframes fail because Firefox's site-isolation feature can run the iframe in
+a completely separate operating-system process from the page around it, as a security
+boundary between origins - not because of anything wrong in your selectors. When you
+point the same code at a cross-origin iframe, three things fail together and they look
+like three separate bugs:
 
 - `element_handle.content_frame()` returns `None`.
 - `frame.evaluate(...)` throws a permission error naming a cross-origin object.
 - `frame_locator(...).click()` times out, and `force=True` changes nothing.
 
-They are one bug. Firefox's site-isolation feature can place a cross-origin iframe in a
-completely separate operating-system process from the page that embeds it, as a security
-boundary between origins. Playwright tracks frames from the parent process, so when the
-iframe's browsing context lives in a different, isolated process, the parent-side frame
-tree registers only a placeholder for it: no URL, no reference to the real document, no
+They are one bug: Playwright tracks frames from the parent process, so when the iframe's
+browsing context lives in a different, isolated process, the parent-side frame tree
+registers only a placeholder for it: no URL, no reference to the real document, no
 execution context wrapping the frame's global object. Every one of the three failing
 operations needs exactly the piece that placeholder does not have, which is why fixing
 one never fixes the others. [The full root-cause walk-through is here](cross-origin-iframe-unreachable.md),
@@ -220,8 +221,11 @@ iframe should be is the isolated one.
 - This project's own patch history for the cross-origin frame-tree behaviour, the
   controlled same-page comparison that produced the four-empty versus five-full frame
   counts, and the regression suite that locks the fixed behaviour in.
-- The standard Playwright frame API (`frame_locator`, `content_frame`, `page.frames`,
-  `frame.evaluate`), read from its documented behaviour rather than paraphrased.
+- Playwright's own API reference for the calls involved:
+  [`FrameLocator`](https://playwright.dev/python/docs/api/class-framelocator),
+  [`ElementHandle.content_frame`](https://playwright.dev/python/docs/api/class-elementhandle),
+  and [`Frame.evaluate`](https://playwright.dev/python/docs/api/class-frame), read from
+  their documented behaviour rather than paraphrased.
 
 **See also:** [why content_frame() returns None for a cross-origin iframe](cross-origin-iframe-unreachable.md)
 for the full root cause, and [handling cookie consent banners](how-to-handle-cookie-consent-banners-playwright.md)

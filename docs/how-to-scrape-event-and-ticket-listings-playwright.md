@@ -44,8 +44,9 @@ skeleton, and a script fetches the real numbers over XHR or fetch a few hundred
 milliseconds later. If you extract at `domcontentloaded`, you capture placeholders or an
 empty table, and it looks like the site returned nothing.
 
-Two ways to wait for the right thing. The blunt one is to wait for the element that only
-appears once the numbers land:
+Two ways to wait for the right thing. The blunt one is Playwright's
+[`wait_for_selector`](https://playwright.dev/python/docs/api/class-page#page-wait-for-selector),
+waiting for the element that only appears once the numbers land:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -60,8 +61,10 @@ with InvisiblePlaywright(seed=42) as browser:
         print(t.inner_text())
 ```
 
-The precise one is to wait for the response itself, which also hands you the clean JSON
-before the page has finished painting it into markup you would have to parse back out:
+The precise one is Playwright's
+[`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response),
+which waits for the response itself and also hands you the clean JSON before the page has
+finished painting it into markup you would have to parse back out:
 
 ```python
 with InvisiblePlaywright(seed=42) as browser:
@@ -89,9 +92,10 @@ venue is 20:00 on the page whether you are polling from the same city or three t
 away. If you store the naive string, you have stored a number that means nothing without
 its zone.
 
-The zone is almost always somewhere on the page or in the JSON: an IANA name like
-`America/Chicago`, a UTC offset, or an `Z`-suffixed ISO timestamp that is already
-absolute. Read it explicitly and attach it, rather than assuming the browser's own zone:
+The zone is almost always somewhere on the page or in the JSON: an
+[IANA name](https://www.iana.org/time-zones) like `America/Chicago`, a UTC offset, or an
+`Z`-suffixed ISO timestamp that is already absolute. Read it explicitly and attach it,
+rather than assuming the browser's own zone:
 
 ```python
 from datetime import datetime
@@ -266,6 +270,12 @@ exit, so the timezone must match the proxy.
 - The real API surface of this wrapper, from its own quickstart and configuration pages:
   `InvisiblePlaywright(seed=...)` returns a stock Playwright `Browser`, and the timezone
   is auto-derived from the egress IP unless you override it.
+- Playwright's own documentation for
+  [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+  and [`wait_for_selector`](https://playwright.dev/python/docs/api/class-page#page-wait-for-selector),
+  both exercised through the real `Browser` object this project returns unchanged, and the
+  [IANA Time Zone Database](https://www.iana.org/time-zones), the authoritative source for
+  zone names like `America/Chicago`.
 - This project's own measurements on defended listing pages, where a timezone that
   disagreed with the proxy exit produced a challenge before the availability request ever
   returned.

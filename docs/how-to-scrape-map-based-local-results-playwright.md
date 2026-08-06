@@ -168,6 +168,10 @@ def collect_area(page, boxes):
     return captured
 ```
 
+`page.on("response", ...)` and `page.remove_listener` are the stock, documented
+[Playwright API](https://playwright.dev/python/docs/api/class-page); `response.json()`
+and `response.text()` are the [Response API](https://playwright.dev/python/docs/api/class-response).
+
 If the endpoint is hard to identify, log every response URL for one manual pan and read
 which one carries the box corners as parameters. The general technique, including matching
 by method and payload rather than URL and handling paginated map responses, is on the
@@ -276,6 +280,11 @@ repeats.
   the quickstart and configuration pages describe it.
 - Direct observation of map front ends firing a bounds-keyed request on every viewport
   change, read from the network panel rather than inferred.
+- The [Playwright Python API reference](https://playwright.dev/python/docs/api/class-page)
+  for `page.on("response")`, `page.evaluate`, and `page.wait_for_selector`, and the
+  [Response API](https://playwright.dev/python/docs/api/class-response) for
+  `response.json()`/`response.text()` - all stock, documented Playwright, used exactly as
+  shown.
 
 **See also:** [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)
 for matching and reading the bounds request, [scraping geotargeted content](how-to-scrape-geotargeted-content-playwright.md)

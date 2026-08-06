@@ -22,16 +22,18 @@ longer exists.
 
 ## Why a load event never fires in a single-page app
 
-When you click a link in a classic multi-page site, the browser tears down the
-document, makes a request, and builds a new one. Playwright has events for every step
-of that: `load`, `domcontentloaded`, a `framenavigated`, and the `networkidle` state
-settles once the requests stop.
+`history.pushState` fires none of the events Playwright waits on for a navigation:
+no `load`, no `domcontentloaded`, no `framenavigated`, and no `networkidle`
+transition. [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState)
+is a JavaScript call that edits the session history and the address bar in place -
+the document object is the same one it was a moment ago, and no request is tied to
+the URL change, so there is nothing for `networkidle` to settle on either.
 
-`history.pushState` fires none of them. It is a JavaScript call that edits the
-session history and the address bar in place. The document object is the same one it
-was a moment ago. There is no request tied to the URL change, so there is no
-`networkidle` transition to wait on either, because the network was never told the URL
-moved. Concretely, all four of these hang until they time out:
+Compare that with a classic multi-page site: click a link, and the browser tears down
+the document, makes a request, and builds a new one. Playwright has an event for every
+step of that: `load`, `domcontentloaded`, a `framenavigated`, and the `networkidle`
+state settles once the requests stop. Concretely, all four of these hang until they
+time out on a pushState route:
 
 ```python
 # every one of these waits for an event a pushState app never emits
@@ -270,6 +272,9 @@ of the pattern.
 - Playwright's `wait_for_url`, `expect_response`, `locator` and `wait_for_function`
   APIs, read from their documented behaviour rather than from a verdict:
   [Playwright Python `Page` API reference](https://playwright.dev/python/docs/api/class-page).
+- The `history.pushState` behaviour itself - it edits the session history and the
+  address bar without asking the browser to load a document:
+  [MDN, `History.pushState()`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState).
 - This project's own measurements of a single context across a multi-route session:
   with a fixed seed, the canvas hash and visitor ID stay identical on every route.
 

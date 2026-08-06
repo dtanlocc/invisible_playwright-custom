@@ -1,6 +1,6 @@
 ---
 title: "What are mouse-dynamics behavioural biometrics?"
-description: "Mouse-dynamics biometrics score pointer velocity, curvature, acceleration and dwell across events. Why trusted events alone do not suffice."
+description: "Mouse-dynamics biometrics score pointer velocity, curvature, acceleration and dwell across every event in a session. Why trusted events alone do not suffice."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 22
@@ -46,10 +46,13 @@ statistics of many events together.
 
 ## Why a physically-correct event stream can still fail
 
-Here is the fact that surprises people, and the reason this page exists.
+A stream can be correct in every field a page can inspect and still score as automated,
+because the classifier measures the shape of the sequence, not the correctness of any one
+event. That is the fact that surprises people, and the reason this page exists.
 
 You can emit pointer events that are correct in every field a page can inspect - real
-screen coordinates, the right button, the right modifier state, the trusted flag a genuine
+screen coordinates, the right button, the right modifier state, the
+[trusted flag](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted) a genuine
 input device sets - and still be scored as automated, because none of those fields is what
 a biometric model measures. The model measures the shape of the sequence, and event-level
 correctness says nothing about sequence-level shape.
@@ -72,16 +75,15 @@ not sufficient, because the detector is one level up, looking at the distributio
 
 ## What invisible_playwright supplies, and what it does not
 
-Be precise about the boundary, because the honest version of the product claim lives
-exactly here.
+invisible_playwright supplies the event-level half of the answer: **trusted,
+operating-system-level pointer events** with real coordinates and real buttons, routed
+along a Bezier-curve path rather than teleported. Be precise about the boundary, because
+the honest version of the product claim lives exactly here.
 
-invisible_playwright emits **trusted, operating-system-level pointer events** with real
-coordinates and real buttons, and it routes clicks along a Bezier-curve path rather than
-teleporting. That handles the necessary half: the events are indistinguishable from a
-physical device at the field level, and the default motion is curved rather than a
-straight jump. This is why the engine reads as a genuine Firefox at the fingerprint, TLS
-and driver layers, and why it passes most detection checks - those layers are what most
-checks look at.
+That handles the necessary half: the events are indistinguishable from a physical device
+at the field level, and the default motion is curved rather than a straight jump. This is
+why the engine reads as a genuine Firefox at the fingerprint, TLS and driver layers, and
+why it passes most detection checks - those layers are what most checks look at.
 
 What it does **not** do is invent movement you never scripted. The path between "move the
 pointer" and "click" is a policy, and the policy is the caller's. If your code issues one
@@ -133,7 +135,8 @@ with InvisiblePlaywright(seed=42) as browser:
     page.click("#submit")
 ```
 
-Every method here is stock Playwright on a real `Browser` object - `mouse.move`, `hover`,
+Every method here is stock Playwright on a real `Browser` object -
+[`mouse.move`](https://playwright.dev/python/docs/api/class-mouse), `hover`,
 `wait_for_timeout`, `click` all behave exactly as documented upstream. The `seed=42`
 argument fixes the fingerprint so a failing run is reproducible, which is what lets you
 bisect a behaviour problem instead of guessing. The point of the second example is not
@@ -147,10 +150,11 @@ is already under the pointer.
 
 ## What this does not fix on its own
 
-The honest caveat, stated plainly, because a biometric pass is not a session pass.
+A trusted, curved, well-paced pointer stream fixes only the behaviour layer - it does
+nothing for IP reputation, account-level rate limits or request timing, which are scored
+separately. The honest caveat, stated plainly: a biometric pass is not a session pass.
 
-A trusted, curved, well-paced pointer stream makes the behaviour layer look human. It does
-nothing for the layers a mouse cannot touch:
+Those are the layers a mouse cannot touch:
 
 - **IP reputation.** A datacenter or already-flagged exit loses regardless of how human the
   motion is. Supply a clean residential proxy.

@@ -82,8 +82,9 @@ you read the skeleton and record a null, or worse, a stale placeholder that look
 real value and quietly corrupts your series.
 
 So the read has to wait for the actual price element, not for the network to go idle.
-Playwright's `wait_for_selector` is the honest tool here, because it waits for the thing
-you care about rather than for a proxy for it:
+Playwright's [`wait_for_selector`](https://playwright.dev/python/docs/api/class-page#page-wait-for-selector)
+is the honest tool here, because it waits for the thing you care about rather than for a
+proxy for it:
 
 ```python
 def read_price(page, url):
@@ -241,8 +242,10 @@ follow it, so the browser and the network tell the same story every day.
 - This project's real API, as documented in [Quickstart](quickstart.md) and
   [Configuration](configuration.md): the seed-to-fingerprint derivation, the returned
   object being a stock Playwright `Browser`, and the egress-derived timezone.
-- Playwright's own documentation for `wait_for_selector` and locator waiting, used
-  unchanged because the returned browser is stock Playwright.
+- Playwright's own documentation for
+  [`wait_for_selector`](https://playwright.dev/python/docs/api/class-page#page-wait-for-selector)
+  and [locator waiting](https://playwright.dev/python/docs/api/class-locator#locator-wait-for),
+  used unchanged because the returned browser is stock Playwright.
 
 **See also:** [how to wait for a page to load](how-to-wait-for-page-load-playwright.md)
 for the widget-timing half of this, and [persistent profiles](persistent-profiles.md) for

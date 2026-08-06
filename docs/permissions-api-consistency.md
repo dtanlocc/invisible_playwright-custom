@@ -35,12 +35,11 @@ elsewhere, and what a normal browser looks like.
 
 ## Why the two answers can differ
 
-`Notification.permission` is a property on the Notification API. The Permissions API is a
-separate, newer interface designed to give a uniform way to query any permission. They
-describe the same state and they reach it through different code.
-
-A browser that implements one path fully and the other partially, or an environment where
-notifications are not really available while the permission machinery still answers, ends
+The two answers can differ because they reach the same permission state through separate
+code: `Notification.permission` is a property on the older Notification API, while the
+Permissions API is a newer interface built to query any permission the same way. A browser
+that implements one path fully and the other partially - or an environment where
+notifications are not really available while the permission machinery still answers - ends
 up with two different answers to the same question. Historically that is what headless
 builds did.
 
@@ -85,7 +84,9 @@ worse than the dialog you avoided.
 
 ## What automation does to permissions
 
-Two mechanisms, and the difference matters.
+Automation touches permissions two different ways, and only one of them causes lasting
+trouble: a scoped grant at the context level that disappears with the context, and a grant
+made through the browser's own UI or profile that survives into future sessions.
 
 **Granting at the context level.** Most frameworks let you
 [pre-grant permissions when you create a context](set-geolocation-permissions-per-playwright-context.md).
@@ -95,8 +96,8 @@ This is scoped to that context and disappears with it, which is the tidy version
 written into the profile and survives. In a persistent profile it survives forever, or
 until something removes it.
 
-Both change what the Permissions API reports. Only the second follows you into future
-sessions, and that is the one that causes trouble.
+Both change what the Permissions API reports, but only the profile grant follows you into
+future sessions.
 
 ### The grant that turns off something else
 

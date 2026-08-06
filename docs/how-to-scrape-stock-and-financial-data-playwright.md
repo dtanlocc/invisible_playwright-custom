@@ -76,9 +76,12 @@ to numbers is its own step, covered at the end.
 ## Capture the quote stream at the WebSocket, not the DOM
 
 Instead of polling a node that flickers, subscribe to the source. Playwright raises a
-`websocket` event for every socket the page opens and a `framereceived` event for every
-frame that arrives on it, with the real payload and Playwright's own receive time. That
-is a clean, timestamped tick series that owes nothing to your read timing:
+[`websocket`](https://playwright.dev/python/docs/network) event for every socket the page
+opens and a
+[`framereceived`](https://playwright.dev/python/docs/api/class-websocket#web-socket-event-frame-received)
+event for every frame that arrives on it, with the real payload and Playwright's own
+receive time. That is a clean, timestamped tick series that owes nothing to your read
+timing:
 
 ```python
 import json, time
@@ -108,7 +111,9 @@ reads, before it formats them into the flickering DOM node, so there is no parsi
 rendered text and no lost updates.
 
 Some portals poll a plain request on an interval instead of holding a socket open. Same
-idea, different event: listen on `response` and keep the ones from the quote endpoint.
+idea, different event: listen on
+[`response`](https://playwright.dev/python/docs/network) and keep the ones from the quote
+endpoint.
 The general technique, including how to tell the polling calls apart from everything else
 the page fetches, is in
 [how to capture XHR and API responses with Playwright](how-to-capture-xhr-api-responses-playwright.md):
@@ -264,8 +269,9 @@ payloads are usually raw JSON numbers and need none of it.
 
 ## Sources
 
-- Playwright's `websocket` / `framereceived` and `response` events, read from the upstream
-  API documentation rather than from a wrapper.
+- Playwright's [`websocket` / `response`](https://playwright.dev/python/docs/network) and
+  [`framereceived`](https://playwright.dev/python/docs/api/class-websocket#web-socket-event-frame-received)
+  events, read from the upstream API documentation rather than from a wrapper.
 - This project's own measurements on long-lived capture sessions, where a fixed seeded
   identity outlasts a drifting one, and the canvas surface notes behind why a chart cannot
   be read as text.

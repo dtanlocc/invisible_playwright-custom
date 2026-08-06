@@ -50,9 +50,10 @@ libraries, not the browsers it ships alongside them.
 
 ## Installing invisible-playwright
 
-Same package, same PyPI name, same two commands as on a desktop - see
-[installation](installation.md) for the full explanation of why the install
-is two separate steps:
+Installing `invisible-playwright` in a container is the same two-step
+install as on a desktop: `pip install invisible-playwright` for the
+package, then a separate `fetch` step to download the patched engine. See
+[installation](installation.md) for why the two steps are kept separate:
 
 ```dockerfile
 RUN pip install --no-cache-dir invisible-playwright

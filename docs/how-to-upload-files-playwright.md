@@ -1,5 +1,5 @@
 ---
-title: "How to upload files with Playwright"
+title: "How to upload files with Playwright, and verify it landed"
 description: "Upload files with Playwright using set_input_files or expect_file_chooser, why the driver fires trusted isTrusted events, and how to verify it landed."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 11
 ---
 
 
-# How to upload files with Playwright
+# How to upload files with Playwright, and verify it landed
 
 To upload a file with Playwright, call `page.set_input_files(selector, path)` when the
 page has an `<input type="file">`, or use `page.expect_file_chooser()` when the input
@@ -95,9 +95,10 @@ it.
 
 `set_input_files` and `expect_file_chooser` are the right methods, and a hand-rolled
 JavaScript alternative is not, because only the driver path produces trusted events. A
-file assigned by page script fires a `change` event carrying `isTrusted: false`, which is
-a permanent, browser-set tell; the driver path fires `isTrusted: true`, exactly as a
-human picking a file from the OS dialog would.
+file assigned by page script fires a `change` event carrying
+[`isTrusted: false`](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted),
+which is a permanent, browser-set tell; the driver path fires `isTrusted: true`, exactly
+as a human picking a file from the OS dialog would.
 
 You cannot upload a file by constructing an event in page JavaScript. For security, the
 browser will not let page script assign a real file to an input's `files` property, and
@@ -262,11 +263,14 @@ assuming the submit worked.
 
 ## Sources
 
-- The upstream Playwright API for `set_input_files`, `expect_file_chooser` and
-  `FileChooser.set_files`, which `InvisiblePlaywright` exposes unchanged because the
-  returned object is a real Playwright `Browser`.
-- This project's notes on trusted versus synthetic events, from which the `isTrusted`
-  distinction on the upload path is taken directly.
+- The upstream Playwright API for
+  [`set_input_files` and `expect_file_chooser`](https://playwright.dev/python/docs/input)
+  and [`FileChooser.set_files`](https://playwright.dev/python/docs/api/class-filechooser#file-chooser-set-files),
+  which `InvisiblePlaywright` exposes unchanged because the returned object is a real
+  Playwright `Browser`.
+- The [`isTrusted`](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted)
+  event property, which the upload path's trust argument rests on: read-only, set by the
+  browser, true only for events the browser itself generated.
 
 **See also:** [human-like mouse movement and the trusted-event distinction](human-mouse-movement.md),
 [the checklist for being detected on one site](playwright-detected-as-bot.md), and

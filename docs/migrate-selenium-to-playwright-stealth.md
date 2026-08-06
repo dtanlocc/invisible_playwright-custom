@@ -166,7 +166,9 @@ wrong answer (two spoofers contradict each other), covered in
 
 ## What the switch does not fix
 
-This is the honest half, and skipping it is how people migrate and stay blocked.
+The switch does nothing for your IP reputation, request rate, session history, or
+behavioral timing - it only closes the driver-layer signal. This is the honest half,
+and skipping it is how people migrate and stay blocked.
 
 Dropping the WebDriver server removes the automation signals that live in the driver
 layer: `navigator.webdriver`, the automation-controlled flag, the leftover globals a

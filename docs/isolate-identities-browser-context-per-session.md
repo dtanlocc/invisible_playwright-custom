@@ -202,8 +202,10 @@ separately.
 
 - The real product API in [Quickstart](quickstart.md) and [Configuration](configuration.md):
   the two-line launch, the seed, per-launch proxy and the auto-derived timezone.
-- Playwright's own browser context model for the storage, cache and per-context proxy
-  behaviour described above.
+- Playwright's own [browser context documentation](https://playwright.dev/python/docs/browser-contexts)
+  for the isolated, incognito-like storage model described above, and its
+  [network documentation](https://playwright.dev/python/docs/network) for setting a
+  proxy per context.
 - This project's parallel-agents notes for the shared-exit limit that context isolation
   does not remove.
 

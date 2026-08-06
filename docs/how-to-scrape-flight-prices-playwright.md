@@ -35,13 +35,14 @@ first looks full.
 
 That means the two waits everyone reaches for are both wrong here:
 
-- **`wait_until="load"`** fires when the document and its subresources are done. The
-  search has barely started. You capture an empty shell.
-- **`wait_until="networkidle"`** fires after a short window with no network activity. On
-  a page that polls, there are natural lulls between poll responses, so networkidle
-  triggers in a gap and you capture a matrix that is a third full. It is the more
-  dangerous of the two precisely because it sometimes returns something, so it looks
-  like it worked.
+- **[`wait_until="load"`](https://playwright.dev/python/docs/api/class-page#page-goto)**
+  fires when the document and its subresources are done. The search has barely started.
+  You capture an empty shell.
+- **[`wait_until="networkidle"`](https://playwright.dev/python/docs/api/class-page#page-goto)**
+  fires after a short window with no network activity. On a page that polls, there are
+  natural lulls between poll responses, so networkidle triggers in a gap and you capture
+  a matrix that is a third full. It is the more dangerous of the two precisely because it
+  sometimes returns something, so it looks like it worked.
 
 The signal you want is the search reporting itself complete: the poll responses settling
 to a terminal state, a final XHR that carries a "done" or "no more providers" flag, or
@@ -259,6 +260,8 @@ hash, so the scan is one consistent Firefox rather than a new device each time.
   late providers re-pricing cells that had already rendered.
 - The wait-strategy comparison behind the load-versus-networkidle distinction, drawn from
   the page-load notes in this set.
+- Playwright's own documentation of the `wait_until` navigation options (`load`,
+  `networkidle`): https://playwright.dev/python/docs/api/class-page#page-goto
 
 **See also:** [how to wait for a page to actually finish loading](how-to-wait-for-page-load-playwright.md)
 for the general form of the streaming-results problem, and

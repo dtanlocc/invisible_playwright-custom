@@ -118,9 +118,12 @@ across every incremental run, not a transcript of them.
 
 ## One transaction per page so a crash rolls back cleanly
 
-A crawl fails partway. The network drops on page forty, the process is killed, a parse
-throws on a malformed card. The question is what state the database is in when that
-happens.
+Commit once per page and a crash mid-crawl rolls back cleanly: a partial page never
+lands in the table, and a re-run heals the gap because every write is an upsert.
+
+A crawl fails partway for ordinary reasons: the network drops on page forty, the
+process is killed, a parse throws on a malformed card. The question is what state the
+database is in when that happens.
 
 Commit once per page and the answer is clean. Every row from a page lands together or
 none of it does, so an interrupted run leaves fully written pages behind and the page it

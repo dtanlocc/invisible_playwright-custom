@@ -275,7 +275,10 @@ machine, same feed order, so a failure is replayable.
 
 ## Sources
 
-- Playwright's own `query_selector_all`, `evaluate`, `mouse.wheel` and `storage_state`
+- Playwright's own [`query_selector_all`](https://playwright.dev/python/docs/handles),
+  [`evaluate`](https://playwright.dev/python/docs/api/class-page#page-evaluate),
+  [`mouse.wheel`](https://playwright.dev/python/docs/api/class-mouse#mouse-wheel) and
+  [`storage_state`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
   APIs, used exactly as documented upstream.
 - This project's seed-derived fingerprint and Bezier pointer motion, described in
   [Quickstart](quickstart.md) and [Configuration](configuration.md).

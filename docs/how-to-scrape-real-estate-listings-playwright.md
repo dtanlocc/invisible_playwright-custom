@@ -82,10 +82,11 @@ with InvisiblePlaywright(seed=42) as browser:
     print("distinct listings enumerated:", len(seen))
 ```
 
-Two details do the real work. `page.expect_response` blocks until the map-bounds request
-you named actually returns, so you are reading a completed batch rather than racing the
-network. And you collect IDs into a dict keyed by listing ID, because tiles overlap and
-the same property will come back in several viewports.
+Two details do the real work. [`page.expect_response`](https://playwright.dev/python/docs/api/class-page#page-expect-response)
+blocks until the map-bounds request you named actually returns, so you are reading a
+completed batch rather than racing the network. And you collect IDs into a dict keyed by
+listing ID, because tiles overlap and the same property will come back in several
+viewports.
 
 If your portal streams more cards as you scroll the list column instead of paging it, the
 same capture idea applies to that scroll loop. The mechanics of reading each fetch as it
@@ -95,8 +96,8 @@ and driving a growing list is covered in [scraping an infinite-scroll feed](how-
 ## Pull price, beds and baths from the detail page JSON-LD
 
 Once you have the IDs, the numbers come from each detail page. Many portals publish a
-`application/ld+json` block for search engines, and it is far more stable than scraping
-the rendered DOM, which changes with every design refresh.
+[`application/ld+json`](https://www.w3.org/TR/json-ld11/) block for search engines, and it
+is far more stable than scraping the rendered DOM, which changes with every design refresh.
 
 ```python
 import json
@@ -236,6 +237,11 @@ back in several viewports. Key results by listing ID as you collect them.
 - The real estate portal request pattern (map-bounds XHR on pan, JSON-LD on the detail
   page, lazy-loaded galleries) as observed across property search portals, described here
   generically.
+- [JSON-LD 1.1 (W3C Recommendation)](https://www.w3.org/TR/json-ld11/), the spec behind the
+  `application/ld+json` blocks the detail-page extractor reads.
+- [`page.expect_response` (Playwright docs)](https://playwright.dev/python/docs/api/class-page#page-expect-response),
+  the API this page uses to synchronise each map pan against its XHR instead of guessing at
+  a sleep.
 - This project's own behaviour: a seed produces a deterministic identity, so the same
   seed returns the same GPU, canvas hash and audio context on every run, verified against
   the reproducibility gates.

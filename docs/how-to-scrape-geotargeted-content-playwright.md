@@ -137,15 +137,15 @@ that disagrees with the IP. The default exists so you do not have to.
 
 ## Why setting timezone_id alone still gets flagged
 
-It is worth seeing the failure concretely, because it explains why the "just set the
-timezone" advice keeps producing detected sessions.
+Setting `timezone_id` fixes the timezone and nothing else: `navigator.languages`, the
+`Accept-Language` header, and the locale-driven number and date formatting stay pointed at
+the host machine. That gap is why the "just set the timezone" advice keeps producing
+detected sessions.
 
 Stock Playwright exposes `timezone_id`, and it works: it changes the timezone the browser
-reports. What it does not touch is `navigator.languages`, the `Accept-Language` header, or
-the number and date formatting driven by the locale. So a session with an exit in one
-country, `timezone_id` set to match, and everything else left at the host's default now
-has a timezone that agrees with the IP and a language list that does not. You have moved
-the contradiction, not removed it.
+reports. But a session with an exit in one country, `timezone_id` set to match, and
+everything else left at the host's default now has a timezone that agrees with the IP and
+a language list that does not. You have moved the contradiction, not removed it.
 
 Measured on the surface set above: a proxy exit plus `timezone_id` alone leaves the
 language list and the number format still describing the host machine, so two of the
@@ -217,13 +217,18 @@ with InvisiblePlaywright(seed=42, proxy=proxy) as browser:
         print(k, "=", v)
 ```
 
-Then check three things the snippet above cannot tell you on its own. Confirm the country
-of the exit IP separately, because that is the anchor the rest has to match. Confirm the
-offset is right for today's date, not in general. And read the same values inside a
-cross-origin iframe, because a region override that is applied to the top page but not to
-a later realm is a partial application that shows up only there. The most reliable check
-of all is to run the same page on a stock browser on a machine actually in the target
-country and diff the two reports field by field, which is the method described in
+Then check three things the snippet above cannot tell you on its own:
+
+- Confirm the country of the exit IP separately, because that is the anchor the rest has
+  to match.
+- Confirm the offset is right for today's date, not in general.
+- Read the same values inside a cross-origin iframe, because a region override that is
+  applied to the top page but not to a later realm is a partial application that shows up
+  only there.
+
+The most reliable check of all is to run the same page on a stock browser on a machine
+actually in the target country and diff the two reports field by field, which is the
+method described in
 [how to test whether your browser is detected](how-to-test-bot-detection.md).
 
 Remember also that WebRTC reports the exit country independently of all of this, so a

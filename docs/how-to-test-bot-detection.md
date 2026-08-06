@@ -9,6 +9,11 @@ nav_order: 1
 
 # How to test bot detection without a false pass
 
+Test bot detection by comparing your automated browser against a stock browser on the
+same machine, field by field, run at least ten times through the same proxy production
+uses - and treat any suppressed or empty signal as a failure, not a pass. A single
+suite's verdict cannot tell a working feature from a broken one.
+
 Most people test this by opening a suite, reading the verdict, and stopping. That method
 has a specific failure mode: it cannot tell "working correctly" from "not working at
 all", and it will happily report success on a browser that is broken in the exact way you
@@ -86,7 +91,8 @@ removing the guard entirely still left it green.
 
 ## Compare, do not read verdicts
 
-The single highest-value change to how you test.
+The single highest-value change to how you test bot detection is direct comparison, not
+a verdict.
 
 Open the same page in your automated browser and in a **stock browser on the same
 machine**, and diff the two reports field by field. Not the scores, the fields.

@@ -33,7 +33,8 @@ The **star rating** is drawn, not written. The common encodings are two. Either 
 filled overlay whose CSS width is a percentage of five stars, so a 4.2 rating is an
 element styled `width: 84%` sitting on top of five empty stars, and `innerText` on that
 element is the empty string. Or an accessibility label on the container, an
-`aria-label` reading something like `Rated 4.2 out of 5`, which screen readers announce
+[`aria-label`](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-label)
+reading something like `Rated 4.2 out of 5`, which screen readers announce
 and which never appears as visible text. Scraping the visible text of a star widget
 gets you nothing in the first case and the label of the widget in neither.
 
@@ -94,7 +95,9 @@ with InvisiblePlaywright(seed=42) as browser:
 
 The label form is more reliable when it is present, because it carries the number the
 site itself computed. The computed-width form is the fallback when there is no label,
-and it depends on reading the width of both the fill and its track, since the percentage
+and it depends on
+[`getComputedStyle`](https://developer.mozilla.org/en-US/docs/Web/API/Window/getComputedStyle)
+returning the resolved width of both the fill and its track, since the percentage
 is meaningless without the scale it is a percentage of. Rounding to one decimal matches
 how these values are usually authored; do not report `4.199999`.
 
@@ -261,6 +264,10 @@ instead of hoping the next random identity reproduces it.
 - Stock Playwright's `aria-label` querying, `expect_response`, `wait_for_function` and
   `eval_on_selector_all`, from the upstream
   [Playwright for Python API](https://playwright.dev/python/docs/api/class-page).
+- The `aria-label` accessible-name attribute, per
+  [MDN's aria-label reference](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-label),
+  and the resolved-style read behind the fill-width fallback, per
+  [MDN's getComputedStyle reference](https://developer.mozilla.org/en-US/docs/Web/API/Window/getComputedStyle).
 - This project's own release gates, including the velocity flag that turned out to be the
   test harness hammering one endpoint rather than a browser problem.
 

@@ -44,7 +44,8 @@ says "proxy" while a log somewhere says "you".
 
 A host with both a routable IPv4 and a global IPv6 address is called dual-stack.
 Modern connection logic on such a host does not pick randomly. It follows an
-address-selection order (the "happy eyeballs" behaviour, RFC 8305) that prefers IPv6
+address-selection order (the "happy eyeballs" behaviour,
+[RFC 8305](https://datatracker.ietf.org/doc/html/rfc8305)) that prefers IPv6
 and only falls back to IPv4 when the v6 path fails or is slow.
 
 That preference is exactly what you want on a normal machine and exactly what works
@@ -231,8 +232,9 @@ rate limits or behaviour. Those need a clean proxy and human pacing, which you s
   AAAA record cannot steer a connection onto the host's IPv6, and the transport-answer
   measurement above, read from inside the proxied browser rather than assumed.
 - A read of standard Firefox proxy and DNS preferences (`network.dns.disableIPv6`,
-  `network.proxy.socks_remote_dns`) and the RFC 8305 address-selection behaviour that
-  makes a dual-stack host prefer IPv6, distinct from the WebRTC ICE path.
+  `network.proxy.socks_remote_dns`) and the
+  [RFC 8305](https://datatracker.ietf.org/doc/html/rfc8305) address-selection behaviour
+  that makes a dual-stack host prefer IPv6, distinct from the WebRTC ICE path.
 
 **See also:** [why a proxy does not stop a WebRTC IPv6 leak](webrtc-ipv6-leak-proxy.md)
 for the interface-enumeration cousin of this leak,

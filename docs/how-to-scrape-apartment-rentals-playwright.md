@@ -276,8 +276,10 @@ make the inventory reproducible.
 - The real `invisible_playwright` API as documented in [Quickstart](quickstart.md) and
   [Configuration](configuration.md): the two-line launch, the seed, and the proxy handling
   used in every example above.
-- Playwright's own `expect_response`, `wait_for_load_state`, and navigation methods, which
-  the wrapper exposes unchanged because the returned object is a real Playwright `Browser`.
+- Playwright's own [`expect_response`](https://playwright.dev/python/docs/api/class-page#page-expect-response)
+  and [`wait_for_load_state`](https://playwright.dev/python/docs/api/class-page#page-wait-for-load-state)
+  methods, and navigation methods generally, which the wrapper exposes unchanged because the
+  returned object is a real Playwright `Browser`.
 - This project's own testing notes on why a browser that fires a page's real requests
   outlasts a hand-rolled API call, and why a per-request fingerprint is a tell.
 
