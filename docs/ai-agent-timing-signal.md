@@ -1,6 +1,6 @@
 ---
 title: "Why AI browser agents have their own timing signal"
-description: "An LLM think-act loop emits machine-regular inter-action gaps and instant pointer jumps, a behavioural signal no fingerprint fixes and where pacing and dwell time have to live in your own code."
+description: "An LLM loop emits machine-regular action gaps and instant pointer jumps - a behavioral signal no fingerprint fixes. Where pacing and dwell time live in your code."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 10

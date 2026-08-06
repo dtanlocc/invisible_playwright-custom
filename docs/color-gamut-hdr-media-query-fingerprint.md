@@ -1,6 +1,6 @@
 ---
 title: "Color-gamut and HDR media queries as a fingerprint"
-description: "How the color-gamut, dynamic-range and video-dynamic-range CSS media features expose a display's color and HDR capability with no JavaScript, and why they must agree with screen.colorDepth."
+description: "Color-gamut and HDR media features expose display capability without JavaScript. Why they must align with screen.colorDepth and what misalignment reveals."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 28

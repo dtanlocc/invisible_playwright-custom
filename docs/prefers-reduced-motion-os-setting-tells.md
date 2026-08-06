@@ -1,6 +1,6 @@
 ---
 title: "prefers-reduced-motion and other OS-setting tells"
-description: "How prefers-reduced-motion, prefers-contrast, forced-colors and prefers-reduced-transparency leak your OS accessibility settings through pure CSS, and what a fresh Windows install actually reports."
+description: "CSS media queries leak OS accessibility settings via prefers-reduced-motion, prefers-contrast, forced-colors, and prefers-reduced-transparency."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 33

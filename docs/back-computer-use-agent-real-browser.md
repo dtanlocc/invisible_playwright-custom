@@ -1,6 +1,6 @@
 ---
 title: "Back a computer-use agent with a real browser engine"
-description: "How to run OpenAI's cua-sample-app screenshot-and-click loop inside a patched Firefox by implementing its pluggable Computer interface over an invisible_playwright page, and the honest limits of doing so."
+description: "Run OpenAI's computer-use agent inside patched Firefox by implementing its Computer interface over an invisible_playwright page, and the honest limits of doing so."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 16

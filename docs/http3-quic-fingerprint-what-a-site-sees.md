@@ -1,6 +1,6 @@
 ---
 title: "HTTP/3 and QUIC fingerprint: what a site sees"
-description: "How HTTP/3 over QUIC exposes an ordered set of transport parameters distinct from JA3/JA4 and HTTP/2, why a scripted client contradicts its own User-Agent, and how a real Firefox engine matches it."
+description: "How HTTP/3 over QUIC fingerprints distinctly from JA3/JA4, why scripted clients contradict their User-Agent, and how real Firefox engines match the protocol."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 22

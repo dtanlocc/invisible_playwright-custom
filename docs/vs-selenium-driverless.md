@@ -1,6 +1,6 @@
 ---
 title: "selenium-driverless vs invisible_playwright stealth"
-description: "selenium-driverless drops the chromedriver binary by driving Chrome over raw CDP, which closes the driver-detection gap but leaves the rendering and TLS surfaces stock. How that compares to a patched-binary, seed-reproducible approach."
+description: "selenium-driverless drives Chrome over CDP, closes driver-detection gap but keeps rendering/TLS stock. Compare to patched binary, seed-reproducible approach."
 parent: "Comparisons"
 nav_order: 25
 ---

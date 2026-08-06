@@ -1,6 +1,6 @@
 ---
 title: "Do accelerometer and gyroscope APIs leak on desktop?"
-description: "Why desktop Firefox stays silent on accelerometer and gyroscope, why a spoofed desktop must not invent motion events, and how to verify the sensor surface matches the platform you claim."
+description: "Desktop Firefox doesn't leak sensor data. Why a spoofed desktop must never invent motion events, and how to verify the sensor surface matches your platform claim."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 32

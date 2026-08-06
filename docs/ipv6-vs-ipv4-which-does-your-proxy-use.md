@@ -1,6 +1,6 @@
 ---
 title: "IPv6 vs IPv4: which does your proxy expose?"
-description: "On a dual-stack host the browser can reach a site over IPv6 while your SOCKS proxy only carries IPv4, so the address a site logs at the transport layer is your machine, not the proxy."
+description: "On dual-stack hosts, browsers reach sites over IPv6 while SOCKS proxies carry IPv4, so sites log your machine's address at the transport layer, not the proxy."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 25

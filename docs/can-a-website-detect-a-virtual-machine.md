@@ -1,6 +1,6 @@
 ---
 title: "Can a website detect a virtual machine?"
-description: "How a website infers a VM from the browser side - software GPU renderers, odd core and memory counts, missing audio and generic display metrics - and what a browser fingerprint can and cannot hide about it."
+description: "How a website infers a VM: software GPU renderers, odd core and memory counts, missing audio, generic metrics - and what a browser fingerprint can and cannot hide."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 15

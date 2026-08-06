@@ -1,6 +1,6 @@
 ---
 title: "Give a LangChain agent an invisible_playwright browser"
-description: "How to hand LangChain's PlayWrightBrowserToolkit an already-launched invisible_playwright browser so the agent's navigate and click tools inherit a real-browser fingerprint, and the one signal that swap does not touch."
+description: "Give LangChain's PlayWrightBrowserToolkit an invisible_playwright browser so its tools inherit a real-browser fingerprint. The one signal the swap does not cover."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 4

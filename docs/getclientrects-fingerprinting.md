@@ -1,6 +1,6 @@
 ---
 title: "getClientRects fingerprinting: subpixel geometry as ID"
-description: "How getClientRects and getBoundingClientRect leak subpixel float geometry that hashes into a cross-platform fingerprint, why the rects betray a faked OS, and how a real Windows render stays self-consistent."
+description: "getClientRects leak subpixel geometry that hashes into cross-platform fingerprints. Why they betray faked OS, and how real Windows renders stay self-consistent."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 17

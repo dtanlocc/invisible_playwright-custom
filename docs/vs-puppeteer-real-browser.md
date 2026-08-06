@@ -1,6 +1,6 @@
 ---
 title: "puppeteer-real-browser vs invisible_playwright"
-description: "puppeteer-real-browser is Node plus real Chrome with runtime stealth-plugin property patches; invisible_playwright is Python plus Firefox with the spoofs compiled into the binary. Where each helps."
+description: "puppeteer-real-browser patches runtime JavaScript properties; invisible_playwright is Firefox with spoofs compiled into the binary. Compare where each helps."
 parent: "Comparisons"
 nav_order: 26
 ---

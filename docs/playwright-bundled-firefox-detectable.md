@@ -1,6 +1,6 @@
 ---
 title: "Why Playwright's bundled Firefox is easy to detect"
-description: "Playwright ships its own patched Firefox whose version markers and runtime traits differ from a released build, and detectors key on that. Here is the concrete tell and how swapping the binary removes it."
+description: "Playwright's Firefox carries detectable version markers. See the concrete tells and how swapping to a released binary removes them."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 28

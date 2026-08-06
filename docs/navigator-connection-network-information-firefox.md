@@ -1,6 +1,6 @@
 ---
 title: "Is navigator.connection a fingerprint in Firefox?"
-description: "navigator.connection and the Network Information API are Chromium-only, so a real Firefox returns undefined - and a fake Firefox that exposes effectiveType or rtt contradicts its own user agent."
+description: "Network Information API is Chromium-only. Real Firefox returns undefined; fakes exposing effectiveType or rtt contradict their own user agent."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 30

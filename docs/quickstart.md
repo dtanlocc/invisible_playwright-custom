@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: "Switching from plain Playwright is a two-line change, sync or async, with zero API changes after that. Every session gets a distinct fingerprint by default, or a reproducible one if you pass a seed."
+description: "Two-line switch from Playwright with zero API changes. Sessions get distinct fingerprints by default; pass a seed for reproducible ones."
 parent: "Documentation"
 nav_order: 2
 ---

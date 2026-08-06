@@ -1,6 +1,6 @@
 ---
 title: "Why Playwright Works Locally but Fails in the Cloud"
-description: "The identical Playwright script passes on your laptop and gets blocked on a CI or cloud runner because the exit IP moved from residential to datacenter, not because your code changed."
+description: "Identical Playwright script passes on your laptop but gets blocked on CI or cloud runner because the exit IP moved from residential to datacenter, not the code."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 12

@@ -1,6 +1,6 @@
 ---
 title: "What is a browser fingerprint?"
-description: "A browser fingerprint is the join of dozens of low-entropy attributes - canvas, WebGL, fonts, audio, screen, timezone - that identify a browser with no cookie. Here is how the join works and what it does not cover."
+description: "Browser fingerprint joins low-entropy attributes - canvas, WebGL, fonts, audio, screen, timezone - that identify a browser. How and what it doesn't cover."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 10

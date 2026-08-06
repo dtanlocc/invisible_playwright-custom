@@ -1,6 +1,6 @@
 ---
 title: "Give an MCP browser server a stealth Firefox engine"
-description: "How to point Microsoft's Playwright MCP server at a patched, stealth Firefox binary with browserName firefox plus executablePath, and why a bare executablePath gets the engine but not the profile."
+description: "Run Microsoft's Playwright MCP on patched Firefox via browserName and executablePath. Why executablePath alone gets the engine but not the profile."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 7

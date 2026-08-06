@@ -1,6 +1,6 @@
 ---
 title: "Save and reuse login with storage_state in Playwright"
-description: "Save cookies and localStorage with context.storage_state and restore them with new_context(storage_state=...) so later Playwright runs skip the login form, plus the seed and exit IP that have to match."
+description: "Save cookies and localStorage with storage_state, restore with new_context(storage_state=...), skip login forms on later runs, but seed and exit IP must match."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 35

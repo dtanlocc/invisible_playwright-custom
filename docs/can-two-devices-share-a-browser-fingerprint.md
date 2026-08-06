@@ -1,6 +1,6 @@
 ---
 title: "Can two devices share a browser fingerprint?"
-description: "Yes, and it is the goal: a shared browser fingerprint hides you in a crowd of real users, while a unique one is trackable across sessions. How anonymity sets work and how to land in one."
+description: "Yes - that's the goal: a shared browser fingerprint hides you among real users, while a unique one is trackable. How anonymity sets work and how to land in one."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 26

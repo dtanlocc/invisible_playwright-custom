@@ -1,6 +1,6 @@
 ---
 title: "AI agent retry loops trip rate limits, not fingerprints"
-description: "Why AI agent retry and re-plan loops multiply requests into a volume signal that trips rate limits and quotas, and why throttling belongs in the agent loop and not the browser engine."
+description: "Why AI agent retry loops multiply requests into a volume signal that trips rate limits, and why throttling belongs in the agent loop, not the browser engine."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 17

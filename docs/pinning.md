@@ -1,6 +1,6 @@
 ---
 title: "Pinning fingerprint fields"
-description: "Every fingerprint field is sampled from a seed by default. pin lets you force specific fields, like a GPU model or a screen size, while leaving the rest of the identity seed-derived."
+description: "Force specific fingerprint fields like GPU or screen size while leaving the rest seed-derived. Control what stays random and what stays fixed."
 parent: "Documentation"
 nav_order: 4
 ---

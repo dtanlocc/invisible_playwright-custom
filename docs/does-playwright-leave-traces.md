@@ -1,6 +1,6 @@
 ---
 title: "Does Playwright Leave Traces a Website Can See?"
-description: "Playwright leaves some traces a web page can read and some it cannot. Which are page-visible, why the control-channel WebSocket is not, and how a patched Firefox reads as ordinary."
+description: "Playwright leaves some traces a web page can read, some it cannot. Which are page-visible, why the control WebSocket is not, and how patched Firefox reads ordinary."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 22

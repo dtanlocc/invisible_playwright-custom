@@ -1,6 +1,6 @@
 ---
 title: "How do websites detect bots?"
-description: "A taxonomy of the four independent layers websites use to detect bots (fingerprint consistency, automation-driver tells, network TLS and IP, behaviour) and which two a real-browser build neutralises."
+description: "The four bot detection layers - fingerprint, driver tells, network TLS/IP, behaviour - and which two a real-browser build actually neutralises."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 9

@@ -1,6 +1,6 @@
 ---
 title: "Set geolocation and permissions per Playwright context"
-description: "How to set geolocation coordinates and grant the geolocation permission per Playwright context so navigator.geolocation returns your value instead of a prompt, and why the coordinates must agree with your IP, timezone and locale."
+description: "Set geolocation coordinates per Playwright context so navigator.geolocation returns your value, and why coordinates must agree with your IP, timezone and locale."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 37

@@ -1,6 +1,6 @@
 ---
 title: "Residential vs datacenter vs mobile proxies explained"
-description: "What residential, datacenter and mobile proxies actually look like to a site - ASN owner, reverse DNS, shared exits - and why a clean browser fingerprint does not upgrade the IP class you chose."
+description: "What residential, datacenter and mobile proxies look like to a server: ASN, reverse DNS, shared exits. Browser fingerprint does not upgrade the IP class."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 19

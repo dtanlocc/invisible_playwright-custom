@@ -1,6 +1,6 @@
 ---
 title: "Running an AI browser agent headless on a server"
-description: "How to run an AI browser agent headless on a server without the datacenter tells: the engine covers the GPU-less headless fingerprint, the IP reputation axis stays yours to supply."
+description: "Run AI browser agents headless on a server without datacenter tells. Engine covers GPU-less headless fingerprint; IP reputation stays yours to control."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 11

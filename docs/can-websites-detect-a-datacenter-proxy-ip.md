@@ -1,6 +1,6 @@
 ---
 title: "Can websites detect a datacenter or proxy IP?"
-description: "Yes, directly at the network layer. Why no browser fingerprint can hide the IP the connection arrives on, and why the fingerprint and IP layers are independent and both have to be right."
+description: "Yes, directly at the network layer. No fingerprint can hide the IP the connection arrives on. Why fingerprint and IP layers are independent and both must be right."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 16

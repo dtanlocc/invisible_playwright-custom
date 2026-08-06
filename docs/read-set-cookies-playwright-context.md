@@ -1,6 +1,6 @@
 ---
 title: "Read and set cookies in a Playwright context"
-description: "How to read the cookie jar with context.cookies() and seed a consent flag or auth token with context.add_cookies() in Playwright, plus the honest caveat about hand-set cookie attributes."
+description: "Read the cookie jar with context.cookies() and seed tokens with context.add_cookies(). Caveat: hand-set cookies can look unearned versus real visit cookies."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 36

@@ -1,6 +1,6 @@
 ---
 title: "Run invisible_playwright in Celery task workers"
-description: "How to run invisible_playwright inside Celery workers: one browser per worker process reused across tasks, the seed passed as a task argument for reproducible retries, and worker concurrency read as your request rate."
+description: "Run invisible_playwright in Celery workers: one browser reused across tasks, seed as task argument for reproducible retries, worker concurrency read as request rate."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 85

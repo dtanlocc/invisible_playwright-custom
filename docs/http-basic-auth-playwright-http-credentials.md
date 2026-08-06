@@ -1,6 +1,6 @@
 ---
 title: "Handle HTTP basic auth in Playwright (http_credentials)"
-description: "How to pass http_credentials in Playwright to answer a 401 WWW-Authenticate challenge automatically, why that is not the same as an HTML login form, and how to keep the secret out of your code."
+description: "How to pass http_credentials in Playwright to handle 401 WWW-Authenticate challenges, why it differs from HTML login forms, and how to keep secrets out of code."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 38

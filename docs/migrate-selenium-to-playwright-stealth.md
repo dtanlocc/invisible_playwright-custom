@@ -1,6 +1,6 @@
 ---
 title: "Migrating from Selenium to Playwright for stealth"
-description: "A code-diff migration guide from Selenium to Playwright for stealth: map driver.get and find_element to page.goto and locators, and drop the WebDriver server that flips navigator.webdriver true."
+description: "Migrate from Selenium to Playwright: map driver.get and find_element to page.goto and locators, drop the WebDriver server that flips navigator.webdriver."
 parent: "Comparisons"
 nav_order: 27
 ---

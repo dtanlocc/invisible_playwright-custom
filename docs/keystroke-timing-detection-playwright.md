@@ -1,6 +1,6 @@
 ---
 title: "Can a website detect typing by keystroke timing?"
-description: "Yes: page.type() emits real keydown/keyup pairs, and a detector can histogram per-key dwell and flight times. Uniform millisecond gaps are the tell, not the characters, and the cadence is yours to make human."
+description: "Keystroke detectors histogram per-key dwell times from page.type()'s real keydown/keyup pairs. Uniform gaps are the tell, not characters. Human cadence defeats it."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 20

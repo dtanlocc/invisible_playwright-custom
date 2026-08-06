@@ -1,6 +1,6 @@
 ---
 title: "Run invisible_playwright concurrently with asyncio"
-description: "How to run invisible_playwright concurrently with asyncio: bound parallel pages with a Semaphore, give each worker its own seed for distinct reproducible identities, and why concurrency is a speed lever, not a stealth one."
+description: "Run invisible_playwright with asyncio: bound pages with a Semaphore, give each worker its own seed for distinct identities. Concurrency is speed, not stealth."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 82

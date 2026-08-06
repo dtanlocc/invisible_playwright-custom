@@ -1,6 +1,6 @@
 ---
 title: "Run invisible_playwright headful on a server with Xvfb"
-description: "How to run a real headful Firefox window on a headless Linux server with Xvfb, when headless=True is already enough, and why the fingerprint, not the display mode, is what passes detection."
+description: "Run a real headful Firefox window on a headless server with Xvfb when headless=True is enough, and why the fingerprint, not display mode, passes detection."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 87

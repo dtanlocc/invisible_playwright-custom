@@ -1,6 +1,6 @@
 ---
 title: "pydoll vs invisible_playwright: CDP without a driver"
-description: "pydoll drives Chrome over CDP with no chromedriver binary, removing the classic driver tells. invisible_playwright ships a patched Firefox whose seeded canvas, WebGL and font metrics stay mutually consistent."
+description: "pydoll drives Chrome over CDP without chromedriver; invisible_playwright ships patched Firefox whose seeded canvas, WebGL and fonts stay mutually consistent."
 parent: "Comparisons"
 nav_order: 24
 ---

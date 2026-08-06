@@ -1,6 +1,6 @@
 ---
 title: "Wrap invisible_playwright in a FastAPI service"
-description: "Build an async FastAPI render service around invisible_playwright: one browser kept alive by lifespan, a semaphore to bound concurrency, and the honest cost of routing every request through one server IP."
+description: "Build async FastAPI render service around invisible_playwright: browser alive by lifespan, semaphore bounds concurrency, cost of routing requests through one IP."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 90

@@ -1,6 +1,6 @@
 ---
 title: "undetected-playwright vs a patched Firefox binary"
-description: "undetected-playwright hides Playwright's init-script and bindings tells, patchright is a patched fork, and a patched Firefox binary closes the fingerprint layer. Three layers people conflate."
+description: "undetected-playwright hides Playwright's init/bindings tells; patchright is patched fork; patched Firefox closes fingerprint layer. Three layers people conflate."
 parent: "Comparisons"
 nav_order: 34
 ---

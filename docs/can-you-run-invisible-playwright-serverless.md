@@ -1,6 +1,6 @@
 ---
 title: "Can you run invisible_playwright serverless?"
-description: "Whether invisible_playwright fits a serverless function, why the full patched-Firefox download and unpack weight is the real blocker, and the container or worker pattern that is its actual home."
+description: "Why invisible_playwright mostly does not fit serverless: size of patched-Firefox is the blocker. Containers and long-lived workers are the actual home."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 84

@@ -1,6 +1,6 @@
 ---
 title: "Configuration"
-description: "Proxy schemes and DNS handling, how the browser timezone is auto-derived from the egress IP, and every environment variable the wrapper reads - what each one is for and when you actually need it."
+description: "Proxy schemes, DNS handling, and timezone auto-derived from egress IP. Every environment variable the wrapper reads, what each does, and when you need it."
 parent: "Documentation"
 nav_order: 3
 ---

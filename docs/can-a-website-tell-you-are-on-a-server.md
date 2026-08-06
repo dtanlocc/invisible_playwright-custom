@@ -1,6 +1,6 @@
 ---
 title: "Can a website tell you are running on a server?"
-description: "How a website spots a datacenter or headless host from software WebGL, a missing audio device, headless screen metrics and datacenter ASN, and which of these a real-browser fingerprint fixes and which it cannot."
+description: "Websites spot a datacenter or headless host via software WebGL, missing audio, headless metrics, datacenter ASN - and what a real fingerprint can fix and cannot."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 25

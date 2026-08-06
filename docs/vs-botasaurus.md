@@ -1,6 +1,6 @@
 ---
 title: "botasaurus vs invisible_playwright: framework vs library"
-description: "botasaurus is a batteries-included Chrome scraping framework; invisible_playwright is a patched-Firefox engine plus a seed-reproducible fingerprint you drive with stock Playwright. Which fits your stack."
+description: "botasaurus is a batteries-included Chrome framework; invisible_playwright is patched-Firefox plus fingerprint with stock Playwright. Which fits your stack."
 parent: "Comparisons"
 nav_order: 22
 ---

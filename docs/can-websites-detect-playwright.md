@@ -1,6 +1,6 @@
 ---
 title: "Can Websites Detect Playwright?"
-description: "Yes in principle: stock Playwright exposes a webdriver flag, protocol artifacts and a fingerprint that may not match the claimed OS. Which signals catch your run, and what a patched Firefox fixes."
+description: "Stock Playwright exposes a webdriver flag, protocol artifacts and mismatched OS fingerprint. Which signals catch your run, and what a patched Firefox fixes."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 20

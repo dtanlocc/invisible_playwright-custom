@@ -1,6 +1,6 @@
 ---
 title: "Use BeautifulSoup with invisible_playwright"
-description: "How to pair BeautifulSoup with invisible_playwright: the patched browser does the fingerprint-real fetch, BeautifulSoup parses page.content(), and why BS4 has nothing to do with getting past detection."
+description: "Pair BeautifulSoup with invisible_playwright: the browser does the fingerprint-real fetch, BeautifulSoup parses page.content(). BS4 has nothing to do with detection."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 80

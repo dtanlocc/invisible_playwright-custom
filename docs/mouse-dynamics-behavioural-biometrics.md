@@ -1,6 +1,6 @@
 ---
 title: "What are mouse-dynamics behavioural biometrics?"
-description: "Mouse-dynamics behavioural biometrics score the distribution of pointer velocity, curvature, acceleration and pause dwell across many events, not any single field - why trusted events are necessary but not sufficient."
+description: "Mouse-dynamics biometrics score pointer velocity, curvature, acceleration and dwell across events. Why trusted events alone do not suffice."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 22

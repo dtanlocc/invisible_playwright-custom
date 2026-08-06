@@ -1,6 +1,6 @@
 ---
 title: "Do websites know you are using a script?"
-description: "How sites detect that a script drives the browser through automation-layer tells like navigator.webdriver, CDP or BiDi artifacts, untrusted synthetic events and unnatural timing, and what actually hides them."
+description: "How sites detect scripts driving the browser: navigator.webdriver, CDP, BiDi artifacts, synthetic events and timing tells. What hides automation-layer reveals."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 13

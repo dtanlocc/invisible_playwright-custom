@@ -1,6 +1,6 @@
 ---
 title: "Drag and drop elements in Playwright with drag_to"
-description: "How to drag and drop elements in Playwright with drag_to and drag_and_drop, why the pointer events come back trusted on a patched Firefox, and the honest limit: a straight programmatic path is not human mouse motion."
+description: "Drag and drop with drag_to in Playwright. Why pointer events are trusted on patched Firefox, and the limit: programmatic paths are not human mouse motion."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 40

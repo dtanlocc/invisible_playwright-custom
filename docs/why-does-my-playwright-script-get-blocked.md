@@ -1,6 +1,6 @@
 ---
 title: "Why Does My Playwright Script Get Blocked?"
-description: "A four-layer diagnostic for a blocked Playwright script - browser fingerprint, IP reputation, rate and quota, behaviour - and which layer a stealth browser fixes and which stay yours."
+description: "A four-layer diagnostic for blocked Playwright - browser fingerprint, IP reputation, rate/quota, behavior - and which a stealth browser fixes, which stay yours."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 9

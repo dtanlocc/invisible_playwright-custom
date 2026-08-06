@@ -1,6 +1,6 @@
 ---
 title: "Geolocation API vs IP location: keep them consistent"
-description: "The JS Geolocation API coordinates, the browser timezone and the exit IP country are three separate location signals a site cross-checks - here is how to keep all three in the same region."
+description: "Three location signals a site cross-checks: Geolocation API coordinates, timezone and exit IP country. How to keep all three consistent in the same region."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 26

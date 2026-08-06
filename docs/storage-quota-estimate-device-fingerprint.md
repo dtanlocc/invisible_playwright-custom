@@ -1,6 +1,6 @@
 ---
 title: "Does storage quota estimate reveal disk size?"
-description: "navigator.storage.estimate() returns a quota derived from free disk space, so it buckets as a device fingerprint. Keep it in a plausible bucket that agrees with deviceMemory and hardwareConcurrency."
+description: "storage.estimate() returns quota from free disk space, so it buckets as a device fingerprint. Keep it plausible, agreeing with deviceMemory and hardwareConcurrency."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 34

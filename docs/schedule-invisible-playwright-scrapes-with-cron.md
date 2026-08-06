@@ -1,6 +1,6 @@
 ---
 title: "Schedule invisible_playwright scrapes with cron"
-description: "How to run invisible_playwright on a cron or APScheduler timer, why a scrape that fires at the same clock minute every day is a detectable pattern on its own, and how to jitter the schedule and pacing."
+description: "Schedule invisible_playwright with cron or APScheduler. A job firing at the same clock minute every day is detectable; jitter schedule and pacing to avoid patterns."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 86

@@ -1,6 +1,6 @@
 ---
 title: "speechSynthesis voices as a cross-platform fingerprint"
-description: "How speechSynthesis.getVoices() leaks the real operating system, why a Windows user agent with a Linux or empty voice list contradicts itself, and how a genuine platform returns the expected voices."
+description: "speechSynthesis.getVoices() leaks the real OS; Windows user agent with Linux voice list contradicts itself. How a genuine platform returns expected voices."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 19

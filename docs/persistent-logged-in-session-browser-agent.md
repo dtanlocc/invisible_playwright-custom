@@ -1,6 +1,6 @@
 ---
 title: "Give a browser agent a persistent logged-in session"
-description: "How a browser agent reuses a saved storage_state or profile plus a pinned seed to stay logged in across runs and look like the same device, and what login friction that does not fix."
+description: "Reuse saved storage_state or profile with a pinned seed to keep agents logged in and looking like the same returning device, plus honest limits."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 12

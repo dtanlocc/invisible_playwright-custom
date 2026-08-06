@@ -1,6 +1,6 @@
 ---
 title: "Computer-use agents and browser fingerprint detection"
-description: "Computer-use agents click by pixel coordinate, not DOM selector, so driver flags are moot for them. What stays checkable is the engine fingerprint and the machine-regular action rhythm."
+description: "Computer-use agents click by pixel, not DOM, so driver flags are moot for them. Engine fingerprint and action rhythm remain the detectable signals."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 6

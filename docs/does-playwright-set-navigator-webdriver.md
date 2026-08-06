@@ -1,6 +1,6 @@
 ---
 title: "Does Playwright Set navigator.webdriver to True?"
-description: "Yes, stock Playwright reports navigator.webdriver as true, one of the oldest automation tells. Why a JavaScript patch of it is itself detectable, and what a native false looks like."
+description: "Stock Playwright reports navigator.webdriver as true, an old automation tell. Why patching it is detectable, and what a native false looks like to detectors."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 21

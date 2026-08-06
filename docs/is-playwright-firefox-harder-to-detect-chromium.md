@@ -1,6 +1,6 @@
 ---
 title: "Is Playwright Firefox Harder to Detect Than Chromium?"
-description: "Whether Playwright driving Firefox is harder to detect than Chromium, the one structural difference (CDP cdc_ injection vs Juggler injecting none), and where engine choice stops helping."
+description: "Firefox vs Chromium: the one structural difference in automation detection (CDP injection vs Juggler none) and where engine choice stops mattering."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 26

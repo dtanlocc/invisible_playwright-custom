@@ -1,6 +1,6 @@
 ---
 title: "Can I Use My Real Browser Profile With Playwright?"
-description: "Yes, Playwright can point at a persistent profile directory, but reusing your daily browser profile leaks personal cookies and the host machine's fingerprint. Use a dedicated seed-fixed profile instead."
+description: "Playwright can point at a persistent profile, but reusing your daily browser leaks cookies and your machine fingerprint. Use a dedicated seed-fixed profile instead."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 24

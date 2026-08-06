@@ -1,6 +1,6 @@
 ---
 title: "Record a video of a Playwright browser session"
-description: "How to record a video of a Playwright browser session as a .webm with record_video_dir, why it works headless, and why the recording is for you and never changes what the site sees."
+description: "Record Playwright sessions as .webm with record_video_dir. Works headless. Recording is observer-side; it does not change what the site receives."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 34

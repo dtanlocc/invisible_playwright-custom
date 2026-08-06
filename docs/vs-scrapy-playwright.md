@@ -1,6 +1,6 @@
 ---
 title: "scrapy-playwright vs a patched Firefox for stealth"
-description: "scrapy-playwright runs Playwright's stock browser inside Scrapy, so it keeps the automation fingerprint. Point the same handler at a patched Firefox and keep Scrapy's scheduler while the browser looks real."
+description: "scrapy-playwright runs stock browser in Scrapy keeping automation fingerprint. Point handler at patched Firefox and keep scheduler while browser looks real."
 parent: "Comparisons"
 nav_order: 30
 ---

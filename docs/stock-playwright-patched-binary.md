@@ -1,6 +1,6 @@
 ---
 title: "Stock Playwright, patched Firefox: how they connect"
-description: "How invisible_playwright joins unmodified Playwright to a patched Firefox binary through a prefs and environment contract, so Playwright upgrades stay clean and the fingerprint stays put."
+description: "Join unmodified Playwright to a patched Firefox binary via prefs and environment contract, so Playwright upgrades stay clean and the fingerprint persists."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 30

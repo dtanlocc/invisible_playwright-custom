@@ -1,6 +1,6 @@
 ---
 title: "curl_cffi vs invisible_playwright: TLS client vs browser"
-description: "curl_cffi replays a real browser's TLS and HTTP/2 fingerprint at the byte level but runs no JavaScript; invisible_playwright is an actual Firefox that answers both the network handshake and the JS surface."
+description: "curl_cffi replays a browser's TLS/HTTP/2 at the byte level but no JavaScript; invisible_playwright is Firefox answering both the network handshake and JS surface."
 parent: "Comparisons"
 nav_order: 23
 ---

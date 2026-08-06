@@ -1,6 +1,6 @@
 ---
 title: "Run parallel browser agents with distinct fingerprints"
-description: "How to run N parallel browser agents so each gets its own internally-consistent, reproducible fingerprint, and the honest limit: one shared exit IP still links them into a single network identity."
+description: "Run parallel agents with distinct, reproducible fingerprints. Honest limit: a shared exit IP links them as one network identity regardless of browser diversity."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 9

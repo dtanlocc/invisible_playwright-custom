@@ -1,6 +1,6 @@
 ---
 title: "Block images to speed up scraping (and when not to)"
-description: "Blocking images, fonts and media with Playwright route.abort() cuts bandwidth and wall-clock time, but a no-image request waterfall is itself a tell. When to use it and when not to."
+description: "Blocking images, fonts and media with route.abort() cuts bandwidth and wall-clock time, but a no-image waterfall is itself a tell. When to use it and when not to."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 92

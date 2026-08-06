@@ -1,6 +1,6 @@
 ---
 title: "Record a Playwright trace to debug a failed scrape"
-description: "Record a Playwright trace with screenshots and DOM snapshots to debug a failed scrape, open trace.zip in the trace viewer, and keep the content-leaking artifact out of production."
+description: "Record Playwright traces with screenshots and DOM snapshots to debug failed scrapes. View in trace.zip viewer and keep debug artifacts out of production."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 33

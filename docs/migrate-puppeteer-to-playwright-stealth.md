@@ -1,6 +1,6 @@
 ---
 title: "Migrating from Puppeteer to Playwright for stealth"
-description: "How to migrate from Puppeteer to Playwright for stealth: the near one-to-one API mapping, and the one thing that actually changes for bot detection when you move off the Chromium CDP stack onto a patched Firefox."
+description: "Migrate from Puppeteer to Playwright: API mapping one-to-one, and the one thing for bot detection - off Chromium CDP and onto patched Firefox."
 parent: "Comparisons"
 nav_order: 28
 ---

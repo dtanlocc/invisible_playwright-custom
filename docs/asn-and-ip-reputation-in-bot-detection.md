@@ -1,6 +1,6 @@
 ---
 title: "What is ASN and IP reputation in bot detection?"
-description: "ASN and IP reputation score the network a request arrives on before any JavaScript runs: what an ASN is, how IP reputation is built and decays, and why a clean browser on a burned block still loses."
+description: "What ASN and IP reputation are: how they score requests before JavaScript runs, how IP reputation builds and decays, and why a clean browser on a burned block loses."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 23

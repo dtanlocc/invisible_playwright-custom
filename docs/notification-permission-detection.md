@@ -1,6 +1,6 @@
 ---
 title: "Notification.permission as a bot-detection signal"
-description: "How detectors cross-check navigator.permissions.query against Notification.permission, why a real browser reports one coherent 'default' state, and how to read the pair yourself."
+description: "Detectors cross-check navigator.permissions.query against Notification.permission to catch inconsistencies; real browsers report one coherent 'default' state."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 18

@@ -1,6 +1,6 @@
 ---
 title: "What data does a website collect about your browser?"
-description: "The concrete JS-accessible surface a page reads - navigator, screen, canvas, WebGL, AudioContext, fonts, WebRTC - plus the passive TLS/HTTP2 fingerprint the server sees, and which ones a real engine normalises."
+description: "JS-accessible page surface - navigator, screen, canvas, WebGL, audio, fonts, WebRTC - plus TLS/HTTP2 fingerprint the server sees and which real engines normalise."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 11

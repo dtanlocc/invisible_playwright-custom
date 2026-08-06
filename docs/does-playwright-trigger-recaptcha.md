@@ -1,6 +1,6 @@
 ---
 title: "Does Playwright Trigger reCAPTCHA More Often?"
-description: "Why stock Playwright meets reCAPTCHA challenges more often, how reCAPTCHA builds a risk score from fingerprint, IP, session age and behaviour, and which of those inputs a real-browser engine can actually move."
+description: "Why Playwright triggers reCAPTCHA more often. How reCAPTCHA builds risk from fingerprint, IP, session and behavior, and which inputs a browser engine can control."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 13

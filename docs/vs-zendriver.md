@@ -1,6 +1,6 @@
 ---
 title: "zendriver vs invisible_playwright: Chrome CDP vs Firefox"
-description: "zendriver drives real Chrome over CDP and removes the webdriver tells; invisible_playwright drives a patched Firefox whose fingerprint surfaces are cross-checked. When each helps, and what neither fixes."
+description: "zendriver drives Chrome over CDP, removes webdriver tells; invisible_playwright drives patched Firefox with cross-checked fingerprints. When helps, what doesn't."
 parent: "Comparisons"
 nav_order: 21
 ---
