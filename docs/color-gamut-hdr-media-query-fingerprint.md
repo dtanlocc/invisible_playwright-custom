@@ -9,8 +9,8 @@ nav_order: 28
 # Color-gamut and HDR media queries as a fingerprint
 
 Most of the fingerprint surfaces people worry about live in JavaScript: `navigator`,
-canvas, WebGL, audio. This one does not. The `color-gamut`, `dynamic-range` and
-`video-dynamic-range` media features describe what a display can show, and a page can
+canvas, WebGL, audio. This one does not. The [`color-gamut`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/color-gamut), [`dynamic-range`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/dynamic-range) and
+[`video-dynamic-range`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/video-dynamic-range) media features describe what a display can show, and a page can
 read them from CSS alone, before a single line of script runs. That makes them a
 quiet consistency check: they have to agree with everything your JavaScript says about
 the same screen, and nothing you set in code touches them.

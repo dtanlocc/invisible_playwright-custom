@@ -9,9 +9,9 @@ nav_order: 30
 
 # Is navigator.connection a fingerprint in Firefox?
 
-Short version: yes, but not in the way people expect. `navigator.connection` is
+Short version: yes, but not in the way people expect. [`navigator.connection`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/connection) is
 useless as a *value* on Firefox, because the value does not exist. It is useful as a
-*presence* check. The Network Information API is a Chromium feature, so a genuine
+*presence* check. The [Network Information API](https://developer.mozilla.org/en-US/docs/Web/API/Network_Information_API) is a Chromium feature, so a genuine
 Firefox reports `undefined` for it, and any browser that claims to be Firefox while
 handing back an `effectiveType` or an `rtt` number has just told the page that its
 user agent is a costume.

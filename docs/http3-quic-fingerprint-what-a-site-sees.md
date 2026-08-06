@@ -11,7 +11,7 @@ nav_order: 22
 
 Most fingerprint discussion stops at the TLS handshake and the HTTP/2 settings frame.
 There is a layer above both of them now, and it is the one a scripted client is least
-likely to get right: HTTP/3, which runs over QUIC, carries its own fingerprint that is
+likely to get right: [HTTP/3](https://datatracker.ietf.org/doc/html/rfc9114), which runs over [QUIC](https://datatracker.ietf.org/doc/html/rfc9000), carries its own fingerprint that is
 distinct from JA3/JA4 and distinct from the HTTP/2 one. If the browser negotiates it,
 the site can read it, and it has to agree with everything else the browser claims to be.
 
@@ -128,7 +128,7 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 The `browser` object is a real Playwright `Browser`, so every method works exactly as
-documented upstream. `nextHopProtocol` is a standard Web Performance value: `h3` means the
+documented upstream. [`nextHopProtocol`](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming/nextHopProtocol) is a standard Web Performance value: `h3` means the
 navigation went over HTTP/3, `h2` means it fell back to HTTP/2. If you are running through
 a proxy, this one line is also how you confirm whether QUIC survived the hop or was
 downgraded to TCP:

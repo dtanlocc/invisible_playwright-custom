@@ -14,8 +14,8 @@ talks about. It asks the browser the same question twice, through two different 
 and looks at whether the two answers agree. On a real browser they always do. On many
 headless or over-patched setups they do not, and the disagreement is the tell.
 
-The two APIs are `Notification.permission` and
-`navigator.permissions.query({name: 'notifications'})`. This page is what each one
+The two APIs are [`Notification.permission`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/permission_static) and
+`navigator.permissions.query({name: 'notifications'})`, part of the [Permissions API](https://developer.mozilla.org/en-US/docs/Web/API/Permissions_API). This page is what each one
 returns, why they can drift apart, why a genuine browser keeps them consistent, and how
 to read them yourself. It closes with the honest limit: a coherent permission state is
 one signal among many, and on its own it proves very little.

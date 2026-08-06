@@ -10,7 +10,7 @@ nav_order: 18
 # Offline timezone resolution from a proxy exit IP
 
 The wrapper resolves the browser timezone offline: it reads the proxy exit IP once, over
-the proxy it was already using, and maps that IP to an IANA timezone against a locally
+the proxy it was already using, and maps that IP to an [IANA timezone](https://www.iana.org/time-zones) against a locally
 cached geolocation database, with no per-launch call to a geolocation service. That keeps
 the browser's timezone in agreement with its exit without adding a request a real browser
 never makes.

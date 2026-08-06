@@ -10,14 +10,14 @@ nav_order: 31
 # Can the Gamepad API fingerprint or detect a bot?
 
 Short version: it helps a detector cross-check your user agent, and it cannot detect
-you on its own. The Gamepad API is a rarely-audited input surface, which is exactly
+you on its own. The [Gamepad API](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API) is a rarely-audited input surface, which is exactly
 why it is worth getting right. Most stealth work pours effort into canvas, WebGL and
 `navigator.webdriver`, and leaves the small input APIs answering in whatever way a
 patch happened to leave them. A detector that has run out of the obvious checks reaches
 for the unobvious ones, and an input API that reports the wrong shape for the browser
 it claims to be is a cheap, quiet tell.
 
-This page is what `navigator.getGamepads()` actually returns, why an empty array is the
+This page is what [`navigator.getGamepads()`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/getGamepads) actually returns, why an empty array is the
 correct answer rather than a suspicious one, how the shape functions as a user-agent
 consistency check, how to read it through invisible_playwright, and the honest limit of
 what any of this fixes.
@@ -25,8 +25,8 @@ what any of this fixes.
 ## What the Gamepad API actually exposes
 
 The surface is small. `navigator.getGamepads()` is a function that returns a snapshot of
-the game controllers the browser currently knows about, plus `gamepadconnected` and
-`gamepaddisconnected` events that fire when one appears or leaves. That is nearly all of
+the game controllers the browser currently knows about, plus [`gamepadconnected` and
+`gamepaddisconnected`](https://www.w3.org/TR/gamepad/) events that fire when one appears or leaves. That is nearly all of
 it from a fingerprinting point of view: a function that is either present or not, and an
 array whose contents and length are the interesting part.
 

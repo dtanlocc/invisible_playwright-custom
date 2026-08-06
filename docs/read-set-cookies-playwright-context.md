@@ -28,8 +28,8 @@ context and it starts with an empty jar.
 So the two operations you care about, reading and writing cookies, are both methods on
 `BrowserContext`, not on the page:
 
-- `context.cookies()` returns the current jar as a list of dictionaries.
-- `context.add_cookies([...])` injects cookies into the jar.
+- [`context.cookies()`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-cookies) returns the current jar as a list of dictionaries.
+- [`context.add_cookies([...])`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-add-cookies) injects cookies into the jar.
 
 You reach the context either by creating one explicitly with `browser.new_context()`,
 or from any page you have already opened via `page.context`.

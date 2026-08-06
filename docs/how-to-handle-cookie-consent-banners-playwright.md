@@ -11,7 +11,7 @@ nav_order: 12
 
 A cookie consent banner in Playwright usually will not click because it is a cross-origin
 iframe running in a separate browser process, so your selector searches the wrong frame and
-`force=True` cannot rescue it. The fix is to address the iframe first with `frame_locator`,
+`force=True` cannot rescue it. The fix is to address the iframe first with [`frame_locator`](https://playwright.dev/python/docs/api/class-frame#frame-frame-locator),
 then find the accept button inside it by its role and label.
 
 Almost every guide answers this the same way: find the accept button, click it, move
@@ -99,7 +99,7 @@ with InvisiblePlaywright(seed=42) as browser:
 
 Two things are doing the work here. `frame_locator("iframe[src*='consent']")` targets
 the iframe by a stable part of its source URL rather than a generated id that changes
-between loads. `get_by_role("button", name="Accept all")` then finds the button by its
+between loads. [`get_by_role("button", name="Accept all")`](https://playwright.dev/python/docs/api/class-locator#locator-get-by-role) then finds the button by its
 accessible role and label, which survives a restyle better than a hashed class name.
 
 If you do not know the iframe's URL yet, enumerate the frames once and read them off:

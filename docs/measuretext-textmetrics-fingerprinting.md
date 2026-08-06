@@ -9,8 +9,8 @@ nav_order: 7
 
 # measureText and TextMetrics as a fingerprinting surface
 
-`CanvasRenderingContext2D.measureText()` is a fingerprinting surface: it returns a
-`TextMetrics` object whose ten-plus numbers depend on the exact font file, shaping engine
+[`CanvasRenderingContext2D.measureText()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/measureText) is a fingerprinting surface: it returns a
+[`TextMetrics`](https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics) object whose ten-plus numbers depend on the exact font file, shaping engine
 and rendering backend, so the same probe string measures differently across platforms and
 font sets. It gets a fraction of the attention canvas image fingerprinting does, which is
 backwards from how often it is actually used. It needs no permission prompt, no pixel

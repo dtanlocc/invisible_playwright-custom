@@ -9,8 +9,10 @@ nav_order: 29
 
 # Battery API fingerprint: does Firefox expose it?
 
-Short version: on the desktop, no. Firefox removed `navigator.getBattery()` from web
-content in the 52 series back in 2017, on privacy grounds, and it has never come back.
+Short version: on the desktop, no. Firefox removed the
+[Battery Status API](https://developer.mozilla.org/en-US/docs/Web/API/Battery_Status_API)'s
+`navigator.getBattery()` from web content in the 52 series back in 2017, on privacy
+grounds, and it has never come back.
 So a real desktop Firefox has no Battery Status API at all. `navigator.getBattery` is
 `undefined`, and there is nothing to read.
 

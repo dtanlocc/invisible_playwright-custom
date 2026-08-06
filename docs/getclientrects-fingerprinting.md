@@ -13,8 +13,8 @@ Most fingerprinting pages measure something you think of as visual: a canvas dra
 a WebGL string, an audio buffer. This one measures the position of text on the page,
 down to fractions of a pixel, and it does it without drawing anything you can see.
 
-`element.getClientRects()` and `element.getBoundingClientRect()` return the geometry
-of a laid-out element: its top, left, width and height as floating-point numbers. Those
+[`element.getClientRects()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getClientRects) and [`element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect) return the geometry
+of a laid-out element: its top, left, width and height as [floating-point numbers](https://www.w3.org/TR/cssom-view-1/). Those
 numbers are not round. They carry a long fractional tail, and that tail is decided by
 the same stack a real browser cannot hide: the font rasterizer, the device pixel ratio,
 and the operating system's text layout. A script reads a handful of rects, hashes the

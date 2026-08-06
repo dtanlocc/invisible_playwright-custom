@@ -9,7 +9,8 @@ nav_order: 6
 
 # Client Hints and Sec-Fetch: headers that must agree
 
-Client Hints and Sec-Fetch are two families of request headers the browser generates from
+[Client Hints](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Client_hints) and
+Sec-Fetch are two families of request headers the browser generates from
 its own internal state, not from the page and not from anything you configure. That makes
 them awkward to fake and very cheap to check, which is a combination detectors like.
 
@@ -54,7 +55,8 @@ library at all.
   older one in the hints is a straight contradiction.
 - **A platform that differs.** Claiming Windows in the string while the hint reports the
   host operating system.
-- **The JavaScript API disagreeing with the headers.** Patching `navigator.userAgentData`
+- **The JavaScript API disagreeing with the headers.** Patching
+  [`navigator.userAgentData`](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData)
   in the page does nothing to the headers, which were sent before your script existed.
 
 That last one is worth sitting with. The headers travel with the request. A page-level
@@ -80,7 +82,8 @@ So "which browser should I claim" is not a free choice. Claim the one you are ru
 
 ## Sec-Fetch: how the request was initiated
 
-Sec-Fetch is a separate family of headers, present in every modern browser including
+[Sec-Fetch](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Sec-Fetch-Site)
+is a separate family of headers, present in every modern browser including
 Firefox, that describes how a request was initiated rather than what the browser is. It is
 much less discussed than Client Hints, and just as cheap for a server to check.
 

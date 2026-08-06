@@ -27,10 +27,12 @@ Browsers used to key storage by the origin that owned it. An embedded third part
 same storage everywhere it was embedded, which is what made cross-site tracking through
 storage work.
 
-Modern browsers key it by **the pair**: the top-level site plus the embedded origin. The
-same third party embedded on two different sites now gets two separate storages. Service
-worker registrations, IndexedDB, SharedWorkers, BroadcastChannel and Web Locks are all
-partitioned this way in third-party contexts.
+Modern browsers key it by **the pair**: the top-level site plus the embedded origin, what
+[MDN's guide to the mechanism](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/State_Partitioning)
+calls double-keying. The same third party embedded on two different sites now gets two
+separate storages. [Service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+registrations, IndexedDB, SharedWorkers, BroadcastChannel and Web Locks are all partitioned
+this way in third-party contexts.
 
 Firefox and Safari partition by default and have for years; Chromium arrived later. The
 approaches differ in strictness, which is one more way in which claiming one browser while
@@ -70,9 +72,11 @@ profile. [Which is one of the reasons to pair a profile with an identity](persis
 
 ## Blocking service workers is visible
 
-Playwright exposes a context option to block them, and several stacks built on it set it
-by default because a worker intercepting requests makes network interception harder to
-reason about. It is a sensible engineering default.
+Playwright exposes a
+[`service_workers` context option](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-service-workers)
+to block them, and several stacks built on it set it by default because a worker
+intercepting requests makes network interception harder to reason about. It is a
+sensible engineering default.
 
 It also produces a browser in which service workers never register. On a site that uses
 one, that is observable in the page:

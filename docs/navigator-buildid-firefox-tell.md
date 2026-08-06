@@ -27,7 +27,7 @@ and how to read your own.
 
 ## What navigator.buildID is, and why it is Firefox-only
 
-`navigator.buildID` is a string of the form `YYYYMMDDHHMMSS` that encodes the
+[`navigator.buildID`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/buildID) is a string of the form `YYYYMMDDHHMMSS` that encodes the
 timestamp of the build the browser was compiled from. A binary compiled on the
 morning of April 26th 2026 reports something like `20260426192818`. It is a
 Gecko property: Chrome and Chromium have no equivalent, so a detector that reads

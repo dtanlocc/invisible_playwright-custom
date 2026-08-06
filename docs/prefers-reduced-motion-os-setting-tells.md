@@ -14,8 +14,8 @@ canvas, WebGL, audio. Meanwhile a stylesheet can read a cluster of your operatin
 system's accessibility settings, with no script running at all, and report the answer
 back to a server before your first injected line executes.
 
-`prefers-reduced-motion` is the best known of the group, but it travels with three
-siblings that behave the same way: `prefers-contrast`, `forced-colors`, and
+[`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) is the best known of the group, but it travels with three
+siblings that behave the same way: [`prefers-contrast`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-contrast), [`forced-colors`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors), and
 `prefers-reduced-transparency`. All four are pure CSS media features that mirror an OS
 accessibility setting, and all four are exfiltrable with a background-image branch and
 no JavaScript. This page covers what they expose, why the default value is the only

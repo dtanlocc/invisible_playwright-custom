@@ -10,7 +10,7 @@ nav_order: 21
 # Does Playwright Set navigator.webdriver to True?
 
 Short version: yes. A browser launched by stock Playwright reports
-`navigator.webdriver === true`, and it has done so for years. That single boolean is
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver) `=== true`, and it has done so for years. That single boolean is
 one of the oldest and cheapest automation tells there is, which is exactly why so many
 people try to patch it and why the patch usually makes things worse.
 
@@ -20,7 +20,7 @@ clearing it buys you.
 
 ## The one-line answer, and the check that proves it
 
-The flag is specified. The WebDriver standard says a browser under automation control
+The flag is specified. The [WebDriver standard](https://www.w3.org/TR/webdriver2/) says a browser under automation control
 must expose `navigator.webdriver` as `true`, so Playwright, Selenium and any other
 WebDriver-based driver all set it. Read it yourself:
 
@@ -77,7 +77,7 @@ Object.getOwnPropertyDescriptor(Navigator.prototype, "webdriver")
 ```
 
 Every function in JavaScript carries its own source, and
-`Function.prototype.toString` hands it back. A native builtin answers with the
+[`Function.prototype.toString`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/toString) hands it back. A native builtin answers with the
 `[native code]` placeholder; your arrow function answers with its actual body. So the
 override that was supposed to hide automation has instead written the word `false` into
 a place a detector can read directly. This is the general ceiling on page-level stealth,

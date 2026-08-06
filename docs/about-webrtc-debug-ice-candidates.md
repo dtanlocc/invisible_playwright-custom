@@ -10,7 +10,8 @@ nav_order: 17
 # about:webrtc: read your real ICE candidates
 
 A public leak site gives you a verdict and a couple of IP strings. Firefox ships a
-page that gives you the raw material behind that verdict: every ICE candidate the
+page that gives you the raw material behind that verdict: every
+[ICE candidate](https://datatracker.ietf.org/doc/html/rfc8445) the
 browser gathered, its type, its address, its priority, and the timeline of when each
 one arrived. It is `about:webrtc`, it is built in, it needs no extension, and it is
 the first place to look after any change to a WebRTC or proxy setting.
@@ -242,7 +243,8 @@ which is itself detectable. The candidate list tells you which; the badge does n
 
 **Can I read about:webrtc from Playwright?** You can navigate to it with `page.goto`,
 and you can gather the same candidate strings programmatically with `page.evaluate`
-over a real `RTCPeerConnection`, which turns the manual read into an assertion.
+over a real [`RTCPeerConnection`](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection),
+which turns the manual read into an assertion.
 
 **Why does an empty WebRTC section count as a failure?** Because a real browser behind
 NAT always emits at least a host and a server-reflexive candidate. Emitting nothing is

@@ -9,11 +9,13 @@ nav_order: 34
 
 # Does storage quota estimate reveal disk size?
 
-Partly, and it is one of the surfaces almost no stealth tool audits. When a page
-calls `navigator.storage.estimate()`, the browser answers with two numbers: how much
-origin-scoped storage is already used, and a quota it is allowed to grow into. That
-quota is not a constant. It is computed from the free space on the disk the profile
-lives on, which means it varies by device and can be bucketed as a fingerprint.
+Partly, and it is one of the surfaces almost no stealth tool audits. When a page calls
+[`navigator.storage.estimate()`](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate),
+the browser answers with two numbers: how much origin-scoped storage is already used,
+and a quota it is allowed to grow into. That quota is not a constant. It is computed
+from the free space on the disk the profile lives on, which means it varies by device
+and can be bucketed as a fingerprint, per the
+[Storage Standard](https://storage.spec.whatwg.org/) that defines both values.
 
 It does not reveal your exact disk size, and it says nothing about your IP reputation
 or how fast you are sending requests. What it does do is add one more hardware-shaped

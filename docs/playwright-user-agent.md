@@ -79,7 +79,7 @@ Two identities, each self-consistent, differing in everything rather than in one
 JavaScript needed to catch it.** Specific to Chromium, and it catches people who did
 everything else carefully.
 
-Modern Chromium sends the `Sec-CH-UA` family of headers, which carry the brand and
+Modern Chromium sends the [`Sec-CH-UA`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Sec-CH-UA) family of headers, which carry the brand and
 version independently of the classic user agent string. Setting `userAgent` in your
 automation tool does not necessarily rewrite them.
 
@@ -151,7 +151,7 @@ free check.
 **Does `navigator.userAgent` match the HTTP header?** It should. Verify both, because
 tools sometimes change one and not the other.
 
-**How do I set a custom user agent in Playwright anyway?** The `userAgent` browser
+**How do I set a custom user agent in Playwright anyway?** The [`userAgent`](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-user-agent) browser
 context option accepts any string and Playwright will send it. Everything above is why
 doing so rarely helps: the option changes that one string and nothing it needs to
 agree with.

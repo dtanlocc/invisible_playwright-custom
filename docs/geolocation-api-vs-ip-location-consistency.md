@@ -27,8 +27,8 @@ and can each say something different.
 
 | Signal | What reports it | Who controls it |
 |---|---|---|
-| Geolocation API coordinates | `navigator.geolocation.getCurrentPosition()` | The browser, only after a permission prompt |
-| Timezone | `Intl.DateTimeFormat().resolvedOptions().timeZone` and the UTC offset | The browser, set from the OS or an override |
+| Geolocation API coordinates | [`navigator.geolocation.getCurrentPosition()`](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition) | The browser, only after a permission prompt |
+| Timezone | [`Intl.DateTimeFormat().resolvedOptions().timeZone`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat) and the UTC offset | The browser, set from the OS or an override |
 | IP location | The country of the address the request left from | The network exit - your proxy |
 
 A detector does not need any one of these to look strange. It needs two of them to
@@ -56,8 +56,9 @@ done offline, are in
 **The Geolocation API coordinates are the browser's to set, but only if you ask.** A
 real browser does not hand out a position silently. It shows a permission prompt, and
 until the user grants it, `getCurrentPosition()` calls the error callback. In automation
-you grant the permission and supply the coordinates yourself, through stock Playwright's
-context options. Nothing derives them from your exit for you - if you do not place them,
+you grant the permission and supply the coordinates yourself, through
+[stock Playwright's context options](https://playwright.dev/python/docs/api/class-browser#browser-new-context).
+Nothing derives them from your exit for you - if you do not place them,
 either the prompt blocks the call or you supply a coordinate that came from somewhere
 else entirely.
 

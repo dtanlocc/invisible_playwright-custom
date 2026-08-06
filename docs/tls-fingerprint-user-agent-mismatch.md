@@ -31,7 +31,7 @@ it in one line. So can a scraper that is not a browser at all. Because it is tri
 writable, a detector treats it as an assertion to be checked, not as a fact.
 
 The **TLS handshake** happens first, during connection setup, before any HTTP header
-exists. The client sends a ClientHello listing the exact cipher suites it supports, in
+exists. The client sends a [ClientHello](https://datatracker.ietf.org/doc/html/rfc8446) listing the exact cipher suites it supports, in
 its exact order, with its exact set of extensions and their exact order. That list is a
 property of the network stack compiled into the engine. JavaScript never sees it and
 cannot set it. Tools like [JA3 and JA4 hash that ClientHello](ja3-ja4-tls-fingerprint.md)

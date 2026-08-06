@@ -9,7 +9,7 @@ nav_order: 8
 
 # Permissions API: the two answers that must agree
 
-**The Permissions API and `Notification.permission` describe the same permission state
+**The [Permissions API](https://developer.mozilla.org/en-US/docs/Web/API/Permissions_API) and [`Notification.permission`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/permission_static) describe the same permission state
 through two code paths, and a real browser gives the same answer both ways.** When they
 disagree - classically `Notification.permission` says `denied` while
 `navigator.permissions.query({name: 'notifications'})` says `prompt` - the browser is

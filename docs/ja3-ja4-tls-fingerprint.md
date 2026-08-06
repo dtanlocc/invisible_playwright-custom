@@ -19,7 +19,7 @@ answer.
 
 ## What is being fingerprinted
 
-When a client opens an HTTPS connection it sends a **ClientHello**: the TLS version it
+When a client opens an HTTPS connection it sends a **[ClientHello](https://datatracker.ietf.org/doc/html/rfc8446)**: the TLS version it
 proposes, the cipher suites it supports and in what order, the extensions it offers, the
 elliptic curves, the point formats. That message is sent in the clear, and it is
 entirely determined by the TLS library and how it was configured.

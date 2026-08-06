@@ -25,11 +25,13 @@ without the others and you have manufactured a contradiction that scores against
 
 Two independent context options do the work, and they are independent on purpose.
 
-- `geolocation={"latitude": ..., "longitude": ...}` is the position the browser hands to
-  `navigator.geolocation`. Add `"accuracy"` in meters if you want to look like a real
-  device rather than a pinpoint.
-- `permissions=["geolocation"]` pre-grants the permission for that context's origin, so
-  the page never sees a prompt and never has to time out waiting for one.
+- [`geolocation={"latitude": ..., "longitude": ...}`](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-geolocation)
+  is the position the browser hands to
+  [`navigator.geolocation`](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
+  Add `"accuracy"` in meters if you want to look like a real device rather than a pinpoint.
+- [`permissions=["geolocation"]`](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-permissions)
+  pre-grants the permission for that context's origin, so the page never sees a prompt and
+  never has to time out waiting for one.
 
 Set the coordinates without granting the permission and the API still blocks on a dialog.
 Grant the permission without setting coordinates and the API resolves against whatever

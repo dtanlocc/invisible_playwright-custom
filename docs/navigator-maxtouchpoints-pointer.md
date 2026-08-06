@@ -9,9 +9,9 @@ nav_order: 18
 
 # navigator.maxTouchPoints and pointer consistency
 
-On a spoofed desktop, `navigator.maxTouchPoints` should read `0`, and the CSS
-pointer media queries have to agree with it: `(pointer: fine)` and
-`(any-hover: hover)` match, while `(any-pointer: coarse)` is false. A
+On a spoofed desktop, [`navigator.maxTouchPoints`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/maxTouchPoints) should read `0`, and the CSS
+pointer media queries have to agree with it: [`(pointer: fine)`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/pointer) and
+`(any-hover: hover)` match, while [`(any-pointer: coarse)`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/any-pointer) is false. A
 fingerprinter does not read either value on its own; it checks whether the two
 agree, because they describe the same hardware through different code paths, and
 CreepJS records a mismatch as a lie.

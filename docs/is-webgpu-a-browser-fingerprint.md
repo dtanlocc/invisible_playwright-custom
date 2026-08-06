@@ -21,13 +21,13 @@ session, and the honest limit of what fixing it buys you.
 
 ## What WebGPU actually exposes
 
-WebGPU shipped in the Firefox 141 series on Windows, which means `navigator.gpu` is now
+[WebGPU](https://www.w3.org/TR/webgpu/) shipped in the Firefox 141 series on Windows, which means [`navigator.gpu`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/gpu) is now
 a real object on a current desktop Firefox rather than `undefined`. Its mere presence is
 already a signal: it tells a page the engine, the platform and roughly the version band
 you are on, before you draw anything.
 
 The identity lives one call deeper. `navigator.gpu.requestAdapter()` returns an adapter,
-and the adapter carries an `info` object with `vendor` and `architecture` strings, plus a
+and the adapter carries an [`info`](https://developer.mozilla.org/en-US/docs/Web/API/GPUAdapterInfo) object with `vendor` and `architecture` strings, plus a
 `limits` object full of integers: maximum texture dimensions, buffer sizes, workgroup
 counts, bind group limits. Those numbers are not arbitrary. They are reported by the
 driver for the actual GPU, so the set of them, taken together, narrows the hardware the

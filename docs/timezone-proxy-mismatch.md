@@ -25,6 +25,14 @@ them disagree. Run this on any page and read all of it, not the first line:
 ```js
 Intl.DateTimeFormat().resolvedOptions().timeZone   // "America/New_York"
 new Date().getTimezoneOffset()                      // 300  (minutes, inverted)
+```
+
+[`Intl.DateTimeFormat().resolvedOptions()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
+and [`getTimezoneOffset()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getTimezoneOffset)
+are two separate mechanisms, the second with a sign convention worth reading before you
+trust it:
+
+```js
 new Date().toString()                               // "... GMT-0500 (Eastern Standard Time)"
 navigator.language                                  // "en-US"
 navigator.languages                                 // ["en-US", "en"]
@@ -65,7 +73,9 @@ variable appears to be set, the browser reports something else, and the usual
 conclusion is that the setting was ignored.
 
 The mechanism that does work in current Firefox is a per-realm override applied by the
-engine, which is what Playwright's `timezone_id` reaches. That is also why the value
+engine, which is what Playwright's
+[`timezone_id`](https://playwright.dev/python/docs/api/class-browser#browser-new-context-option-timezone-id)
+reaches. That is also why the value
 has to be re-applied to realms created later: a new page, an iframe on another site, a
 worker. Under site isolation each new site can be a new process, and anything not
 re-applied there falls back to the build's default.

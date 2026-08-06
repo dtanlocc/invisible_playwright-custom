@@ -8,7 +8,7 @@ nav_order: 1
 
 # navigator.webdriver is not the tell you think it is
 
-`navigator.webdriver` is a real, specified browser property: a conforming
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver) is a real, specified browser property: a conforming
 browser must report it as `true` while under automation control and otherwise
 leave it `undefined`, never `false`. It is the cheapest signal in any
 fingerprint, which is why it is the one everybody checks first, and passing it
@@ -25,7 +25,7 @@ Here is why, and what the property actually tells a detector.
 ## The property is a standard, not a leak
 
 `navigator.webdriver` is specified. It is not something that slipped out by
-accident: the WebDriver spec requires a conforming browser to expose it as `true`
+accident: the [WebDriver spec](https://www.w3.org/TR/webdriver2/) requires a conforming browser to expose it as `true`
 when the session is under automation control. It exists so that a page can know,
 which means a page checking it is using it exactly as intended.
 

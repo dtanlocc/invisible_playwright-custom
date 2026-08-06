@@ -28,14 +28,15 @@ reports, and how to check the surface yourself.
 There are two separate families of device-motion API, and they behave very
 differently across engines.
 
-The **generic Sensor APIs** - `Accelerometer`, `Gyroscope`,
+The **generic Sensor APIs** - [`Accelerometer`](https://developer.mozilla.org/en-US/docs/Web/API/Accelerometer),
+[`Gyroscope`](https://developer.mozilla.org/en-US/docs/Web/API/Gyroscope),
 `LinearAccelerationSensor`, `AbsoluteOrientationSensor` and the rest of that
 family - are implemented in Chromium and, at time of writing, not in Firefox at
 all. On a real Firefox, `typeof Accelerometer` is `"undefined"`. A page that
 tries `new Gyroscope()` gets a `ReferenceError`. This is not a stealth trick;
 it is simply what the engine ships.
 
-The **DeviceOrientation and DeviceMotion events** - `window.ondeviceorientation`,
+The **[DeviceOrientation and DeviceMotion](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent) events** - `window.ondeviceorientation`,
 `window.ondevicemotion` - do exist as properties in Firefox, because they are
 part of an older, more widely shipped spec. But existing as a property is not
 the same as firing. On a desktop with no accelerometer and no gyroscope, you can

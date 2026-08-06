@@ -166,8 +166,9 @@ pacing and the volume are the parts you still have to bring.
 ## Short answers to the questions that lead here
 
 **Can a website read my scrollbar width?** Yes, with no permission and no special API.
-It measures `offsetWidth` minus `clientWidth` on a scrollable element, and the gap is
-the scrollbar.
+It measures [`offsetWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/offsetWidth)
+minus [`clientWidth`](https://developer.mozilla.org/en-US/docs/Web/API/Element/clientWidth)
+on a scrollable element, and the gap is the scrollbar.
 
 **Does it really reveal the operating system?** It narrows it. A roughly
 seventeen-pixel classic scrollbar and a zero-width overlay scrollbar describe

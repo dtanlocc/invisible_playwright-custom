@@ -10,7 +10,7 @@ nav_order: 15
 # WebRTC IP that matches the proxy exit, by design
 
 WebRTC is kept matching the proxy exit by discovering the exit address once, then
-swapping it into the real server-reflexive (`srflx`) candidate in place while preserving
+swapping it into the real [server-reflexive](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate/type) (`srflx`) candidate in place while preserving
 the actual NAT port. HTTP and WebRTC then report the same public address, and the
 candidate still reads as a genuine router mapping rather than a fabricated one.
 
@@ -29,7 +29,7 @@ port is left exactly as the machine found it instead of being made up.
 The candidate that matters here is the server-reflexive one, the `srflx`. It is what a
 real browser behind a home router produces: the router rewrites the source address of
 an outbound packet to the household's public address and to some port the router chose,
-and a STUN server on the far side reports that rewritten pair back. The pair is the NAT
+and a [STUN](https://datatracker.ietf.org/doc/html/rfc5389) server on the far side reports that rewritten pair back. The pair is the NAT
 mapping. A real `srflx` is always a public address with a plausible port next to it.
 
 So matching is not just "show the proxy's address". It is: show the proxy's address in

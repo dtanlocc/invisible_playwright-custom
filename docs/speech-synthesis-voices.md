@@ -20,10 +20,10 @@ nothing to do with each other.
 
 ## Problem one: the async gotcha
 
-An empty first call is a timing problem, not a bug. `getVoices()` populates
-asynchronously, so a call made during page load can arrive before the list is
-ready. This happens in every browser, on every machine, and the fix is an event
-listener.
+An empty first call is a timing problem, not a bug.
+[`getVoices()`](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/getVoices)
+populates asynchronously, so a call made during page load can arrive before the list is
+ready. This happens in every browser, on every machine, and the fix is an event listener.
 
 ```js
 const voices = speechSynthesis.getVoices();
@@ -31,7 +31,9 @@ console.log(voices.length);   // 0
 ```
 
 The voice list is populated asynchronously. Call `getVoices()` during page load and
-you can easily get there first. The fix is the `voiceschanged` event:
+you can easily get there first. The fix is the
+[`voiceschanged`](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/voiceschanged_event)
+event:
 
 ```js
 function whenVoicesReady() {

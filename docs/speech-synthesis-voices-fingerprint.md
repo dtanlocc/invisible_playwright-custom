@@ -10,8 +10,9 @@ nav_order: 19
 # speechSynthesis voices as a cross-platform fingerprint
 
 The Web Speech API has a small method that turns out to be a large tell.
-`speechSynthesis.getVoices()` returns the list of text-to-speech voices the
-browser can use, and that list does not come from the browser. It comes from the
+[`speechSynthesis.getVoices()`](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/getVoices)
+returns the list of text-to-speech voices the browser can use, and that list does not
+come from the browser. It comes from the
 operating system underneath it. Which means a single call reads back the real
 platform, no matter what the user agent claims.
 
@@ -21,10 +22,11 @@ it, and the honest limit of what passing it buys you.
 
 ## What getVoices() actually returns
 
-Each entry the method returns carries a name, a `lang` tag such as `en-US`, a
-`default` flag, and a `localService` boolean that says whether the voice is
-synthesized on the device or fetched from a remote service. The engine does not
-invent any of this. It enumerates whatever speech backend the host OS exposes and
+Each entry the method returns is a
+[`SpeechSynthesisVoice`](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice)
+carrying a name, a `lang` tag such as `en-US`, a `default` flag, and a `localService`
+boolean that says whether the voice is synthesized on the device or fetched from a
+remote service. The engine does not invent any of this. It enumerates whatever speech backend the host OS exposes and
 hands you the result.
 
 That makes the shape of the list an operating-system signature:

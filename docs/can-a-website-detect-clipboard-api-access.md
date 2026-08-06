@@ -23,7 +23,8 @@ with a real trusted click, and the honest limit of what a patched browser does h
 
 ## What the async Clipboard API actually exposes
 
-The modern surface is `navigator.clipboard`, with two methods that matter for detection:
+The modern surface is the [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API)'s
+`navigator.clipboard`, with two methods that matter for detection:
 `writeText()` and `readText()` (plus their richer `write()`/`read()` cousins). Both return
 promises, and both are guarded before they ever touch the system clipboard.
 
@@ -31,7 +32,8 @@ A page can read three things without any special access:
 
 - **Whether `navigator.clipboard` is present at all.** A secure context (HTTPS) in a
   modern browser has it; its absence under a modern user agent is itself a mismatch.
-- **The permission state for `clipboard-read`**, by asking
+- **The permission state for `clipboard-read`**, by asking the
+  [Permissions API](https://developer.mozilla.org/en-US/docs/Web/API/Permissions_API)'s
   `navigator.permissions.query({name: 'clipboard-read'})`. That returns `granted`,
   `denied` or `prompt` without prompting anyone.
 - **What happens when it calls a method.** A rejected promise, and the shape of the
@@ -47,7 +49,8 @@ almost nothing that varies from one honest machine to the next, because access i
 on two conditions the specification requires:
 
 1. **A user gesture.** `readText()` and `writeText()` are only allowed while the document
-   has transient activation, meaning a real interaction (a click, a key press) happened
+   has [transient activation](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/User_activation),
+   meaning a real interaction (a click, a key press) happened
    recently. Call either one from a script with no gesture behind it and the promise
    rejects.
 2. **A permission.** Reading additionally requires the `clipboard-read` permission;

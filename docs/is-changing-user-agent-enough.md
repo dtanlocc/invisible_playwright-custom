@@ -22,7 +22,7 @@ so you know what you still have to supply yourself.
 
 ## What the user agent actually is
 
-`navigator.userAgent` is a single self-reported line. The browser hands it out, the same
+[`navigator.userAgent`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/userAgent) is a single self-reported line. The browser hands it out, the same
 string rides in the `User-Agent` request header, and nothing about it is verified at the
 point you read it. Because it is trivially settable, it is also the first thing people
 reach for: change the string, claim to be a different browser or platform, done.
@@ -51,7 +51,7 @@ claims has independent witnesses:
 - **The WebGL renderer.** The GPU vendor and renderer strings describe real graphics
   hardware and driver. A Windows user agent next to [a Linux or software renderer
   string](webgl-renderer-strings.md) names two different machines at once.
-- **Client Hints.** `Sec-CH-UA`, `navigator.userAgentData` and the user agent string are
+- **[Client Hints](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Client_hints).** `Sec-CH-UA`, `navigator.userAgentData` and the user agent string are
   all generated from one internal state in a genuine browser, so [they must tell the same
   story](client-hints-sec-fetch.md). Set the string by hand and the structured hints keep
   reporting what the engine really is.

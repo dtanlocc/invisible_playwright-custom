@@ -20,13 +20,13 @@ removes it.
 
 ## The two transports, and which one your proxy carries
 
-A SOCKS5 proxy tunnels TCP. That is the whole contract. Your HTTP requests, your
+A [SOCKS5](https://datatracker.ietf.org/doc/html/rfc1928) proxy tunnels TCP. That is the whole contract. Your HTTP requests, your
 TLS, your WebSocket traffic all ride TCP and all exit at the proxy, which is why
 the page reads the proxy's address and why the server reflexive WebRTC candidate
 (the one derived from a STUN round trip) shows the proxy's egress too.
 
 WebRTC does not only report the address a STUN server sees. Before any of that, it
-enumerates the host's own network interfaces and emits a **host candidate** for
+enumerates the host's own network interfaces and emits a [**host candidate**](https://datatracker.ietf.org/doc/html/rfc8445) for
 each usable local address. That enumeration is local. It does not travel through
 your proxy, because there is nothing to travel: the browser is reading its own
 interface list off the operating system.

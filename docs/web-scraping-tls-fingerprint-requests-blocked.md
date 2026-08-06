@@ -24,7 +24,7 @@ Something earlier decided the outcome first.
 ## What happens before any of that exists
 
 An HTTPS connection opens with a TLS handshake, and the first message in it - the
-ClientHello - is sent before a single byte of the HTTP request exists. No headers, no
+[ClientHello](https://datatracker.ietf.org/doc/html/rfc8446) - is sent before a single byte of the HTTP request exists. No headers, no
 cookies, no user agent string: none of that is part of the connection yet. The
 ClientHello is generated entirely by the TLS library the client links against, and it
 lists the cipher suites, extensions and settings that library supports, in the order

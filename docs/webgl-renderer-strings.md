@@ -8,7 +8,7 @@ nav_order: 2
 
 # Firefox WebGL renderer strings: what ANGLE reports
 
-`UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` name your graphics hardware in
+[`UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info) name your graphics hardware in
 plain text, and they decide more than people expect. This is what Firefox reports on
 each platform, why it says ANGLE and Google Inc. on Windows, and why a software
 renderer is the hardest thing on this list to explain away.

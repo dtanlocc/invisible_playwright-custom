@@ -17,7 +17,7 @@ pixel, the browser fell back, so the font is absent.
 
 That single comparison is old, cheap, and still in wide use, because it is hard
 to disable without breaking real pages. This page is what the width-comparison
-probe actually measures, why it is a different thing from hashing `measureText`
+probe actually measures, why it is a different thing from hashing [`measureText`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/measureText)
 output, what it returns on a bare headless browser, and how a browser that ships
 its own font set answers it the same way on Windows, Linux and macOS.
 
@@ -48,7 +48,7 @@ function fontIsPresent(family) {
 }
 ```
 
-The same idea works with a hidden DOM element and `offsetWidth` instead of a
+The same idea works with a hidden DOM element and [`offsetWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/offsetWidth) instead of a
 canvas; the width number comes from the same text-shaping path either way. A
 detector then runs this over a list of a few hundred font names and turns the
 present/absent bits into a vector. Two facts about that vector are what make it
