@@ -76,7 +76,7 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 | Key | Type | Example | Notes |
 |-----|------|---------|-------|
 | `hardware.concurrency` | int | `16` | `navigator.hardwareConcurrency`. |
-| `hardware.storage_quota_mb` | int | `10_000` | `navigator.storage.estimate().quota / 1024²`. |
+| `hardware.storage_quota_mb` | int | `10_000` | `navigator.storage.estimate().quota / 1024**2`. |
 
 ### `audio.*`
 
