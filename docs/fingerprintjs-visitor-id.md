@@ -70,10 +70,12 @@ explains itself:
 the taskbar moves. [`device_memory`, `hardware_concurrency`](hardware-concurrency-device-memory.md)
 and `architecture` change with the machine.
 
-**Moves with the operating system's own settings.** `forced_colors`,
-`inverted_colors`, `reduced_motion`, `reduced_transparency`, `contrast`,
-`monochrome`, `color_gamut` and `hdr` all read accessibility and display
-preferences. Someone turning on dark mode or reducing motion changes their ID.
+**Moves with the operating system's own settings.**
+[`forced_colors`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors),
+`inverted_colors`, [`reduced_motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion),
+`reduced_transparency`, `contrast`, `monochrome`, `color_gamut` and `hdr` all read
+accessibility and display preferences exposed as standard CSS media features.
+Someone turning on dark mode or reducing motion changes their ID.
 
 **Moves with ordinary software changes.** `fonts` and `font_preferences` change when
 any application installs a font. `plugins`, `vendor_flavors` and `user_agent_data`

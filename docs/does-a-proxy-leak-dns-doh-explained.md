@@ -22,12 +22,14 @@ doing, and the one thing fixing the leak does not fix.
 
 ## Where DNS resolution actually happens
 
-Every connection to a hostname is really two steps. First a name is resolved to an
-address. Then a socket is opened to that address. People think of a proxy as covering
-"the connection", but there are two connections in that sentence, and a proxy does not
-necessarily cover both.
+DNS resolution happens in one of two places: on your own host, using whatever resolver
+your operating system is configured to use, or at the proxy exit, where the proxy does
+the lookup on your behalf. Every connection to a hostname is really two steps: first a
+name is resolved to an address, then a socket is opened to that address. People think of
+a proxy as covering "the connection", but there are two connections in that sentence, and
+a proxy does not necessarily cover both.
 
-The resolver step can run in one of two places:
+In detail, the resolver step can run in one of two places:
 
 - **On your host**, using whatever DNS server your operating system is configured to
   use. That is usually your ISP's resolver, or one handed to you by your local network.
@@ -42,9 +44,10 @@ hard, and it undoes the reason you added the proxy.
 
 ## Remote vs local resolution over SOCKS5
 
-SOCKS5 is the scheme where this actually has a choice, which is why it comes up here and
-not with plain HTTP proxying. The protocol lets a client send the proxy either an
-**address** it has already resolved, or a **hostname** for the proxy to resolve itself.
+SOCKS5, defined in [RFC 1928](https://datatracker.ietf.org/doc/html/rfc1928), is the
+scheme where this actually has a choice, which is why it comes up here and not with plain
+HTTP proxying. The protocol lets a client send the proxy either an **address** it has
+already resolved, or a **hostname** for the proxy to resolve itself.
 
 - **Local (host-side) resolution.** The client resolves `example.com` to an IP using the
   host's resolver, then tells the proxy "connect to this IP". The lookup left your
@@ -69,12 +72,14 @@ and the hostname goes to the exit, not to your local resolver.
 
 ## Where DNS-over-HTTPS fits
 
-DNS-over-HTTPS (DoH) is a related but different fix, and it is worth being precise about
-what it does and does not solve.
+DNS-over-HTTPS (DoH), standardized in
+[RFC 8484](https://datatracker.ietf.org/doc/html/rfc8484), encrypts the resolver query
+and sends it over HTTPS to a chosen resolver. It is a related but different fix from
+proxy-side resolution, and the two solve different problems.
 
-DoH encrypts the resolver query and sends it over HTTPS to a chosen resolver. Its purpose
-is confidentiality: your local network and your ISP can no longer read which hostnames
-you are looking up, because the query looks like ordinary HTTPS traffic to some server.
+Its purpose is confidentiality: your local network and your ISP can no longer read which
+hostnames you are looking up, because the query looks like ordinary HTTPS traffic to some
+server.
 
 What DoH does **not** do on its own is change *where* the query exits. If the browser's
 DoH request itself goes out your real network rather than through the proxy, the encrypted
@@ -225,8 +230,12 @@ closed.
 
 ## Sources
 
-- The SOCKS5 protocol's two connect modes (address versus hostname), which is the mechanism
-  that makes proxy-side resolution possible at all.
+- The SOCKS5 protocol's two connect modes (address versus hostname), defined in
+  [RFC 1928](https://datatracker.ietf.org/doc/html/rfc1928), which is the mechanism that
+  makes proxy-side resolution possible at all.
+- DNS Queries over HTTPS (DoH), standardized in
+  [RFC 8484](https://datatracker.ietf.org/doc/html/rfc8484), which encrypts the resolver
+  query in transit without changing where it exits.
 - This project's proxy handling, which routes DNS through the proxy by default rather than
   through the host resolver, and refuses a proxy endpoint given without an explicit port
   rather than launching unproxied.

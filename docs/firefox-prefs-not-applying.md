@@ -36,7 +36,8 @@ from the page, not from the profile.
 
 ## 1. The preference does not exist in that build
 
-This is the big one, and it is silent by design.
+A preference name the build never reads is the most common cause of this, and it is
+silent by design.
 
 Firefox has no schema for preferences. `about:config` will happily let you create
 `my.invented.pref` and store a value, and so will an automation tool. Nothing reads
@@ -54,7 +55,10 @@ test that checks a preference was *set* is not testing anything; the check has t
 that the browser's observable behaviour changed.
 
 The way to catch it is to read the value back from the page instead of from the
-profile:
+profile, with a real page-visible API such as
+[`navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency)
+or
+[`Intl.DateTimeFormat().resolvedOptions()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions):
 
 ```js
 // what the page sees is the only thing that counts
@@ -93,8 +97,8 @@ for you, which is why the two-file distinction only bites when you are hand-edit
 
 A `policies.json` next to the binary, or an OS-level policy on a managed machine,
 takes precedence over both files and can lock a preference so nothing can change it.
-This is rare on a developer machine and common on a corporate one, and it produces
-exactly the symptom in the title.
+This is rare on a developer machine and common on a corporate one, and it produces a
+value that looks set in `about:config` while the browser silently ignores it.
 
 ## 5. The preference works and something else is louder
 
@@ -106,7 +110,7 @@ reported the value. Two mechanisms setting the same thing is
 
 ## 6. It works in the parent process and is empty in the content process
 
-The one that costs the most time to find, because it produces no error anywhere.
+This failure mode costs the most time to find, because it produces no error anywhere.
 
 Firefox runs as a tree of processes - one parent, one content process per
 site-isolated origin, plus a handful of others - and a preference set in the parent

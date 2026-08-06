@@ -1,6 +1,6 @@
 ---
 title: "Do I need an anti-detect browser or just Playwright?"
-description: "Deciding between a paid anti-detect browser and stock Playwright driving a patched Firefox build: what the two share, what only the paid GUI adds, and how to script it."
+description: "Deciding between a paid anti-detect browser and stock Playwright on a patched Firefox build: what they share, what the paid GUI adds, and how to script it."
 parent: "Comparisons"
 nav_order: 33
 ---
@@ -52,7 +52,9 @@ This is the part that overlaps, and it is worth being precise about what
 A real browser reports hundreds of correlated values: the GPU string and the
 pixels it actually draws, the audio device, the installed fonts, the screen
 geometry, the codecs, the TLS handshake, and the driver layer that automation
-frameworks usually announce themselves through. A patched engine makes those
+frameworks usually announce themselves through - the best-known example being
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+a specified boolean a real user's browser never sets. A patched engine makes those
 read as a genuine Firefox driven by a person, and - this is the part a page
 script cannot do - keeps them **consistent with each other**, because most
 detection is a cross-check between two values that should agree rather than a
@@ -99,7 +101,7 @@ first outright and leaves the second as an explicit input.
 If your bottleneck is the engine, this is the whole switch. Any existing
 Playwright script becomes a stealthed one by changing how the browser launches;
 nothing after that line changes, because the object you get back is a real
-Playwright `Browser`.
+Playwright [`Browser`](https://playwright.dev/python/docs/api/class-browser).
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -215,6 +217,9 @@ cannot substitute for them.
   [Playwright detected as a bot on one site](playwright-detected-as-bot.md),
   which ranks engine tells above IP as the more common and cheaper fix, and IP
   reputation as the last and most expensive suspect.
+- [MDN: `Navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  and [Playwright's `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for the driver-layer property and the object the launch call above returns.
 
 **See also:** [what a browser fingerprint is made of](what-is-a-browser-fingerprint.md),
 [choosing a single stealth layer](playwright-stealth-levels.md), and

@@ -196,9 +196,9 @@ you assert on them in a test.
 
 ## Sources
 
-- The CSS Color Adjustment and Media Queries Level 5 specifications, which define
-  `color-gamut`, `dynamic-range` and `video-dynamic-range` and their resolution from
-  the output device.
+- The [Media Queries Level 5 specification](https://www.w3.org/TR/mediaqueries-5/),
+  which defines `color-gamut`, `dynamic-range` and `video-dynamic-range` and their
+  resolution from the output device.
 - This project's fingerprint gates, which cross-check the CSS-resolved display
   features against `screen.colorDepth` and the canvas and WebGL persona for the same
   seed.

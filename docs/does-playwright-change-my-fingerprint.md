@@ -21,14 +21,16 @@ server deployments, and where a seed-derived identity replaces the values you in
 ## What Playwright actually does to the fingerprint
 
 Playwright drives a browser. It does not synthesize one. When you call
-`p.firefox.launch()`, the fingerprint you present is the real fingerprint of the real
+[`p.firefox.launch()`](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch),
+the fingerprint you present is the real fingerprint of the real
 Firefox on the real host: its GPU string comes from the host's graphics stack, its
 font list from the host's installed fonts, its `navigator.platform` from the host OS,
 its screen metrics from the host display, its audio characteristics from the host
 audio device.
 
 Playwright's job is the driver channel and the automation surface. It exposes a few
-context knobs - `user_agent`, `locale`, `timezone_id`, `viewport` - but those are
+[context knobs](https://playwright.dev/python/docs/api/class-browser#browser-new-context) -
+`user_agent`, `locale`, `timezone_id`, `viewport` - but those are
 overrides you type in, not a coherent identity. Set a `user_agent` and you have
 changed one string; every other value the page can read still comes from the machine.
 That is the gap this whole page is about.
@@ -173,7 +175,9 @@ Playwright `Browser`; every documented method works unchanged.
 
 ## Sources
 
-- Playwright's own launch and context API, read for what it does and does not override.
+- Playwright's own [launch](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)
+  and [context](https://playwright.dev/python/docs/api/class-browser#browser-new-context) API,
+  read for what it does and does not override.
 - This project's fingerprint generator, which derives every surface from one seed, and
   the release gates that compare a generated identity field by field against a stock
   Firefox on the same machine.

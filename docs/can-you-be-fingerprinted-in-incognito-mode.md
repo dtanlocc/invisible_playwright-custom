@@ -1,6 +1,6 @@
 ---
 title: "Can you be fingerprinted in incognito mode?"
-description: "Yes: private and incognito mode clears cookies and site storage but leaves canvas, WebGL, fonts, user agent, timezone and the TLS handshake fully readable and re-linkable."
+description: "Yes: incognito mode clears cookies and site storage but leaves canvas, WebGL, fonts, user agent, timezone and the TLS handshake fully readable and re-linkable."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 23
@@ -41,19 +41,22 @@ mode only deletes the first kind.
 When a page measures your browser, it reads values the browser exposes on request, no
 storage involved:
 
-- **Canvas.** The page draws text and shapes to an offscreen canvas and reads the pixels
-  back. The exact bytes depend on your GPU, drivers and font rasterizer, and they are
-  identical in a private window because it is the same GPU. See
+- **Canvas.** The page draws text and shapes to an offscreen canvas and
+  [reads the pixels back](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+  as an encoded image. The exact bytes depend on your GPU, drivers and font rasterizer, and
+  they are identical in a private window because it is the same GPU. See
   [why canvas output can change every run](canvas-fingerprint-changes-every-run.md) for
   what a real defense against this looks like.
-- **WebGL.** The renderer string and the numeric limits of your graphics stack. Same
-  machine, same values, private or not.
+- **WebGL.** The
+  [renderer and vendor string](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+  and the numeric limits of your graphics stack. Same machine, same values, private or not.
 - **Fonts.** The list of installed fonts, measured by rendering and comparing widths. A
   private window renders with the same fonts.
 - **User agent, platform, language, timezone.** All reported the same way in incognito.
-- **The TLS handshake.** Decided by the network stack before a single line of page
-  JavaScript runs, so no browsing mode touches it. [No in-page test can even see
-  it](ja3-ja4-tls-fingerprint.md), and neither can incognito.
+- **The [TLS handshake](https://datatracker.ietf.org/doc/html/rfc8446).** Decided by the
+  network stack before a single line of page JavaScript runs, so no browsing mode touches
+  it. [No in-page test can even see it](ja3-ja4-tls-fingerprint.md), and neither can
+  incognito.
 
 Read that list again against the previous section. There is no overlap. Private mode
 clears cookies and storage; fingerprinting reads GPU, fonts, TLS and the rest. The two
@@ -84,8 +87,9 @@ change the values, which is the specific thing private mode does not do. That is
 invisible_playwright does: a Firefox patched at the C++ level so that canvas, WebGL,
 fonts, screen and the rest report seed-derived values, driven by stock Playwright.
 
-Two lines to launch, and the browser you get back is a real Playwright `Browser` with
-every standard method:
+Two lines to launch, and the browser you get back is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser) with every standard
+method:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -182,6 +186,11 @@ its fields.
 
 - Firefox's own documentation of what private browsing clears (cookies, storage, history)
   and, by omission, what it does not.
+- The specs behind each stateless signal above:
+  [`HTMLCanvasElement.toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+  for the canvas read-back, [`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+  for the GPU renderer/vendor string, and [RFC 8446](https://datatracker.ietf.org/doc/html/rfc8446)
+  for where the TLS handshake sits relative to page JavaScript.
 - The public detection suites named in this set, read for how each computes an identifier
   from stateless components, each with its own page here.
 - This project's seed-to-fingerprint pipeline and release gates, which measure the same

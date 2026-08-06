@@ -25,10 +25,15 @@ itself.
 
 It turns out you don't need to. Content never touches the render surface directly. It
 only ever gets pixels back through a small, enumerable set of export calls:
-`toDataURL` and `toBlob`, `getImageData`, `readPixels`, a captured
-`OffscreenCanvas`, and the chain that runs through `createImageBitmap`. Every one of
-those is a **readback** call, and readback is a single choke point you can intercept
-safely, even when the surface behind it cannot be touched directly.
+[`toDataURL`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+and [`toBlob`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob),
+[`getImageData`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData),
+[`readPixels`](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/readPixels),
+a captured [`OffscreenCanvas`](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas),
+and the chain that runs through
+[`createImageBitmap`](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap).
+Every one of those is a **readback** call, and readback is a single choke point you
+can intercept safely, even when the surface behind it cannot be touched directly.
 
 So the fix is the same shape as the font one: block the host's real value at the one
 place content can actually observe it, rather than trying to prevent the value from

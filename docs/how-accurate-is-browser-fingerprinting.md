@@ -45,12 +45,11 @@ and the weighting is the product.
 
 ## The visitor ID and its confidence score
 
-The clearest place to watch this trade-off is a service that returns a visitor ID.
-
+A visitor ID's confidence score answers one question: how sure is the service that this
+ID belongs to the same device across visits, not how automated the browser looked.
 [FingerprintJS computes a visitor_id](fingerprintjs-visitor-id.md) by hashing many
-components together, and it reports that ID alongside a **confidence score**. The score
-is not "how automated do you look". It is closer to "how sure am I that this ID is
-right", and it answers a stability question rather than a uniqueness one.
+components together and reports that ID alongside this **confidence score**, which
+rewards stability and internal agreement over rarity.
 
 The score is high when the components are stable across the session and agree with each
 other. It drops, or the visit gets flagged, when they contradict:
@@ -71,12 +70,11 @@ for contradicting itself than for being common.
 
 ## A stable identity reads as a returning device
 
-This is where a seed-reproducible browser sits naturally on the confident side of the
-score, and where the demonstration is a two-line launch.
-
-invisible_playwright derives every fingerprint field from one seed. Pass the same seed
-and the GPU, canvas hash, audio context, fonts and screen come back identical on every
-run:
+A seed-reproducible browser sits naturally on the confident side of that score, because
+the same seed reproduces every fingerprint field exactly, which is what a confidence
+score rewards. invisible_playwright derives every fingerprint field from one seed: pass
+the same seed and the GPU, canvas hash, audio context, fonts and screen come back
+identical on every run.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -88,9 +86,10 @@ with InvisiblePlaywright(seed=42) as browser:
     page.click("#submit")
 ```
 
-The `browser` object is a real Playwright `Browser`, so every method works exactly as
-documented upstream. There is no wrapped subset of the API to learn; the only new thing
-is where the browser comes from.
+The `browser` object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every method works
+exactly as documented upstream. There is no wrapped subset of the API to learn; the only
+new thing is where the browser comes from.
 
 Run that twice and a visitor-ID service sees the same components both times, self-consistent
 and unchanging, which is exactly the shape of a returning real device rather than a
@@ -118,9 +117,10 @@ Because the fingerprint, the engine behaviour and the driver layer all read as a
 Firefox, this design passes most detection checks that live in the browser. The canvas
 produces a real hash that is stable across the session. The engine answers descriptor and
 prototype probes the way a real Firefox does, so a [tampering-focused suite like CreepJS](creepjs-explained.md)
-finds nothing contradicting anything else. There is no `navigator.webdriver`, no leftover
-automation global, no headless user agent for a [verdict tool like BotD](botd-explained.md)
-to catch.
+finds nothing contradicting anything else. There is no
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+no leftover automation global, no headless user agent for a [verdict tool like
+BotD](botd-explained.md) to catch.
 
 That is genuinely most of the surface, and it is why the [aggregate trust score a site
 computes](browser-trust-score-explained.md) starts from a good place instead of a bad one.

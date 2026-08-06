@@ -28,8 +28,10 @@ back is the one approach that is actively wrong here.
 
 ## Why the selector returns nothing
 
-An HTML chart and a canvas chart look identical on screen and are completely different
-underneath.
+The selector returns nothing because a canvas or WebGL chart paints every bar, line and
+label as pixels on a single `<canvas>` element with no child nodes - there is no element
+for `page.query_selector_all` to find, no matter how long you wait. An HTML chart and a
+canvas chart look identical on screen and are completely different underneath.
 
 An SVG or HTML chart builds a node per mark: a `<rect>` per bar, a `<path>` per line, a
 `<text>` per label. Those are in the DOM, so `page.query_selector_all` finds them and you

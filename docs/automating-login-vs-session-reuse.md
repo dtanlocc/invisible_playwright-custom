@@ -53,8 +53,9 @@ it - gets checked hardest at exactly the moment a login script runs it.
 
 ## The alternative: don't run the flow at all
 
-Playwright's `storage_state` captures cookies and local storage from a context and can
-load them into a new one. Log in once, by hand or through a session you trust,
+Playwright's [`storage_state`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+captures cookies and local storage from a context and can load them into a new one.
+Log in once, by hand or through a session you trust,
 [save and reuse that state](save-reuse-login-storage-state-playwright.md), and every
 subsequent automated session starts already authenticated - no username field, no
 password field, no submit click, and none of the scrutiny attached to that specific
@@ -137,8 +138,8 @@ checks when there is no way to avoid running it.
 
 ## Sources
 
-- Playwright's own `storage_state` / `storageState` API, for the session capture and
-  reuse mechanism described above.
+- Playwright's own [`storage_state` / `storageState`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+  API, for the session capture and reuse mechanism described above.
 
 ---
 

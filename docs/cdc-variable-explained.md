@@ -92,10 +92,12 @@ is a fact about the protocol, not a virtue: Firefox's automation surfaces are
 simply different ones.
 
 What Firefox does still do by default is set `navigator.webdriver` to `true` when a
-session is under automation control, because the WebDriver specification requires it.
-So a stock Playwright Firefox is trivially detectable too, just by a different
-two-line check, and anyone claiming Firefox is inherently undetected is selling
-something.
+session is under automation control, because the
+[WebDriver specification](https://www.w3.org/TR/webdriver2/) requires it: the
+property reflects a "webdriver-active" flag the spec sets whenever the user agent
+is under remote control. So a stock Playwright Firefox is trivially detectable too,
+just by a different two-line check, and anyone claiming Firefox is inherently
+undetected is selling something.
 
 The useful difference is architectural, not moral. Firefox's automation
 protocol runs in privileged code with its own execution contexts, so the state a

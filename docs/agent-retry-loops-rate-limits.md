@@ -44,7 +44,9 @@ does.
 
 ## Rate limits read volume, not the browser
 
-It helps to be precise about which layer sees what.
+A fingerprint check and a rate limit answer two different questions, and a convincing
+disguise only answers one of them: one asks whether this browser is real, the other only
+counts how many requests just arrived.
 
 A fingerprint check reads properties of the browser: the GPU string, the canvas hash,
 the font list, the TLS handshake. It asks "is this a real browser". invisible_playwright
@@ -125,9 +127,10 @@ with InvisiblePlaywright(seed=42) as browser:
     # ... agent observes, decides, acts; every navigation goes through the budget
 ```
 
-The `browser` returned is a real Playwright `Browser`, so every standard method works
-unchanged - `new_page`, `goto`, `click`, `wait_for_selector`. The stealth is in the
-engine; the pacing is in `fetch_with_budget`. Nothing about `seed=42` slows the loop
+The `browser` returned is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every standard
+method works unchanged - `new_page`, `goto`, `click`, `wait_for_selector`. The stealth is
+in the engine; the pacing is in `fetch_with_budget`. Nothing about `seed=42` slows the loop
 down, and nothing about the loop changes the fingerprint. They are separate jobs.
 
 Pacing the actions themselves matters too, because uniform, machine-fast timing is its
@@ -202,8 +205,9 @@ failing loop stops itself rather than accelerating.
 - This project's own velocity flag, raised against invisible_playwright during testing,
   which turned out to be the test harness hammering one scoring endpoint from one
   address - the same volume signal described here, produced by our own gate.
-- The wrapper's documented API (`InvisiblePlaywright`, seed reproducibility, real
-  Playwright `Browser` return) as shipped, used verbatim in the example above.
+- The wrapper's documented API (`InvisiblePlaywright`, seed reproducibility, a real
+  [Playwright `Browser`](https://playwright.dev/python/docs/api/class-browser) return)
+  as shipped, used verbatim in the example above.
 
 **See also:** [the pause shaped like model latency](ai-browser-agents-stealth.md) for
 the timing side of the same problem, [how to rate limit your scraper](how-to-rate-limit-your-scraper-playwright.md)

@@ -57,8 +57,10 @@ block and assume it is yours. You filter by type.
 ## Extract every ld+json block with Playwright
 
 To pull every JSON-LD block, select `script[type='application/ld+json']`, read all
-matches in one call with `all_text_contents()`, and `json.loads` each block, skipping
-any that will not parse. Switching from plain Playwright is a two-line change, and
+matches in one call with
+[`all_text_contents()`](https://playwright.dev/python/docs/api/class-locator#locator-all-text-contents),
+and `json.loads` each block, skipping any that will not parse. Switching from plain
+Playwright is a two-line change, and
 every standard method still works, because the object you get back is a real Playwright
 `Browser`:
 
@@ -243,8 +245,9 @@ not. A consistent fingerprint is what keeps you on the version that carries the 
 
 ## Sources
 
-- The JSON-LD structured data format as documented for search crawlers, including the
-  `@graph`, `@type` and typed-node conventions this page parses.
+- [The JSON-LD structured data format](https://www.w3.org/TR/json-ld11/), as
+  documented for search crawlers, including the `@graph`, `@type` and typed-node
+  conventions this page parses.
 - This project's canonical extraction set, run through the patched engine and a stock
   automation build on the same address, where the empty-markup difference described
   above was measured.

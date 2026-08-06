@@ -62,14 +62,15 @@ step two.
 ## Layer two: automation-driver tells
 
 This layer is direct evidence that a program is driving the browser. The classic tell
-is `navigator.webdriver`, which reads `true` on a stock automated browser and
+is [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+which reads `true` on a stock automated browser and
 `undefined` on a real one - and setting it to `false` is its own signature, because a
 clean browser reports `undefined`, not `false`. [The webdriver flag has more history
 and nuance than it looks](navigator-webdriver-explained.md).
 
 Beyond that flag: artifacts left by the remote-debugging protocol the driver speaks,
-injected globals, and events that carry `isTrusted: false` because they were
-synthesised by a script rather than produced by real input. [BotD](botd-explained.md)
+injected globals, and events that carry [`isTrusted: false`](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted)
+because they were synthesised by a script rather than produced by real input. [BotD](botd-explained.md)
 leans on a family of these, testing behaviours that differ between a driven and a
 hand-used browser.
 
@@ -88,7 +89,8 @@ them.
 
 Two sub-signals live here:
 
-- **The handshake itself.** The ordering and contents of a TLS ClientHello, summarised
+- **The handshake itself.** The ordering and contents of a TLS
+  [ClientHello](https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2), summarised
   as a JA3 or JA4 hash, plus HTTP/2 settings and header order. A request that announces
   "I am Firefox" in the user agent while presenting a handshake that is not Firefox's is
   a decisive mismatch. Because this engine *is* Firefox, its handshake matches its user
@@ -132,7 +134,7 @@ Put concretely, and this is the whole honest claim:
   behavioural one.
 
 Switching from plain Playwright is a two-line change, and the launched object is a real
-Playwright `Browser` with every method intact:
+Playwright [`Browser`](https://playwright.dev/python/docs/api/class-browser) with every method intact:
 
 ```python
 from invisible_playwright import InvisiblePlaywright

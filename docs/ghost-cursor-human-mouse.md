@@ -71,10 +71,13 @@ behaviour, not all of it.
 The built-in arc covers the pointer motion for clicks the class drives. Several
 common patterns fall outside that:
 
-- **Moving without clicking.** If you call `page.mouse.move(x, y)` directly, that is
-  a raw Playwright call and it teleports. Exploratory drift, moving toward an element
-  to trigger a hover state, or repositioning between actions are all straight jumps
-  unless something draws them.
+- **Moving without clicking.** If you call
+  [`page.mouse.move(x, y)`](https://playwright.dev/python/docs/api/class-mouse#mouse-move)
+  directly, that is a raw Playwright call and it teleports: Playwright's own docs
+  say the default single-step call "emits a single `mousemove` event at the
+  destination location," which is exactly the jump a detector can catch. Exploratory
+  drift, moving toward an element to trigger a hover state, or repositioning between
+  actions are all straight jumps unless something draws them.
 - **Hover before click.** A person's pointer is usually near a control before they
   commit to it. A driver that only ever moves at the moment of the click has a
   different signature from one that approaches first.
@@ -194,6 +197,8 @@ underneath stays stable, which is what a bisect depends on.
 
 - This project's quickstart and configuration pages for the real launch API, the
   built-in cursor engine, and the `INVPW_CURSOR_ENGINE` variable.
+- [Playwright's own mouse API documentation](https://playwright.dev/python/docs/api/class-mouse#mouse-move)
+  for how `page.mouse.move()` behaves with no engine layered on top of it.
 - The public ghost-cursor project and its Python port for the Bezier-path pointer
   motion, read from their own documentation.
 - The release notes for this site's separation of fingerprint surfaces from

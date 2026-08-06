@@ -121,9 +121,10 @@ arguments and Chrome profile handling. A Firefox binary in `executable_path` is 
 drop-in: the driver would be speaking a protocol the browser does not implement.
 
 If you specifically want an engine whose fingerprint is set in its own source, the route
-that works for agents is a different driver. Microsoft's `playwright-mcp` accepts a
-browser and an executable path and speaks MCP, so an agent framework that talks MCP can
-drive a patched Firefox through it.
+that works for agents is a different driver. Microsoft's
+[`playwright-mcp`](https://playwright.dev/docs/getting-started-mcp) accepts a browser
+and an executable path and speaks MCP, so an agent framework that talks MCP can drive a
+patched Firefox through it.
 [That integration is written up here](integrations/playwright-mcp.md).
 
 That is a genuine trade: you give up browser-use's agent loop and get an engine-level
@@ -177,6 +178,9 @@ different engine.
 - `browser_use/browser/profile.py`, which defines the configuration fields listed above,
   and `browser_use/browser/chrome.py`, which is the Chrome executable and profile
   handling. Read 2026-07-27.
+- [Playwright's own MCP documentation](https://playwright.dev/docs/getting-started-mcp),
+  which lists `firefox` among the supported `--browser` values, confirming that route
+  (unlike browser-use) is not Chromium-only. Read 2026-08-06.
 - The machine-level surfaces are each documented on their own page, linked above.
 
 ---

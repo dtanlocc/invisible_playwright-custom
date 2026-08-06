@@ -25,13 +25,13 @@ surface yourself instead of trusting a claim.
 
 ## Why emoji are a classic OS tell
 
-The mechanism is the same as any font fingerprint, only sharper. A plain glyph
-like the letter "a" is drawn from a text font, and text fonts differ enough
-between systems to matter. A colour emoji is drawn from a dedicated colour-font
-file, and those files are wildly different from one vendor to the next: different
-shapes, different palettes, different metrics, different coverage of newer code
-points. The visual gap between a Windows emoji and an Apple one is far larger than
-the gap between two Latin text fonts, so the pixel hash separates cleanly.
+Emoji are a classic OS tell because each platform ships its own colour-emoji font,
+and those fonts render the same code point as different pixels: different shapes,
+palettes, metrics, and coverage of newer code points. The mechanism is the same as
+any font fingerprint, only sharper. A plain glyph like the letter "a" is drawn from
+a text font, and text fonts differ enough between systems to matter, but the visual
+gap between a Windows emoji and an Apple one is far larger than the gap between two
+Latin text fonts, so the pixel hash separates cleanly.
 
 It is also cheap to read. A detector does not need to enumerate anything or ask
 for a permission. It draws a handful of emoji to an offscreen canvas, reads the
@@ -78,7 +78,9 @@ desktop, because both come from the browser, not the box.
 ## Reading the emoji surface yourself
 
 Do not take any of this on faith. Measure it. Every session is derived from a
-seed, so a fixed seed gives you a fixed identity to read twice and compare.
+seed, so a fixed seed gives you a fixed identity to read twice and compare, using
+the same [`toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+canvas readback every emoji fingerprinting probe relies on.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -226,6 +228,9 @@ deploy on. A blank or changing emoji is a failure, not a pass.
   including colour emoji (decision log, 2026-06-20).
 - Firefox's use of a bundled colour-emoji font in place of the platform emoji
   font, verified against a stock build on more than one operating system.
+- [`HTMLCanvasElement.toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+  (MDN), the canvas readback method the emoji hash in this page's code sample
+  relies on.
 - The public detection suites named across this documentation set, read from
   their own source rather than from a rendered verdict.
 

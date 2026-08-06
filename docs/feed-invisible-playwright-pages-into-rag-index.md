@@ -9,18 +9,18 @@ nav_order: 5
 
 # Feed invisible_playwright pages into a RAG index
 
+This page uses invisible_playwright as the fetch stage of a retrieval pipeline: it
+renders each page the way a real Firefox would, presents a real-browser fingerprint so
+the request is not challenged on sites that gate content, and hands you the finished
+HTML to extract, chunk and embed. It also states plainly what the browser does not do,
+because a fetch stage that quietly fails is worse than one that fails loudly.
+
 A retrieval pipeline is only as good as the documents that reach it, and the most
 common reason a RAG index is full of empty or half-filled documents is the fetch stage.
 A plain HTTP loader asks the server for HTML and gets back a shell: the markup that
 matters is assembled in the browser by JavaScript that the loader never runs. On sources
 that also gate content behind a fingerprint check, the loader gets less than a shell,
 because the request never looked like a browser in the first place.
-
-This page uses invisible_playwright as that fetch stage. It renders the page the way a
-real Firefox would, presents a real-browser fingerprint so the request is not challenged
-on sites that gate content, and hands you the finished HTML to extract, chunk and embed.
-It also states plainly what the browser does not do, because a fetch stage that quietly
-fails is worse than one that fails loudly.
 
 ## Why a plain HTTP loader returns empty documents
 
@@ -61,12 +61,13 @@ def fetch_rendered_html(url, seed=42):
 html = fetch_rendered_html("https://example.com/article")
 ```
 
-`page.goto(..., wait_until="networkidle")` waits for the network to settle so the
-JavaScript-written content is present before `page.content()` reads the DOM. The
-`seed=42` argument fixes the identity: the GPU, canvas, audio, fonts and screen come back
-identical on every run, which matters here for a mundane reason. If ingestion of one
-source fails, you want to replay the exact fetch that failed rather than a fresh random
-one, so the failure is reproducible instead of a moving target.
+[`page.goto(..., wait_until="networkidle")`](https://playwright.dev/python/docs/api/class-page#page-goto)
+waits for the network to settle so the JavaScript-written content is present before
+`page.content()` reads the DOM. The `seed=42` argument fixes the identity: the GPU,
+canvas, audio, fonts and screen come back identical on every run, which matters here for
+a mundane reason. If ingestion of one source fails, you want to replay the exact fetch
+that failed rather than a fresh random one, so the failure is reproducible instead of a
+moving target.
 
 The fingerprint work is why the request is not challenged on sites that gate content:
 invisible_playwright is a Firefox patched at the C++ level, so the fingerprint, the TLS

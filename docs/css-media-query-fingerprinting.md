@@ -31,7 +31,9 @@ and what a consistent answer looks like.
 
 ## How a stylesheet exfiltrates without a script
 
-The mechanism is a few lines and it has been known for years:
+**A stylesheet exfiltrates data with no JavaScript at all by loading a different image
+per media-query branch, so the browser that requests one image rather than another has
+answered the query.** The pattern is a few lines of CSS and has been known for years:
 
 ```css
 @media (pointer: fine)   { body { background-image: url("/p?fine"); } }
@@ -68,12 +70,16 @@ accessibility preferences, and size.
 | `prefers-reduced-motion`, `prefers-contrast`, `forced-colors`, `inverted-colors` | Accessibility preferences; a non-default value is rare and identifying |
 | `width`, `height`, `device-width`, `device-height` | Screen and viewport size, and the CSS/JavaScript consistency trap below |
 
-**Pointer and hover.** `pointer`, `any-pointer`, `hover`, `any-hover`. A desktop with a
+**Pointer and hover.**
+[`pointer`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/pointer),
+`any-pointer`, `hover`, `any-hover`. A desktop with a
 mouse reports `fine` and `hover`. A phone reports `coarse` and `none`. A touchscreen
 laptop reports both, through the `any-` variants, which is how a device with two input
 methods is distinguished from one with a single method.
 
-**Colour scheme.** `prefers-color-scheme` is the operating system's dark mode setting,
+**Colour scheme.**
+[`prefers-color-scheme`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme)
+is the operating system's dark mode setting,
 and it is close to a coin flip across real users, so it is a genuine bit rather than a
 constant.
 
@@ -91,14 +97,13 @@ is exactly why a non-default value is informative: it is rare.
 
 ## Trap one: CSS and JavaScript can disagree about the screen
 
-This is the mistake that is specific to spoofing, and it is invisible unless you look
-for it.
+**In Firefox, the size a media query resolves against and the size `screen.width`
+reports come from different code inside the browser** - two separate paths to the same
+physical fact. Patch only the JavaScript side and the two disagree about the same
+machine; this is a mistake specific to spoofing, and it is invisible unless you look
+for it directly.
 
-In Firefox, the size a media query resolves against and the size
-`screen.width` reports **come from different code inside the browser**. They are two
-separate paths to the same physical fact.
-
-Spoof only the JavaScript side and you get a browser where:
+Concretely, spoofing only the JavaScript side produces a browser where:
 
 ```js
 screen.width                                  // 1920
@@ -129,12 +134,11 @@ If the second line is `false`, something is spoofing one side only.
 
 ## Trap two: CSS system colours give away the operating system
 
-This one is genuinely obscure and it is checked in production.
-
-CSS has keywords that resolve to the operating system's own interface palette:
+**[CSS system colour keywords](https://developer.mozilla.org/en-US/docs/Web/CSS/system-color) -
 `ButtonFace`, `ButtonText`, `Canvas`, `CanvasText`, `Highlight`, `HighlightText`,
-`Menu`, `Field`, and a few dozen more. A page can read them with no permission and no
-script beyond one call:
+`Menu`, `Field`, and a few dozen more - resolve to the operating system's own interface
+palette, readable with no permission and one function call.** This surface is
+genuinely obscure, and it is checked in production:
 
 ```js
 const d = document.createElement('div');

@@ -1,6 +1,6 @@
 ---
 title: "Can a website detect Clipboard API access?"
-description: "A page can see navigator.clipboard and query the clipboard-read permission, but the async Clipboard API is a gesture and permission gate, not a value fingerprint you leak."
+description: "A page can see navigator.clipboard and query clipboard-read permission state, but the async Clipboard API is a gesture gate, not a value fingerprint you leak."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 21

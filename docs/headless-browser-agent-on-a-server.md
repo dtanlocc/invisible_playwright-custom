@@ -55,18 +55,20 @@ Firefox regardless of what it is running on:
   gone, and the TLS handshake is a genuine Firefox handshake because the browser is a
   genuine Firefox.
 
-Crucially, all of that holds with the browser running **headless**. Headless mode by
-itself is far less detectable than people think; what gets a server caught is the empty
-GPU, the missing fonts, the impossible screen, and those are exactly the axes the engine
-fills in. So the "GPU-less headless" half of your two-axis change is covered by the tool.
-The other half is not, and no honest page will tell you otherwise.
+Crucially, all of that holds with the browser running
+**[headless](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)**.
+Headless mode by itself is far less detectable than people think; what gets a server
+caught is the empty GPU, the missing fonts, the impossible screen, and those are exactly
+the axes the engine fills in. So the "GPU-less headless" half of your two-axis change is
+covered by the tool. The other half is not, and no honest page will tell you otherwise.
 
 ## A minimal headless run on a server
 
 Switching an existing Playwright agent over is a two-line change, and the object you get
-back is a real Playwright `Browser` with every standard method. Here is the whole thing,
-headless, through your proxy, with a fixed seed so a failing run on the server is
-reproducible rather than a fresh random identity every time:
+back is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser) with every standard
+method. Here is the whole thing, headless, through your proxy, with a fixed seed so a
+failing run on the server is reproducible rather than a fresh random identity every time:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -201,6 +203,9 @@ what gets an agent caught; behaviour, rate limits and IP reputation are still yo
 - This project's own troubleshooting notes on why a clean browser on a datacenter address
   still fails, and on the machine-versus-automation split that separates the two axes
   above.
+- Playwright's own [`Browser` class reference](https://playwright.dev/python/docs/api/class-browser)
+  and [`launch()` reference](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch)
+  for what the returned object is and what the `headless` option actually controls.
 
 **See also:** [the checklist for being detected on one site](playwright-detected-as-bot.md),
 [how to test bot detection without a false pass](how-to-test-bot-detection.md), and

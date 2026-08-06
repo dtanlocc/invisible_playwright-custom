@@ -9,13 +9,16 @@ nav_order: 3
 
 # Why an attached debugger makes automation detectable
 
-A commercial fingerprinting service was reporting `developer_tools: true` on our
-sessions. No devtools window was open. Nothing was inspecting anything. The browser
-looked, by every property-level check we could run, completely normal.
+An attached JavaScript debugger makes automation detectable because it measurably
+changes how fast the page runs, and that timing difference shows up even when every
+property on the page looks normal. **Attaching a debugger, which is how automation
+frameworks evaluate code and track execution, puts the JavaScript engine into debug
+mode - and debug mode is slower in ways a page can time.**
 
-It was right anyway, and the reason is one of the more interesting things we have had
-to fix: **automation frameworks attach a JavaScript debugger, and attaching a debugger
-changes how fast the page runs.**
+That is what caught us. A commercial fingerprinting service was reporting
+`developer_tools: true` on our sessions. No devtools window was open. Nothing was
+inspecting anything. The browser looked, by every property-level check we could run,
+completely normal. It was right anyway.
 
 This page is what that means, the four separate leaks it turned out to be, and the one
 that mattered most, which had nothing to do with timing at all.
@@ -65,7 +68,7 @@ Result: `developer_tools: false`, on every session we measured afterwards.
 ## Fix two: the stack traces said too much
 
 Two separate leaks, both readable from ordinary JavaScript by anyone who throws an
-error and reads `Error.stack`.
+error and reads [`Error.stack`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/stack).
 
 **Frames belonging to the automation layer.** The driver's own code lived at
 `chrome://juggler/...`, and when the stack was built those frames were in it. A page
@@ -131,7 +134,7 @@ another way. Before running your code, the driver was telling the browser that a
 gesture was in progress, presumably so that gesture-gated APIs would work from
 automation.
 
-The side effect is that `navigator.userActivation.isActive` and `hasBeenActive` became
+The side effect is that [`navigator.userActivation`](https://developer.mozilla.org/en-US/docs/Web/API/UserActivation)`.isActive` and `hasBeenActive` became
 true as a result of `page.evaluate()`. A page that reads user activation therefore saw a
 user gesture that no user made, at a moment no user could have made one. The same theme
 runs through [synthetic clicks and the `isTrusted` flag](playwright-clicks-istrusted.md):

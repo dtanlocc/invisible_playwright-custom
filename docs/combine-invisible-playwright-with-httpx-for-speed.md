@@ -66,9 +66,10 @@ of [why reusing a session beats re-automating the login form](automating-login-v
 
 ## Export storage_state and hand it to httpx
 
-Playwright already has the export you need. `context.storage_state()` returns the cookies
-and local storage the session accumulated, in a plain dict. Capture it while the browser
-is still open:
+Playwright already has the export you need.
+[`context.storage_state()`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state)
+returns the cookies and local storage the session accumulated, in a plain dict. Capture it
+while the browser is still open:
 
 ```python
     state = page.context.storage_state()
@@ -191,9 +192,10 @@ Challenge or short body, keep it in the browser.
 - The real `invisible_playwright` API as documented in
   [Quickstart](quickstart.md) and [Configuration](configuration.md): the two-line launch,
   the reproducible seed, and the proxy dict both legs must share.
-- Playwright's own `context.storage_state()`, which returns cookies and local storage as
-  a plain dict, working exactly as documented upstream because the object handed back is a
-  real Playwright `Browser`.
+- Playwright's own
+  [`context.storage_state()`](https://playwright.dev/python/docs/api/class-browsercontext#browser-context-storage-state),
+  which returns cookies and local storage as a plain dict, working exactly as documented
+  upstream because the object handed back is a real Playwright `Browser`.
 - This project's own practice of testing one request against the boundary before looping,
   the same empirical habit the rest of these notes are built on.
 

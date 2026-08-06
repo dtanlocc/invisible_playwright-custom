@@ -35,9 +35,10 @@ browser. CDP is Chromium's own protocol. Firefox does not implement it in the wa
 drivers expect, so an `executablePath` pointing at a Firefox build does not produce a
 working session: the driver would be speaking a language the browser does not answer.
 
-**Tools built on Playwright** go through an abstraction that already supports three
-engines. Swapping the binary is then a question of whether the tool exposes the launch
-option, not of whether the protocol matches.
+**Tools built on Playwright** go through an abstraction that already supports
+[three engines](https://playwright.dev/docs/browsers) - Chromium, Firefox and WebKit.
+Swapping the binary is then a question of whether the tool exposes the launch option,
+not of whether the protocol matches.
 
 Almost every AI browser agent is in the first family. That is a reasonable engineering
 choice, since CDP gives fine-grained control that agent loops want, and it is also why

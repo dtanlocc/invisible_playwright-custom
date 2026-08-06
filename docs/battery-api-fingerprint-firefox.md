@@ -1,6 +1,6 @@
 ---
 title: "Battery API fingerprint: does Firefox expose it?"
-description: "Does desktop Firefox expose the Battery Status API? No, it was removed in 2017, so a battery object under a Firefox user agent is a fake browser caught."
+description: "Does desktop Firefox expose the Battery Status API? No, it was removed in 2017, so a battery object under a Firefox user agent gives away a fake browser."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 29
@@ -34,14 +34,18 @@ precision, and it changed slowly enough, that the combination of level plus
 charging state plus time-remaining behaved like a short-lived identifier: two page
 loads seconds apart saw the same unusual value, and that value could be used to correlate
 visitors even across contexts that were supposed to be isolated. Firefox responded by
-removing the API from web content entirely in the 52 series in 2017. Chromium kept a
+removing the API from web content entirely in the
+[52 series in 2017](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/52),
+restricting it to chrome/privileged code only. Chromium kept a
 reduced version. That divergence is the whole point for fingerprinting: the presence or
 absence of `getBattery` is now a per-engine trait, not a per-device one.
 
 ## Why absence is the honest answer, and a fake battery is the tell
 
-There are two ways an automation stack can end up "consistent" with a Firefox user agent
-on this surface.
+A fake battery reading is the riskier of the two outcomes, because an absence matches
+every real Firefox automatically while a fake value has to survive every angle a
+detector can check it from. There are two ways an automation stack can end up
+"consistent" with a Firefox user agent on this surface.
 
 The first is to actually be a Firefox build, in which case `navigator.getBattery` is
 simply not there, because the engine never defined it. Nothing is spoofed. There is no
@@ -52,7 +56,9 @@ The second is to run an engine that does expose the Battery API, usually a Chrom
 and then bolt on a JavaScript layer that tries to look like Firefox. Now the stealth
 layer has a decision to make. If it leaves `getBattery` in place, the page reads a battery
 object from a claimed-Firefox browser, which no real Firefox produces, and that is a
-direct contradiction. If it deletes `getBattery` to hide the mismatch, it has to delete it
+direct contradiction.
+
+If it deletes `getBattery` to hide the mismatch, it has to delete it
 convincingly: the property has to be gone from the prototype, absent from a
 `for..in` walk, missing from `Object.getOwnPropertyNames`, and it has to stay missing when
 a detector fetches a clean copy of `Navigator.prototype` from a fresh iframe and compares.
@@ -178,8 +184,9 @@ are still on you.
 
 ## Sources
 
-- Mozilla's removal of the Battery Status API from Firefox web content in the 52 series,
-  2017, on privacy grounds.
+- Mozilla's own [Firefox 52 release notes](https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/52),
+  which record the Battery Status API becoming available only to chrome/privileged code
+  in that release, 2017.
 - This project's own fingerprint parity checks, which read `navigator.getBattery` against a
   stock desktop Firefox and confirm both report the same absence.
 

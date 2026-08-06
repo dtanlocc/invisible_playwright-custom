@@ -210,7 +210,9 @@ time, the distribution is too tight.
 
 - This project's own testing notes, which list behaviour and the pause shaped like model
   latency among the things no in-page suite covers.
-- Standard Playwright's documented `Browser`, `Page` and `Keyboard` methods, used unchanged
+- Standard Playwright's documented [`Browser`](https://playwright.dev/python/docs/api/class-browser),
+  [`Page`](https://playwright.dev/python/docs/api/class-page) and
+  [`Keyboard`](https://playwright.dev/python/docs/api/class-keyboard) methods, used unchanged
   on the browser this wrapper returns.
 - The behavioural step of this set's detected-on-one-site checklist, which reaches pointer
   motion and typing cadence after the browser itself is clean.

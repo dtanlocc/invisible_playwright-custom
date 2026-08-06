@@ -24,11 +24,13 @@ yours to solve with a clean proxy.
 ## What a server actually leaks
 
 The failures that get a headless-host session blocked are almost never automation
-flags like `navigator.webdriver`. Those are solved by every serious tool on day one.
-The ones that survive are hardware questions the machine cannot answer honestly:
+flags like [`navigator.webdriver`](navigator-webdriver-explained.md). Those are solved
+by every serious tool on day one. The ones that survive are hardware questions the
+machine cannot answer honestly:
 
-- **The GPU**, read through WebGL, which on a server is drawn by software.
-- **The audio device**, read through AudioContext, which on a server does not exist.
+- **The GPU**, read through the [`WEBGL_debug_renderer_info`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+  extension, which on a server is drawn by software.
+- **The audio device**, read through [`AudioContext`](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext), which on a server does not exist.
 - **The screen**, whose resolution, available height and device pixel ratio describe
   a display that no real desktop has.
 - **The exit address**, whose ASN says datacenter.

@@ -1,6 +1,6 @@
 ---
 title: "Can a website detect a virtual machine?"
-description: "How a website infers a VM: software GPU renderers, odd core and memory counts, missing audio, generic metrics - and what a browser fingerprint can and cannot hide."
+description: "How a website infers a VM: software GPU renderers, odd core and memory counts, missing audio, generic metrics - what a browser fingerprint can and cannot hide."
 parent: "Detectors, Explained"
 grand_parent: "Guides"
 nav_order: 15
@@ -48,25 +48,32 @@ Here is what each one looks like when it comes from a virtualized or headless
 environment, and why it stands out.
 
 **A software or generic GPU renderer.** A machine with no graphics hardware falls back
-to a software rasterizer, and the WebGL renderer string says so in plain text: a basic
-or generic renderer name, or the well-known software rasterizer strings. A real desktop
-reports a specific GPU model from a specific vendor. This is the single loudest VM tell
+to a software rasterizer, and the [WebGL renderer
+string](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
+says so in plain text: a basic or generic renderer name, or the well-known software
+rasterizer strings. A real desktop reports a specific GPU model from a specific vendor.
+This is the single loudest VM tell
 in the browser, because it is a string you can read directly rather than a statistic
 you have to accumulate. Worse, the string and the pixels can disagree: a renderer that
 names real hardware while a software path actually draws the frame is
 [a mismatch you cannot paper over with a property override](renderer-string-vs-render.md).
 The full surface is in [WebGL renderer strings](webgl-renderer-strings.md).
 
-**Odd core and memory counts.** `navigator.hardwareConcurrency` and
-`navigator.deviceMemory` are coarse, but their distribution across real browsers is
-not uniform. A tiny core count paired with a claim of a modern desktop, or a memory
+**Odd core and memory counts.**
+[`navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency)
+and
+[`navigator.deviceMemory`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory)
+are coarse, but their distribution across real browsers is not uniform. A tiny core
+count paired with a claim of a modern desktop, or a memory
 value that never appears on consumer hardware, moves the score. These two also have to
 agree with each other and with the rest of the persona, which is
 [why pinning one without its neighbours backfires](hardware-concurrency-device-memory.md).
 
-**Missing or default audio.** An `AudioContext` exposes a sample rate, an output
-latency and a channel count that come from a real audio device. A container with no
-sound hardware answers with defaults that say exactly that, and the rendered audio
+**Missing or default audio.** An
+[`AudioContext`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+exposes a sample rate, an output latency and a channel count that come from a real
+audio device. A container with no sound hardware answers with defaults that say
+exactly that, and the rendered audio
 fingerprint carries the same information. See
 [AudioContext fingerprinting](audiocontext-fingerprinting.md) for what is actually
 being measured.

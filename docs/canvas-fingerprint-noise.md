@@ -25,7 +25,9 @@ consistent alternative has to look like.
 
 ## The check that catches per-call noise
 
-Render the same canvas twice in the same page and compare.
+Render the same canvas twice in the same page with
+[`toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+and compare.
 
 ```js
 function hash() {
@@ -51,13 +53,15 @@ This is four lines of JavaScript. Assume it is running.
 
 ## The second check, which is subtler
 
-The first one is well known enough that better tools seed their noise, so two reads
-agree. There is another shape, and it is worth understanding because it caught us.
-
 A detector draws a **small canvas filled with a handful of solid reference colours**,
-then reads it back and checks those exact colour values came back unchanged. Not a
-hash, not a comparison between two reads: an assertion that a flat red rectangle is
-still exactly that red.
+then reads it back with
+[`getImageData()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData)
+and checks those exact colour values came back unchanged. Not a hash, not a comparison
+between two reads: an assertion that a flat red rectangle is still exactly that red.
+
+The first check above is well known enough that better tools already seed their noise,
+so two reads agree. This second shape is subtler, and it is worth understanding because
+it caught us.
 
 Real rendering does not change a solid fill. Any per-pixel noise does, even seeded
 noise, even tiny noise. And a tool that fails this is not scored as "unusual", it is

@@ -1,6 +1,6 @@
 ---
 title: "What is ASN and IP reputation in bot detection?"
-description: "What ASN and IP reputation are: how they score requests before JavaScript runs, how IP reputation builds and decays, and why a clean browser on a burned block loses."
+description: "What ASN and IP reputation are: how they score requests before JavaScript runs, how reputation builds and decays, and why a clean browser on a burned IP loses."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
 nav_order: 23
@@ -9,11 +9,10 @@ nav_order: 23
 
 # What is ASN and IP reputation in bot detection?
 
-Every request arrives from somewhere before it renders anything. The address it comes
-from belongs to a network, that network has a category and a history, and a detector can
-read all of that before a single line of JavaScript executes. This is the layer a browser
-cannot touch, and it is worth understanding on its own, because it is the reason a session
-with a flawless fingerprint can still be turned away at the door.
+An ASN identifies which network operator an address belongs to, and IP reputation is the
+abuse history attached to that address; together they let a detector score a connection
+before a single line of JavaScript runs. This is the layer a browser cannot touch, and it
+is why a session with a flawless fingerprint can still be turned away at the door.
 
 This page explains what an ASN is, how IP reputation gets built and how it decays, why a
 perfect browser on a flagged block loses anyway, and where the browser's job ends and the
@@ -21,11 +20,11 @@ proxy's job begins.
 
 ## What an ASN actually is
 
-An ASN, an Autonomous System Number, identifies the network operator that announces a
-block of IP addresses to the rest of the internet. A residential internet provider has
-one or more ASNs. A cloud host has its own. When a connection reaches a server, the server
-can look up the address and learn, in a single query, which operator it belongs to and
-what kind of operator that is.
+An ASN, an [Autonomous System Number](https://datatracker.ietf.org/doc/html/rfc1930),
+identifies the network operator that announces a block of IP addresses to the rest of the
+internet. A residential internet provider has one or more ASNs. A cloud host has its own.
+When a connection reaches a server, the server can look up the address and learn, in a
+single query, which operator it belongs to and what kind of operator that is.
 
 That last part is the point. ASNs carry a category. A range that belongs to a consumer
 internet provider looks like a person at home. A range that belongs to a hosting company
@@ -62,8 +61,9 @@ abuse history, and the live session count from that address.
 
 ## Why a perfect fingerprint on a burned block still loses
 
-Here is the honest caveat that this whole section of the documentation exists to state
-plainly.
+A perfect fingerprint on a burned block still loses because a detector scores the network
+layer and the fingerprint layer independently, and a flawless browser can only zero out the
+second one - it has no way to reach the first.
 
 invisible_playwright is designed to look like a real browser driven by a real person. The
 fingerprint is coherent, the TLS handshake belongs to a genuine Firefox, and the driver
@@ -137,12 +137,13 @@ with InvisiblePlaywright(seed=42, proxy=proxy) as browser:
     print(page.inner_text("body"))
 ```
 
-The `browser` object is a real Playwright `Browser`, so every standard method works
-exactly as documented upstream. Note what the example does and does not claim: it pins the
-fingerprint so a failure is reproducible, and it reads back the exit so you know which
-address your reputation is riding on. It does not make a bad address good. If the printed
-IP sits on a datacenter ASN or a burned block, the cleanest browser in the world is still
-leaving from there.
+The `browser` object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every standard
+method works exactly as documented upstream. Note what the example does and does not
+claim: it pins the fingerprint so a failure is reproducible, and it reads back the exit so
+you know which address your reputation is riding on. It does not make a bad address good.
+If the printed IP sits on a datacenter ASN or a burned block, the cleanest browser in the
+world is still leaving from there.
 
 ## Conclusion
 
@@ -187,6 +188,11 @@ how human each session looks. Spread across addresses and across time.
 
 ## Sources
 
+- [RFC 1930](https://datatracker.ietf.org/doc/html/rfc1930), the IETF guidelines that
+  define an Autonomous System as a routing policy unit and specify the ASN that identifies
+  it.
+- [Playwright's `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for what a launched `Browser` object exposes once the wrapper hands it back.
 - This project's release and validation gates, which test the browser layer through a real
   proxy and confirm the exit address inside the browser rather than assuming it.
 - The network-layer behaviour described here is read from public reputation and ASN-lookup

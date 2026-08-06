@@ -278,8 +278,9 @@ exactly what makes the volume read as a single coherent session instead of a swa
 
 ## Sources
 
-- This project's Quickstart and Configuration pages for the real API surface used above:
-  `InvisiblePlaywright(seed=...)` returning a stock Playwright `Browser`, sync and async.
+- This project's [Quickstart](quickstart.md) and [Configuration](configuration.md) pages
+  for the real API surface used above: `InvisiblePlaywright(seed=...)` returning a stock
+  Playwright `Browser`, sync and async.
 - This project's release gates, including the velocity flag that a stealth check produced
   against its own scoring endpoint, where the flag belonged to the pace of the harness
   rather than to the browser it was testing.

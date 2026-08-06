@@ -9,7 +9,7 @@ nav_order: 22
 
 # window.devicePixelRatio: the pref that spoofs it
 
-In Firefox, `window.devicePixelRatio` is spoofed by one about:config pref,
+In Firefox, [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) is spoofed by one about:config pref,
 `layout.css.devPixelsPerPx`, set as a string such as `"1.25"`. The keys that live in a
 `screen` or a `dpr` namespace look right but are never read, so setting one changes
 nothing. Getting the value to move is the easy half; keeping it consistent with the two
@@ -71,8 +71,8 @@ consistency, because a device pixel ratio shows up in three places that a detect
 read independently and compare:
 
 1. `window.devicePixelRatio`, driven by the pref above.
-2. Playwright's per-context `device_scale_factor`, which scales the rendered viewport.
-3. The CSS resolution media query, for example `matchMedia("(resolution: 1.25dppx)")`,
+2. Playwright's per-context [`device_scale_factor`](https://playwright.dev/python/docs/api/class-browser#browser-new-context), which scales the rendered viewport.
+3. The CSS [resolution media feature](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/resolution), for example `matchMedia("(resolution: 1.25dppx)")`,
    which the browser answers from its own scaling.
 
 If the pref says 1.25 and the context was created with `device_scale_factor=1.0`, the
@@ -179,10 +179,14 @@ pass the number as text, `"1.25"`, not as a bare float.
 
 ## Sources
 
-- Firefox's `layout.css.devPixelsPerPx` pref and the CSS resolution media query, read from
-  the browser's own behaviour rather than from a rendered report.
-- This project's pref reference and the release note recording the dead dpr write that was
-  removed once we confirmed the property had never moved.
+- [MDN: `Window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) -
+  the ratio of physical pixels to CSS pixels that the property reports.
+- [MDN: the `resolution` media feature](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/resolution) -
+  the `dppx` unit used in the media-query check above.
+- [Playwright: `device_scale_factor` on `browser.new_context`](https://playwright.dev/python/docs/api/class-browser#browser-new-context) -
+  the per-context knob that must agree with the pref.
+- Firefox's `layout.css.devPixelsPerPx` pref itself, and the dead dpr write once shipped
+  here, read from the browser's own behaviour rather than from a rendered report.
 
 **See also:** [why a pref you set can quietly do nothing](firefox-prefs-not-applying.md),
 [what an impossible screen geometry gives away](screen-size-headless-tells.md), and

@@ -10,7 +10,9 @@ nav_order: 13
 # BFCache and pageshow.persisted under browser automation
 
 **Under browser automation, `pageshow.persisted` is almost always `false`, because the
-drivers switch the back/forward cache off.** Every back navigation becomes a full reload
+drivers switch the
+[back/forward cache](https://developer.mozilla.org/en-US/docs/Glossary/bfcache) off.**
+Every back navigation becomes a full reload
 instead of an instant restore, and a page that pays attention to the difference is
 looking at a browser that behaves unlike every consumer browser of the last decade.
 
@@ -28,7 +30,8 @@ When you navigate away, the browser can keep the whole page in memory rather tha
 discarding it: the DOM, the JavaScript heap, the scroll position, the state of your
 variables. Navigate back and it is restored rather than rebuilt.
 
-The page finds out through `pageshow`:
+The page finds out through the
+[`pageshow`](https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event) event:
 
 ```js
 window.addEventListener('pageshow', (e) => {
@@ -89,7 +92,8 @@ anyone who needs it.
 
 The cost is real and you should know it before you enable this anywhere:
 
-**`go_back()` waiting for `load` can time out.** A bfcache restore does not fire `load`,
+**[`go_back()`](https://playwright.dev/python/docs/api/class-page#page-go-back) waiting
+for `load` can time out.** A bfcache restore does not fire `load`,
 because nothing loaded. Code that navigates back and waits for that event will sit there
 until the timeout expires.
 
@@ -166,7 +170,11 @@ for where behavioural signals sit in the wider picture.
 
 ## Sources
 
-- MDN on the back/forward cache and the `pageshow` and `pagehide` events.
+- [MDN: the back/forward cache (bfcache)](https://developer.mozilla.org/en-US/docs/Glossary/bfcache)
+  and [MDN: the `pageshow` event](https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event),
+  which documents `persisted`.
+- Playwright's documented [`go_back()`](https://playwright.dev/python/docs/api/class-page#page-go-back)
+  and its `wait_until` values, including `domcontentloaded`.
 - The Playwright tracker's open items on bfcache behaviour and on enabling it under
   Chromium.
 - This project's driver, which reads a preference before disabling the cache and leaves

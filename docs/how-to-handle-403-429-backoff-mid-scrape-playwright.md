@@ -91,7 +91,9 @@ back to a delay of your own.
 
 ## Back off on 429, slow down on 403 - and stay on the same identity
 
-429 and 403 are different messages and deserve different handling.
+429 and 403 are different messages and deserve different handling: back off
+exponentially on a 429, pause and slow the whole crawl on a 403, and keep the same
+identity through both, because the identity was rarely the actual problem.
 
 | Status | What it means | How to respond | Same identity? |
 |---|---|---|---|

@@ -1,6 +1,6 @@
 ---
 title: "Back a computer-use agent with a real browser engine"
-description: "Run OpenAI's computer-use agent inside patched Firefox by implementing its Computer interface over an invisible_playwright page, and the honest limits of doing so."
+description: "Run OpenAI's computer-use agent inside patched Firefox by implementing its Computer interface over an invisible_playwright page, and the honest limits."
 parent: "AI Agents and Frameworks"
 grand_parent: "Guides"
 nav_order: 16
@@ -200,9 +200,9 @@ Playwright page. The loop stays as it is.
 what your browser reports. Pauses shaped like model latency and clicks dead-centre on
 targets are a behavioural signal the engine does not touch.
 
-**What proxy should I use?** A clean one. Around 90% of proxies are already known and
-blocked, and a perfect browser on a known IP still loses. Set it via the `proxy` argument
-and let the timezone auto-derive from the exit.
+**What proxy should I use?** A clean one. [Around 90% of proxies are already known and
+blocked](configuration.md) before you ever use them, and a perfect browser on a known IP
+still loses. Set it via the `proxy` argument and let the timezone auto-derive from the exit.
 
 **See also:** [AI browser agents and stealth](ai-browser-agents-stealth.md) for what
 applies across every agent framework, [how browser-use gets detected](browser-use-detection.md)
@@ -214,7 +214,9 @@ for the order to debug in once something flags you.
 - OpenAI's open `cua-sample-app` and its `Computer` interface, including the shipped
   `LocalPlaywrightComputer` implementation, read from the repository rather than assumed.
 - This project's own API: `InvisiblePlaywright` returns a real Playwright `Browser`, so
-  the adapter above uses only documented Playwright page methods.
+  the adapter above uses only documented Playwright methods - [`Page`](https://playwright.dev/python/docs/api/class-page),
+  [`Mouse`](https://playwright.dev/python/docs/api/class-mouse) and
+  [`Keyboard`](https://playwright.dev/python/docs/api/class-keyboard) - unchanged.
 - This project's release gates and the field-by-field comparison method documented in the
   testing pages linked above.
 

@@ -9,8 +9,9 @@ nav_order: 24
 
 # Can I Use My Real Browser Profile With Playwright?
 
-Yes, technically. Playwright can launch against a persistent user data directory, and
-you can point it at the exact folder your everyday browser uses. The question is not
+Yes, technically. Playwright can launch against a [persistent user data
+directory](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context),
+and you can point it at the exact folder your everyday browser uses. The question is not
 whether it works. It is whether you want the two things that come with it: your personal
 cookies and history riding along in automated traffic, and whatever inconsistent
 fingerprint your daily machine happens to have.
@@ -179,6 +180,9 @@ address; that needs a clean exit, not a profile.
 
 ## Sources
 
+- Playwright's own [`launch_persistent_context`
+  documentation](https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context),
+  which defines the user data directory mechanism this page builds on.
 - This project's persistent-context handling and the seed-to-fingerprint derivation
   described across these docs, including the seed and `profile_dir` pairing.
 - The detection ordering in the companion checklist, where machine tells outrank

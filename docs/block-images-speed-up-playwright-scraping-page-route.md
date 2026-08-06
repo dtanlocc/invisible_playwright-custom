@@ -37,7 +37,7 @@ Aborting them changes two things you can measure:
   largest on pages that block rendering on fonts or lazy-load a wall of images.
 
 The mechanic is stock Playwright, and it works identically under invisible_playwright:
-the wrapper returns a real Playwright `Browser`, so `page.route` and `route.abort`
+the wrapper returns a real Playwright `Browser`, so [`page.route` and `route.abort`](https://playwright.dev/python/docs/network#abort-requests)
 behave exactly as documented upstream. There is no special API to learn.
 
 ## The two lines that do it
@@ -95,15 +95,16 @@ confirm the DOM you read still resolves.
 
 ## The tell: a request waterfall no human produces
 
-Here is the honest caveat, and it is the whole reason this page is not just "block
-everything, go faster".
+A real person's browser loads images, fetches the fonts the page asks for, and pulls the
+tracking pixel and the hero media without being told twice - and a scraper that refuses
+all three produces a request waterfall no human session shows. That is the honest
+caveat, and it is the whole reason this page is not just "block everything, go faster".
 
-A real person's browser loads images. It loads the fonts the page asks for, it fetches
-the tracking pixel, it pulls the hero media. The network waterfall of a genuine session
-has a characteristic shape: a burst of mixed resource types, images arriving late and
-out of order, fonts blocking early paint. A session that fetches the HTML document and a
-handful of scripts and then goes silent has none of that shape. It is a request pattern
-that belongs to a scraper and to almost nothing else.
+The network waterfall of a genuine session has a characteristic shape: a burst of mixed
+resource types, images arriving late and out of order, fonts blocking early paint. A
+session that fetches the HTML document and a handful of scripts and then goes silent has
+none of that shape. It is a request pattern that belongs to a scraper and to almost
+nothing else.
 
 This is not a fingerprint that the engine can spoof. invisible_playwright is built to
 look like a real browser driven by a real person, and that is why it passes most
@@ -202,9 +203,10 @@ human is worth more than the seconds you save.
 
 ## Sources
 
-- Playwright's request interception API (`page.route`, `route.abort`, `route.continue_`
-  and `request.resource_type`), read from its own documentation rather than a rendered
-  example.
+- Playwright's [request interception API](https://playwright.dev/python/docs/network#abort-requests)
+  (`page.route`, `route.abort`, `route.continue_` and
+  [`request.resource_type`](https://playwright.dev/python/docs/api/class-request#request-resource-type)),
+  read from its own documentation rather than a rendered example.
 - This project's own measurements of per-page transfer on image-heavy pages, where images,
   fonts and media are consistently the majority of the bytes.
 - The behavioural-tell reasoning in this project's detection notes, where request shape is

@@ -38,10 +38,11 @@ The value is in the `content` attribute, not in the element text:
 <meta property="og:type" content="article">
 ```
 
-Two details trip people up. First, the namespace uses the `property` attribute, while
-the ordinary page description and many secondary card namespaces use `name` instead.
-If your selector only looks at `property`, you silently drop `<meta name="description">`
-and every `name`-based card tag. Read both.
+Two details trip people up. First, the namespace uses the
+[`property`](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Webpage_metadata)
+attribute, while the ordinary page description and many secondary card namespaces use
+`name` instead. If your selector only looks at `property`, you silently drop
+`<meta name="description">` and every `name`-based card tag. Read both.
 
 Second, a key can legitimately appear more than once (`og:image` is the common case for
 pages that offer several card images). For a first pass, keeping the first occurrence of
@@ -125,7 +126,8 @@ absolute URL. It routinely is not. It comes in three shapes:
 
 `urllib.parse.urljoin` handles all three correctly when you give it the document's own
 URL as the base, and `page.url` is the right base because it reflects the final URL after
-any redirect, not the one you passed to `goto`:
+any [redirect](https://playwright.dev/python/docs/navigations), not the one you passed
+to `goto`:
 
 ```python
 from urllib.parse import urljoin
@@ -248,6 +250,12 @@ card as evidence the page really loaded.
 - The Open Graph protocol's own definition of the `og:` namespace and its title and
   description fallbacks, read against real rendered pages rather than a spec in the
   abstract.
+- [MDN's guide to page metadata](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Webpage_metadata),
+  which documents the `property`-based namespace Open Graph tags use and shows the same
+  `og:title` / `og:image` shape used above.
+- [Playwright's own navigation docs](https://playwright.dev/python/docs/navigations),
+  which describe how a client-side redirect resolves before `page.url` reflects the
+  final address.
 - This project's release gates, whose recurring lesson is that an empty or blocked result
   is a failure and a check must assert the presence of the right signal, not the absence
   of a wrong one.

@@ -36,11 +36,12 @@ stealth browser.
 
 ## What stock Playwright's Firefox actually exposes
 
-Playwright ships its own Firefox build and talks to it over the Juggler
-protocol. That build is a normal Firefox with the automation hooks enabled. It
-was never meant to hide, so it does not:
+Playwright ships [its own Firefox build](https://playwright.dev/python/docs/browsers)
+and talks to it over the Juggler protocol. That build is a normal Firefox with
+the automation hooks enabled. It was never meant to hide, so it does not:
 
-- `navigator.webdriver` reports the automated state.
+- [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  reports the automated state.
 - The fingerprint is whatever the host machine happens to have. On a server that
   means a software WebGL renderer, no audio device, a font set that belongs to
   the container rather than to the platform the user agent claims, and a screen
@@ -103,9 +104,11 @@ with InvisiblePlaywright(seed=42) as browser:
         ".getParameter(0x1F01)"))
 ```
 
-The `browser` object is a real `playwright.sync_api.Browser`. Everything in the
-upstream Playwright documentation applies unchanged; the only difference is what
-the browser reports when a page asks. The async surface is identical:
+The `browser` object is a real
+[`playwright.sync_api.Browser`](https://playwright.dev/python/docs/api/class-browser).
+Everything in the upstream Playwright documentation applies unchanged; the only
+difference is what the browser reports when a page asks. The async surface is
+identical:
 
 ```python
 from invisible_playwright.async_api import InvisiblePlaywright
@@ -184,8 +187,11 @@ documented upstream.
 
 ## Sources
 
-- The Playwright Firefox build and the Juggler protocol it drives, read from
-  their own behaviour rather than a summary of it.
+- [Playwright's own docs on the Firefox build it drives](https://playwright.dev/python/docs/browsers),
+  and the [`Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  read from their own behaviour rather than a summary of it.
+- [MDN's `navigator.webdriver` reference](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+  for what the property signals and when.
 - This project's release gates, which assert the patched browser reports a real
   fingerprint and driver state, run through a proxy and compared field by field
   against a stock browser on the same machine.

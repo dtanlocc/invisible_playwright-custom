@@ -83,9 +83,7 @@ new Worker(URL.createObjectURL(new Blob([
 ]))).onmessage = e => console.log(e.data);           // must also be 8
 ```
 
-If those two disagree, the page has learned something much stronger than your core
-count. It has learned that something is rewriting values in one execution context and
-not another, which is a tampering finding rather than an unusual-hardware finding.
+When those two disagree, the mismatch itself is the finding, not the specific core count.
 
 The same shape appears in [what sannysoft checks](sannysoft-explained.md), where three
 canvas tests are run in the page and again in an iframe purely to compare them. Ask

@@ -106,9 +106,11 @@ with InvisiblePlaywright(seed=42) as browser:
 
 Two facts that catch people out:
 
-- **With no handler registered, Playwright auto-dismisses every dialog.** So if a
-  `confirm()` gate is being answered "cancel" and you never told it to, that is why:
-  the default is dismiss. Register a handler the moment you want a different answer.
+- **With no handler registered, Playwright auto-dismisses every dialog.** [Upstream
+  Playwright documents this default explicitly](https://playwright.dev/python/docs/dialogs):
+  if there is no listener for `page.on("dialog")`, every dialog is dismissed automatically.
+  So if a `confirm()` gate is being answered "cancel" and you never told it to, that is why.
+  Register a handler the moment you want a different answer.
 - **`prompt()` needs a value.** Pass it through `accept`:
 
 ```python
@@ -124,6 +126,9 @@ that navigates away, not after.
 A link with `target="_blank"` or a `window.open()` call opens a new `Page`. The trap is
 timing: the page is created the instant you click, so you have to be inside a listening
 block when the click happens. Register after the click and the popup is already gone.
+[Playwright's own pattern for this](https://playwright.dev/python/docs/pages) is the same
+context-manager shape used below: wrap the triggering action inside the `expect_page` (or
+`expect_popup`) block rather than reading the result after it.
 
 The stock pattern is a context manager that waits for the new page while your action runs
 inside it:
@@ -160,8 +165,10 @@ can keep the original tab and the popup open at once and drive both.
 
 ## Why the popup keeps one coherent identity
 
-Here is the part specific to a stealth setup, and the reason a same-context popup is safer
-than the obvious alternative.
+A popup handled with `context.expect_page()` never leaves the browser context its identity
+is derived from, which is the whole reason it matches. Handling the popup by launching a
+second browser does leave that context, and the two tabs then report different machines to
+anything checking consistency between them.
 
 A tempting way to "handle" a popup is to launch a second browser for it. Do not. A freshly
 launched browser draws a fresh identity: a different GPU string, a different canvas hash, a
@@ -235,8 +242,11 @@ same context with `context.expect_page()` so it inherits one identity.
 
 ## Sources
 
-- The Playwright API for dialog events, `context.expect_page()` and `page.expect_popup()`,
-  read from the upstream documentation rather than a rendered example.
+- Playwright's own docs on [dialog events](https://playwright.dev/python/docs/dialogs)
+  (the no-listener auto-dismiss default) and on [handling new pages and
+  popups](https://playwright.dev/python/docs/pages) (`context.expect_page()` and
+  `page.expect_popup()`), read from the upstream documentation rather than a rendered
+  example.
 - This project's own fingerprint model, in which every surface of a browser context is
   derived from a single seed, so a same-context popup and its parent report the same
   machine.

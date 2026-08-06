@@ -25,8 +25,11 @@ reports, and how to check the surface yourself.
 
 ## What desktop Firefox actually exposes
 
-There are two separate families of device-motion API, and they behave very
-differently across engines.
+Desktop Firefox exposes almost nothing on this surface: the generic Sensor
+API is absent entirely, and the older DeviceMotion/DeviceOrientation events
+exist as properties but never fire without motion hardware. Those are the two
+separate families of device-motion API, and they behave very differently
+across engines.
 
 The **generic Sensor APIs** - [`Accelerometer`](https://developer.mozilla.org/en-US/docs/Web/API/Accelerometer),
 [`Gyroscope`](https://developer.mozilla.org/en-US/docs/Web/API/Gyroscope),

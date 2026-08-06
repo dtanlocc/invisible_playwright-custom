@@ -40,21 +40,25 @@ anything else here, and nothing looks tampered with".
 Four techniques, all visible in `src/lies/index.ts`.
 
 **A pristine reference.** It creates fresh iframes and reaches into
-`contentWindow` to get a copy of the built-ins that your page-level patches never
+[`contentWindow`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement/contentWindow)
+to get a copy of the built-ins that your page-level patches never
 touched, because the patch ran in the parent document. Then it compares. This is the
 single most effective move against injected stealth scripts, and it is about fifteen
 lines of code.
 
 **Stack-trace inspection.** It matches against `/at Function\.toString /` and
 `/at Object\.toString/`. When you replace a native function and then patch
-`Function.prototype.toString` to hide it, the way your replacement is called leaves a
+[`Function.prototype.toString`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/toString)
+to hide it, the way your replacement is called leaves a
 different frame in the stack than a genuine native call would. The disguise is
 detected by how the disguise itself behaves.
 
 **Descriptor and prototype walking.** For each API it takes
-`Object.getOwnPropertyDescriptor(proto, name)`, checks whether `descriptor.value` is
+[`Object.getOwnPropertyDescriptor(proto, name)`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptor),
+checks whether `descriptor.value` is
 unexpectedly `undefined`, pulls the getter out, and compares
-`Object.getPrototypeOf(apiFunction)` against the native prototype. An override moved
+[`Object.getPrototypeOf(apiFunction)`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf)
+against the native prototype. An override moved
 from the prototype to the instance, or a getter that is a plain function rather than
 a native one, shows up here without any cleverness.
 
@@ -98,7 +102,7 @@ remains exactly as hard as it was.
 
 Run directly against a live Playwright-driven Chromium session with no stealth
 layer of any kind applied - no injected patches, no engine-level work, nothing
-this project or any comparable tool does - CreepJS's own headless module returned
+this project or any comparable tool does. CreepJS's own headless module returned
 0% headless and 0% stealth, with a 25% "like headless" partial-similarity score
 alongside them. Worth stating plainly what that does and does not mean: it says
 this one specific, directly-checked session did not trip CreepJS's headless

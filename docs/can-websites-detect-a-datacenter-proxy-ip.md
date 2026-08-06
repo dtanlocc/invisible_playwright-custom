@@ -27,9 +27,10 @@ both have to be right.
 Every request carries a source IP. From that one number the receiving server
 derives, with no cooperation from you:
 
-- **The ASN**, the autonomous system number, which identifies the network that
-  owns the address block. Hosting and cloud providers have their own ASNs, and
-  they are trivially separable from consumer broadband and mobile carriers.
+- **The ASN**, the [autonomous system number](https://datatracker.ietf.org/doc/html/rfc1930),
+  which identifies the network that owns the address block. Hosting and cloud
+  providers have their own ASNs, and they are trivially separable from
+  consumer broadband and mobile carriers.
 - **The address type**, datacenter versus residential versus mobile, which
   public and commercial datasets label directly.
 - **Reputation**, meaning whether this address or its neighbours have recently
@@ -43,7 +44,10 @@ consistent browser on a flagged IP, and the flag wins.
 
 ## Why the fingerprint cannot reach it
 
-It helps to be precise about what a browser fingerprint is and is not.
+The fingerprint cannot reach the IP because the two are different kinds of
+value: the fingerprint is data the browser volunteers to the page, and the IP
+is decided by the network carrying the connection, which the page never
+touches.
 
 A fingerprint is everything the page can measure about the client from inside
 the sandbox: the user agent, the GPU string, the canvas and audio hashes, the
@@ -84,8 +88,8 @@ Two things are happening here, and they are separate. `seed=42` fixes the
 browser half: the same GPU, canvas hash, audio context, fonts and screen every
 run, so a failure is reproducible. `proxy=...` fixes the IP half: every request,
 including DNS, leaves through that exit. The `browser` object is a real
-Playwright `Browser`, so `new_page`, `goto`, `click` and the rest behave exactly
-as documented upstream.
+Playwright [`Browser`](https://playwright.dev/python/docs/api/class-browser), so
+`new_page`, `goto`, `click` and the rest behave exactly as documented upstream.
 
 By default, with no `timezone=` argument, the browser timezone is derived from
 the exit IP so the two stories agree. If you want to confirm the exit is what you
@@ -163,6 +167,12 @@ still on a distrusted IP.
 
 ## Sources
 
+- [RFC 1930](https://datatracker.ietf.org/doc/html/rfc1930), the IETF guidelines
+  that define an Autonomous System as a routing policy unit and specify the ASN
+  that identifies it.
+- [Playwright's `Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for what the `browser` object in the example above exposes once the proxy is
+  wired in.
 - This project's default behaviour: the proxy dict passed at launch routes every
   request and its DNS through the exit, and the browser timezone is derived from
   that exit unless an explicit zone is set.

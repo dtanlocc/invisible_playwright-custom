@@ -82,9 +82,10 @@ with InvisiblePlaywright(seed=42, proxy=proxy) as browser:
     raw_posted = page.inner_text(".posted") # "vor 2 Tagen"
 ```
 
-Because the browser returned by `InvisiblePlaywright` is a real Playwright `Browser`,
-`page.evaluate`, `page.inner_text` and every other method are the stock API. There is
-nothing wrapper-specific to learn on the extraction side. What the wrapper gives you is
+Because the browser returned by `InvisiblePlaywright` is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), `page.evaluate`,
+`page.inner_text` and every other method are the stock API. There is nothing
+wrapper-specific to learn on the extraction side. What the wrapper gives you is
 a locale and timezone that agree with the exit and stay put across runs, so the two
 values you read above are trustworthy inputs to the parser rather than a moving target.
 
@@ -245,8 +246,9 @@ off by a rounding error is off.
 
 - The wrapper's real API for launching the browser and reading the page, from the
   [Quickstart](quickstart.md) and [Configuration](configuration.md) pages in this set.
-- `Intl.DateTimeFormat().resolvedOptions()` for the browser's resolved locale and
-  timezone, read live from the page rather than assumed.
+- [`Intl.DateTimeFormat().resolvedOptions()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions)
+  for the browser's resolved locale and timezone, read live from the page rather than
+  assumed.
 - The locale-aware behaviour of the Babel and dateparser libraries, used as documented
   upstream.
 

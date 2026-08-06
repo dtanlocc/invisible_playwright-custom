@@ -50,7 +50,8 @@ most of why people get confused.
   them. The hash is a fingerprint of how your specific GPU, driver and font stack
   rasterize that exact drawing. It is not a property you can set; it is
   [a readback of what the machine actually painted](browserleaks-canvas-webgl-hash.md).
-- **WebGL.** Two things on one page: the `UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL`
+- **WebGL.** Two things on one page: the
+  [`UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info)
   strings, and a long block of numeric limits (max texture size, shader precision
   ranges, supported extensions). The strings are the famous part; the numeric block is
   the part that has to agree with them, and a disagreement is a contradiction a scoring
@@ -62,7 +63,8 @@ most of why people get confused.
   reports which ones are installed. Under a Windows user agent this list must look like
   Windows, not [the font set a bare Linux container ships](detect-installed-fonts-javascript.md).
 - **ClientRects.** Reads the sub-pixel bounding boxes of positioned elements with
-  `getClientRects()`. Like canvas, the exact fractional geometry varies with the
+  [`getClientRects()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getClientRects).
+  Like canvas, the exact fractional geometry varies with the
   rendering stack, so it is a fingerprint rather than a setting.
 
 There are more pages - TLS, HTTP headers, geolocation, DNS - but these five are the ones

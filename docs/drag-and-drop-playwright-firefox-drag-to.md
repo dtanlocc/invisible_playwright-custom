@@ -25,13 +25,15 @@ anything that scores the motion itself.
 Playwright gives you two documented calls, and they are the same operation at
 different altitudes.
 
-`locator.drag_to(target)` is the locator-first form. You already have a source
-locator, you hand it a target locator, and Playwright performs the full sequence:
-hover the source, press the mouse button, move to the target, release.
+[`locator.drag_to(target)`](https://playwright.dev/python/docs/api/class-locator#locator-drag-to)
+is the locator-first form. You already have a source locator, you hand it a target
+locator, and Playwright performs the full sequence: hover the source, press the mouse
+button, move to the target, release.
 
-`page.drag_and_drop(source, target)` is the selector form. You pass two selector
-strings and it resolves both, then runs the identical hover-press-move-release
-sequence. Use it when you do not already hold the locators.
+[`page.drag_and_drop(source, target)`](https://playwright.dev/python/docs/api/class-page#page-drag-and-drop)
+is the selector form. You pass two selector strings and it resolves both, then runs
+the identical hover-press-move-release sequence. Use it when you do not already hold
+the locators.
 
 Both do the real thing. Neither one dispatches a synthetic `DragEvent` into the DOM
 and hopes the handler accepts it, which is the approach that fails silently on sites
@@ -40,9 +42,9 @@ input path, so the page sees a genuine press, a genuine move and a genuine relea
 
 ## Why the events come back trusted
 
-Every DOM event carries an `isTrusted` flag. The browser sets it to `true` for input
-it generated from a real device and `false` for anything a script dispatched with
-`dispatchEvent`. A site that guards a drag handler with `if (!event.isTrusted)
+Every DOM event carries an [`isTrusted`](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted)
+flag. The browser sets it to `true` for input it generated from a real device and
+`false` for anything a script dispatched with `dispatchEvent`. A site that guards a drag handler with `if (!event.isTrusted)
 return;` throws away scripted drags and keeps human ones, and there is no way to set
 `isTrusted` from JavaScript. It is read-only by design.
 
@@ -98,7 +100,8 @@ asserting on the DOM afterwards, not by trusting the call returned:
 ```
 
 If you need finer control - a pause mid-drag, an intermediate waypoint, a hover to
-trigger a drop zone highlight - drop to the low-level mouse API
+trigger a drop zone highlight - drop to the
+[low-level mouse API](https://playwright.dev/python/docs/api/class-mouse)
 (`page.mouse.move`, `page.mouse.down`, `page.mouse.up`) and build the sequence
 yourself. Everything on the returned `browser` is the stock Playwright API, so this is
 the ordinary manual-drag recipe, unchanged.
@@ -201,8 +204,12 @@ separate, and you supply the clean proxy and human pacing.
 
 ## Sources
 
-- Playwright's documented `locator.drag_to` and `page.drag_and_drop`, and the
-  low-level `page.mouse` API, read from the upstream reference.
+- Playwright's documented [`locator.drag_to`](https://playwright.dev/python/docs/api/class-locator#locator-drag-to)
+  and [`page.drag_and_drop`](https://playwright.dev/python/docs/api/class-page#page-drag-and-drop),
+  and the low-level [`page.mouse`](https://playwright.dev/python/docs/api/class-mouse) API.
+- The [WHATWG DOM specification for `Event.isTrusted`](https://dom.spec.whatwg.org/#dom-event-istrusted)
+  and [MDN's `Event.isTrusted` reference](https://developer.mozilla.org/en-US/docs/Web/API/Event/isTrusted):
+  read-only, true only for user-agent-generated events.
 - This project's input path, where Playwright's press, move and release commands are
   delivered as engine-generated events so the `isTrusted` flag reads true.
 - This project's own notes on where pointer-motion realism ends, linked throughout.

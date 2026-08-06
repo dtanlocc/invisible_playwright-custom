@@ -46,8 +46,9 @@ the rendering-path differences and nothing else.
 Two facts worth having, because they are concrete and checkable.
 
 **In Chromium, headless has been a different binary.** Recent Playwright versions
-default headed runs to Chrome and headless runs to a separate headless shell. A
-different implementation composites and paints differently, which changes both what is
+default headed runs to Chrome and headless runs to
+[a separate headless shell](https://playwright.dev/docs/browsers#chromium-headless-shell).
+A different implementation composites and paints differently, which changes both what is
 rendered and when state transitions are observable. Google has spent real effort making
 the newer headless behave like the desktop browser, and the obvious tells from a few
 years ago are largely gone, but "a different binary" is a meaningful sentence.
@@ -89,8 +90,8 @@ Being straight about the limits, because they matter:
 
 ## This was latent for a while, and worth being honest about
 
-The Windows and macOS hiding described above is not how this project's `headless=True`
-worked from the start. For several releases, across two different Playwright versions,
+This project's `headless=True` did not always hide the window on Windows and macOS the
+way it does now. For several releases, across two different Playwright versions,
 `headless=True` on Windows rendered the browser window on the real desktop anyway -
 visible, with a taskbar entry, indistinguishable from a headful run except that nobody
 had asked for one. macOS raised outright. Only Linux, through a virtual display, ever
@@ -106,9 +107,9 @@ same process level passed throughout, which is exactly why this went unnoticed: 
 thing validating the behaviour and the thing shipping it were not using the same
 mechanism.
 
-The fix is the compositor-level cloak described above, set on the window itself rather
-than on any thread or process, which is also why it needs to live in the browser
-binary: only the window's own owning process can set that attribute. Validated
+The fix is a compositor-level cloak, set on the window itself rather than on any
+thread or process, which is also why it needs to live in the browser binary: only the
+window's own owning process can set that attribute. Validated
 afterward against a visible, headful window on the same machine: identical fingerprint
 surface (no `visibilityState`, focus, canvas or WebGL tell), a real GPU-composited
 screenshot, and a passing result on a commercial detector that specifically checks for

@@ -9,11 +9,14 @@ nav_order: 56
 
 # How to export scraped data to Excel with Playwright
 
-The hard part of exporting scraped data to Excel is not writing the file. It is that a
-spreadsheet quietly rewrites some of what you put in it. You scrape a product code as the
-exact string `007321`, write it out, open the workbook, and it says `7321`. The leading
-zero is gone, the identifier no longer matches the source, and nothing anywhere reported
-an error.
+To export scraped data to Excel with Playwright without it getting corrupted, read the
+values from a rendered browser as exact strings, then write them with openpyxl and set the
+text number format (`@`) on every identifier column before saving. Skip either half and the
+export looks fine and is wrong: the hard part of exporting scraped data to Excel is not
+writing the file, it is that a spreadsheet quietly rewrites some of what you put in it. You
+scrape a product code as the exact string `007321`, write it out, open the workbook, and it
+says `7321`. The leading zero is gone, the identifier no longer matches the source, and
+nothing anywhere reported an error.
 
 This page is about defeating that silent coercion. It covers why the values have to come
 from a rendered browser rather than a static parse, how to pull them as exact strings, the

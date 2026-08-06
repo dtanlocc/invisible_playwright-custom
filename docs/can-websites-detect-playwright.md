@@ -25,8 +25,9 @@ undetectability would be lying to you.
 Strip away the folklore and stock Playwright exposes three families of tell to in-page
 JavaScript:
 
-- **A driver flag.** `navigator.webdriver` is defined by the automation standard, and a
-  page reads it with one property access.
+- **A driver flag.** `navigator.webdriver` is defined by the
+  [WebDriver automation standard](https://www.w3.org/TR/webdriver2/), and a page reads it
+  with one property access.
 - **Protocol and automation artifacts.** Globals left in scope by a stealth layer, a
   built-in whose `toString()` no longer says `[native code]`, an event that arrives
   without the trusted bit a real click carries.
@@ -54,7 +55,8 @@ because nothing overrode anything.
 
 ## Signal two: automation globals and protocol artifacts
 
-The second family is what the act of driving the browser leaves lying around.
+Automation globals and protocol artifacts are what the act of driving the browser leaves
+lying around, and they exist whether or not the driver flag above was ever touched.
 
 JavaScript stealth plugins reach into built-ins to hide the first signal, and in doing so
 they create the second: a redefined function whose `toString()` stops returning
@@ -71,8 +73,8 @@ functions a page inspects are the genuine ones.
 
 ## Signal three: a fingerprint that does not match the claimed OS
 
-The third family is the one that catches most server-side automation, and it has nothing
-to do with the driver at all.
+A fingerprint that contradicts the claimed operating system is the family that catches most
+server-side automation, and it has nothing to do with the driver at all.
 
 A page reads the user agent, then reads the GPU renderer string, the installed fonts, the
 audio device parameters and the screen geometry, and checks that they tell the same story.
@@ -184,6 +186,8 @@ rather than reading the score.
 
 ## Sources
 
+- The [W3C WebDriver specification](https://www.w3.org/TR/webdriver2/), which defines the
+  `navigator.webdriver` property and the automation flag behind it.
 - This project's real API surface, `InvisiblePlaywright(seed=...)` and the returned
   Playwright `Browser`, as documented in the quickstart and configuration pages.
 - The public detection suites CreepJS, BotD, FingerprintJS, sannysoft and BrowserLeaks,

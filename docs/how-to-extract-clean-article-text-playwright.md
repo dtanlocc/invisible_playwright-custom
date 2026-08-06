@@ -9,15 +9,14 @@ nav_order: 62
 
 # How to extract clean article text with Playwright
 
-You want the article: the headline, the byline, the paragraphs. What a naive
-extractor gives you instead is the whole page - the nav bar, the cookie banner,
-the newsletter box, the "you might also like" strip - with the actual body
-somewhere in the middle, and sometimes not there at all.
+Do not read the visible text off the page - read the fully rendered HTML and
+run a readability pass over it. That order is what stands between the
+headline, the byline and the paragraphs you actually want, and what a naive
+extractor hands back instead: the nav bar, the cookie banner, the newsletter
+box, the "you might also like" strip, with the actual body somewhere in the
+middle, and sometimes not there at all.
 
 This page is about getting the body and only the body, reliably, run after run.
-The short version: do not read text off the page, read the fully rendered HTML
-and run a readability pass over it. The order of those two steps is where most
-extractors go wrong.
 
 ## Why a naive innerText grabs the furniture
 
@@ -54,9 +53,10 @@ that happens to be all furniture and no article.
 The fix has two halves. Let the page finish rendering, then hand the *rendered*
 HTML to the extractor rather than the initial response.
 
-`page.content()` serialises the live DOM as it stands now, after scripts have
-run and injected their nodes. That is the difference between it and an HTTP
-`GET`, which only ever sees the pre-JavaScript shell.
+[`page.content()`](https://playwright.dev/python/docs/api/class-page#page-content)
+serialises the live DOM as it stands now, after scripts have run and injected
+their nodes. That is the difference between it and an HTTP `GET`, which only
+ever sees the pre-JavaScript shell.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -72,10 +72,12 @@ with InvisiblePlaywright(seed=42) as browser:
     html = page.content()   # the fully rendered DOM, injected paragraphs included
 ```
 
-`wait_until="networkidle"` covers the common case; an explicit
-`wait_for_selector` on the container that holds the article is stronger,
-because "the network went quiet" and "the body is on the page" are not the same
-event. If the article only materialises as you scroll, that is a different
+`wait_until="networkidle"` covers the common case, though
+[Playwright's own docs](https://playwright.dev/python/docs/api/class-page#page-goto)
+flag it as discouraged; an explicit `wait_for_selector` on the container that
+holds the article is stronger, because "the network went quiet" and "the body
+is on the page" are not the same event. If the article only materialises as
+you scroll, that is a different
 problem with its own page: see
 [how to scrape infinite scroll with Playwright](how-to-scrape-infinite-scroll-playwright.md).
 
@@ -248,9 +250,10 @@ them.
 
 ## Sources
 
-- The Playwright API for `goto`, `wait_for_selector` and `content()`, used here
-  exactly as documented upstream, since `InvisiblePlaywright` returns a real
-  Playwright `Browser`.
+- The Playwright API for [`goto`](https://playwright.dev/python/docs/api/class-page#page-goto),
+  `wait_for_selector` and [`content()`](https://playwright.dev/python/docs/api/class-page#page-content),
+  used here exactly as documented upstream, since `InvisiblePlaywright` returns
+  a real Playwright `Browser`.
 - The `readability-lxml` package, a port of the readability algorithm, run over
   rendered HTML rather than a raw HTTP response.
 - This project's own measurements comparing a naive `body` innerText against a

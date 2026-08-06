@@ -1,6 +1,6 @@
 ---
 title: "Does clearing cookies stop fingerprint tracking?"
-description: "No. Cookies are stateful and clearable, but browser fingerprinting is stateless and rebuilds the same identity from canvas, WebGL, fonts, audio and TLS after every clear."
+description: "No. Cookies are stateful and clearable, but fingerprinting is stateless and rebuilds the same identity from canvas, WebGL, fonts, audio and TLS every clear."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 27
@@ -28,8 +28,12 @@ when you clear it the site has to start over. This is a real, working privacy co
 for the thing it controls.
 
 A fingerprint is not stored anywhere on your machine for you to clear. It is computed
-on the spot from properties your browser exposes: how it draws a canvas, which GPU and
-renderer string it reports through WebGL, which fonts it can load, how its audio stack
+on the spot from properties your browser exposes: how it draws a
+[canvas](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL),
+which GPU and renderer string it reports through
+[WebGL](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info),
+which fonts it can load, how its
+[audio stack](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 processes a signal, and, below the page entirely, how its TLS handshake looks. The
 site hashes those together into an identifier. There is no file to remove because none
 of it was ever written down on your side.

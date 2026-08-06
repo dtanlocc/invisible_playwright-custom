@@ -1,6 +1,6 @@
 ---
 title: "Can You Run Playwright Without Being Detected?"
-description: "An honest answer for Playwright automation: what removing browser-level tells actually clears, why it looks like a real browser, and the three signals it does not fix."
+description: "An honest answer for Playwright automation: what removing browser-level tells clears, why it looks like a real browser, and the three signals it does not fix."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 11
@@ -43,7 +43,8 @@ Before touching code, it helps to name the three layers, because a fix for one d
 nothing for the others.
 
 1. **The browser layer.** The fingerprint (GPU, canvas, audio, fonts, screen), the
-   automation flags (`navigator.webdriver` and friends), and internal consistency
+   automation flags ([`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+   and friends), and internal consistency
    (does the platform you claim agree with the fonts you have). This is in JavaScript's
    reach, and it is the layer a stealth engine addresses.
 2. **The network layer.** The TLS handshake, the HTTP/2 settings frame, header order,

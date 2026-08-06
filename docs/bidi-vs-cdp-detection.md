@@ -95,11 +95,12 @@ implementation detail of the driver, and the same script would work if it change
 ## What WebDriver BiDi standardizes, and what it leaves untouched
 
 WebDriver BiDi is a genuinely good thing and worth being precise about. It is a
-W3C effort to give every browser one bidirectional automation protocol, so that a
-driver can subscribe to events and issue commands the same way across engines,
-instead of CDP on one family and something bespoke on another. Firefox, Chromium
-and others implement it. Playwright itself has been building BiDi support. If you
-have ever wanted "one protocol, every browser", this is that.
+[W3C effort](https://www.w3.org/TR/webdriver-bidi/) to give every browser one
+bidirectional automation protocol, so that a driver can subscribe to events and
+issue commands the same way across engines, instead of CDP on one family and
+something bespoke on another. Firefox, Chromium and others implement it.
+Playwright itself has been building BiDi support. If you have ever wanted "one
+protocol, every browser", this is that.
 
 What it standardizes is the shape of the control channel: the commands, the
 events, the subscription model. What it does not do, because it is not what a
@@ -244,8 +245,9 @@ the protocol name, is the signal.
 - The [Patchright](vs-patchright.md) and [rebrowser-patches](vs-rebrowser-patches.md)
   comparisons on this site, read from each project's own repository, for what the
   CDP `Runtime.enable` fix is and is not.
-- The WebDriver BiDi specification's own scope, for what a standardized control
-  protocol standardizes and what it leaves to the engine.
+- The [WebDriver BiDi specification](https://www.w3.org/TR/webdriver-bidi/)'s own
+  scope, for what a standardized control protocol standardizes and what it leaves
+  to the engine.
 
 **See also:** [why an attached debugger makes automation detectable](debugger-timing-detection.md)
 for the page-level leaks in detail, [invisible_playwright vs rebrowser-patches](vs-rebrowser-patches.md)

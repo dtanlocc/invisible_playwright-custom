@@ -30,7 +30,8 @@ webdriver                webgl                    window_external
 window_size
 ```
 
-Exactly one of those, `webdriver`, is the check everybody knows. A handful look for
+Exactly one of those, [`webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+is the check everybody knows. A handful look for
 specific named tools. The rest are engine identity and internal consistency.
 
 | Detector group | The question it asks | Examples named here |
@@ -52,7 +53,8 @@ that is a bot. A Chromium build claiming to be Firefox fails here on a value nob
 to spoof.
 
 **`product_sub`.** If the browser claims to be Chrome, Safari, Opera or WeChat, then
-`navigator.productSub` must be `20030107`. Firefox reports `20100101`. One
+[`navigator.productSub`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/productSub)
+must be `20030107`. Firefox reports `20100101`. One
 comparison, no ambiguity ([why a real Firefox reports `20100101`](navigator-vendor-productsub-firefox.md)).
 
 **`error_trace`.** Stack traces are formatted differently by different engines, and
@@ -83,8 +85,10 @@ looking for bots directly.
 
 ## What this means if you are on the other side
 
-Three things follow, and they are the same three that turn up everywhere in this
-area.
+Three things follow: spoofing a user agent alone tends to make a browser easier to
+detect rather than harder, being a genuine instance of the engine you claim passes
+this whole detector class for free, and the risk BotD does not touch moves to other
+signals entirely. They are the same three that turn up everywhere in this area.
 
 **[Spoofing a user agent alone is worse than not spoofing it](is-changing-user-agent-enough.md).** Change the string and
 you have to change `productSub`, `eval.toString().length`, the stack-trace format,

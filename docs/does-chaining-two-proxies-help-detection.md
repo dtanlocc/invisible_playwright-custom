@@ -84,15 +84,18 @@ can see stays dirty, is the common way a chain disappoints.
 
 ## How invisible_playwright fits: one server, chain built upstream
 
-invisible_playwright routes the browser to a single proxy server. It writes the SOCKS
-or HTTP preferences for one endpoint and sends traffic there. It does not build a chain
-inside the browser, and there is no per-request multi-hop setting to configure, because
-a chain is an upstream network arrangement, not a browser feature.
+invisible_playwright routes the browser to a single proxy server. It writes the
+[SOCKS](https://datatracker.ietf.org/doc/html/rfc1928) or HTTP preferences for one
+endpoint and sends traffic there. It does not build a chain inside the browser, and
+there is no per-request multi-hop setting to configure, because a chain is an upstream
+network arrangement, not a browser feature.
 
 If you want a chain, you build it below the address you hand the wrapper: the endpoint
 you configure is the entry to your chain, and whatever it forwards to is your business
 and invisible to both the browser and the destination. From the wrapper's point of view
-it is one server.
+it is one server - the same single `server` plus optional credentials shape that
+[Playwright itself documents](https://playwright.dev/python/docs/network#http-proxy)
+for launching a browser, passed straight through.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -189,6 +192,10 @@ pacing and quotas you respect.
   exit's address and cannot enumerate hops behind it.
 - The release gates that measure fingerprint realness in the browser, which is a layer
   no proxy arrangement touches in either direction.
+- [RFC 1928, "SOCKS Protocol Version 5"](https://datatracker.ietf.org/doc/html/rfc1928),
+  the protocol a proxy endpoint speaks.
+- [Playwright's own proxy configuration docs](https://playwright.dev/python/docs/network#http-proxy),
+  which document the single-endpoint `server`/`username`/`password` shape used above.
 
 **See also:** [can websites detect a datacenter proxy IP](can-websites-detect-a-datacenter-proxy-ip.md),
 [sticky versus rotating proxy sessions](sticky-vs-rotating-proxy-sessions.md), and

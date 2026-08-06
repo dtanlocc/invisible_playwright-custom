@@ -64,12 +64,13 @@ with InvisiblePlaywright(seed=42) as browser:
     print(len(raw_hrefs), "raw href strings")
 ```
 
-Read `getAttribute('href')`, not the `.href` property. The property is already
-resolved to an absolute URL by the browser, which sounds convenient until you want
-resolution and normalization to be one deterministic step you can test. Pulling the
-raw attribute and doing the whole transform in Python keeps that logic in one place,
-under your control, and identical whether the link was absolute or relative in the
-markup.
+Read `getAttribute('href')`, not the
+[`.href` property](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement/href).
+The property is already resolved to an absolute URL by the browser, which sounds
+convenient until you want resolution and normalization to be one deterministic step
+you can test. Pulling the raw attribute and doing the whole transform in Python keeps
+that logic in one place, under your control, and identical whether the link was
+absolute or relative in the markup.
 
 The `browser` object here is a real Playwright `Browser`, so `new_page`, `goto` and
 `evaluate` behave exactly as they do upstream. The only change from stock Playwright
@@ -127,9 +128,9 @@ base = page.url  # the URL after any redirect, which is what relatives resolve a
 
 ## Filter to the origin and keep a visited set
 
-Now the frontier itself: a queue of URLs to visit and a set of URLs already seen. Both
-hold the normalized form. The same-origin filter keeps the crawl on the site you meant
-to crawl instead of following an outbound link into the open web.
+The frontier itself is a queue of URLs to visit plus a set of URLs already seen, both
+holding the normalized form. The same-origin filter keeps the crawl on the site you
+meant to crawl instead of following an outbound link into the open web.
 
 ```python
 from collections import deque
@@ -186,12 +187,12 @@ walks the numbered pages behind that section, see
 
 ## One stable identity across the whole frontier
 
-Here is the part that is specific to crawling rather than to fetching one page.
-
-A frontier is high volume by definition. You are not making one request that has to
-look real, you are making hundreds from the same process in a short window. That
-changes what a consistent identity is worth, and it changes what an inconsistent one
-costs.
+A crawl frontier needs one identity held constant across every request in the queue,
+not a fresh one per page. This is the part that is specific to crawling rather than
+to fetching a single page: a frontier is high volume by definition, so you are not
+making one request that has to look real, you are making hundreds from the same
+process in a short window. That changes what a consistent identity is worth, and it
+changes what an inconsistent one costs.
 
 The instinct some reach for is to randomize the identity per request, on the theory
 that variety hides volume. At crawl scale it does the opposite. Real users do not

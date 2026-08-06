@@ -152,7 +152,7 @@ happened during your evaluation, and a redirect to a challenge is a navigation.
 **How do I tell the difference?** Read `page.url` and take a screenshot when it fires.
 If you ended up somewhere you did not ask for, it is the site.
 
-**Does `wait_until="networkidle"` fix it?** It changes when `goto` returns, which helps
+**Does [`wait_until="networkidle"`](https://playwright.dev/python/docs/api/class-page#page-goto) fix it?** It changes when `goto` returns, which helps
 with some races and does nothing for a redirect that happens later.
 
 **Why does it only happen in headless or only in CI?** Usually timing, because a loaded

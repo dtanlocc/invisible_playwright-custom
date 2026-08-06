@@ -45,8 +45,11 @@ and a mismatch between them is its own tell.
 
 JavaScript never sees the render surface directly; the only bytes a page can obtain are the
 ones a readback call hands back. The GPU draws into memory the page has no handle on. The
-only way script gets any pixels at all is by calling a readback method - `getImageData`,
-`toDataURL`, `toBlob` on the 2D side, `readPixels` on the WebGL side - and those methods are
+only way script gets any pixels at all is by calling a readback method -
+[`getImageData`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData),
+`toDataURL`, `toBlob` on the 2D side,
+[`readPixels`](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/readPixels)
+on the WebGL side - and those methods are
 the single point where the rendered pixels cross from the engine into script.
 
 So the signature is not a measurement of your GPU. It is a measurement of whatever those

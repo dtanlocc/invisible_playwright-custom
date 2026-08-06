@@ -34,10 +34,12 @@ want lives inside that iframe, not on the top-level document.
 
 That single fact changes how you have to reach it. `page.click("#accept")` searches
 the main frame. The button is not in the main frame, so the selector never resolves
-and the call sits there until it times out. The instinct after a timeout is to force
-the click, but `force=True` only skips Playwright's actionability checks (is the
-element visible, stable, not covered). It does not change which frame the element is
-in. If the element cannot be found, there is nothing to force.
+and the call sits there until it times out.
+
+The instinct after a timeout is to force the click, but `force=True` only skips
+Playwright's actionability checks (is the element visible, stable, not covered). It
+does not change which frame the element is in. If the element cannot be found, there
+is nothing to force.
 
 So before anything else: a consent button that will not click is a frame problem, not
 a click problem, and the fix is to tell Playwright which frame to look in.
@@ -57,6 +59,7 @@ iframe by hand, you may have collected a confusing set of failures that look unr
 These are not three bugs. They are one cause with three faces. Firefox's site
 isolation can place a cross-origin iframe in a completely separate operating-system
 process from the page that embeds it, as a security boundary between the two origins.
+
 The automation driver builds its map of the page from the parent process, so when the
 iframe lives somewhere else, the driver registers a placeholder for it: no URL, no
 document reference, no execution context wrapping the iframe's globals. Every one of
@@ -163,12 +166,13 @@ above handles it cleanly.
 
 With a persistent profile, the accepted consent persists across runs, which is often
 what you want: no banner on visit two, one fewer interaction to script. The catch is
-that a profile stores more than the consent flag. It stores permissions too, and a
-permission accepted once and then reused is easy to forget you granted. A stored camera
-or microphone grant, for instance, quietly switches off part of Firefox's WebRTC
-address protection for that origin on every future run against the profile, until you
-remove it. So a consent flow that also asked for a device permission can carry a change
-you did not intend into every later session.
+that a profile stores more than the consent flag: it stores permissions too, and a
+permission accepted once and then reused is easy to forget you granted.
+
+A stored camera or microphone grant, for instance, quietly switches off part of
+Firefox's WebRTC address protection for that origin on every future run against the
+profile, until you remove it. So a consent flow that also asked for a device permission
+can carry a change you did not intend into every later session.
 
 The rule that keeps this straight: pair one profile directory with one seed,
 permanently, and audit a reused profile's stored permissions rather than trusting them.

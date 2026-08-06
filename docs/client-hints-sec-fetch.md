@@ -157,8 +157,8 @@ What you want:
 - `Sec-Fetch-Site` matches how you actually navigated.
 - `Sec-Fetch-User` is present when you clicked and absent when you navigated
   programmatically.
-- Header **order** matches a real browser's, which is a separate surface and one more
-  reason not to hand-assemble any of this.
+- Header **order** matches a real browser's, [a separate surface](http2-fingerprint-detection.md)
+  one layer down, and one more reason not to hand-assemble any of this.
 
 ## Conclusion
 

@@ -9,12 +9,13 @@ nav_order: 15
 
 # DOM-reading vs screenshot agents: which stealth helps
 
-Two agents can drive the same browser to the same page and be caught by completely
-different things. The reason is not the model behind them, it is how each one perceives
-the page. One reads structured text, the DOM or an accessibility tree, and acts on
-selectors. The other takes a screenshot, reasons over pixels, and clicks by coordinate.
-They inherit the same engine, so the same stealth work is underneath both, but which part
-of it is doing the work is different in each case.
+Which stealth signal helps depends on how the agent perceives the page, not on the model
+behind it. A DOM-reading agent acts on selectors, so it is exposed at the DOM and driver
+layer, and a patched engine's automation-tell fixes are what carry it. A screenshot agent
+clicks by coordinate instead, so it is exposed at the graphics surface and in its rhythm,
+and canvas, WebGL and GPU realness are what carry it. Both agents drive the same browser
+to the same page and get caught by completely different things, even though they inherit
+the same engine and the same patch underneath.
 
 This page is about matching the fix to the way the agent sees. It ends with a short,
 runnable example and one honest caveat: the engine changes what the page can measure about
@@ -148,7 +149,9 @@ with InvisiblePlaywright(seed=42) as browser:
 ```
 
 The `browser` is a real Playwright `Browser`, so `accessibility.snapshot()`,
-`inner_text()`, `screenshot()` and `mouse.click()` are all the standard upstream methods.
+`inner_text()`, [`screenshot()`](https://playwright.dev/python/docs/api/class-page#page-screenshot)
+and [`mouse.click()`](https://playwright.dev/python/docs/api/class-mouse#mouse-click) are
+all the standard upstream methods.
 The only change from plain Playwright is the two-line launch. What differs between the two
 snippets is not the stealth, it is which surface the agent is leaning on, and therefore
 which part of the shared engine work is carrying it.

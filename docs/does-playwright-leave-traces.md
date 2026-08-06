@@ -1,6 +1,6 @@
 ---
 title: "Does Playwright Leave Traces a Website Can See?"
-description: "Playwright leaves some traces a web page can read, some it cannot. Which are page-visible, why the control WebSocket is not, and how patched Firefox reads ordinary."
+description: "Playwright leaves some traces a page can read, some it cannot. Which are page-visible, why the control WebSocket is not, and how patched Firefox reads ordinary."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 22
@@ -61,11 +61,11 @@ next pile.
 
 Three families, in rough order of how often they appear:
 
-- **A webdriver flag.** The WebDriver specification requires a conforming browser to
-  expose `navigator.webdriver` as `true` while a session is under automation control.
-  That is a page-visible boolean by design, and a stock automated browser reports it
-  honestly. Patching it in a page script trades one tell for another, because a clean
-  browser reports `undefined` and not `false` - the
+- **A webdriver flag.** The [WebDriver specification](https://www.w3.org/TR/webdriver2/)
+  requires a conforming browser to expose `navigator.webdriver` as `true` while a session
+  is under automation control. That is a page-visible boolean by design, and a stock
+  automated browser reports it honestly. Patching it in a page script trades one tell for
+  another, because a clean browser reports `undefined` and not `false` - the
   [full reason setting it to false is worse than leaving it alone](navigator-webdriver-explained.md)
   is its own page.
 - **Automation globals.** Some stacks leave a named object on `window` so their in-page
@@ -83,7 +83,8 @@ the first place, which is a design decision, not a runtime patch.
 
 ## Chromium injects cdc_ into the document; Firefox through Juggler does not
 
-Here is the concrete asymmetry worth knowing.
+Chromium-based tooling writes `cdc_`-prefixed properties into the page; Firefox driven
+through Juggler writes none, because its driver never has to touch the document at all.
 
 ChromeDriver needs to run its own JavaScript inside the page to do its job, and it keeps
 state on the page's own objects under `cdc_`-prefixed names. That is a page-visible
@@ -218,8 +219,8 @@ above, then compare the result against a stock browser on the same machine.
   Playwright-driven Firefox rather than trusting a description of one.
 - The public detection suites (CreepJS, BotD, sannysoft, FingerprintJS, BrowserLeaks),
   each read from its own source for what it collects from the document.
-- The Playwright, WebDriver BiDi, and Juggler protocol behaviour for where driver state
-  lives relative to the page.
+- The Playwright, [WebDriver BiDi](https://www.w3.org/TR/webdriver-bidi/), and Juggler
+  protocol behaviour for where driver state lives relative to the page.
 
 **See also:** [the ChromeDriver cdc_ variable](cdc-variable-explained.md),
 [why navigator.webdriver is not the tell you think it is](navigator-webdriver-explained.md),

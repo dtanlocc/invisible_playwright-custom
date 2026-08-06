@@ -26,9 +26,10 @@ whole time.
 ## The measurement that changed everything
 
 `page.mouse.move()` and `page.hover()` both move the pointer. They are not the same
-call underneath. `hover()` runs a hit-target check first - it needs to confirm the
-element is actually there before it decides where the pointer should end up - and
-that check itself moves the pointer, before the humanized path ever starts.
+call underneath. `hover()` runs a [hit-target check](https://playwright.dev/docs/actionability#receives-events)
+first - it needs to confirm the element is actually there before it decides where the
+pointer should end up - and that check itself moves the pointer, before the humanized
+path ever starts.
 
 Driving the identical 570px displacement two ways, interleaved, same page, same
 settings, made the gap impossible to miss:
@@ -140,6 +141,8 @@ actual problem.
 
 ## Sources
 
+- [Playwright's actionability documentation, "Receives Events"](https://playwright.dev/docs/actionability#receives-events) -
+  the documented hit-target check this page's whole argument rests on.
 - This project's own cursor-generation rework and its before/after measurements,
   including the interleaved A/B methodology (same binary, same page, arms differing
   only by which engine generated the path) and the reproduction against a hover

@@ -48,8 +48,10 @@ identical font list. The list is not the whole story: the rendering is.
 
 ## Cause three: measurement differs from rendering
 
-Font detection on the web is mostly indirect. You cannot enumerate installed fonts
-from JavaScript in a modern browser, so scripts measure instead: render a string in a
+Font detection on the web is mostly indirect. You cannot [enumerate installed
+fonts](https://developer.mozilla.org/en-US/docs/Web/API/Local_Font_Access_API) from
+JavaScript in a modern browser without an explicit, per-site permission grant that
+detection scripts never trigger, so scripts measure instead: render a string in a
 candidate font with a known fallback, compare the width, and if it differs the font
 exists.
 

@@ -1,6 +1,6 @@
 ---
 title: "Does Playwright Get Detected on the First Request?"
-description: "Yes, detection can happen before any JavaScript runs: the TLS handshake and HTTP/2 settings form a network fingerprint a Playwright script can contradict on request zero."
+description: "Yes, detection can happen before JavaScript runs: the TLS handshake and HTTP/2 settings form a fingerprint a Playwright script can contradict on request zero."
 parent: "The Automation Layer"
 grand_parent: "Guides"
 nav_order: 27
@@ -26,7 +26,7 @@ not have it, and the honest limits of what "no gap" buys you.
 A page load is not one event, it is a sequence, and the browser has already
 described itself twice before your code executes.
 
-First is the TLS handshake. The `ClientHello` message lists the cipher suites
+First is the TLS handshake. The [ClientHello](https://datatracker.ietf.org/doc/html/rfc8446) message lists the cipher suites
 the client offers, the extensions it sends, the elliptic curves it supports and
 the order of all of it. That ordering is not random and it is not the same
 across clients: a given browser build produces a characteristic shape, and

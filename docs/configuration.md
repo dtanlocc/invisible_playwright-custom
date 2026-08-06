@@ -8,6 +8,12 @@ nav_order: 3
 
 # Configuration
 
+Configuration covers three independent surfaces: proxy schemes and credentials, how
+the browser's timezone is derived from the egress IP, and the environment variables
+that change caching, binary selection and download behavior. None of it is required
+for a first run - `InvisiblePlaywright()` works with defaults - but each setting below
+exists because a specific situation needs it.
+
 ## Proxies
 
 ```python
@@ -93,6 +99,38 @@ If your connection is honestly slower than that, raise the number rather than
 removing the bound - `0` is there for the case where you are downloading over
 something too unusual to put a number on, and it restores the old behaviour of
 waiting indefinitely.
+
+## Short answers to the questions that lead here
+
+**What proxy schemes does invisible_playwright support?** `socks5`, `socks4`, `http`
+and `https`. DNS resolves through the proxy by default, and an endpoint given
+without an explicit port raises a `ValueError` instead of launching unproxied.
+
+**How is the browser's timezone chosen?** By default it is derived from the egress
+IP - the proxy's exit if one is set, otherwise the host's own public IP. Pass an
+explicit IANA zone such as `timezone="America/New_York"` to override it; an explicit
+zone always wins.
+
+**Do I need to set any environment variables to use invisible_playwright?** No. Every
+one in the table above addresses a specific situation - moving the cache directory,
+pointing at a binary you already have, a network that blocks anonymous downloads -
+and the defaults work without touching any of them.
+
+**Why does the engine download have a deadline, and can I remove it?** Because a
+per-socket timeout does not bound a slow transfer: a connection delivering one byte
+every 59 seconds satisfies a 60-second timeout forever. The default of 1800 seconds
+covers any link above roughly 140 KB/s; set `INVISIBLE_DOWNLOAD_DEADLINE=0` to remove
+the bound entirely if your connection is genuinely slower than that.
+
+**What happens if I pass a proxy server with no port?** The constructor raises a
+`ValueError` rather than launching the browser unproxied. That is a deliberate change
+from older behavior, which used to launch silently without the proxy.
+
+**See also:** [Installation](installation.md) for the one-time engine download these
+environment variables configure, [Pinning fingerprint fields](pinning.md) for forcing
+specific values like GPU or screen size, and
+[Playwright SOCKS5 proxy with authentication](playwright-socks5-proxy-authentication.md)
+for the full detail behind the proxy schemes above.
 
 ## Next
 

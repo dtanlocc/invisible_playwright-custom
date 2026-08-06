@@ -191,7 +191,7 @@ def fetch_with_backoff(page, url, attempts=4):
 ```
 
 `response.status` and `response.headers` are standard Playwright, since `goto` returns a
-real `Response`. The exponential growth matters: a fixed retry delay against a rate limit
+real [`Response`](https://playwright.dev/python/docs/api/class-response). The exponential growth matters: a fixed retry delay against a rate limit
 is just a slower version of the same machine cadence, and doubling it means a genuinely
 overloaded lane keeps quiet instead of pounding a door that is already closed.
 
@@ -242,8 +242,11 @@ of the cadence that got you limited.
 - This project's own fingerprint validation runs, including the high-activity velocity flag
   that turned out to be the test harness reusing one address at machine speed rather than a
   product signal.
-- The Playwright API for `page.goto`, `Response.status` and `Response.headers`, read from
-  its own upstream documentation.
+- The Playwright API for
+  [`page.goto`](https://playwright.dev/python/docs/api/class-page#page-goto),
+  [`Response.status`](https://playwright.dev/python/docs/api/class-response#response-status)
+  and [`Response.headers`](https://playwright.dev/python/docs/api/class-response#response-headers),
+  read from its own upstream documentation.
 
 **See also:** [how to scrape without getting blocked](how-to-scrape-without-getting-blocked.md)
 for the full layer model, [human mouse movement](human-mouse-movement.md) for the

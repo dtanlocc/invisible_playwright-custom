@@ -9,12 +9,11 @@ nav_order: 8
 
 # Browser trust scores explained: what the number means
 
-Three tools hand you a number and call it something like trust, confidence, or a
-score, and it is easy to read them as points on the same scale. They are not on the
-same scale. They are not even measuring the same thing. A high number from one says
-almost nothing about the number the next one will give you, and treating them as
-interchangeable is the single most common misreading behind "I pass one test and fail
-the next".
+CreepJS trust, FingerprintJS confidence and a reCAPTCHA v3 score all look like the
+same kind of number, and they are not: one counts contradictions, one measures how
+sure a match is, and one estimates behavioural risk. A high number from one says
+almost nothing about what the next one will read, and treating them as interchangeable
+is the single most common misreading behind "I pass one test and fail the next".
 
 This page separates the three numbers people conflate, says what each one is actually
 counting, and shows why passing one implies nothing about the others. Then it shows
@@ -105,7 +104,8 @@ can supply.
 
 ## Why passing one says nothing about the others
 
-Put the three side by side and the independence is obvious:
+The three numbers are independent, so a high score on one predicts nothing about the
+other two. Put them side by side and the independence is obvious:
 
 - You can score high on CreepJS trust and low on reCAPTCHA v3, because a perfectly
   consistent browser with no history is exactly what a consistent bot also looks like.

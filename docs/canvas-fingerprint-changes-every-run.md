@@ -70,7 +70,8 @@ for a stable machine.
 
 Pass a seed explicitly and every field it implies comes back identical: the GPU
 string, the canvas hash, the WebGL hash, the audio context, the fonts, the screen.
-The browser object you get back is a real Playwright `Browser`, so the rest of your
+The browser object you get back is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so the rest of your
 code does not change.
 
 ```python
@@ -122,8 +123,9 @@ pages is that you [assert the presence of the right value rather than the absenc
 wrong one](how-to-test-bot-detection.md), and this is a case where you can measure the
 right value directly.
 
-Draw to a canvas, read it back, and compare the hash across two launches with the same
-seed:
+Draw to a canvas, read it back with
+[`toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL),
+and compare the hash across two launches with the same seed:
 
 ```python
 import hashlib
@@ -224,6 +226,11 @@ durable identity.
   identical visitor ID from run to run, and fails the build otherwise.
 - The [quickstart](quickstart.md) and [configuration](configuration.md) pages in this
   documentation set for the seed argument and the API it belongs to.
+- Playwright's own [`Browser` API reference](https://playwright.dev/python/docs/api/class-browser)
+  for what `new_page` returns: the object every example above drives is the standard
+  Playwright API, not a fork of it.
+- MDN's [`HTMLCanvasElement.toDataURL()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+  reference for the readback method the proof above uses to pull bytes off the canvas.
 
 **See also:** [how to test whether your browser is detected](how-to-test-bot-detection.md)
 for the assert-the-right-value method, and

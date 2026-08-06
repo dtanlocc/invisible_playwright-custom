@@ -1,6 +1,6 @@
 ---
 title: "Can the Gamepad API fingerprint or detect a bot?"
-description: "How the Gamepad API is used as a bot signal, why Firefox returns an empty getGamepads() array until a real gesture, and why matching that stock shape beats any stub."
+description: "How the Gamepad API works as a bot signal, why Firefox returns an empty getGamepads() array until a real gesture, and why matching that shape beats a stub."
 parent: "Browser Identity"
 grand_parent: "Guides"
 nav_order: 31
@@ -50,9 +50,10 @@ caught. It sits in the same family as the other small, OS-backed surfaces covere
 
 ## Why an empty array is the correct answer
 
-The instinct when hardening a browser is to make every surface look busy and populated.
-For the Gamepad API that instinct is wrong, and acting on it is more detectable than
-doing nothing.
+An empty array is the correct answer: it is what a real, unmodified Firefox returns
+whenever no controller is reporting input. The instinct when hardening a browser is
+instead to make every surface look busy and populated; for the Gamepad API that instinct
+is wrong, and acting on it is more detectable than doing nothing.
 
 A real person driving a real Firefox, with no controller in use, produces an empty
 result from `getGamepads()`. That is the overwhelmingly common case: most desktop

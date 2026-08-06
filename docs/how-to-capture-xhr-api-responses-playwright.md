@@ -56,9 +56,9 @@ Everything below attaches to that real `page` object.
 
 ## Capture every response with page.on('response')
 
-The broadest tool is an event listener. `page.on("response", handler)` fires for every
-response the browser receives, including the sub-resource loads, so you filter down to
-the calls you care about.
+The broadest tool is an event listener. [`page.on("response", handler)`](https://playwright.dev/python/docs/network#network-events)
+fires for every response the browser receives, including the sub-resource loads, so you
+filter down to the calls you care about.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -119,9 +119,9 @@ async def main():
 ## Wait for one specific call with page.expect_response
 
 Listening to everything is right when you do not know in advance which call carries the
-data. When you do know, `page.expect_response()` is cleaner: it waits for a matching
-response and hands it straight back, so you can trigger the action and read the result
-in one place.
+data. When you do know, [`page.expect_response()`](https://playwright.dev/python/docs/api/class-page#page-wait-for-response)
+is cleaner: it waits for a matching response and hands it straight back, so you can
+trigger the action and read the result in one place.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -148,10 +148,11 @@ touching a single rendered row.
 
 ## Inspect and rewrite in flight with page.route
 
-`page.on("response")` observes. `page.route()` intercepts, which lets you read a request
-before it is sent, change it, fulfill it yourself, or let it continue. For capture work
-the useful move is reading the request's post body or headers, then calling
-`route.continue_()` so the page behaves exactly as it would have.
+`page.on("response")` observes. [`page.route()`](https://playwright.dev/python/docs/network#handle-requests)
+intercepts, which lets you read a request before it is sent, change it, fulfill it
+yourself, or let it continue. For capture work the useful move is reading the request's
+post body or headers, then calling `route.continue_()` so the page behaves exactly as it
+would have.
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -278,8 +279,12 @@ often and can virtualize away most of the rows you wanted.
 
 ## Sources
 
-- Playwright's documented `Response` and `Route` APIs, exercised through the real
-  `Browser` object this project returns unchanged.
+- Playwright's [`Response`](https://playwright.dev/python/docs/api/class-response) and
+  [`Route`](https://playwright.dev/python/docs/api/class-route) classes, including
+  [`response.json()`](https://playwright.dev/python/docs/api/class-response#response-json)
+  and [`request.post_data`](https://playwright.dev/python/docs/api/class-request#request-post-data),
+  read from Playwright's own documentation rather than a rendered example, and exercised
+  through the real `Browser` object this project returns unchanged.
 - This project's machine-layer model of blocking, and the release gate lesson that a
   suppressed signal is a tell rather than stealth, both linked above.
 

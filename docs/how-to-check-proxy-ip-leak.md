@@ -9,14 +9,16 @@ nav_order: 16
 
 # How to check if a proxy leaks your real IP
 
-Most proxy-leak checks are written as a list of things that must not appear: the real
-LAN address must not show up, no IPv6 candidate, no DNS query outside the tunnel. Every
-one of those assertions is true of a browser that leaks nothing because it does nothing.
+The reliable proxy-leak check confirms the correct WebRTC, IPv6, DNS and timezone values
+are present for the proxy's exit, not that the wrong ones are absent. Most checks do the
+opposite: they are written as a list of things that must not appear - the real LAN
+address must not show up, no IPv6 candidate, no DNS query outside the tunnel - and every
+one of those assertions is also true of a browser that leaks nothing because it does
+nothing.
 
 That is the trap this page is about. A "no leak" result can mean the surface you were
 testing is dead, and a dead surface is a worse tell than a leaky one, because no real
-browser has it. The reliable check confirms the correct values are present, not that the
-wrong ones are absent. Below is what to assert, where to run it, and runnable code.
+browser has it. Below is what to assert, where to run it, and runnable code.
 
 ## The check most people run, and why it can pass a dead browser
 

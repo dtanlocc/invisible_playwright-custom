@@ -38,17 +38,26 @@ different problem with a different owner.
 Open any fingerprinting report through a VPN and read the fields rather than the
 verdict. The address at the top has changed. Nothing below it has:
 
-- **Canvas and WebGL.** The hash of a rendered image and the GPU vendor and renderer
-  strings come from your graphics stack. A tunnel does not touch the graphics stack.
+- **[Canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) and
+  [WebGL](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API).** The hash of a
+  rendered image and the GPU vendor and renderer strings come from your graphics stack.
+  A tunnel does not touch the graphics stack.
 - **Fonts.** The installed-font list is read from the operating system. It still
   describes your real machine, and if that is a server it still describes a server.
-- **User agent and platform.** `navigator.userAgent`, `navigator.platform`,
-  `navigator.oscpu` report the browser you are actually running.
-- **Hardware counters.** `hardwareConcurrency`, `deviceMemory`, the audio device
-  sample rate, the screen dimensions and device pixel ratio all come from the box the
-  browser runs on.
-- **Timezone.** `Intl.DateTimeFormat().resolvedOptions().timeZone` reads your system
-  clock's zone, which is set by your operating system, not by your exit.
+- **User agent and platform.**
+  [`navigator.userAgent`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/userAgent),
+  [`navigator.platform`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform),
+  [`navigator.oscpu`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/oscpu)
+  report the browser you are actually running.
+- **Hardware counters.**
+  [`hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency),
+  [`deviceMemory`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory),
+  the audio device sample rate, the screen dimensions and device pixel ratio all come
+  from the box the browser runs on.
+- **Timezone.**
+  [`Intl.DateTimeFormat().resolvedOptions().timeZone`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
+  reads your system clock's zone, which is set by your operating system, not by your
+  exit.
 
 A commercial system hashes many of these together into a stable identifier. That
 identifier is stable *across* IP changes by design, which means switching VPN exits
@@ -67,12 +76,14 @@ tells one consistent story. A VPN with an unaligned clock tells two, and disagre
 between values that should agree is precisely
 [what timezone-versus-proxy checks look for](timezone-proxy-mismatch.md).
 
-**The address that leaks past the tunnel.** WebRTC can enumerate network candidates
-directly and, depending on configuration, surface an address the VPN was supposed to
-hide, printed right next to the exit. That is the strongest possible contradiction:
-the browser volunteering the very thing the tunnel exists to conceal. It also fails
-the other way, returning nothing at all, which is itself a signal that something is
-suppressing the API. Getting these to agree is a surface of its own, covered in
+**The address that leaks past the tunnel.**
+[WebRTC](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API) can enumerate
+network candidates directly and, depending on configuration, surface an address the
+VPN was supposed to hide, printed right next to the exit. That is the strongest
+possible contradiction: the browser volunteering the very thing the tunnel exists to
+conceal. It also fails the other way, returning nothing at all, which is itself a
+signal that something is suppressing the API. Getting these to agree is a surface of
+its own, covered in
 [making the WebRTC address match the exit](webrtc-ip-match-proxy-exit.md).
 
 **The reputation the exit already carries.** A shared VPN endpoint has been used by
@@ -217,6 +228,18 @@ the clean IP.
 - The public fingerprinting suites - CreepJS, BotD, FingerprintJS, sannysoft and
   BrowserLeaks - read field by field before and after a VPN, which is where the
   "one field changed, the rest did not" observation comes from.
+- [MDN: `Navigator.userAgent`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/userAgent),
+  [`Navigator.platform`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform)
+  and [`Navigator.oscpu`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/oscpu),
+  the browser-reported properties a VPN cannot rewrite.
+- [MDN: `Navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency),
+  [`Navigator.deviceMemory`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory)
+  and [`Intl.DateTimeFormat`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat),
+  the hardware and clock surfaces read straight from the host.
+- [MDN: the Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API),
+  [the WebGL API](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API) and
+  [the WebRTC API](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API), the
+  graphics and networking surfaces a tunnel does not reach.
 
 **See also:** [when the timezone does not match the proxy](timezone-proxy-mismatch.md)
 for the contradiction a VPN introduces, and

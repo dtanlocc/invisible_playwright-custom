@@ -23,8 +23,9 @@ profile if you decide to.
 
 ## The three ways a page finds an extension
 
-**Web-accessible resources.** An extension that exposes files to pages does so at a URL
-containing its own identifier. Fetch that URL and see whether it loads.
+**[Web-accessible resources](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/web_accessible_resources).**
+An extension that exposes files to pages does so at a URL containing its own
+identifier. Fetch that URL and see whether it loads.
 
 ```js
 fetch('moz-extension://<id>/<file>')       // resolves only if that extension is here

@@ -62,10 +62,12 @@ before you have touched the proxy at all.
 Of those four, exactly one is fully inside the browser's gift: fingerprint coherence.
 
 Stock Playwright driving stock Firefox or Chromium leaks a scattering of small
-disagreements. Some are automation tells like `navigator.webdriver`. More are consistency
-gaps: a headless context with no real GPU, a screen size no display has, a codec list or
-font set that does not match the claimed platform. Each is a small addition to the score,
-and together they are the fingerprint contribution.
+disagreements. Some are automation tells like
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver), a
+standard property that reports true whenever the user agent is under automation control. More
+are consistency gaps: a headless context with no real GPU, a screen size no display has, a codec
+list or font set that does not match the claimed platform. Each is a small addition to the
+score, and together they are the fingerprint contribution.
 
 You can see this contribution directly rather than taking it on faith. Open the same
 detector page in your automated browser and in a stock browser on the same machine, and
@@ -86,7 +88,8 @@ screen and roughly 400 fields are derived together from a single seed, so they a
 each other and with a genuine desktop Firefox rather than contradicting one another.
 
 Switching from plain Playwright is two lines, and every Playwright method works unchanged
-because the returned object is a real Playwright `Browser`:
+because the returned object is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser):
 
 ```python
 from invisible_playwright import InvisiblePlaywright

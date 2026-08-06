@@ -27,14 +27,19 @@ both, and the second fix is where the browser you use actually matters.
 
 ## Why bulk image scraping breaks twice
 
-The two failures are worth separating because they have different fixes and people
-usually only notice the first one.
+Bulk image scraping breaks for two unrelated reasons: the DOM's `src` is often still a
+placeholder because the real image is waiting on lazy-loading, and even the correct
+URL can be refused when it is fetched outside the browser session that hotlink
+protection expects. The two failures are worth separating because they have different
+fixes and people usually only notice the first one.
 
 **Lazy loading.** Modern galleries ship a placeholder in `src` and put the real
-candidates in `srcset` (a comma-separated list of URL plus width or density descriptors)
-or in a framework attribute like `data-src`. Until a scroll or an intersection observer
-fires, `img.currentSrc` is empty or points at a 1x1 pixel. Read `src` naively and you
-download hundreds of identical placeholders. If your galleries defer through `data-src`,
+candidates in [`srcset`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img)
+(a comma-separated list of URL plus width or density descriptors) or in a framework
+attribute like `data-src`. Until a scroll or an intersection observer fires,
+[`img.currentSrc`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/currentSrc)
+is empty or points at a 1x1 pixel. Read `src` naively and you download hundreds of
+identical placeholders. If your galleries defer through `data-src`,
 [reading that attribute directly off the DOM](how-to-scrape-lazy-loaded-images-playwright.md)
 is often lighter than scroll-forcing every image.
 
@@ -157,11 +162,11 @@ debuggable instead of a coin flip.
 
 ## Throttle the fetches so the burst is not its own signal
 
-Here is the honest caveat. Getting the fingerprint right on each request does not buy you
-the right to fire two hundred of them in a second. A page load followed by a sudden burst
-of same-origin asset requests, evenly spaced to the millisecond and more than any human
-gallery view would generate, is a behavioural signal on its own, independent of how good
-each individual request looks. It is the same class of tell as
+Getting the fingerprint right on each request does not license firing two hundred of them
+in a second: a page load followed by a sudden burst of same-origin asset requests, evenly
+spaced to the millisecond and denser than any human gallery view would generate, is a
+behavioural signal on its own, independent of how good each individual request looks. It
+is the same class of tell as
 [a suppressed or contradictory fingerprint surface](how-to-test-bot-detection.md): the
 individual values are fine and the pattern is not.
 
@@ -262,6 +267,12 @@ paging through the gallery.
 - Playwright's official [`APIRequestContext` documentation](https://playwright.dev/python/docs/api/class-apirequestcontext):
   `page.request` uses the same cookie jar as its browser context, and `response.body()`
   returns the raw response bytes.
+- MDN's [`srcset` reference](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img):
+  a comma-separated list of image URLs each with an optional width or pixel-density
+  descriptor, which the browser resolves to pick the delivered candidate.
+- MDN's [`HTMLImageElement.currentSrc`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/currentSrc)
+  documentation: it reflects the URL the browser actually selected from `srcset`, and is
+  unrelated to whether that image has finished loading.
 - This project's own gates on writing uploaded and downloaded content as bytes rather than
   text, so binary image data is never re-encoded on the way to disk.
 - The same-session versus separate-client comparison described above, run against

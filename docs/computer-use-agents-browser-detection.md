@@ -21,13 +21,15 @@ invisible_playwright helps and where you still have to do the work yourself.
 
 ## Why the driver flags stop mattering
 
-Most bot-detection advice is about the automation layer: `navigator.webdriver`,
-leftover automation globals, DOM mutations that only a driver produces, an untrusted
-event dispatched from code rather than from hardware. Those signals exist because a
-selector-driven script reaches into the page and touches elements directly.
+A CUA never triggers the DOM-automation flags sites check for, because its click is a
+coordinate delivered through the input pipeline the same way a real click is, not a
+script reaching into the page. Most bot-detection advice targets that automation layer
+anyway: `navigator.webdriver`, leftover automation globals, DOM mutations that only a
+driver produces, an untrusted event dispatched from code rather than from hardware.
+Those signals exist because a selector-driven script reaches into the page and touches
+elements directly.
 
-A CUA does not do that. Its click is a coordinate, delivered through the input pipeline
-the same way a real click is. It never calls `querySelector`, never sets an element's
+A CUA does not do that. It never calls `querySelector`, never sets an element's
 value from script, never dispatches a synthetic event at a node it located by selector.
 So the whole family of DOM-automation tells is [mostly not the thing that catches
 it](navigator-webdriver-explained.md) - not because the agent hides them, but because
@@ -71,11 +73,12 @@ with InvisiblePlaywright(seed=42) as browser:
     png = page.screenshot()          # next frame
 ```
 
-`browser` here is a real Playwright `Browser`, so `page.screenshot()` and
-`page.mouse.click()` are the ordinary documented methods - the same ones a
-coordinate-clicking agent already calls. There is no special CUA API to adopt. You feed
-the screenshot to whatever model you use and feed its coordinate back to
-`page.mouse.click`.
+`browser` here is a real Playwright `Browser`, so
+[`page.screenshot()`](https://playwright.dev/python/docs/api/class-page#page-screenshot)
+and [`page.mouse.click()`](https://playwright.dev/python/docs/api/class-mouse#mouse-click)
+are the ordinary documented methods - the same ones a coordinate-clicking agent already
+calls. There is no special CUA API to adopt. You feed the screenshot to whatever model
+you use and feed its coordinate back to `page.mouse.click`.
 
 ## What stays checkable: the action rhythm
 

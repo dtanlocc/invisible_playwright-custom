@@ -33,12 +33,12 @@ The canonical Playwright snippet is:
 pdf_bytes = page.pdf(format="A4")
 ```
 
-`page.pdf()` is a Chromium-only method. Playwright exposes it on the page object for every
-engine, but the implementation is backed by Chromium's headless print-to-PDF path, and on
-a Firefox or WebKit page the call fails immediately with an error saying PDF generation is
-supported only in headless Chromium. There is no option flag, no `channel`, and no stealth
-setting that changes that, because nothing about stealth is involved. The method simply has
-no Firefox implementation behind it.
+[`page.pdf()`](https://playwright.dev/python/docs/api/class-page#page-pdf) is a Chromium-only
+method. Playwright exposes it on the page object for every engine, but the implementation is
+backed by Chromium's headless print-to-PDF path, and on a Firefox or WebKit page the call
+fails immediately with an error saying PDF generation is supported only in headless Chromium.
+There is no option flag, no `channel`, and no stealth setting that changes that, because
+nothing about stealth is involved. The method simply has no Firefox implementation behind it.
 
 This engine is a patched Firefox driven by stock Playwright, so the honest answer is: the
 call is unavailable, full stop. Pretending otherwise - shelling out to a hidden Chromium
@@ -47,10 +47,11 @@ engine.
 
 ## Why page.pdf() is Chromium-only, and what "unavailable" really means
 
-This is the same distinction the engine comparison turns on. `navigator.userAgent` is a
-string, so you can set it to anything. PDF generation is not a string. It is a rendering
-pipeline that has to exist in the browser's compiled code, and Chromium ships one wired to
-the automation protocol while Firefox does not expose an equivalent to Playwright.
+`page.pdf()` is Chromium-only because PDF export is a compiled rendering pipeline, not a
+value the page exposes that a script can rewrite. `navigator.userAgent` is a string, so you
+can set it to anything; PDF generation is not a string - it is a pipeline that has to exist
+in the browser's compiled code, and Chromium ships one wired to the automation protocol
+while Firefox does not expose an equivalent to Playwright.
 
 > A missing feature is missing machine code, not a property you can override. You can lie
 > about what the browser *is*; you cannot conjure a *capability* it does not carry.
@@ -80,8 +81,9 @@ with InvisiblePlaywright(seed=42) as browser:
     page.screenshot(path="page.png", full_page=True)
 ```
 
-`page.screenshot(full_page=True)` is standard Playwright and works on every engine, because
-it reads the rendered surface rather than driving a print pipeline. It returns the whole
+[`page.screenshot(full_page=True)`](https://playwright.dev/python/docs/api/class-page#page-screenshot)
+is standard Playwright and works on every engine, because it reads the rendered surface
+rather than driving a print pipeline. It returns the whole
 scroll height, not just the viewport. Then wrap the image in a PDF with any small image
 library:
 
@@ -101,9 +103,10 @@ For a great many "save the page as a PDF" tasks that is exactly what was wanted 
 Firefox does have a print-to-PDF backend - it is what a human gets from the print dialog's
 "Save to PDF" destination. You reach it two ways, neither of which is `page.pdf()`.
 
-The first keeps the automation session. Capture the DOM you already have with `page.content()`
-and hand it to a standalone HTML-to-PDF renderer, which lays the markup out into real,
-selectable text:
+The first keeps the automation session. Capture the DOM you already have with
+[`page.content()`](https://playwright.dev/python/docs/api/class-page#page-content) and hand
+it to a standalone HTML-to-PDF renderer, which lays the markup out into real, selectable
+text:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -200,8 +203,10 @@ same pixels, so two captures differ only where the site itself changed.
 
 ## Sources
 
-- Playwright's page API, on `page.pdf()` being supported only in headless Chromium and on
-  `page.screenshot(full_page=True)` and `page.content()` working across engines.
+- Playwright's [`page.pdf()`](https://playwright.dev/python/docs/api/class-page#page-pdf),
+  [`page.screenshot()`](https://playwright.dev/python/docs/api/class-page#page-screenshot) and
+  [`page.content()`](https://playwright.dev/python/docs/api/class-page#page-content) API
+  reference, read from Playwright's own documentation rather than a rendered example.
 - This project's own capture path and its closed full-frame-noise readback bug, linked above.
 - A direct call of `page.pdf()` on a Firefox page in this build, which raises at the call
   site rather than returning bytes.

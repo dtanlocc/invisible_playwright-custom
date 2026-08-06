@@ -247,9 +247,9 @@ scraping link text from the page.
 
 ## Sources
 
-- The Playwright download API (`page.expect_download`, `Download.save_as`,
-  `suggested_filename`, `url`, `path`), which runs unchanged on the real Browser
-  the wrapper returns.
+- [The Playwright download API](https://playwright.dev/python/docs/downloads)
+  (`page.expect_download`, `Download.save_as`, `suggested_filename`, `url`,
+  `path`), which runs unchanged on the real Browser the wrapper returns.
 - This project's proxy behaviour: SOCKS5, HTTP and HTTPS schemes with DNS routed
   through the proxy by default, documented in [Configuration](configuration.md).
 

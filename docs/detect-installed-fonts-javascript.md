@@ -64,19 +64,22 @@ different things and a browser can answer one well and the other badly.
 A `measureText` hash reads the exact sub-pixel width of one string in one font
 and treats the fractional part as entropy. It does not care whether a font is
 present; it cares that the same font renders to a slightly different width on
-two machines because of the rasterizer behind it. The width-comparison probe on
-this page throws that precision away. It only asks a yes-or-no question: did the
-width move at all. A font that renders one pixel wider than the fallback is just
-as "present" as one that renders forty pixels wider.
+two machines because of the rasterizer behind it.
+
+The width-comparison probe on this page throws that precision away. It only
+asks a yes-or-no question: did the width move at all. A font that renders one
+pixel wider than the fallback is just as "present" as one that renders forty
+pixels wider.
 
 That distinction matters for a disguise. Hiding from the hash means making the
 fractional width deterministic and detached from the host rasterizer, which is
 [what a bounded per-run offset on the text-shaping path does](measuretext-textmetrics-fingerprinting.md).
 Hiding from the presence probe means controlling which families resolve at all,
-which is a font-set problem, not a metrics problem. Get the first right and the
-second wrong and you have a clean width hash sitting on top of a font list that
-screams "Linux server". The two have to be solved together, and this is one
-reason [headless browsers render a different set of fonts than a desktop](headless-fonts-differ.md).
+which is a font-set problem, not a metrics problem.
+
+Get the first right and the second wrong and you have a clean width hash sitting
+on top of a font list that screams "Linux server". The two have to be solved
+together, and this is one reason [headless browsers render a different set of fonts than a desktop](headless-fonts-differ.md).
 
 ## What the probe reads on a bare headless browser
 
@@ -87,10 +90,11 @@ A default Linux container answers "present" for DejaVu, Liberation and a handful
 of Noto families, and "absent" for every family a Windows desktop ships: no
 Segoe UI, no Calibri, no Cambria, no Consolas. The probe does not need to know
 those names to score you. It runs its whole list, gets a vector that matches no
-consumer operating system, and that mismatch is the signal. Claiming Windows in
-the user agent while the font vector is a Linux base image is a one-line
-contradiction, and it is exactly the kind of internal disagreement that
-[a browser that inspects consistency rather than values](how-to-test-bot-detection.md)
+consumer operating system, and that mismatch is the signal.
+
+Claiming Windows in the user agent while the font vector is a Linux base image
+is a one-line contradiction, and it is exactly the kind of internal disagreement
+that [a browser that inspects consistency rather than values](how-to-test-bot-detection.md)
 records as a lie.
 
 The same probe list produces a different vector in each of these three cases:
@@ -173,13 +177,15 @@ The width half is where a naive bundle would still leak. If the widths came
 straight from the platform rasterizer, the same bundled font would measure a
 little differently under DirectWrite on Windows than under FreeType on Linux, and
 the fractional widths would sort the machines back into OS buckets even with an
-identical font set. Instead the width for a run gets one bounded sub-pixel
-offset, applied once to the last glyph of the run and derived from the session
-seed, rather than from the host text engine. It is length-independent, so it does
-not grow with the string, and it is deterministic, so the same seed gives the
-same width every time. The result is that the width-comparison probe, and the
-finer width-hash probe layered on it, both answer from the seed rather than from
-the operating system.
+identical font set.
+
+Instead the width for a run gets one bounded sub-pixel offset, applied once to
+the last glyph of the run and derived from the session seed, rather than from
+the host text engine. It is length-independent, so it does not grow with the
+string, and it is deterministic, so the same seed gives the same width every
+time. The result is that the width-comparison probe, and the finer width-hash
+probe layered on it, both answer from the seed rather than from the operating
+system.
 
 You can watch that directly: run the block above with `seed=42` on two different
 machines and the present/absent split and the measured widths match. Change the

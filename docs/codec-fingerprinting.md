@@ -20,7 +20,10 @@ what makes it worth a page.
 
 ## What the two APIs actually return
 
-The old one is deliberately vague:
+Two APIs answer the "what can you play" question, from two different eras of the
+platform: the old `canPlayType()` returns a vague string, the modern
+`mediaCapabilities.decodingInfo()` returns a structured verdict including whether
+decoding is power efficient. The old one is deliberately vague:
 
 ```js
 const v = document.createElement('video');

@@ -88,7 +88,9 @@ browser. That is the difference between browser cost per deployment and browser 
 request.
 
 Here is a minimal worker that launches once and reuses the browser across a list of jobs.
-The `browser` returned is a real Playwright `Browser`, so every method is the stock API:
+The `browser` returned is a real Playwright
+[`Browser`](https://playwright.dev/python/docs/api/class-browser), so every method is the
+stock API:
 
 ```python
 from invisible_playwright import InvisiblePlaywright
@@ -125,14 +127,12 @@ RUN python -m invisible_playwright fetch
 
 ## What the stealth actually does for you here, and what it does not
 
-Worth being precise, because "serverless" and "undetected" get searched together and they
-are different problems.
-
 invisible_playwright is designed to look like a real browser driven by a real person, and
 that is why it passes most detection checks: the fingerprint, the TLS handshake and the
 driver layer read as a genuine Firefox rather than as automation. That property is the
-same whether the browser runs in a function, a container, or a VM. Where it runs does not
-change what it looks like.
+same whether the browser runs in a function, a container, or a VM - where it runs does not
+change what it looks like, which matters here because "serverless" and "undetected" get
+searched together and are different problems.
 
 What it does not do, on its own and in any environment:
 
@@ -194,6 +194,8 @@ block so the browser is reused for the life of the process.
   pages, for the measured engine download and unpacked sizes and the cache and binary-path
   environment variables.
 - The container walkthroughs in this set, linked above, for the build-time unpack pattern.
+- Playwright's own [`Browser` class reference](https://playwright.dev/python/docs/api/class-browser),
+  for the stock API this wrapper hands back unchanged.
 - General serverless platform limits on package size, memory and execution time, which are
   documented per platform and are what the browser weight runs into.
 

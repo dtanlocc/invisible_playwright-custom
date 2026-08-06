@@ -118,7 +118,8 @@ target platform is checking a different, easier question.
 ## What this validates, and what it costs
 
 Validated cross-platform: Windows and Linux expose the identical family set from the
-bundle, zero host fonts leaking through on either, generic CSS families (serif, sans,
+bundle, zero host fonts leaking through on either,
+[generic CSS families](https://www.w3.org/TR/css-fonts-4/) (serif, sans,
 monospace, and the per-script CJK generics) resolving to the same bundled fonts rather
 than collapsing to whatever the host happens to have. The same check on macOS runs in
 CI rather than locally, for the ordinary reason that not every setup has a Mac to test
@@ -135,9 +136,9 @@ might add later. Both are the price of an answer that has no per-platform seams 
 Consistent with treating a suppressed signal as a fail rather than a pass, the honest
 gaps in this approach, found and not yet closed:
 
-- One backend's CSS-`local()` font lookup path isn't wired to the bundle-only mode at
-  all, so a page asking for a font by exact name through that specific CSS feature
-  fails to resolve where a real installation would have. A resolved lookup versus a
+- One backend's [CSS `local()`](https://www.w3.org/TR/css-fonts-4/) font lookup path
+  isn't wired to the bundle-only mode at all, so a page asking for a font by exact name
+  through that specific CSS feature fails to resolve where a real installation would have. A resolved lookup versus a
   failed one is itself a detail a determined check could compare.
 - One backend's fallback for a character outside the bundle's family set reaches
   straight for the real host catalogue rather than staying inside the bundle, so an
@@ -233,6 +234,8 @@ different hardware.
   macOS in CI) and the four open gaps listed above.
 - Firefox's own bundled-fonts build mechanism, which this architecture builds on
   rather than replaces.
+- [CSS Fonts Module Level 4](https://www.w3.org/TR/css-fonts-4/) (W3C), for the generic
+  font family keywords and the `local()` src descriptor referenced above.
 
 ---
 

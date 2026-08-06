@@ -10,7 +10,8 @@ nav_order: 8
 
 **Avoiding bot detection in Playwright means fixing the right layer before you launch
 a session, not patching properties after a site has already blocked you.** Detection
-is decided at a layer most stealth work never reaches. Patching `navigator.webdriver`
+is decided at a layer most stealth work never reaches. Patching
+[`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
 and its neighbours is real, it is worth doing, and it is also the cheapest thing a
 detector checks. The durable tells are not values you can redefine from a page
 script. They are outputs a real machine produces and a script cannot: what the
@@ -101,6 +102,8 @@ run yourself against whatever Playwright launches today.
 
 Playwright's managed Chromium, as of the 1.57 default, ships Chrome's codecs. It
 does not ship Chrome's DRM module. Ask a live page to negotiate a protected session
+through the [Encrypted Media Extensions
+API](https://developer.mozilla.org/en-US/docs/Web/API/Encrypted_Media_Extensions_API)
 and read the answer directly:
 
 ```python
@@ -240,6 +243,11 @@ the disagreement is its own signal.
 
 ## Sources
 
+- [`navigator.webdriver`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver),
+  the specified property behind the level-1 patch above.
+- [The Encrypted Media Extensions
+  API](https://developer.mozilla.org/en-US/docs/Web/API/Encrypted_Media_Extensions_API),
+  for the `requestMediaKeySystemAccess` capability check above.
 - [Three ways to make Playwright undetected](playwright-stealth-levels.md) and
   [why navigator.webdriver is not the tell people think it is](navigator-webdriver-explained.md),
   for the level-1 mechanics above.

@@ -96,8 +96,9 @@ change, and until it exists there is no supported route.
 ## The workaround that works today, with its cost
 
 Playwright resolves its managed browsers from a directory, and that directory is
-configurable through `PLAYWRIGHT_BROWSERS_PATH`. Put a build where Playwright expects to
-find one, and `p.firefox.launch()` uses it, with no crawl4ai change at all.
+configurable through [`PLAYWRIGHT_BROWSERS_PATH`](https://playwright.dev/docs/browsers#managing-browser-binaries).
+Put a build where Playwright expects to find one, and `p.firefox.launch()` uses it, with
+no crawl4ai change at all.
 
 Be clear-eyed about what that is:
 
@@ -181,7 +182,9 @@ seam looks like, and
   2026-07-27.
 - crawl4ai's own documentation for stealth mode and the undetected browser adapter,
   including its statement that the underlying evasion modules do not support Firefox.
-- Playwright's `PLAYWRIGHT_BROWSERS_PATH` behaviour, for the workaround.
+- Playwright's own [browser-management
+  documentation](https://playwright.dev/docs/browsers#managing-browser-binaries), for
+  the `PLAYWRIGHT_BROWSERS_PATH` behaviour the workaround depends on.
 
 ---
 

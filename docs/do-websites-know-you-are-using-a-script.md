@@ -135,10 +135,10 @@ layer ends up flagged for a metronomic click.
 
 ## How to confirm it on your own setup
 
-Do not take the paragraph above on faith. Open a page that reads these values in both
-invisible_playwright and a stock browser on the same machine, and compare the fields.
-Read `navigator.webdriver`. Attach a listener and read `event.isTrusted` on a real
-click versus a scripted one. The [method for testing this without fooling yourself with
+Do not take a vendor's word for any of this, including ours. Open a page that reads
+these values in both invisible_playwright and a stock browser on the same machine, and
+compare the fields. Read `navigator.webdriver`. Attach a listener and read
+`event.isTrusted` on a real click versus a scripted one. The [method for testing this without fooling yourself with
 a green verdict is its own page](how-to-test-bot-detection.md), and the short version is:
 assert the signal you expect is present, do not just confirm a bad one is absent.
 
@@ -195,9 +195,10 @@ about permission to automate.
 
 ## Sources
 
-- The WebDriver and BiDi specifications for the `navigator.webdriver` requirement and the
-  remote-protocol surface, and the DOM standard for the `isTrusted` event flag, each read
-  from its own text rather than from a summary.
+- The [WebDriver specification](https://www.w3.org/TR/webdriver2/#interface) for the
+  `navigator.webdriver` requirement, the [WebDriver BiDi specification](https://www.w3.org/TR/webdriver-bidi/)
+  for the remote-protocol surface, and the [DOM standard](https://dom.spec.whatwg.org/#dom-event-istrusted)
+  for the `isTrusted` event flag, each read from its own text rather than from a summary.
 - This project's own input path and protocol behaviour, and its release gates, from which
   the trusted-event and driver-tell claims above are measured rather than asserted.
 
