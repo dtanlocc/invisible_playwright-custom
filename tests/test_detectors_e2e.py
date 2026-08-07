@@ -119,8 +119,12 @@ class _DetectorSite:
                 elif p == "/creepjs":
                     body, ctype = creep_page, "text/html; charset=utf-8"
                 else:
-                    f = vendor / Path(p.lstrip("/")).name
-                    if not f.is_file():
+                    name = Path(p.lstrip("/")).name
+                    f = (vendor / name).resolve()
+                    # `.name` already drops any directory part; the containment
+                    # check makes it explicit that the path can never escape the
+                    # vendor directory, whatever the request asks for.
+                    if not (f.is_file() and f.is_relative_to(vendor.resolve())):
                         self.send_error(404); return
                     body = f.read_bytes()
                     ctype = "text/javascript; charset=utf-8"

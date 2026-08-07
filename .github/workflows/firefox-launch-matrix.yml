@@ -22,6 +22,12 @@ on:
     paths:
       - '.github/workflows/firefox-launch-matrix.yml'
 
+# Least privilege: this smoke matrix only checks out the repo and launches
+# firefox.exe, so it needs nothing but read access to the contents. Without an
+# explicit block the token would default to the repo's broader permissions.
+permissions:
+  contents: read
+
 jobs:
   # `pip install .` below resolves `invisible-core==N.M.0` from the package
   # index, and the core is published BEFORE this package. This gate answers
