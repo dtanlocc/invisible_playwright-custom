@@ -109,7 +109,10 @@ class _DetectorSite:
     def __init__(self):
         page = _PAGE.encode()
         creep_page = _CREEP_PAGE.encode()
-        vendor = _VENDOR
+        # Preload the vendored bundle by exact filename. Serving from this map
+        # means a request never builds a filesystem path from its own input, so
+        # there is no path a crafted request could traverse.
+        files = {q.name: q.read_bytes() for q in _VENDOR.iterdir() if q.is_file()}
 
         class H(http.server.BaseHTTPRequestHandler):
             def do_GET(self):  # noqa: N802
@@ -119,14 +122,9 @@ class _DetectorSite:
                 elif p == "/creepjs":
                     body, ctype = creep_page, "text/html; charset=utf-8"
                 else:
-                    name = Path(p.lstrip("/")).name
-                    f = (vendor / name).resolve()
-                    # `.name` already drops any directory part; the containment
-                    # check makes it explicit that the path can never escape the
-                    # vendor directory, whatever the request asks for.
-                    if not (f.is_file() and f.is_relative_to(vendor.resolve())):
+                    body = files.get(Path(p.lstrip("/")).name)
+                    if body is None:
                         self.send_error(404); return
-                    body = f.read_bytes()
                     ctype = "text/javascript; charset=utf-8"
                 self.send_response(200)
                 self.send_header("Content-Type", ctype)
