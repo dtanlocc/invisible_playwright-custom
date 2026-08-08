@@ -32,7 +32,7 @@ with InvisiblePlaywright(
 
 Pinning a field skips the sampler only for that field - every other field still draws from its own conditional distribution, using the parent's original posterior rather than the value you just pinned. A pinned value does not pull correlated fields along with it.
 
-The generator is a Bayesian network: every field has a probability distribution **conditioned on its parents**. For example `gpu_class_tier` conditions `screen.tier`, `hardware.concurrency` and `webgl.msaa_samples`. A high-end GPU will tend to pair with a 2560x1440+ screen and 16+ cores.
+The generator is a Bayesian network: every field has a probability distribution **conditioned on its parents**. For example `gpu_class_tier` conditions `screen.tier` and `webgl.msaa_samples`. It does NOT condition `hardware.concurrency`: that one is a root, sampled from the real Windows marginal (`Node("hw_concurrency", parents=[])`), because core count is an OS-level fact rather than a GPU-conditioned one. A high-end GPU will tend to pair with a 2560x1440+ screen; the core count is drawn independently.
 
 When you pin a field:
 
@@ -57,7 +57,7 @@ Keys are dotted paths. All values are optional - omitted keys fall back to the s
 
 **Why `class_tier` is pinnable separately from `renderer`.** They live at different levels of abstraction:
 
-- `class_tier` is a **coarse handle** over the whole Bayesian graph. It gates the distribution of `screen`, `hardware.concurrency`, `webgl.msaa_samples`, and [storage quota](hardware-concurrency-device-memory.md). Pin `{"gpu.class_tier": "low_end"}` and the sampler returns a *coherent* low-end machine - small screen, 2-4 cores, 4x MSAA - without you having to specify each field.
+- `class_tier` is a **coarse handle** over the whole Bayesian graph. It gates the distribution of `screen`, `webgl.msaa_samples`, and [storage quota](hardware-concurrency-device-memory.md). Pin `{"gpu.class_tier": "low_end"}` and the sampler returns a *coherent* low-end machine - small screen, 4x MSAA - without you having to specify each field.
 - `renderer` is an **exact string** that lands verbatim in WebGL's `UNMASKED_RENDERER_WEBGL`. Useful when you want to imitate a specific GPU the target site has seen before. Does **not** condition other fields - if you pin `renderer` to an RTX 4090 but leave `class_tier` unpinned, `class_tier` is re-sampled from scratch and might disagree with the renderer string (see [How sampling + pinning interact](#how-sampling--pinning-interact)).
 
 In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`+`class_tier` together if they want full control.
@@ -72,6 +72,7 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 | `screen.avail_height` | int | `1400` |
 | `screen.dpr` | float | `1.0`, `1.25`, `1.5`, `2.0` |
 | `screen.tier` | str | `"1080p"`, `"1440p"`, `"4k"`, ... |
+| `screen.color_depth` | int | `24` | `screen.colorDepth` and `screen.pixelDepth`. Declared rather than read off the panel: the engine only returned a fixed 24 when resistFingerprinting was on, which we do not turn on because it is itself a tell, so before this it reported the real display - 30 on a wide-gamut monitor, and a persona claiming an office laptop with a 30-bit panel is a contradiction a page can read. |
 
 ### `hardware.*`
 
@@ -79,6 +80,7 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 |-----|------|---------|-------|
 | `hardware.concurrency` | int | `16` | [`navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/hardwareConcurrency). |
 | `hardware.storage_quota_mb` | int | `10_000` | `navigator.storage.estimate().quota / 1024**2`. |
+| `hardware.max_touch_points` | int | `0` | `navigator.maxTouchPoints`. `0` is what a desktop without a touchscreen reports, which is what the personas claim; it was a constant compiled into the binary until 2026-08-08, correct but not inspectable and not overridable. |
 
 ### `audio.*`
 
@@ -104,6 +106,33 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 |-----|------|---------|-------|
 | `webgl.msaa_samples` | int | `4`, `8`, `16` | `MAX_SAMPLES` WebGL parameter. Conditioned on `gpu.class_tier` when sampled. |
 
+### `font.*`
+
+The Windows **system-font surface**: what a page reads from `font: menu` and the
+other CSS system-font keywords, plus the default monospace size. Not the font
+*list* - see the note about `fonts` below, which is a different thing that went
+away for a different reason.
+
+Unlike every other group here, these are **not sampled**. Every Windows machine
+answers Segoe UI at 12px, so varying them per profile would manufacture a
+diversity that does not exist in the population being imitated - the variation
+would be the signal. They are pinnable for A/B work, not for realism.
+
+| Key | Type | Example | Notes |
+|-----|------|---------|-------|
+| `font.ui_family` | str | `"Segoe UI"` | Family behind `font: menu`, `font: caption`, and the `-moz-` widget fonts. |
+| `font.ui_size` | str | `"12"` | **A string, not an int.** Gecko reads this pref through `Preferences::GetFloat`, which parses the value from its text form; an int is not rejected, it is ignored, and the UI silently falls back to 16px. |
+| `font.monospace_size` | int | `13` | Default monospace size. Firefox ships 13 on Windows and 12 in its Unix block, and the gap is directly readable as the width of the `monospace` generic at the default size. |
+| `font.alpha_ladder` | tuple of int | `(0, 18, 35, ..., 255)` | The distinct alpha levels a Windows rasteriser leaves on an antialiased glyph edge, ascending, first `0` and last `255` so a fully transparent or fully opaque pixel never moves. Canvas readback snaps onto these. An empty tuple disables the snap, which is what you want when measuring what the unsnapped edge looks like. |
+| `font.manifest` | str | *(the bundled manifest)* | The whole font manifest the engine parses: families, per-face vertical metrics, the alias table, the coverage ladder and the per-script fallback lists. Pin it to hand the engine a different font surface without rebuilding it. An empty string tells the engine to use the copy in its own directory. |
+| `font.cleartype_gamma` | int | `2200` | DirectWrite's text gamma, x1000. One of six values the engine used to read from `IDWriteRenderingParams`, i.e. from the machine's own ClearType settings, which differ per monitor and per user. |
+| `font.cleartype_contrast` | int | `100` | Enhanced contrast level, x100. |
+| `font.cleartype_level` | int | `100` | ClearType level, x100. |
+| `font.cleartype_pixel_structure` | int | `1` | Subpixel geometry: 0 flat, 1 RGB, 2 BGR. |
+| `font.cleartype_rendering_mode` | int | `5` | DirectWrite rendering mode. |
+| `font.freetype_gamma` | int | `220` | The FreeType equivalent of `cleartype_gamma`, x100. Declared so the Linux build rasterises with Windows' curve instead of Skia's linear default. |
+| `font.freetype_contrast` | int | `100` | The FreeType equivalent of `cleartype_contrast`, x100. |
+
 ### Top-level
 
 | Key | Type | Example | Notes |
@@ -116,7 +145,7 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 **`fonts` is not one of them, and no longer exists as an axis.** This table used
 to list a per-profile font allowlist ("the sampler usually picks 14-24 system
 fonts"). Passing it raises. The engine stopped varying fonts per profile when it
-moved to a bundled font list: the exposed set is now the same 72 families on
+moved to a bundled font list: the exposed set is now the same 68 families on
 every install and every OS, built from files the browser carries rather than
 enumerated from the host, and the release gate asserts they are identical across
 all five build legs with zero host fonts leaking. Varying it per profile would
