@@ -1,5 +1,5 @@
 ---
-title: "Playwright SOCKS5 proxy with authentication"
+title: "Playwright proxy not working? SOCKS5 auth in Python"
 description: "Playwright documents SOCKS5 proxy credentials for HTTP proxies only. Why a username and password on a socks5:// server fails silently, and the routes that work."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 4
 ---
 
 
-# Playwright SOCKS5 proxy with authentication
+# Playwright proxy not working? SOCKS5 auth in Python
 
 The short answer is that Playwright's `proxy` option takes a `socks5://` server and a
 username and password, and the credentials are documented for HTTP proxies only. Most

@@ -1,5 +1,5 @@
 ---
-title: "Is Playwright Headless Detectable?"
+title: "Is Playwright headless detectable? What sites check"
 description: "Yes, classic headless leaks a distinct user agent token, degraded WebGL, default window metrics and thin fonts - why output parity beats per-tell patching."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 10
 ---
 
 
-# Is Playwright Headless Detectable?
+# Is Playwright headless detectable? What sites check
 
 Historically, yes, and for a specific reason: headless mode used to answer several
 questions differently from a browser with a window on screen. The honest short version is

@@ -1,5 +1,5 @@
 ---
-title: "Can Websites Detect Playwright?"
+title: "Can websites detect Playwright? What is actually visible"
 description: "Stock Playwright exposes a webdriver flag, protocol artifacts and mismatched OS fingerprint. Which signals catch your run, and what a patched Firefox fixes."
 parent: "The Automation Layer"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 20
 ---
 
 
-# Can Websites Detect Playwright?
+# Can websites detect Playwright? What is actually visible
 
 Yes, in principle. Stock Playwright leaves signals in the page that a script can read,
 and any one of them is enough to tell "this is automated" from "this is a person". But

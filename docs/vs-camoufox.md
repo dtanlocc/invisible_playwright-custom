@@ -1,12 +1,12 @@
 ---
-title: "invisible_playwright vs Camoufox: two patched Firefoxes"
+title: "Playwright stealth vs Camoufox: two patched Firefoxes"
 description: "invisible_playwright vs Camoufox: both patch Firefox in C++. Compare how each builds its fingerprint, the surfaces each covers, and whether a run replays."
 parent: "Comparisons"
 nav_order: 4
 ---
 
 
-# invisible_playwright vs Camoufox: two patched Firefoxes
+# Playwright stealth vs Camoufox: two patched Firefoxes
 
 invisible_playwright and Camoufox both compile Firefox from source and set the fingerprint
 in C++, so neither is stealthier in the abstract. The real difference is how each produces

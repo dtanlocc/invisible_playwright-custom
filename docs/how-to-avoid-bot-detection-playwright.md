@@ -1,12 +1,12 @@
 ---
-title: "How to avoid bot detection with Playwright"
+title: "Playwright bot detection: how to avoid it in Python"
 description: "A proactive guide to avoiding Playwright bot detection: navigator.webdriver patches are level one, a patched engine reaches the rest, with runnable code."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 8
 ---
 
-# How to avoid bot detection with Playwright
+# Playwright bot detection: how to avoid it in Python
 
 **Avoiding bot detection in Playwright means fixing the right layer before you launch
 a session, not patching properties after a site has already blocked you.** Detection

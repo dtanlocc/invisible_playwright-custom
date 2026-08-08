@@ -1,5 +1,5 @@
 ---
-title: "Playwright proxy per context: what it does not isolate"
+title: "Playwright proxy in Python: per-context, and what leaks"
 description: "A Playwright proxy per context rotates the exit IP but not the fingerprint. Canvas, GPU, fonts and audio stay identical across contexts. One machine, not many."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 3
 ---
 
 
-# Playwright proxy per context: what it does not isolate
+# Playwright proxy in Python: per-context, and what leaks
 
 **A Playwright proxy per context rotates the exit IP but not the fingerprint.** Every
 context in one browser reports the same canvas, GPU, fonts, audio, screen and TLS

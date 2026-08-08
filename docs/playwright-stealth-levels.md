@@ -1,12 +1,12 @@
 ---
-title: "Three ways to make Playwright undetected"
+title: "Playwright stealth in Python: three levels that work"
 description: "Playwright stealth tools get compared as a flat list, but they work at three levels - page, driver, engine - and the level decides what each can reach."
 parent: "Comparisons"
 nav_order: 1
 ---
 
 
-# Three ways to make Playwright undetected
+# Playwright stealth in Python: three levels that work
 
 Playwright stealth tools operate at three different levels: patching the page's
 JavaScript, patching the automation driver, or patching the browser engine itself.

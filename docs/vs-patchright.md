@@ -1,12 +1,12 @@
 ---
-title: "invisible_playwright vs Patchright: driver vs engine"
+title: "Playwright stealth vs Patchright: driver vs engine"
 description: "Patchright patches the Playwright driver on Chromium; this project patches Firefox itself. They fix different tells at different layers, often you need both."
 parent: "Comparisons"
 nav_order: 5
 ---
 
 
-# invisible_playwright vs Patchright: driver vs engine
+# Playwright stealth vs Patchright: driver vs engine
 
 Patchright and invisible_playwright do not compete: Patchright patches the Playwright
 **driver** and runs only on Chromium, while this project patches the Firefox **engine**

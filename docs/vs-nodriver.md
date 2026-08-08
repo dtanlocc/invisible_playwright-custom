@@ -1,12 +1,12 @@
 ---
-title: "invisible_playwright vs nodriver and undetected-chromedriver"
+title: "Playwright stealth vs undetected-chromedriver and nodriver"
 description: "nodriver and undetected-chromedriver are Chrome-only tools, not Playwright forks. Neither hides your IP or fingerprint, by their own docs. How to choose."
 parent: "Comparisons"
 nav_order: 6
 ---
 
 
-# invisible_playwright vs nodriver and undetected-chromedriver
+# Playwright stealth vs undetected-chromedriver and nodriver
 
 nodriver and undetected-chromedriver are Chrome-only automation tools with their
 own API, not Playwright forks, and neither claims to hide your IP or change your

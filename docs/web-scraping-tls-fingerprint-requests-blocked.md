@@ -1,5 +1,5 @@
 ---
-title: "Why a Python requests scraper is blocked: TLS fingerprint"
+title: "Python web scraping blocked? The TLS fingerprint reason"
 description: "A Python requests scraper has its own TLS fingerprint, so a site can block the connection at the handshake before any header, cookie, or user agent exists."
 parent: "Network, Proxy and WebRTC"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 9
 ---
 
 
-# Why a Python requests scraper is blocked: TLS fingerprint
+# Python web scraping blocked? The TLS fingerprint reason
 
 A Python `requests` scraper often gets blocked at the TLS handshake, before it sends
 a single header, cookie, or user agent. The TLS library `requests` links against

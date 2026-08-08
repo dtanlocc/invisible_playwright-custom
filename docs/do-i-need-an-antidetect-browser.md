@@ -1,12 +1,12 @@
 ---
-title: "Do I need an anti-detect browser or just Playwright?"
+title: "Anti-detect browser or Playwright stealth: which you need"
 description: "Deciding between a paid anti-detect browser and stock Playwright on a patched Firefox build: what they share, what the paid GUI adds, and how to script it."
 parent: "Comparisons"
 nav_order: 33
 ---
 
 
-# Do I need an anti-detect browser or just Playwright?
+# Anti-detect browser or Playwright stealth: which you need
 
 The honest version of this question is not "which one wins". It is "which
 layers do I actually need, and which am I paying for twice". A commercial

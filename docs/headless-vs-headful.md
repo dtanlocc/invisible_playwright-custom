@@ -1,5 +1,5 @@
 ---
-title: "Headless vs headful: what is actually being detected"
+title: "Playwright headless vs headed: what detectors see"
 description: "Headless vs headful: headlessness is rarely what gets detected. It is the hardware and rendering signals around it, and a headful server keeps almost all of them."
 parent: "Browser Identity"
 grand_parent: "Guides"
@@ -7,7 +7,7 @@ nav_order: 4
 ---
 
 
-# Headless vs headful: what is actually being detected
+# Playwright headless vs headed: what detectors see
 
 The usual advice is that headless gets caught and headful is safer, so run headful if
 you can afford the resources. It points in roughly the right direction for the wrong

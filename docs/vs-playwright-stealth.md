@@ -1,12 +1,12 @@
 ---
-title: "invisible_playwright vs playwright-stealth: page vs engine"
+title: "playwright-stealth vs a patched engine: page vs browser"
 description: "playwright-stealth patches the page in about four lines; invisible_playwright rebuilds the browser engine. Where each layer works, and where it cannot reach."
 parent: "Comparisons"
 nav_order: 7
 ---
 
 
-# invisible_playwright vs playwright-stealth: page vs engine
+# playwright-stealth vs a patched engine: page vs browser
 
 playwright-stealth and invisible_playwright fix bot detection at different layers.
 playwright-stealth injects a few lines of JavaScript into the page to hide the obvious
