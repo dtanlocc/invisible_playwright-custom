@@ -12,10 +12,10 @@ _GRECAPTCHA, ENID). Excludes 1P_JAR which was deprecated by Google in 2022
 - including it now is an anachronism flag.
 
 Public API:
-    await seed_recaptcha_cookies_async(context, profile, timezone=None)
-    seed_recaptcha_cookies_sync(context, profile, timezone=None)
+    await seed_recaptcha_cookies_async(context, profile, locale=None)
+    seed_recaptcha_cookies_sync(context, profile, locale=None)
 
-`profile` is an `_fpforge.Profile`; `timezone` is the IANA tz (e.g.
+`profile` is an `_fpforge.Profile`; `locale` is the session BCP-47 tag (e.g.
 "Europe/Rome") used to derive the CONSENT cookie's language token, so a
 European-tz persona gets CONSENT in their language not en+FX.
 """
@@ -64,41 +64,19 @@ def _yyyymmdd_utc(ts: int) -> str:
     return _utc_from(ts).strftime("%Y%m%d")
 
 
-# IANA timezone -> (country_code, lang) for CONSENT cookie coherence.
-# Real EU users get CONSENT with `<lang>+<COUNTRY>+NNN`; non-EU gets `en+FX+NNN`.
-# Default fallback `en+FX+NNN` for any tz not in this map.
-_TZ_TO_REGION = {
-    "Europe/Rome":      ("IT", "it"),
-    "Europe/Berlin":    ("DE", "de"),
-    "Europe/Paris":     ("FR", "fr"),
-    "Europe/Madrid":    ("ES", "es"),
-    "Europe/London":    ("GB", "en"),
-    "Europe/Amsterdam": ("NL", "nl"),
-    "Europe/Brussels":  ("BE", "fr"),
-    "Europe/Vienna":    ("AT", "de"),
-    "Europe/Zurich":    ("CH", "de"),
-    "Europe/Dublin":    ("IE", "en"),
-    "Europe/Lisbon":    ("PT", "pt"),
-    "Europe/Stockholm": ("SE", "sv"),
-    "Europe/Oslo":      ("NO", "no"),
-    "Europe/Copenhagen": ("DK", "da"),
-    "Europe/Helsinki":  ("FI", "fi"),
-    "Europe/Warsaw":    ("PL", "pl"),
-    "Europe/Prague":    ("CZ", "cs"),
-    "Europe/Athens":    ("GR", "el"),
-    "Asia/Tokyo":       ("FX", "ja"),
-    "Asia/Shanghai":    ("FX", "zh"),
-    "Asia/Hong_Kong":   ("FX", "zh"),
-    "Asia/Seoul":       ("FX", "ko"),
-}
-
-
-def _consent_region_lang(timezone: Optional[str]) -> tuple:
-    """Map IANA tz → (region_token, lang_2char) for CONSENT cookie.
-    Default `("FX", "en")` for US/unknown."""
-    if timezone and timezone in _TZ_TO_REGION:
-        return _TZ_TO_REGION[timezone]
-    return ("FX", "en")
+# The CONSENT region and language come from invisible_core, derived from the
+# session LOCALE. They used to come from a 22-row IANA timezone table right
+# here, while the locale itself is resolved in the core from the egress country
+# against a 55-row table - two tables for one fact, and they drifted the way
+# two tables do. Measured: a Romanian session resolved `ro-RO` for
+# navigator.language and fell through to `("FX", "en")` for the cookie, because
+# `Europe/Bucharest` was not one of the 22. A page reading both sees a Romanian
+# browser claiming to be a non-EU English one.
+#
+# The table is DELETED rather than extended: deriving from the locale covers
+# every locale the core can produce, including the ones nobody has added to a
+# list yet.
+from invisible_core import consent_region_lang as _consent_region_lang
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +84,9 @@ def _consent_region_lang(timezone: Optional[str]) -> tuple:
 # ---------------------------------------------------------------------------
 
 def _google_cookies(rng: random.Random, now: int,
-                    timezone: Optional[str] = None) -> List[dict]:
+                    locale: Optional[str] = None) -> List[dict]:
     consent_age = rng.randint(60, 720) * 86400
-    region, lang = _consent_region_lang(timezone)
+    region, lang = _consent_region_lang(locale or "en-US")
     # NID 3-digit prefix range broadened to 100-540 to cover historical NID
     # versions (137, 105, 511, 525 etc. observed in real captures).
     return [
@@ -286,7 +264,7 @@ def _cookies_for_profile(profile: str, rng: random.Random,
 def build_cookies(seed: int,
                   browsing_history: Optional[List[dict]] = None,
                   now: Optional[int] = None,
-                  timezone: Optional[str] = None) -> List[dict]:
+                  locale: Optional[str] = None) -> List[dict]:
     """Build the full cookie list for a persona.
 
     Args:
@@ -295,15 +273,19 @@ def build_cookies(seed: int,
             sampled by `_fpforge.derive_browsing_history`. None → empty list
             (only the 5 google cookies are returned).
         now: unix-seconds timestamp; defaults to current time. Pin for tests.
-        timezone: IANA tz used to derive CONSENT cookie's `lang+region` token
-            (e.g. "Europe/Rome" → "it+IT", "America/New_York" → "en+FX").
+        locale: the session BCP-47 locale, from which the CONSENT cookie's
+            `lang+region` token is derived ("it-IT" -> "it+IT", "en-US" ->
+            "en+FX"). It used to be the IANA timezone, mapped through a 22-row
+            table in this file; the locale is what navigator.language reports,
+            so deriving from it is what stops the cookie and the language from
+            contradicting each other.
     """
     ts = now if now is not None else int(time.time())
     cookies: List[dict] = []
 
-    # 5 .google.com cookies (always) - CONSENT lang derived from tz
+    # 5 .google.com cookies (always) - CONSENT lang derived from the locale
     rng_g = random.Random(_sub_seed(int(seed), "google"))
-    cookies.extend(_google_cookies(rng_g, ts, timezone=timezone))
+    cookies.extend(_google_cookies(rng_g, ts, locale=locale))
 
     # Per-site cookies (deterministic from seed × domain)
     for site in (browsing_history or []):
@@ -324,10 +306,10 @@ def _extract_seed_and_history(profile: Any) -> tuple:
 
 
 async def seed_recaptcha_cookies_async(context: Any, profile: Any,
-                                       timezone: Optional[str] = None) -> None:
+                                       locale: Optional[str] = None) -> None:
     """Async: inject deterministic persona cookies into the context."""
     seed, history = _extract_seed_and_history(profile)
-    cookies = build_cookies(seed, history, timezone=timezone)
+    cookies = build_cookies(seed, history, locale=locale)
     try:
         await context.add_cookies(cookies)
     except Exception:
@@ -335,10 +317,10 @@ async def seed_recaptcha_cookies_async(context: Any, profile: Any,
 
 
 def seed_recaptcha_cookies_sync(context: Any, profile: Any,
-                                timezone: Optional[str] = None) -> None:
+                                locale: Optional[str] = None) -> None:
     """Sync: inject deterministic persona cookies into the context."""
     seed, history = _extract_seed_and_history(profile)
-    cookies = build_cookies(seed, history, timezone=timezone)
+    cookies = build_cookies(seed, history, locale=locale)
     try:
         context.add_cookies(cookies)
     except Exception:

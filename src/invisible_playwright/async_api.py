@@ -210,7 +210,7 @@ class InvisiblePlaywright:
         defaults = self._default_context_kwargs()
         prep = self._prep_recaptcha
         profile = self._profile  # pass the whole Profile (seed + browsing_history)
-        tz = self._timezone  # used by _recaptcha_seed for CONSENT lang+region
+        loc = self._locale  # used by _recaptcha_seed for CONSENT lang+region
 
         async def patched(**kw):
             merged = dict(defaults)
@@ -219,7 +219,7 @@ class InvisiblePlaywright:
             _patch_new_page_sleep(ctx)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_async
-                await seed_recaptcha_cookies_async(ctx, profile, timezone=tz)
+                await seed_recaptcha_cookies_async(ctx, profile, locale=loc)
             return ctx
 
         browser.new_context = patched  # type: ignore[assignment]
@@ -238,7 +238,7 @@ class InvisiblePlaywright:
             _patch_new_page_sleep(ctx)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_async
-                await seed_recaptcha_cookies_async(ctx, profile, timezone=tz)
+                await seed_recaptcha_cookies_async(ctx, profile, locale=loc)
             return page
 
         browser.new_page = patched_page  # type: ignore[assignment]

@@ -287,22 +287,29 @@ def test_nid_prefix_broadened_range():
     assert max(seen_prefixes) <= 540
 
 
-def test_consent_lang_from_timezone_eu():
-    """CONSENT cookie's `lang+region` token derived from IANA timezone."""
-    cookies = build_cookies(seed=42, now=_FIXED_NOW, timezone="Europe/Rome")
+def test_consent_lang_from_locale_eu():
+    """CONSENT cookie's `lang+region` token, derived from the session LOCALE.
+
+    It was derived from the IANA timezone through a 22-row table in
+    _recaptcha_seed, while the locale is resolved from the egress country
+    against a 55-row table in the core. Two tables for one fact, and they
+    drifted - see the Romania case below, which is what this rewrite exists
+    for.
+    """
+    cookies = build_cookies(seed=42, now=_FIXED_NOW, locale="it-IT")
     consent = next(c for c in cookies if c["name"] == "CONSENT")
     assert ".it+IT+" in consent["value"], f"expected it+IT in: {consent['value']}"
 
 
 def test_consent_lang_default_fx():
-    """Unknown / US timezone → default `en+FX` (non-EU fallback)."""
-    cookies = build_cookies(seed=42, now=_FIXED_NOW, timezone="America/New_York")
+    """A non-EEA locale gets `en+FX`."""
+    cookies = build_cookies(seed=42, now=_FIXED_NOW, locale="en-US")
     consent = next(c for c in cookies if c["name"] == "CONSENT")
     assert ".en+FX+" in consent["value"]
 
 
 def test_consent_lang_de_for_berlin():
-    cookies = build_cookies(seed=42, now=_FIXED_NOW, timezone="Europe/Berlin")
+    cookies = build_cookies(seed=42, now=_FIXED_NOW, locale="de-DE")
     consent = next(c for c in cookies if c["name"] == "CONSENT")
     assert ".de+DE+" in consent["value"]
 
@@ -312,6 +319,26 @@ def test_consent_lang_no_timezone_default():
     cookies = build_cookies(seed=42, now=_FIXED_NOW)
     consent = next(c for c in cookies if c["name"] == "CONSENT")
     assert ".en+FX+" in consent["value"]
+
+
+def test_consent_lang_covers_a_country_the_old_table_did_not():
+    """Romania is the case the timezone table got wrong, so it is the case pinned.
+
+    `Europe/Bucharest` was not one of the 22 rows, so the cookie said `en+FX`
+    while `navigator.language` said `ro-RO` - a Romanian browser claiming to be
+    a non-EU English one, readable by anything that looks at both. Deriving
+    from the locale covers every country the core can resolve, not the ones
+    somebody remembered to list.
+    """
+    cookies = build_cookies(seed=42, now=_FIXED_NOW, locale="ro-RO")
+    consent = next(c for c in cookies if c["name"] == "CONSENT")
+    assert ".ro+RO+" in consent["value"], consent["value"]
+
+    # And a non-EEA country keeps the FX token while still carrying its own
+    # language, which is what a real Brazilian Chrome/Firefox sends.
+    cookies = build_cookies(seed=42, now=_FIXED_NOW, locale="pt-BR")
+    consent = next(c for c in cookies if c["name"] == "CONSENT")
+    assert ".pt+FX+" in consent["value"], consent["value"]
 
 
 def test_new_helper_cookies_appear_in_ga_consent_clarity():
