@@ -101,12 +101,20 @@ was to stop setting the value at all rather than to set it to a cleverer one.
 
 ## What the shipped build does instead
 
-The current build does not touch `navigator.buildID`. There is no override in
-the profile, so the property returns whatever the binary was actually compiled
-from, and that value tracks the version and the release. A session on this
-build reports a build date that is consistent with its user agent, its engine
-and its TLS handshake, because all of them come from the same real binary rather
-than from four different spoofing decisions that have to be kept in sync by hand.
+The current build does not touch `navigator.buildID`, and this is what that
+turns out to mean, measured on 2026-08-09 by reading the property from a page
+on the real binary: it returns **`20181001000000`**, the fixed value every
+release Firefox reports. Gecko itself does the flattening, in
+`dom/base/Navigator.cpp`: a caller that is not system code gets the legacy
+constant unless the document is on a mozilla.org origin. It is not gated on
+resistFingerprinting and it is not gated on any profile pref, so the real
+compile timestamp never reaches a page on retail Firefox either.
+
+An earlier version of this page said the property "returns whatever the binary
+was actually compiled from". That was wrong, and it was wrong in the direction
+that matters: it described the build as carrying a value nobody else carries.
+What the build actually does here is the same thing every Firefox does, which
+is the stronger position and the one the rest of this page argues for.
 
 The broader principle sits behind the whole design. The build spoofs the machine
 surfaces that genuinely differ between hosts, the GPU, the audio device, the

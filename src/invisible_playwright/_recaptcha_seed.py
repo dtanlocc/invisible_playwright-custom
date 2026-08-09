@@ -86,7 +86,11 @@ from invisible_core import consent_region_lang as _consent_region_lang
 def _google_cookies(rng: random.Random, now: int,
                     locale: Optional[str] = None) -> List[dict]:
     consent_age = rng.randint(60, 720) * 86400
-    region, lang = _consent_region_lang(locale or "en-US")
+    # No `or "en-US"` here. `consent_region_lang` has that fallback in its own
+    # body, and pre-empting it means the core never sees a falsy locale and its
+    # decision never runs - a second place deciding the same fact, which is the
+    # exact shape of the table this call replaced.
+    region, lang = _consent_region_lang(locale)
     # NID 3-digit prefix range broadened to 100-540 to cover historical NID
     # versions (137, 105, 511, 525 etc. observed in real captures).
     return [
