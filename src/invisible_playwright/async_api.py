@@ -247,7 +247,9 @@ class InvisiblePlaywright:
         p = self._profile
         kwargs: Dict[str, Any] = {
             "viewport":            {"width":  p.screen.width  - _CHROME_W,
-                                     "height": p.screen.height - _TASKBAR_H - _CHROME_H},
+                                     "height": (p.screen.height
+                                                - p.screen.taskbar_px
+                                                - _CHROME_H)},
             "screen":              {"width": p.screen.width, "height": p.screen.height},
             "device_scale_factor": p.screen.dpr,
             "color_scheme":        "dark" if p.dark_theme else "light",
@@ -308,7 +310,9 @@ class InvisiblePlaywright:
         """
         return self._session_token.stamp(
             _session.build_env(timezone=self._timezone,
-                               egress_ip=self._webrtc_egress_ip))
+                               egress_ip=self._webrtc_egress_ip,
+                               profile=self._profile,
+                               executable=resolve_executable(self._binary_path)))
 
     def _build_prefs(self) -> Dict[str, Any]:
         """Same body as the sync class, because it is the same body.

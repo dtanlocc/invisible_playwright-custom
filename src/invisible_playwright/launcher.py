@@ -48,12 +48,20 @@ def _patch_sync_new_page_sleep(ctx: Any) -> None:
     ctx.new_page = patched_new_page  # type: ignore[assignment]
 
 
-# Window-chrome and taskbar offsets measured empirically on a headed
-# Firefox 150 (no compositor). Used to derive the default new_context
-# viewport so it fits inside the spoofed screen without out-of-bounds.
+# Window-chrome offsets measured empirically on a headed Firefox 150 (no
+# compositor). Used to derive the default new_context viewport so it fits
+# inside the spoofed screen without out-of-bounds.
 _CHROME_W  = 14
 _CHROME_H  = 91
-_TASKBAR_H = 40
+
+# The taskbar is NOT a wrapper constant. It was one, at 40, while the core
+# declared 48 and the engine's compiled floor was 48 - so the viewport was
+# derived from one number and screen.availHeight from another, which is a
+# disagreement a page can read off two properties of the same window. It is a
+# field of the profile now (ScreenProfile.taskbar_px), pinnable like any other,
+# and the use sites below read it from there. This name survives only because
+# async_api imports it, and it resolves to the same declaration.
+from invisible_core.constants import TASKBAR_PX as _TASKBAR_H  # noqa: E402
 
 # The IANA -> POSIX TZ table moved to `_session` on 2026-07-27, so the async
 # class no longer has to import it FROM the sync module. Re-exported under the
@@ -395,7 +403,9 @@ class InvisiblePlaywright:
         p = self._profile
         kwargs: Dict[str, Any] = {
             "viewport":            {"width":  p.screen.width  - _CHROME_W,
-                                     "height": p.screen.height - _TASKBAR_H - _CHROME_H},
+                                     "height": (p.screen.height
+                                                - p.screen.taskbar_px
+                                                - _CHROME_H)},
             "screen":              {"width": p.screen.width, "height": p.screen.height},
             "device_scale_factor": p.screen.dpr,
             "color_scheme":        "dark" if p.dark_theme else "light",
@@ -484,7 +494,9 @@ class InvisiblePlaywright:
         """
         return self._session_token.stamp(
             _session.build_env(timezone=self._timezone,
-                               egress_ip=self._webrtc_egress_ip))
+                               egress_ip=self._webrtc_egress_ip,
+                               profile=self._profile,
+                               executable=resolve_executable(self._binary_path)))
 
     def _resolve_headless(self) -> bool:
         """Translate the user's ``headless`` flag.

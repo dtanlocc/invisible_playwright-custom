@@ -141,7 +141,24 @@ def test_default_context_viewport_subtracts_window_chrome():
     kw = ip._default_context_kwargs()
     p = ip._profile
     assert kw["viewport"]["width"] == p.screen.width - _CHROME_W
-    assert kw["viewport"]["height"] == p.screen.height - _TASKBAR_H - _CHROME_H
+    assert kw["viewport"]["height"] == (p.screen.height - p.screen.taskbar_px
+                                        - _CHROME_H)
+    # and the profile is the ONE source: the wrapper carried its own 40 while
+    # the core declared 48 and the engine floor was 48, so the viewport and
+    # screen.availHeight disagreed about the same taskbar. Asserting against
+    # _TASKBAR_H alone could not see that - it passed with either number.
+    assert p.screen.taskbar_px == _TASKBAR_H
+
+
+@pytest.mark.unit
+def test_default_context_viewport_follows_a_pinned_taskbar():
+    """A pinned taskbar has to move the viewport, or the wrapper is still
+    deriving it from a constant of its own."""
+    ip = InvisiblePlaywright(seed=42, pin={"screen.taskbar_px": 72})
+    kw = ip._default_context_kwargs()
+    p = ip._profile
+    assert p.screen.taskbar_px == 72
+    assert kw["viewport"]["height"] == p.screen.height - 72 - _CHROME_H
 
 
 @pytest.mark.unit
