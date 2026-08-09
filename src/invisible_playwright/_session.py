@@ -25,6 +25,9 @@ import sys
 from typing import Any, Dict, Optional
 
 from invisible_core import compose_session_prefs
+from invisible_core.launch import (FontManifestMismatch,
+                                   cached_font_manifest_path,
+                                   verify_font_manifest)
 
 from ._cursor import (
     ENGINE_BINARY,
@@ -87,10 +90,17 @@ WEBRTC_IP_ENV = "STEALTHFOX_WEBRTC_PUBLIC_IP"
 WEBRTC_NO_IPV6_ENV = "STEALTHFOX_WEBRTC_DISABLE_IPV6"
 
 
+#: The engine reads this at startup; see build_env for why a pref cannot
+#: work here. Never rename: it is part of the binary contract.
+FONT_MANIFEST_ENV = "STEALTHFOX_FONT_MANIFEST"
+
+
 def build_env(
     *,
     timezone: Optional[str],
     egress_ip: Optional[str],
+    profile: Any = None,
+    executable: Optional[str] = None,
     base_env: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     """The environment the Firefox subprocess is launched with, minus the token.
@@ -99,11 +109,45 @@ def build_env(
     is genuinely per-session; everything here was written twice, identically,
     in `launcher._build_env` and `async_api._build_env`.
 
-    Fonts need no env: the patched binary is bundle-only and self-contained.
+    Fonts DO need an env, and only an env will do. The engine builds its font
+    list during app startup, inside InitSharedFontListForPlatform, and on this
+    path the prefs never reach the profile at all - Playwright sends them over
+    the wire and JS applies them once the browser is already running. Measured
+    2026-08-08: the pref of the same name always read empty there, so the
+    engine's packaged copy won and the manifest this package declares was
+    inert. An environment variable is set at process creation and inherited by
+    every content process.
+
+    `profile=None` sets nothing, which leaves the engine on its own copy - the
+    floor that keeps a browser launched without this package rendering.
     """
     env = dict(base_env if base_env is not None else os.environ)
     if timezone:
         env["TZ"] = tz_env(timezone)
+    manifest = getattr(getattr(profile, "font", None), "manifest", "")
+    if manifest:
+        # Refuse rather than hand the engine metrics for faces it does not
+        # carry. That failure is not an error at runtime - it is a page laid
+        # out a few pixels wrong, which nothing observes. A browser that will
+        # not start is at least loud, and the engine still has its own copy to
+        # fall back to if this variable is simply absent.
+        if executable:
+            missing = verify_font_manifest(manifest, executable)
+            # `None` means the engine has no fonts/ beside it, so there was
+            # nothing to check against - not that the check passed. Proceeding
+            # is right anyway: an engine with no bundled fonts cannot be made
+            # worse by a manifest naming files it does not have either way, and
+            # refusing would reject every layout that is not ours.
+            if missing:
+                raise FontManifestMismatch(
+                    f"the font manifest this package declares names "
+                    f"{len(missing)} face file(s) the engine does not carry "
+                    f"(e.g. {missing[:3]}). Engine: {executable}. The metrics "
+                    f"would describe fonts that are not there.")
+        path = cached_font_manifest_path(manifest)
+        if path is not None:
+            # setdefault: an already-set value wins, same rule as the WebRTC IP.
+            env.setdefault(FONT_MANIFEST_ENV, str(path))
     # WebRTC srflx override, plus dropping IPv6 from gathering behind a proxy.
     webrtc_ip = env.get(WEBRTC_IP_ENV) or egress_ip
     if webrtc_ip:

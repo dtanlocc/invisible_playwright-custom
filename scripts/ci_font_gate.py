@@ -34,10 +34,21 @@ import sys
 # identical on Windows/DWrite and Linux/fontconfig; macOS/CoreText must match it
 # too. Keep this sorted and in sync with the bundle (browser/fonts/moz.build).
 EXPECTED = [
-    "Arial", "Arial Black", "Bahnschrift", "Calibri", "Cambria", "Cambria Math",
+    # 68, not 72, since 2026-08-07. Arial Black, Franklin Gothic Medium, Segoe
+    # Fluent Icons and Segoe MDL2 Assets were removed from the bundle because a
+    # REAL Windows Firefox does not expose them as family names to a page -
+    # measured by driving the retail 152.0.6 installed on the machine, with a
+    # throwaway profile and no build of ours in the loop. We were answering
+    # "present" where a real browser answers "absent", on four names a
+    # font-probing detector asks about.
+    #
+    # This list is a hand-kept copy of the manifest's F| records and the docs
+    # already flag that as a drift risk. It went stale the moment the four were
+    # dropped and would have failed this gate on the next run - found by an
+    # audit, not by the gate itself.
+    "Arial", "Bahnschrift", "Calibri", "Cambria", "Cambria Math",
     "Candara", "Comic Sans MS", "Consolas", "Constantia", "Corbel",
-    "Courier New", "Ebrima", "Franklin Gothic", "Franklin Gothic Medium",
-    "Gabriola", "Gadugi", "Georgia", "Impact", "Ink Free", "Javanese Text",
+    "Courier New", "Ebrima", "Franklin Gothic", "Gabriola", "Gadugi", "Georgia", "Impact", "Ink Free", "Javanese Text",
     "Leelawadee", "Leelawadee UI", "Lucida Console", "Lucida Sans Unicode",
     "MS Gothic", "MS PGothic", "MS UI Gothic", "MV Boli", "Malgun Gothic",
     "Marlett", "Microsoft Himalaya", "Microsoft JhengHei",
@@ -45,8 +56,7 @@ EXPECTED = [
     "Microsoft Sans Serif", "Microsoft Tai Le", "Microsoft Uighur",
     "Microsoft YaHei", "Microsoft YaHei UI", "Microsoft Yi Baiti",
     "MingLiU-ExtB", "Mongolian Baiti", "Myanmar Text", "NSimSun", "Nirmala UI",
-    "PMingLiU-ExtB", "Palatino Linotype", "Segoe Fluent Icons",
-    "Segoe MDL2 Assets", "Segoe Print", "Segoe Script", "Segoe UI",
+    "PMingLiU-ExtB", "Palatino Linotype", "Segoe Print", "Segoe Script", "Segoe UI",
     "Segoe UI Emoji", "Segoe UI Historic", "Segoe UI Symbol", "SimSun",
     "SimSun-ExtB", "Sitka Small", "Sylfaen", "Symbol", "Tahoma",
     "Times New Roman", "Trebuchet MS", "Verdana", "Webdings", "Wingdings",
