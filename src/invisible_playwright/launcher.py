@@ -48,11 +48,16 @@ def _patch_sync_new_page_sleep(ctx: Any) -> None:
     ctx.new_page = patched_new_page  # type: ignore[assignment]
 
 
-# Window-chrome offsets measured empirically on a headed Firefox 150 (no
-# compositor). Used to derive the default new_context viewport so it fits
-# inside the spoofed screen without out-of-bounds.
-_CHROME_W  = 14
-_CHROME_H  = 91
+# The window chrome is NOT a wrapper constant either, for the same reason the
+# taskbar below stopped being one, and for one more: the 14 was WRONG. Measured
+# against stock Firefox 151 on 2026-08-09, a real browser answers
+# outerWidth - innerWidth = 0 and outerHeight - innerHeight = 85; we answered 14
+# and 91, identically on both platforms, because a value invented once agrees
+# with itself forever and no cross-check can see it. The declaration lives in
+# the core as Profile.screen.chrome_w / chrome_h, pinnable like every other
+# surface. These names survive only because async_api imports them.
+from invisible_core.constants import CHROME_H as _CHROME_H  # noqa: E402
+from invisible_core.constants import CHROME_W as _CHROME_W  # noqa: E402
 
 # The taskbar is NOT a wrapper constant. It was one, at 40, while the core
 # declared 48 and the engine's compiled floor was 48 - so the viewport was
@@ -402,10 +407,10 @@ class InvisiblePlaywright:
     def _default_context_kwargs(self) -> Dict[str, Any]:
         p = self._profile
         kwargs: Dict[str, Any] = {
-            "viewport":            {"width":  p.screen.width  - _CHROME_W,
+            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
                                      "height": (p.screen.height
                                                 - p.screen.taskbar_px
-                                                - _CHROME_H)},
+                                                - p.screen.chrome_h)},
             "screen":              {"width": p.screen.width, "height": p.screen.height},
             "device_scale_factor": p.screen.dpr,
             "color_scheme":        "dark" if p.dark_theme else "light",

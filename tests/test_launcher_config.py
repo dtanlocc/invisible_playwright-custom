@@ -1,6 +1,8 @@
 """Launcher helpers that don't require launching the actual browser."""
 import pytest
 
+from invisible_core import generate_profile
+
 from invisible_playwright.launcher import (
     InvisiblePlaywright,
     _IANA_TO_POSIX_TZ,
@@ -42,10 +44,27 @@ def test_iana_to_posix_table_well_formed():
 
 def test_chrome_offsets_are_positive_ints():
     """These pad the spoofed viewport to fit inside the spoofed screen.
-    Any zero/negative value would let viewport bleed past screen bounds."""
-    assert _CHROME_W > 0
+
+    The assertion used to be `> 0` on all three, with a docstring reasoning
+    that "any zero/negative value would let viewport bleed past screen
+    bounds". The reasoning is wrong and it froze a fabricated number: a
+    viewport exactly as wide as the screen is exactly in bounds, not past
+    them, and a real Firefox has no horizontal chrome at all. Measured
+    against stock 151 on 2026-08-09, `outerWidth - innerWidth` is 0 there
+    while we answered 14.
+
+    So the invariant is the one the docstring was reaching for - the derived
+    viewport fits inside the screen - and the offsets are merely
+    non-negative.
+    """
+    assert _CHROME_W >= 0
     assert _CHROME_H > 0
     assert _TASKBAR_H > 0
+
+    p = generate_profile(42)
+    assert p.screen.width - p.screen.chrome_w <= p.screen.width
+    assert (p.screen.height - p.screen.taskbar_px
+            - p.screen.chrome_h) <= p.screen.height
 
 
 def test_invisible_playwright_constructs_without_launching():

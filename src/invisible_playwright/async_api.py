@@ -246,10 +246,10 @@ class InvisiblePlaywright:
     def _default_context_kwargs(self) -> Dict[str, Any]:
         p = self._profile
         kwargs: Dict[str, Any] = {
-            "viewport":            {"width":  p.screen.width  - _CHROME_W,
+            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
                                      "height": (p.screen.height
                                                 - p.screen.taskbar_px
-                                                - _CHROME_H)},
+                                                - p.screen.chrome_h)},
             "screen":              {"width": p.screen.width, "height": p.screen.height},
             "device_scale_factor": p.screen.dpr,
             "color_scheme":        "dark" if p.dark_theme else "light",
