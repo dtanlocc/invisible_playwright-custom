@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-11
+
+### Changed
+
+- Pins `invisible-core` 19.14.0, which seals firefox-19. The engine release
+  carries a `seal.json` asset for the first time, so the seal a client verifies
+  and the seal the build produced are the same bytes rather than two things
+  that agree.
+- `session_kwargs` in the test bench no longer pins the proxy exit. It used a
+  literal session id, and the providers are sticky on it, so every realness
+  measurement this project made left through the same address: one distinct IP
+  in twenty-four hours, eleven events on it in one hour, and the detector had
+  classified it as a datacenter. The same binary on fresh exits scores 0, 3 and
+  0 where it scored 14. Consistency runs still pin one exit for their pair,
+  because that comparison is about our own determinism and a rotating exit puts
+  the network inside it.
+
+### Fixed
+
+- `scripts/ci_font_gate.py` asked a question whose answer could not mean
+  anything. It launched the engine raw, which since the generic-family map
+  became a declaration means launching it without one - and the engine does not
+  invent declarations. And it inferred "did this face load" from a line height
+  that we declare: it worked while the fallback measured 91 and the families 95,
+  and stopped the day the metrics became declared and the fallback landed on 95.
+  It now hands in the one declaration it needs and asserts which families SHARE
+  a face, measured from the ink box. Green on this build, on the previous
+  release, and on both platforms.
+
+### Added
+
+- Two e2e tests for failures the suite could not see: a session that dies under
+  heavy text shaping, and a frame reporting its parent's screen origin instead
+  of its own. Both validated by reintroducing the real defect in the engine and
+  rebuilding, not by reasoning about them.
+
 ## [0.6.1] - 2026-08-05
 
 ### Changed
