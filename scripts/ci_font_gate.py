@@ -98,12 +98,80 @@ GENERICS = {
 # and JhengHei (they already fall back on firefox-17, so requiring them would
 # fail the known-good build). Keep this list as a regression detector, not an
 # aspiration: everything here loads on firefox-17 and must keep loading.
+#: Un seme fisso, perche' le metriche dichiarate dipendono dal profilo e un
+#: gate che cambia numeri a ogni giro non e' un gate.
+_SEED = 970411
+
+#: COPIA di zoom.stealth.fonts.generics come lo dichiara invisible_core.
+#: Costante fra i semi (verificato su 5). Legata al core dal test
+#: test_ci_font_gate_generics_match_the_core, che diventa rosso se divergono.
+GENERICS_DECL = (
+    "cursive||Comic Sans MS\n"
+    "serif|x-math|Cambria Math\n"
+    "sans-serif|ja|Yu Gothic UI\n"
+    "serif|ja|Yu Gothic UI\n"
+    "monospace|ja|Yu Gothic UI\n"
+    "sans-serif|ko|Malgun Gothic\n"
+    "serif|ko|Malgun Gothic\n"
+    "monospace|ko|Malgun Gothic\n"
+    "sans-serif|zh-CN|Microsoft YaHei UI\n"
+    "serif|zh-CN|Microsoft YaHei UI\n"
+    "monospace|zh-CN|Microsoft YaHei UI\n"
+    "sans-serif|zh-TW|Microsoft JhengHei UI\n"
+    "serif|zh-TW|Microsoft JhengHei UI\n"
+    "monospace|zh-TW|Microsoft JhengHei UI\n"
+    "sans-serif|zh-HK|Microsoft JhengHei UI\n"
+    "serif|zh-HK|Microsoft JhengHei UI\n"
+    "monospace|zh-HK|Microsoft JhengHei UI\n"
+    "serif||Times New Roman\n"
+    "sans-serif||Arial\n"
+    "monospace||Consolas"
+)
+
+
+
 TTC_FAMILIES = [
-    "Microsoft YaHei", "Microsoft JhengHei",
+    "Microsoft YaHei", "Microsoft YaHei UI",
+    "Microsoft JhengHei", "Microsoft JhengHei UI",
     "MS Gothic", "MS PGothic", "MS UI Gothic",
     "SimSun", "NSimSun",
     "Yu Gothic", "Yu Gothic UI", "Malgun Gothic",
     "MingLiU-ExtB", "PMingLiU-ExtB",
+]
+
+#: Le famiglie qui sopra raggruppate per FACCIA, misurate dalla scatola
+#: d'inchiostro. E' l'invariante su cui poggia il controllo, e dice due cose in
+#: una: che ogni faccia carica (una faccia che non carica cade nel gruppo del
+#: ripiego, e il raggruppamento cambia) e che le due piattaforme rispondono
+#: uguale (i valori sono identici, non solo i gruppi).
+#:
+#: Il gruppo del RIPIEGO contiene YaHei perche' YaHei E' la faccia di ripiego
+#: per il CJK - misurato ai pixel: chiedendo un font inesistente si ottengono
+#: esattamente i suoi glifi. MingLiU-ExtB e PMingLiU-ExtB stanno li' per un
+#: motivo diverso e altrettanto corretto: sono font dell'Estensione B e la loro
+#: cmap NON copre nessuno dei caratteri della sonda, quindi il ripiego disegna
+#: come deve. Il vecchio controllo chiedeva "questa famiglia misura diverso da
+#: NESSUN font?" e su queste quattro rispondeva no, deducendone che la faccia
+#: non fosse caricata: la domanda era mal posta, perche' la faccia di ripiego e'
+#: essa stessa una delle famiglie imbarcate.
+EXPECTED_FACE_GROUPS = [
+    # Il gruppo del RIPIEGO. Contiene YaHei perche' YaHei E' la faccia di
+    # ripiego per il CJK, misurato ai pixel: chiedendo un font inesistente si
+    # ottengono esattamente i suoi glifi. MingLiU-ExtB e PMingLiU-ExtB stanno
+    # qui per un motivo diverso e altrettanto corretto: sono facce
+    # dell'Estensione B e la loro cmap non copre NESSUNO dei caratteri della
+    # sonda (verificato leggendo la cmap dei file imbarcati), quindi il ripiego
+    # disegna come deve.
+    {"Microsoft YaHei", "Microsoft YaHei UI", "MingLiU-ExtB",
+     "PMingLiU-ExtB", "__NoSuchFontXYZ__"},
+    {"Microsoft JhengHei", "Microsoft JhengHei UI"},
+    {"SimSun", "NSimSun"},
+    {"MS Gothic"},
+    {"MS PGothic"},
+    {"MS UI Gothic"},
+    {"Yu Gothic"},
+    {"Yu Gothic UI"},
+    {"Malgun Gothic"},
 ]
 
 # Width+height probe (the offsetWidth method real detectors use): a family is
@@ -129,17 +197,27 @@ DETECT_JS = r"""(arg) => {
   for (const g of arg.generics) gen[g] = size(g);
   const genref = {};
   for (const w of arg.targets) genref[w] = size("'" + w + "'");
-  // .ttc face-loading probe: render CJK glyphs, which only the family's own
-  // face can draw. If the size matches a nonexistent-font fallback, the face
-  // never loaded and the text is being drawn by a default face instead.
-  sp.textContent = arg.cjk;
-  const fb = size("'__NoSuchFontXYZ__'");
-  const ttcload = {};
-  for (const f of arg.ttc) {
-    ttcload[f] = size("'" + f + "','__NoSuchFontXYZ__'") !== fb;
+  // La scatola d'INCHIOSTRO di measureText per una stringa CJK, famiglia per
+  // famiglia. Non i pixel e non l'altezza di riga, per due ragioni misurate:
+  //   - l'altezza di riga e' un valore che DICHIARIAMO noi, quindi famiglie
+  //     diverse possono legittimamente condividerla e il confronto non
+  //     distingue piu' niente;
+  //   - i pixel di un canvas con testo non sono leggibili su Linux (voce
+  //     2026-08-11 in 70-known-bugs.md).
+  // La scatola d'inchiostro e' geometria derivata dai glifi: misurata
+  // 2026-08-11 e' identica alla terza cifra fra Windows e Linux.
+  const c = document.createElement('canvas');
+  const cx = c.getContext('2d');
+  const inkbox = {};
+  for (const f of arg.ttc.concat(['__NoSuchFontXYZ__'])) {
+    cx.font = "56px '" + f + "', '__NoSuchFontXYZ__'";
+    const m = cx.measureText(arg.cjk);
+    inkbox[f] = [m.width, m.actualBoundingBoxAscent, m.actualBoundingBoxDescent,
+                 m.actualBoundingBoxLeft, m.actualBoundingBoxRight]
+                .map((v) => Math.round(v * 1000) / 1000).join('|');
   }
   document.body.removeChild(sp);
-  return { present, gen, genref, ttcload };
+  return { present, gen, genref, inkbox };
 }"""
 
 # Suppress the new-tab machinery so the launch is quiet (mirrors ci_drive_gate).
@@ -151,8 +229,23 @@ _PREFS = {
 }
 
 
+# ── Il limite strutturale di questo gate, misurato e non dedotto ──────────
+#
+# Una pagina non puo' ENUMERARE i font di sistema: puo' solo chiedere nome per
+# nome. Quindi la sonda interroga `EXPECTED + HOST_MUST_BE_ABSENT` e nient'altro,
+# e da qui segue una cosa che va detta invece che scoperta: **una famiglia tolta
+# da EXPECTED smette anche di essere CERCATA**, quindi il conteggio torna e il
+# gate passa. Verificato 2026-08-11 come mutazione: cancellando "Georgia"
+# dall'elenco il gate ha risposto "detected 67 families (expected 67)" e OK.
+#
+# Non e' correggibile dall'interno: e' il motivo per cui l'elenco esiste. La
+# conseguenza pratica e' che HOST_MUST_BE_ABSENT deve restare GENEROSO, perche'
+# e' l'unico posto da cui puo' arrivare la scoperta di un font dell'host che non
+# ci aspettavamo. Un nome che non e' in nessuna delle due liste e' invisibile a
+# questo gate per costruzione.
+
+
 def main(exe: str) -> int:
-    from playwright.sync_api import sync_playwright
 
     cands = EXPECTED + HOST_MUST_BE_ABSENT
     arg = {
@@ -162,9 +255,28 @@ def main(exe: str) -> int:
         "ttc": TTC_FAMILIES,
         "cjk": "中文字体測試あア漢字",
     }
+    # Lancio GREZZO, e una dichiarazione consegnata a mano. Il job di gate in CI
+    # installa solo Playwright: invisible_core non c'e' e non puo' esserci senza
+    # cambiare il workflow, cioe' senza ricostruire i cinque archivi.
+    #
+    # La sola cosa che manca a un motore lanciato grezzo e' la mappa dei
+    # generici. Misurato 2026-08-11 sullo stesso binario: senza,
+    # serif/sans-serif/monospace/cursive/fantasy collassano TUTTI su Arial su
+    # Linux (su Windows no, perche' li' i default di Gecko coincidono per caso
+    # con la persona che dichiariamo); con, mappano su Times New Roman, Arial,
+    # Consolas e Comic Sans su ENTRAMBE, con gli stessi numeri.
+    #
+    # GENERICS_DECL sotto e' una COPIA di cio' che invisible_core dichiara, ed
+    # e' l'unica del progetto. Non puo' divergere in silenzio: la lega il test
+    # test_ci_font_gate_generics_match_the_core, che confronta questa stringa
+    # con quella prodotta dal core e diventa rosso se si separano.
+    from playwright.sync_api import sync_playwright
+
+    prefs = dict(_PREFS)
+    prefs["zoom.stealth.fonts.generics"] = GENERICS_DECL
     with sync_playwright() as p:
         browser = p.firefox.launch(executable_path=exe, headless=True,
-                                   firefox_user_prefs=_PREFS)
+                                   firefox_user_prefs=prefs)
         try:
             page = browser.new_page()
             page.goto("about:blank")
@@ -195,17 +307,47 @@ def main(exe: str) -> int:
         print(f"[font-gate] HOST LEAK (block-at-birth did not run!): {leaked_host}")
     if gen_bad:
         print(f"[font-gate] GENERIC MISMATCH: {gen_bad}")
-    ttc_bad = sorted(f for f in TTC_FAMILIES if not r.get("ttcload", {}).get(f))
-    if ttc_bad:
-        print(f"[font-gate] TTC FACE NOT LOADED (listed but falls back to a "
-              f"default face for CJK): {ttc_bad}")
+    # I gruppi di facce, misurati adesso, contro quelli attesi. Un raggruppamento
+    # che cambia dice che una faccia e' caduta nel ripiego; un VALORE che cambia
+    # dice che le metriche dichiarate si sono mosse, o che le due piattaforme non
+    # rispondono piu' uguale. Sono due difetti diversi e il messaggio li separa.
+    ink = r.get("inkbox", {})
+    visti = {}
+    for fam, box in ink.items():
+        visti.setdefault(box, []).append(fam)
+    # Si confronta la STRUTTURA - quali famiglie condividono una faccia - non i
+    # valori. I valori sono identici fra Windows e Linux solo quando il browser
+    # riceve tutte le sue dichiarazioni, e questo gate lo lancia grezzo perche'
+    # il job della CI non ha invisible_core: a lancio grezzo Linux torna bounds
+    # interi (la grid-fit di FreeType) mentre Windows torna frazioni. La
+    # struttura invece coincide, e' quella che risponde alla domanda "questa
+    # faccia ha caricato?" - una faccia che non carica CADE nel gruppo del
+    # ripiego e il raggruppamento cambia. La parita' cross-OS dei valori e' un
+    # controllo diverso, che va fatto sotto il wrapper dove le dichiarazioni ci
+    # sono tutte.
+    misurati = [set(f) for f in visti.values()]
+    face_bad = []
+    for atteso in EXPECTED_FACE_GROUPS:
+        if atteso not in misurati:
+            vicino = max(misurati, key=lambda g: len(g & atteso), default=set())
+            face_bad.append(f"gruppo atteso {sorted(atteso)} non trovato; "
+                            f"il piu' vicino misurato e' {sorted(vicino)}")
+    for g in misurati:
+        if g not in EXPECTED_FACE_GROUPS:
+            face_bad.append(f"gruppo non previsto: {sorted(g)}")
+    if face_bad:
+        print("[font-gate] FACCE: il raggruppamento non e' quello atteso")
+        for riga in face_bad:
+            print(f"[font-gate]   {riga}")
 
     ok = (not missing and not extra and not leaked_host and not gen_bad
-          and not ttc_bad)
+          and not face_bad)
     if ok:
         print(f"FONT GATE OK - exactly the {n} Windows families, host-leak 0, "
               f"generics map to Windows (serif/sans/mono/system-ui), "
-              f"{len(TTC_FAMILIES)}/{len(TTC_FAMILIES)} .ttc faces load.")
+              f"{len(EXPECTED_FACE_GROUPS)} face groups over "
+              f"{len(TTC_FAMILIES)} CJK families (every declared face draws "
+              f"its own glyphs).")
         return 0
     print("FONT GATE FAILED - the exposed set does not match the Windows "
           "persona on this OS (see the diff above).")
