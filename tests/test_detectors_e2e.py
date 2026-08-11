@@ -294,3 +294,76 @@ def test_creepjs_headless_and_proxy_clean(firefox_binary, detector_site):
         if stealth.get(k)
     }
     assert not proxy_tells, f"CreepJS JS-proxy stealth tells fired: {proxy_tells}"
+
+
+@pytest.mark.e2e
+def test_enumerate_devices_resolves_promptly(firefox_binary, detector_site):
+    """navigator.mediaDevices.enumerateDevices() deve RISOLVERSI, e in fretta.
+
+    Nato da un difetto misurato il 2026-08-10, e il punto e' che nessun test lo
+    vedeva pur essendo la causa di quattro fallimenti diversi.
+
+    Il sintomo che si vedeva era `test_fingerprintjs_visitorid_stable_across_launches`
+    rosso circa una volta su tre - un nome che manda fuori strada, perche' non
+    c'entrava ne' l'identificativo ne' la sua stabilita'. La pagina dei
+    rilevatori restava a `state='loading'`: BotD finiva, FingerprintJS finiva,
+    fpscanner no. Dentro fpscanner:
+
+        return new Promise(async function(t) {
+          const a = await navigator.mediaDevices.enumerateDevices();
+          ...
+          return t({...});                 // <- resolve DOPO l'await
+        });
+
+    Se `enumerateDevices()` non si risolve, quella promessa non si chiude mai:
+    nessun errore, nessuna eccezione, la pagina viva che risponde a `evaluate`,
+    e il `wait_for_function` che scade dopo 45 secondi. Un browser che non
+    risponde e' facile da diagnosticare; uno che aspetta per sempre no.
+
+    Misurato: SOLO la prima chiamata costa - tre chiamate consecutive nella
+    stessa sessione danno [1383, 2, 0] ms - quindi e' l'inizializzazione dello
+    stack media, una volta per sessione. Attraverso questo wrapper la mediana e'
+    ~1440 ms e circa 1 sessione su 8 non si risolve affatto; con Playwright
+    liscio, STESSO binario, stesse prefs, stesso ambiente e stesse opzioni di
+    contesto, la mediana e' ~270 ms e 0 blocchi su 10. Escluse per misura: il
+    binario, `media.navigator.streams.fake`, tutte e 230 le prefs, le variabili
+    d'ambiente, le opzioni di contesto e il motore del cursore. Cosa resti nel
+    wrapper e' aperto - vedi 70-known-bugs.md.
+
+    La soglia e' 30 secondi, e la prima versione di questo test aveva 5: un
+    numero che diceva "e' veloce" mentre il commento accanto dichiarava di
+    assertire "si risolve". Misurato subito dopo, falliva 7 volte su 8 sotto
+    carico con tempi fra 2.7 e 5 secondi - cioe' bocciava sessioni in cui la
+    chiamata si RISOLVEVA, che non e' il difetto. 30 secondi sta sopra ogni
+    tempo osservato quando funziona e sotto i 45 in cui il difetto si manifesta
+    come timeout altrove. Il tempo viene stampato sempre, quindi una regressione
+    di velocita' resta visibile senza rendere il test instabile.
+    """
+    with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
+        page = browser.new_page()
+        page.goto(detector_site.url, wait_until="load", timeout=45000)
+        r = page.evaluate(
+            """() => {
+                const t0 = performance.now();
+                return Promise.race([
+                    navigator.mediaDevices.enumerateDevices().then(
+                        d => ({esito: 'risolta', n: d.length,
+                               ms: Math.round(performance.now() - t0)}),
+                        e => ({esito: 'rifiutata', err: String(e).slice(0, 120),
+                               ms: Math.round(performance.now() - t0)})),
+                    new Promise(res => setTimeout(
+                        () => res({esito: 'MAI RISOLTA', ms: 30000}), 30000)),
+                ]);
+            }"""
+        )
+    assert r["esito"] != "MAI RISOLTA", (
+        "navigator.mediaDevices.enumerateDevices() non si e' risolta entro 5s. "
+        "Ogni rilevatore che fa `await enumerateDevices()` prima di risolvere "
+        "resta appeso per sempre, e la pagina sembra viva: e' il difetto del "
+        "2026-08-10, che si presentava come un test dell'identificativo rosso "
+        "una volta su tre."
+    )
+    assert r["esito"] == "risolta", (
+        f"enumerateDevices ha rifiutato invece di risolvere: {r.get('err')!r}"
+    )
+    print(f"[media] enumerateDevices: {r['n']} dispositivi in {r['ms']}ms")

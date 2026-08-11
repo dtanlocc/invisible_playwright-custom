@@ -276,3 +276,117 @@ def test_cross_origin_iframe_dispatch_event_click_works(firefox_binary, cross_or
         )
         cf = page.query_selector("iframe#ifr_plain").content_frame()
         assert cf.evaluate("() => document.title") == "clicked"
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  L'invariante della geometria DENTRO un frame annidato
+# ──────────────────────────────────────────────────────────────────────
+_PARENT_GEOM = b"""<!doctype html><meta charset=utf-8><title>parent</title>
+<style>html,body{margin:0;padding:0;height:100%}
+#f{position:absolute;left:@LEFTpx;top:@TOPpx;width:360px;height:220px;border:0}</style>
+<body><iframe id=f src="@SRC"></iframe>
+<script>
+window.__geom = () => {
+  const w = document.getElementById('f').contentWindow;
+  const r = document.getElementById('f').getBoundingClientRect();
+  return {top_x: window.mozInnerScreenX, top_y: window.mozInnerScreenY,
+          ifr_x: w.mozInnerScreenX,      ifr_y: w.mozInnerScreenY,
+          rect_x: r.x, rect_y: r.y};
+};
+</script>"""
+
+_CHILD_GEOM = b"""<!doctype html><meta charset=utf-8><title>child</title>
+<style>html,body{margin:0;padding:0;height:100%}
+#g{position:absolute;left:30px;top:40px;width:220px;height:130px;background:#06c}</style>
+<body><div id=g>y</div>
+<script>
+window.__ev = [];
+for (const t of ['mousemove','mousedown','mouseup','click']) {
+  window.addEventListener(t, e => {
+    window.__ev.push({t:t, cx:e.clientX, cy:e.clientY, sx:e.screenX, sy:e.screenY});
+  }, true);
+}
+window.__inner = () => [window.mozInnerScreenX, window.mozInnerScreenY];
+</script>"""
+
+
+@pytest.mark.e2e
+def test_the_geometry_invariant_holds_inside_a_nested_frame(firefox_binary):
+    """screenX - clientX == mozInnerScreenX, DENTRO un iframe e non solo al top.
+
+    Il difetto che questo test esiste per fermare, misurato il 2026-08-10:
+    `mozInnerScreenX/Y` rispondeva l'origine del contenuto di PRIMO LIVELLO a
+    qualunque finestra, quindi un iframe posizionato a (220, 150) nella pagina
+    riportava (0, 85) - la stessa origine del documento che lo contiene - e li'
+    dentro `screenX - clientX` valeva 220 contro un `mozInnerScreenX` di 0.
+
+    Era la contraddizione che la dichiarazione della geometria esiste per
+    togliere, ricreata identica un livello sotto. E il gate scritto il giorno
+    prima per difendere proprio quella relazione era VERDE, perche' guardava un
+    documento solo: una relazione che vale a un livello e non al successivo non
+    e' una relazione, e' una coincidenza al primo livello.
+
+    Serve pagine vere da 127.0.0.1: i `data:` URL portano una CSP che cambia il
+    comportamento, e su una di quelle misure il browser rifiuta `set_content`
+    come operazione insicura.
+    """
+    # STESSA ORIGINE, un server e due percorsi. Servendo genitore e figlio su
+    # porte diverse la politica di sicurezza vieta al genitore di leggere
+    # `mozInnerScreenX` del figlio - "Permission denied to access property on
+    # cross-origin object" - e il test non misurerebbe la geometria ma la SOP.
+    left, top = 220, 150
+    parent_html = (_PARENT_GEOM
+                   .replace(b"@LEFT", str(left).encode())
+                   .replace(b"@TOP", str(top).encode())
+                   .replace(b"@SRC", b"/child"))
+    port = _free_port()
+
+    class _H(_SilentHandler):
+        def do_GET(self):
+            body = _CHILD_GEOM if self.path.startswith("/child") else parent_html
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = HTTPServer(("127.0.0.1", port), _H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto("http://127.0.0.1:%d/" % port,
+                      wait_until="load", timeout=30000)
+            g = page.evaluate("() => window.__geom()")
+
+            # 1. l'iframe riporta la PROPRIA origine, non quella del genitore
+            atteso = (g["top_x"] + g["rect_x"], g["top_y"] + g["rect_y"])
+            assert (g["ifr_x"], g["ifr_y"]) == atteso, (
+                f"l'iframe riporta mozInnerScreen ({g['ifr_x']}, {g['ifr_y']}) "
+                f"invece di {atteso}: e' l'origine del documento che lo "
+                f"contiene, quindi ogni frame contraddice i propri eventi"
+            )
+
+            # 2. e la relazione vale sugli eventi ricevuti LI' DENTRO
+            frame = page.frame_locator("#f")
+            page.frames[1].evaluate("() => { window.__ev = []; }")
+            frame.locator("#g").hover(timeout=10000)
+            page.wait_for_timeout(400)
+            ev = page.frames[1].evaluate("() => window.__ev")
+            inner = page.frames[1].evaluate("() => window.__inner()")
+            assert ev, "nessun evento ricevuto nell'iframe: copertura assente, e questo NON e' un pass"
+            for e in ev:
+                assert e["sx"] - e["cx"] == inner[0], (
+                    f"nell'iframe screenX-clientX = {e['sx'] - e['cx']} contro "
+                    f"mozInnerScreenX = {inner[0]}: una pagina lo legge con una sottrazione"
+                )
+                assert e["sy"] - e["cy"] == inner[1], (
+                    f"nell'iframe screenY-clientY = {e['sy'] - e['cy']} contro "
+                    f"mozInnerScreenY = {inner[1]}"
+                )
+            page.close()
+    finally:
+        srv.shutdown()
