@@ -129,3 +129,38 @@ jobs:
               sys.exit(1)
           print(f"{passed} tests ran")
           PY
+
+  # UN SOLO CONTESTO PER LA BRANCH PROTECTION. Misurato 2026-08-13: la
+  # protezione di questo repo richiedeva `pytest (windows-latest, py3.11)`,
+  # che la matrice ESCLUDE esplicitamente qualche riga piu' su - un contesto
+  # che nessun job puo' produrre, quindi una protezione che non poteva mai
+  # essere soddisfatta. Con `enforce_admins` a false ogni push passava lo
+  # stesso e nessuno se ne accorgeva. Stessa forma nel core e nel manager.
+  #
+  # Un elenco di nomi di matrice va alla deriva ogni volta che la matrice
+  # cambia, ed e' esattamente cosi' che ci si e' arrivati. Questo job dipende
+  # dalla matrice intera e il suo nome non cambia mai.
+  #
+  # SKIPPED NON E' FAILED, ed e' la parte specifica di questo repo. `unit` e'
+  # saltato di proposito quando `core-on-index` dice che il pin non e' ancora
+  # sull'indice: durante quella finestra nessun install puo' riuscire, e il
+  # workflow ha scelto di SALTARE invece di fingere verde. Un gate che
+  # pretendesse `success` trasformerebbe quella scelta in un rosso e
+  # spingerebbe a togliere la protezione proprio nel giorno del rilascio.
+  # Quindi si rifiuta su `failure` e `cancelled`, non su `skipped`.
+  gate:
+    needs: [core-on-index, unit]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: refuse unless nothing failed
+        run: |
+          echo "core-on-index: ${{ needs.core-on-index.result }}"
+          echo "unit:          ${{ needs.unit.result }}"
+          case "${{ needs.unit.result }}" in
+            failure|cancelled) echo "the suite did not pass"; exit 1 ;;
+          esac
+          case "${{ needs.core-on-index.result }}" in
+            failure|cancelled) echo "the index check did not run"; exit 1 ;;
+          esac
+          echo "ok"
