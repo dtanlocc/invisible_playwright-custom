@@ -1,5 +1,5 @@
 <p align="center">
-  <b>Trouble with captchas? With proxies? Is your browser detected every time?</b><br>
+  <b>Trouble with captchas - reCAPTCHA, hCaptcha, Turnstile? With proxies? Is your headless browser detected every time?</b><br>
   <sub>Join the group and ask. Someone in there has already solved it.</sub>
 </p>
 <p align="center">
@@ -13,19 +13,19 @@
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/banner-dark.png">
   <img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/banner-light.png" alt="invisible_playwright" width="720">
 </picture>
-<h3 align="center">Undetected Playwright automation on a stealth-patched Firefox.<br>
-Python, MIT, and it passes every bot detection test.</h3>
+<h3 align="center">Free antidetect browser stealth for Playwright: undetected Firefox fingerprint, headless or headed.<br>
+Python web scraping and captcha bypass. Open source, and it passes every bot detection test.</h3>
 </div>
 
 ![invisible_playwright - 5/5 detection suites passed](https://raw.githubusercontent.com/feder-cr/invisible_playwright/7a8693c6b4386e9a84dd93bedc479ca8654482e1/docs/screenshots/hero.gif)
 
 ## How it works
 
-Anti-bots ask two questions. invisible_playwright answers yes to both.
+Anti-bots ask two questions, and reCAPTCHA, hCaptcha and Cloudflare Turnstile score the answers. invisible_playwright answers yes to both.
 
 **1. Is this a real browser?** Yes. It is Firefox, patched at the C++ source level.
 
-- Fingerprint set inside the engine, not injected into the page: Navigator, screen, GPU/WebGL, Canvas, fonts, audio, WebRTC, timezone, network.
+- The browser fingerprint is set inside the engine, not injected into the page: navigator, screen, GPU/WebGL, canvas, fonts, audio, WebRTC, timezone, network. Headless or headed, the same values either way.
 - No JS shim, no override, no seam to read.
 
 **2. Is a real person using it?** Yes. The actions are humanized in the driver.
