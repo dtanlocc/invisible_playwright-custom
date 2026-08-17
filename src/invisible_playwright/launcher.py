@@ -1,6 +1,7 @@
 """Sync Playwright launcher for invisible_playwright."""
 from __future__ import annotations
 
+import json
 import secrets
 from pathlib import Path
 import time as _time
@@ -28,7 +29,6 @@ from ._reaper import SessionToken, guard_for
 #: `browser.new_page()` needs the same wait and a second literal is a second
 #: value: the two drifted apart for as long as one of them did not exist.
 _NEWTAB_SETTLE = 0.4
-
 
 def _patch_sync_new_page_sleep(ctx: Any) -> None:
     """Wrap ctx.new_page() to add a brief settle after tab creation.
@@ -247,10 +247,34 @@ class InvisiblePlaywright:
             self._pw = sync_playwright().start()
             if self._profile_dir is not None:
                 # Persistent context - cookies / localStorage / extensions /
-                # prefs all live on disk between runs. Stealth prefs are
-                # re-injected via firefox_user_prefs on every launch (Playwright
-                # writes them to user.js, which overrides anything in
-                # prefs.js inside the persistent dir).
+                # prefs all live on disk between runs.
+                #
+                # ⛔ The line that used to be here said the stealth prefs are
+                # "re-injected via firefox_user_prefs on every launch (Playwright
+                # writes them to user.js, which overrides anything in prefs.js)".
+                # That is FALSE on the Juggler path, and the false belief is what
+                # made the first-launch/second-launch asymmetry look impossible.
+                # Verified 2026-08-14 in the bundled driver: writePreferences(),
+                # the function that creates user.js, lives in
+                # server/bidi/third_party/firefoxPrefs.ts and is called only by
+                # BidiFirefox.prepareUserDataDir; the BASE prepareUserDataDir is
+                # empty and the Juggler Firefox type does not override it. The
+                # prefs travel over the protocol instead: Browser.enable applies
+                # them with Services.prefs.setBoolPref / setStringPref /
+                # setIntPref - USER-branch setters - after
+                # `await this._startCompletePromise`, so Firefox persists them
+                # into prefs.js. Measured: 39 zoom.stealth prefs in prefs.js after
+                # the first launch, and no user.js on disk at all.
+                #
+                # Consequence: launch 1 initialises gfx/fonts with the
+                # DEFAULTS, launch 2+ with the stealth prefs already active. Two
+                # different code paths, and every gate in this project starts from
+                # a fresh profile - which is how the relaunch hang lived unseen.
+                # Cause and fix: `70-known-bugs.md` [B150]. The fix is a pref
+                # applied by invisible_core to every session, not code here: a
+                # geometry-scrubbing remedy lived in this file for a few hours and
+                # was REMOVED once the origin was found, so that only one place
+                # knows the fact.
                 self._profile_dir.mkdir(parents=True, exist_ok=True)
                 self._persistent_context = self._pw.firefox.launch_persistent_context(
                     user_data_dir=str(self._profile_dir),
