@@ -238,13 +238,21 @@ DETECT_JS = r"""(arg) => {
   return { present, gen, genref, inkbox };
 }"""
 
-# Suppress the new-tab machinery so the launch is quiet (mirrors ci_drive_gate).
-_PREFS = {
-    "browser.startup.page": 0,
-    "browser.newtabpage.enabled": False,
-    "browser.newtab.preload": False,
-    "browser.newtabpage.activity-stream.enabled": False,
-}
+# ⛔ QUI STAVANO QUATTRO PREFS CHE SPEGNEVANO IL NEWTAB, tolte il 2026-08-20 col
+# revert del newtab, per la stessa ragione di `ci_drive_gate.py`: il prodotto non
+# le spedisce piu', e un banco che gira in una configurazione diversa da quella
+# spedita misura un'altra cosa.
+#
+# Il commento diceva "mirrors ci_drive_gate", e gia' non era vero: erano QUATTRO
+# qui contro SEI la', divergenti da chissa' quando. E' il difetto che questa
+# rimozione chiude alla radice invece di riallineare: adesso non c'e' nessuna
+# lista da tenere in pari, perche' non ce n'e' nessuna.
+#
+# La gara che queste prefs volevano evitare non esiste piu' da nessuna parte:
+# non era Fission, era il browser preallocato della nuova scheda che si prendeva
+# il canale della pagina, ed e' corretto nel motore dal 2026-08-23
+# (`20-our-patches.md` §5.2w). Nessun gate aspetta piu' niente.
+_PREFS: dict = {}
 
 
 # ── Il limite strutturale di questo gate, misurato e non dedotto ──────────

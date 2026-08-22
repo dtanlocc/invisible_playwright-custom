@@ -105,21 +105,28 @@ def _start_server():
     return srv, srv.server_address[1]
 
 
-# FF150 + Fission auto-loads about:newtab (TopSitesFeed) ~100ms-1s after a tab's
-# first navigation - a cross-process BC swap that REPLACES the page out from under
-# the test. The wrapper always disables it (see prefs.py); raw Playwright does not,
-# so the binary's realistic config must set it here too. Without this the drive page
-# can vanish mid-sequence (it loses the race whenever an action adds latency, e.g.
-# the human-cursor path), surfacing as a phantom "waiting for locator" timeout that
-# is an environment artifact, not a binary defect.
-_REALISTIC_PREFS = {
-    "browser.startup.page": 0,
-    "browser.newtabpage.enabled": False,
-    "browser.newtab.preload": False,
-    "browser.newtabpage.activity-stream.feeds.topsites": False,
-    "browser.newtabpage.activity-stream.feeds.section.topstories": False,
-    "browser.newtabpage.activity-stream.enabled": False,
-}
+# ⛔ QUI STAVA `_REALISTIC_PREFS`, SEI PREFS CHE SPEGNEVANO IL NEWTAB.
+# Tolte il 2026-08-20 col revert del newtab, e la ragione e' che la loro
+# giustificazione era diventata falsa: il commento diceva "the wrapper always
+# disables it (see prefs.py); raw Playwright does not, so the binary's realistic
+# config must set it here too". Il wrapper NON le disabilita piu' - il
+# proprietario ha ordinato il ripristino del codice originale di Mozilla - quindi
+# tenerle qui avrebbe fatto girare il gate in una configurazione che il prodotto
+# non spedisce. Un banco che misura una configurazione diversa da quella spedita
+# non e' un gate, e' un'altra misura con lo stesso nome.
+#
+# ⛔ E IL PERICOLO CHE DESCRIVEVANO E' STATO CHIUSO ALLA RADICE IL 2026-08-23,
+# quindi qui non resta nessuna contromisura. Non era Fission che ricaricava la
+# pagina: era il browser PREALLOCATO della nuova scheda che si prendeva il canale
+# della pagina, perche' `JugglerFrameParent` riconosceva il target confrontando un
+# `browserId` con l'`id` di un BrowsingContext. Corretto nel motore
+# (`20-our-patches.md` §5.2w, [B166] in `71-bug-archive.md`).
+#
+# Fra il 20 e il 23 agosto qui c'era un `time.sleep(_NEWTAB_SETTLE)` importato dal
+# wrapper. E' stato tolto insieme alla costante: misurato, l'attesa non copriva
+# niente - con l'attesa VERA, cioe' aspettando che `about:newtab` fosse arrivato e
+# caricato, la `goto` riusciva 0 volte su 9 - e dopo la correzione nel motore
+# Playwright nudo fa 10 su 10 senza aspettare niente.
 
 
 def _drive(exe: str, url: str, livello: str) -> str:
@@ -129,8 +136,7 @@ def _drive(exe: str, url: str, livello: str) -> str:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        browser = p.firefox.launch(executable_path=exe, headless=True,
-                                   firefox_user_prefs=_REALISTIC_PREFS)
+        browser = p.firefox.launch(executable_path=exe, headless=True)
         try:
             page = browser.new_page()
             resp = page.goto(url, wait_until="load")
