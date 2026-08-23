@@ -7,7 +7,7 @@ Thanks for your interest in improving this project. Contributions are welcome vi
 - **Bug?** Open a [bug report](https://github.com/feder-cr/invisible_playwright/issues/new?template=bug_report.yml).
 - **Idea?** Open a [feature request](https://github.com/feder-cr/invisible_playwright/issues/new?template=feature_request.yml).
 - **Security issue?** Do **not** open a public issue - see [SECURITY.md](SECURITY.md).
-- **The C++ patches** live in the companion repo [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch) (branch `stealth/150`). Bugs in fingerprint spoofing usually belong there.
+- **The C++ patches** live in the companion repo [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch) (branch `stealth/151`). Bugs in fingerprint spoofing usually belong there.
 
 ## Scope
 

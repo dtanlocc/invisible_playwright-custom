@@ -79,17 +79,6 @@ class _AsyncStubContext(_StubContext):
         self.cookies.extend(cookies)
 
 
-@pytest.fixture(autouse=True)
-def no_settle(monkeypatch):
-    """The 0.4s about:newtab settle, out of the unit tests.
-
-    Not removed from the code path: `_NEWTAB_SETTLE` is asserted separately.
-    """
-    import invisible_playwright.launcher as launcher
-
-    monkeypatch.setattr(launcher._time, "sleep", lambda _s: None)
-
-
 @pytest.mark.unit
 def test_new_page_gets_the_same_defaults_as_new_context():
     ip = InvisiblePlaywright(seed=42)
@@ -140,15 +129,35 @@ def test_the_async_api_wraps_new_page_too():
 
 
 @pytest.mark.unit
-def test_the_settle_is_one_value_shared_by_both_apis():
-    """The about:newtab race needs the same wait wherever a tab is created, and
-    a second literal is a second value."""
+def test_no_api_sleeps_after_creating_a_tab():
+    """⛔ L'attesa dopo ogni scheda nuova NON deve tornare.
+
+    C'era, valeva 0,4 s e serviva a non farsi dirottare la prima `goto()` da una
+    navigazione ad `about:newtab`. La causa non era una corsa da aspettare: era
+    `JugglerFrameParent` che riconosceva il target confrontando `browserId` con
+    l'`id` di un BrowsingContext - due contatori diversi - e lasciava che il
+    browser preallocato della nuova scheda si prendesse il canale della pagina.
+    Corretta nel motore il 2026-08-23 (`70-known-bugs.md` [B166]); l'attesa e'
+    stata tolta lo stesso giorno perche' un secondo rimedio per una causa sola e'
+    una seconda verita'.
+
+    Il controllo e' sul CODICE che avvolge la creazione della scheda, non su un
+    nome: reintrodurre il ritardo con un altro nome lo farebbe scattare uguale.
+    """
+    import inspect
+
     import invisible_playwright.async_api as async_api
     import invisible_playwright.launcher as launcher
 
-    assert launcher._NEWTAB_SETTLE == 0.4
-    assert async_api._NEWTAB_SETTLE is launcher._NEWTAB_SETTLE
-    assert "0.4" not in async_api._patch_new_page_sleep.__code__.co_consts.__str__()
+    for modulo in (launcher, async_api):
+        sorgente = inspect.getsource(
+            modulo.InvisiblePlaywright._patch_new_context_defaults
+        )
+        assert "sleep(" not in sorgente, (
+            f"{modulo.__name__} dorme dopo aver creato una scheda: la causa di "
+            "[B166] sta nel motore, non qui")
+    assert not hasattr(launcher, "_NEWTAB_SETTLE")
+    assert not hasattr(async_api, "_patch_new_page_sleep")
 
 
 @pytest.mark.e2e

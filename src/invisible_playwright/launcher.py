@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import secrets
 from pathlib import Path
-import time as _time
 from typing import Any, Dict, Optional, Union
 
 from playwright.sync_api import Browser, BrowserContext, Playwright, sync_playwright
@@ -25,27 +24,22 @@ from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
 
 
-#: Settle after a tab is created, in seconds. Named and module-level because
-#: `browser.new_page()` needs the same wait and a second literal is a second
-#: value: the two drifted apart for as long as one of them did not exist.
-_NEWTAB_SETTLE = 0.4
-
-def _patch_sync_new_page_sleep(ctx: Any) -> None:
-    """Wrap ctx.new_page() to add a brief settle after tab creation.
-
-    FF150 with Fission emits an about:newtab navigation ~100ms after a tab
-    is created.  If goto() is called immediately, it races with that internal
-    navigation and raises "Navigation interrupted by about:newtab".  A short
-    sleep breaks the race without requiring every call-site to know about it.
-    """
-    original_new_page = ctx.new_page
-
-    def patched_new_page(**kw):
-        page = original_new_page(**kw)
-        _time.sleep(_NEWTAB_SETTLE)
-        return page
-
-    ctx.new_page = patched_new_page  # type: ignore[assignment]
+# ⛔ QUI STAVA `_NEWTAB_SETTLE = 0.4` E IL SUO INVOLUCRO SU `ctx.new_page`,
+# TOLTI IL 2026-08-23 PERCHE' LA CAUSA E' STATA CHIUSA NEL MOTORE.
+#
+# Aspettavano 0,4 s dopo ogni scheda nuova per non farsi dirottare la prima
+# `goto()` da una navigazione interna ad `about:newtab`. Quella navigazione non
+# era del browser: era il browser PREALLOCATO della nuova scheda che si prendeva
+# il canale della pagina, perche' `JugglerFrameParent` riconosceva il target
+# confrontando `browserId` con l'`id` di un BrowsingContext - due contatori
+# diversi, che si sono scontrati. Il rimedio sta li' (`juggler/
+# JugglerFrameParent.sys.mjs`, la smentita con l'elemento `<browser>`), e
+# `70-known-bugs.md` [B166] porta i numeri.
+#
+# Tenere anche l'attesa qui sarebbe una seconda verita' sullo stesso fatto: il
+# ritardo non c'entrava con la causa e non la copriva - misurato lo stesso
+# giorno, con l'attesa e senza la correzione la `goto` moriva comunque 0 volte
+# su 9 riuscite. Con la correzione e senza nessuna attesa: 10 su 10.
 
 
 # The window chrome is NOT a wrapper constant either, for the same reason the
@@ -286,7 +280,6 @@ class InvisiblePlaywright:
                     env=env,
                     **self._persistent_context_kwargs(),
                 )
-                _patch_sync_new_page_sleep(self._persistent_context)
                 self._bind_process_tree()
                 self._arm_cursor_engine(self._persistent_context)
                 return self._persistent_context
@@ -401,7 +394,6 @@ class InvisiblePlaywright:
             merged = dict(defaults)
             merged.update(kw)  # user-supplied wins
             ctx = original(**merged)
-            _patch_sync_new_page_sleep(ctx)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_sync
                 seed_recaptcha_cookies_sync(ctx, profile, locale=loc)
@@ -416,11 +408,6 @@ class InvisiblePlaywright:
             merged.update(kw)  # user-supplied wins, same rule as new_context
             page = original_page(**merged)
             ctx = page.context
-            # The settle new_context installs for later tabs, applied to THIS
-            # tab too: it is the same about:newtab race, and browser.new_page()
-            # creates a tab the caller is about to goto() immediately.
-            _time.sleep(_NEWTAB_SETTLE)
-            _patch_sync_new_page_sleep(ctx)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_sync
                 seed_recaptcha_cookies_sync(ctx, profile, locale=loc)

@@ -8,7 +8,6 @@ from typing import Any, Dict, Optional, Union
 
 from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
 
-from .launcher import _NEWTAB_SETTLE
 from . import _session
 from ._cursor import (
     ENGINE_PYTHON,
@@ -24,24 +23,6 @@ from ._engine import assert_wire_version, resolve_executable
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
 from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H
-
-
-def _patch_new_page_sleep(ctx: Any) -> None:
-    """Wrap ctx.new_page() to add a brief settle after tab creation.
-
-    FF150 with Fission emits an about:newtab navigation ~100ms after a tab
-    is created.  If goto() is called immediately, it races with that internal
-    navigation and raises "Navigation interrupted by about:newtab".  A short
-    sleep breaks the race without requiring every call-site to know about it.
-    """
-    original_new_page = ctx.new_page
-
-    async def patched_new_page(**kw):
-        page = await original_new_page(**kw)
-        await asyncio.sleep(_NEWTAB_SETTLE)
-        return page
-
-    ctx.new_page = patched_new_page  # type: ignore[assignment]
 
 
 class InvisiblePlaywright:
@@ -146,7 +127,6 @@ class InvisiblePlaywright:
                     env=env,
                     **self._default_context_kwargs(),
                 )
-                _patch_new_page_sleep(self._persistent_context)
                 self._bind_process_tree()
                 self._arm_cursor_engine(self._persistent_context)
                 return self._persistent_context
@@ -216,7 +196,6 @@ class InvisiblePlaywright:
             merged = dict(defaults)
             merged.update(kw)
             ctx = await original(**merged)
-            _patch_new_page_sleep(ctx)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_async
                 await seed_recaptcha_cookies_async(ctx, profile, locale=loc)
@@ -231,11 +210,6 @@ class InvisiblePlaywright:
             merged.update(kw)  # user-supplied wins, same rule as new_context
             page = await original_page(**merged)
             ctx = page.context
-            # The settle new_context installs for later tabs, applied to THIS
-            # tab too: the same about:newtab race, and a caller doing
-            # `page = await browser.new_page()` goes straight to goto().
-            await asyncio.sleep(_NEWTAB_SETTLE)
-            _patch_new_page_sleep(ctx)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_async
                 await seed_recaptcha_cookies_async(ctx, profile, locale=loc)
