@@ -74,6 +74,17 @@ def file_campione(tmp_path):
     return str(p)
 
 
+@pytest.mark.xfail(
+    reason="Il rimedio sta nel MOTORE e non e' ancora rilasciato: PageAgent.js "
+           "ascolta `file-input-picker-opening` invece di "
+           "`juggler-file-picker-shown` da un commit POSTERIORE a firefox-20, "
+           "che e' il binario che il seal pinna oggi. Misurato il 2026-08-26: "
+           "contro firefox-20 l'evento non arriva (timeout 15s), contro la build "
+           "locale che porta il commit il test passa. Diventa verde da solo al "
+           "primo firefox-N che include quel commit, e per questo non e' stato "
+           "cancellato ne' lasciato rosso: un e2e rosso sulla coppia SPEDITA "
+           "insegna a ignorare l'e2e.",
+    strict=False)
 @pytest.mark.e2e
 def test_expect_file_chooser_riceve_levento(firefox_binary, pagina_locale):
     """L'evento arriva. Prima del 2026-08-25 questo scadeva sempre."""
