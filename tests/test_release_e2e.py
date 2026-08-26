@@ -236,6 +236,24 @@ def test_clean_install_the_way_a_user_does_it(clean_venv: Path):
 
     Set ``INVPW_E2E_SOURCE=git`` to test an unpublished commit instead; that is
     a pre-release check, not the default, and it says so in the failure.
+
+    ⛔ E QUINDI QUESTO TEST NON PUO' VEDERE UN WHEEL ROTTO CHE STAI PER
+    PUBBLICARE. Il bersaglio predefinito e' la stringa ``invisible-playwright``,
+    cioe' l'INDICE: la versione GIA' pubblicata. Verifica che il passato
+    funzioni - domanda vera e utile - e per questo resta verde anche quando il
+    codice in rilascio produce un pacchetto che non si importa. Il 2026-08-26 e'
+    stato verde due volte mentre il wheel 0.7.3 era rotto: prima senza
+    ``_pw/_repo_version.py`` (escluso dal wheel da una riga di ``.gitignore``,
+    che hatchling rispetta anche su un file tracciato), poi senza ``pyee``
+    (transitiva di ``playwright``, sparita quando ``playwright`` e' uscito dalle
+    dipendenze). Entrambi li ha trovati la CI per caso, non un test.
+
+    La domanda del PRE-rilascio - "il wheel costruito dal codice di adesso si
+    installa e si importa?" - la fa
+    ``tests/gates/wheel_si_importa.py`` nel workbench (scheda BE
+    dell'inventario dei gate), che costruisce, installa in un venv vuoto e
+    importa. Non e' qui perche' tutta questa suite gira su un'installazione
+    EDITABLE del working tree, dove ogni file esiste sul disco per definizione.
     """
     source = os.environ.get("INVPW_E2E_SOURCE", "index")
     if source == "git":
