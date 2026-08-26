@@ -102,16 +102,14 @@ def build_body(tag: str, current_sha: str, bullets: list[str],
         parts += [f"- {b}" for b in bullets]
         parts.append("")
     parts += [
-        "Builds: Linux x86_64, Linux arm64, Windows x86_64, macOS arm64, macOS x86_64.",
+        "Builds: Linux x86_64, Linux arm64, Windows x86_64.",
         "",
         "Most people won't grab these by hand. The wrapper fetches the right one for "
         "your platform on first run:",
         "",
         "    pip install invisible-playwright",
         "",
-        "If you do download manually, `checksums.txt` has the SHA256s. The macOS builds "
-        "are ad-hoc signed (not notarized), so clear the quarantine flag: "
-        "`xattr -dr com.apple.quarantine Firefox.app`",
+        "If you do download manually, `checksums.txt` has the SHA256s.",
     ]
     if short:
         parts += ["", f"Built from firefox_antidetect_patch @{short}."]

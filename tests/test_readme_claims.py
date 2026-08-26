@@ -259,8 +259,20 @@ def test_the_supported_platforms_are_the_ones_the_seal_actually_ships():
         "macos-arm64": ["macos arm64"],
         "macos-x86_64": ["macos arm64 / x86_64", "macos x86_64"],
     }
+    #: ⛔ PIATTAFORME RITIRATE. macOS e' uscito dal supporto il 2026-08-26 (fine
+    #: supporto, decisione del proprietario), ma il seal PINNATO e' ancora
+    #: firefox-20, che il mac ce l'aveva: quindi il seal SOVRA-spedisce rispetto a
+    #: cio' che il prodotto supporta d'ora in poi. Fino a quando non si taglia un
+    #: firefox-N senza mac e si sposta il pin, questa e' l'unica coppia in cui il
+    #: README dichiara MENO di quello che il seal contiene, ed e' corretto: non si
+    #: dichiara una piattaforma che non si sostiene piu'. Non e' l'altra meta' del
+    #: guasto (dichiarare cio' che non si costruisce): quella resta vietata sotto.
+    DROPPED = {"macos-arm64", "macos-x86_64"}
+
     missing = []
     for token, spellings in expected.items():
+        if token in DROPPED:
+            continue                      # ritirata: NON si pretende che la pagina la dichiari
         if token not in assets:
             continue                      # the seal does not ship it; nothing to claim
         if not any(sp in text for sp in spellings):
@@ -269,8 +281,18 @@ def test_the_supported_platforms_are_the_ones_the_seal_actually_ships():
     assert not missing, "\n  ".join(
         ["the page and the seal disagree about what runs:"] + missing)
 
+    # E il silenzio non basta: se una piattaforma e' ritirata ma il seal la spedisce
+    # ancora, la pagina deve DIRLO, o un lettore su quella piattaforma non capisce
+    # perche' il pacchetto rifiuta. Gate positivo, non "non menzionarla".
+    if any(t in assets for t in DROPPED):
+        assert "macos is no longer supported" in text or "no longer supported" in text, (
+            "il seal spedisce ancora asset macOS (pin storico) ma la pagina non dice "
+            "che macOS non e' piu' supportato: un utente Mac non capirebbe il rifiuto")
+
     # And the other direction: nothing claimed that is not built.
     for token in expected:
+        if token in DROPPED:
+            continue                      # ritirata: la pagina PUO' nominarla come non supportata
         if token in assets:
             continue
         family = token.split("-")[0]

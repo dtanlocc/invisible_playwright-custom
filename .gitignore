@@ -14,3 +14,6 @@ firefox-source/
 # gitlink that nobody can clone. The sdist/wheel excludes only protect the
 # published artifacts, not the repo, so the ignore has to live here too.
 tests/playwright-upstream/
+
+# setuptools-scm lo rigenera e dice di non tracciarlo
+src/invisible_playwright/_pw/_repo_version.py
