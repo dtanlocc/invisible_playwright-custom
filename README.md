@@ -39,7 +39,7 @@ pip install invisible-playwright
 python -m invisible_playwright fetch      # one-time ~238 MB download (~544 MB unpacked), sha256-verified
 ```
 
-Supported platforms: **Windows x86_64**, **Linux x86_64 / arm64**, **macOS arm64 / x86_64**. On macOS the app is ad-hoc signed (not notarized): if Gatekeeper complains, clear the quarantine flag once with `xattr -dr com.apple.quarantine` on the cached `Firefox.app`.
+Supported platforms: **Windows x86_64**, **Linux x86_64 / arm64**. macOS is no longer supported (releases stopped at firefox-20); on a Mac the package refuses at launch with a clear message rather than downloading a binary that no longer exists.
 
 ---
 
