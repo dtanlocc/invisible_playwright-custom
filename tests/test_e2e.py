@@ -131,16 +131,65 @@ def test_e8_new_context_defaults_from_profile(firefox_binary):
 
 @pytest.mark.e2e
 def test_e9_linux_build_prefs_omits_windows_sandbox_key(monkeypatch):
-    """E9: ``_build_prefs(headless=True)`` on Linux must pass
-    ``virtual_display=False`` to the prefs translator. The Win32-only
-    ``security.sandbox.gpu.level`` workaround targets the alt-desktop
-    GPU sandbox bug and MUST NOT leak into Linux prefs, where Xvfb
-    handles window hiding instead."""
+    """E9: on Linux, ``_resolve_headless()`` creates a REAL virtual
+    display (Xvfb, stubbed here) - ``self._virtual_display`` ends up
+    truthy - and the Win32-only ``security.sandbox.gpu.level`` workaround
+    still MUST NOT leak into the prefs, because it is gated on the
+    platform too, not on virtual_display alone.
+
+    Rewritten 2026-08-24 (B172): ``_build_prefs()`` used to compute
+    ``virtual_display`` itself from ``headless and platform=="win32"``,
+    a guess made before ``make_virtual_display()`` ever ran. It now reads
+    ``self._virtual_display is not None`` - the REAL outcome - so this
+    test must call ``_resolve_headless()`` first, exactly like the real
+    ``__enter__`` does, or it would not exercise the Linux branch at all.
+    """
     import sys as _sys
     monkeypatch.setattr(_sys, "platform", "linux")
+
+    class _FakeDisplay:
+        def start(self) -> None:
+            pass
+
+        def stop(self) -> None:
+            pass
+
+    from invisible_playwright import launcher as _l
+    monkeypatch.setattr(_l, "make_virtual_display", lambda: _FakeDisplay())
+
     ip = InvisiblePlaywright(seed=42, headless=True)
+    ip._resolve_headless()
+    assert ip._virtual_display is not None, "the stub display was not wired up"
     prefs = ip._build_prefs()
     assert "security.sandbox.gpu.level" not in prefs
+
+
+@pytest.mark.e2e
+def test_e9b_windows_build_prefs_omits_sandbox_key_when_no_real_desktop(monkeypatch):
+    """E9b (B172, 2026-08-24): on Windows, ``make_virtual_display()``
+    ALWAYS returns None - the binary's own cloak replaced the
+    ``CreateDesktop`` alt-desktop this workaround was written for. The
+    two sandbox-weakening prefs must NOT appear: applying them widens the
+    sandbox for a desktop that is never created.
+
+    This is the regression the fix in ``_session.build_prefs`` guards:
+    before it, ``virtual_display`` was guessed as
+    ``headless and platform=="win32"`` BEFORE ``make_virtual_display()``
+    ever ran, so it was ``True`` on every headless Windows session
+    regardless of whether an alt-desktop actually existed.
+    """
+    import sys as _sys
+    monkeypatch.setattr(_sys, "platform", "win32")
+
+    from invisible_playwright import launcher as _l
+    monkeypatch.setattr(_l, "make_virtual_display", lambda: None)
+
+    ip = InvisiblePlaywright(seed=42, headless=True)
+    ip._resolve_headless()
+    assert ip._virtual_display is None, "Windows must never get a real alt-desktop"
+    prefs = ip._build_prefs()
+    assert "security.sandbox.gpu.level" not in prefs
+    assert "security.sandbox.content.level" not in prefs
 
 
 @pytest.mark.e2e

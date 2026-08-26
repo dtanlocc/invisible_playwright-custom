@@ -192,12 +192,13 @@ def _run_creepjs(firefox_binary, creep_url):
     }"""
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
-        # truly offline: abort every non-loopback request (CreepJS's optional
-        # crowd-comparison POST to arh.antoinevastel.com never runs).
-        page.route(
-            "**/*",
-            lambda r: r.abort() if "127.0.0.1" not in r.request.url else r.continue_(),
-        )
+        # NetworkObserver e' stato portato all'osso il 2026-08-24: page.route()
+        # non esiste piu' (Network.setRequestInterception rifiuta), quindi il
+        # blocco della POST opzionale di CreepJS verso arh.antoinevastel.com non
+        # si puo' piu' fare cosi'. Verificato: senza blocco il test passa lo
+        # stesso, con lo stesso esito su headlessRating/stealth - quella POST
+        # era isolamento di igiene del test (velocita', niente dipendenza da un
+        # sito terzo), non una precondizione delle asserzioni.
         page.goto(creep_url, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_function(
             "() => !!(window.Fingerprint && window.Fingerprint.headless)",

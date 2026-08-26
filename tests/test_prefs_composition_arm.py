@@ -34,13 +34,19 @@ DELIBERATE_VS_PUBLIC_API = {
     # get_default_stealth_prefs exists for a caller who has no generator of
     # their own, so it leaves the binary's on.
     "stealthfox.humanize.maxTime",
+    # Stesso motivo, terzo fratello: governa la CADENZA del generatore del
+    # binario, che solo l'API pubblica accende. Dichiarato dal 2026-08-25 -
+    # prima non lo scriveva nessuno e il motore usava il proprio default di
+    # 10 ms, che misurato dava il 79% degli intervalli fra due `mousemove` piu'
+    # fitti di quanto un 60 Hz reale possa consegnare.
+    "stealthfox.humanize.stepMs",
 }
 
 
 def test_the_wrapper_composes_what_the_public_api_composes():
     profile = generate_profile(SEED)
     mine = build_prefs(profile=profile, locale=LOCALE, timezone=TZ,
-                       extra_prefs=None, headless=False,
+                       extra_prefs=None, headless=False, virtual_display=False,
                        cursor_engine=ENGINE_PYTHON, humanize=True)
     public = get_default_stealth_prefs(SEED, locale=LOCALE, timezone=TZ)
 
@@ -67,10 +73,10 @@ def test_the_binary_engine_still_produces_the_cap_it_always_did():
     """
     profile = generate_profile(SEED)
     binary = build_prefs(profile=profile, locale=LOCALE, timezone=TZ,
-                         extra_prefs=None, headless=False,
+                         extra_prefs=None, headless=False, virtual_display=False,
                          cursor_engine=ENGINE_BINARY, humanize=2.5)
     python = build_prefs(profile=profile, locale=LOCALE, timezone=TZ,
-                         extra_prefs=None, headless=False,
+                         extra_prefs=None, headless=False, virtual_display=False,
                          cursor_engine=ENGINE_PYTHON, humanize=2.5)
 
     assert binary["stealthfox.humanize"] is True
@@ -89,6 +95,7 @@ def test_a_zero_cap_with_the_binary_engine_means_the_default_not_off():
     """
     prefs = build_prefs(profile=generate_profile(SEED), locale=LOCALE,
                         timezone=TZ, extra_prefs=None, headless=False,
+                        virtual_display=False,
                         cursor_engine=ENGINE_BINARY, humanize=0)
     assert prefs["stealthfox.humanize"] is True
     assert prefs["stealthfox.humanize.maxTime"] == "1.5"
@@ -104,10 +111,12 @@ def test_headless_still_applies_the_cloak_without_beating_extra_prefs():
     key = next(iter(cloak_prefs()))
     plain = build_prefs(profile=generate_profile(SEED), locale=LOCALE,
                         timezone=TZ, extra_prefs=None, headless=True,
+                        virtual_display=False,
                         cursor_engine=ENGINE_PYTHON, humanize=True)
     overridden = build_prefs(profile=generate_profile(SEED), locale=LOCALE,
                              timezone=TZ, extra_prefs={key: "mine"},
-                             headless=True, cursor_engine=ENGINE_PYTHON,
+                             headless=True, virtual_display=False,
+                             cursor_engine=ENGINE_PYTHON,
                              humanize=True)
 
     assert key in plain, "the cloak pref did not reach a headless session"

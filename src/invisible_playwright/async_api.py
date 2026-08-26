@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import secrets
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright
+from invisible_playwright._pw.async_api import Browser, BrowserContext, Playwright, async_playwright
 
 from . import _session
 from ._cursor import (
@@ -82,6 +83,17 @@ class InvisiblePlaywright:
         self._lifetime_guard = guard_for()
         # Proxy egress IP (WebRTC srflx override); discovered in __aenter__.
         self._webrtc_egress_ip: Optional[str] = None
+        #: La DECISIONE sul srflx, distinta dal fatto qui sopra.
+        #: Parte da None come lui: `_build_env` puo' essere chiamata
+        #: prima che il percorso geo abbia risolto, e in quel caso non
+        #: si dichiara niente.
+        self._srflx_dichiarato: Optional[str] = None
+        #: Vedi il gemello in `launcher.py`: parte a 0 perche' il primo contesto
+        #: deve poter controllare subito.
+        self._ultimo_controllo_uscita: float = 0.0
+        #: Sonde consecutive che non hanno risposto. Azzerato da ogni
+        #: controllo riuscito, cosi' conta le raffiche e non il totale.
+        self._uscite_non_misurabili: int = 0
 
     async def __aenter__(self) -> Union[Browser, BrowserContext]:
         # Resolve timezone="auto" AND discover the proxy egress IP in one
@@ -93,6 +105,17 @@ class InvisiblePlaywright:
         )
         self._timezone = _geo.timezone
         self._webrtc_egress_ip = _geo.egress_ip
+        # ⛔ DUE COSE DIVERSE, e prima erano un campo solo.
+        # `_webrtc_egress_ip` e' il FATTO: da dove usciamo. Serve alla
+        # guardia contro la deriva, che confronta l'uscita di adesso con
+        # quella del lancio.
+        # `_srflx_dichiarato` e' la DECISIONE: cosa il motore deve
+        # annunciare. Vale None quando l'uscita ha UDP dimostrato e
+        # coerente, perche' li' il srflx vero nasce gia' giusto e
+        # dichiararne uno aggiungerebbe un candidato senza allocazione
+        # corrispondente - il segnale che un rilevatore con un TURN
+        # proprio legge. Il core la prende in un punto solo.
+        self._srflx_dichiarato = _geo.srflx_da_dichiarare()
         # Geo-aware locale: "auto" derives the language from the egress country (reusing
         # the egress IP just discovered), like timezone="auto". Keeps the browser language
         # consistent with the proxy's country instead of a fixed en-US.
@@ -104,9 +127,12 @@ class InvisiblePlaywright:
         # binary_path= never reaches ensure_binary(), so the engine check lives
         # on the resolved executable rather than inside the fetcher.
         executable = resolve_executable(self._binary_path)
+        # il risultato REALE di _resolve_headless (ha creato un desktop
+        # alternativo o no?) deve essere noto PRIMA di comporre le prefs,
+        # non dopo: B172, 2026-08-24.
+        pw_headless = self._resolve_headless()
         prefs = self._build_prefs()
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
-        pw_headless = self._resolve_headless()
         self._session_token = SessionToken.mint()
         env = self._build_env(prefs)
         try:
@@ -179,6 +205,60 @@ class InvisiblePlaywright:
             owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
         )
 
+    #: Gemello di `launcher._INTERVALLO_CONTROLLO_USCITA_S`. Le due classi
+    #: devono restare uguali: e' il difetto che `_session.py` esiste per non
+    #: ripetere, e che ha gia' prodotto tre bug.
+    _INTERVALLO_CONTROLLO_USCITA_S = 120.0
+
+    #: Quante volte di fila la sonda puo' non rispondere prima che la sessione
+    #: venga rifiutata. Uno solo sarebbe troppo severo - un timeout capita - ma
+    #: illimitati sarebbero cecita' dichiarata: dopo tre controlli muti a 120 s
+    #: l'uno, sono sei minuti in cui nessuno sta confermando l'indirizzo che il
+    #: motore annuncia a ogni pagina.
+    _MAX_USCITE_NON_MISURABILI = 3
+
+    async def _assert_uscita_invariata(self) -> None:
+        """Rifiuta se l'IP di uscita e' cambiato dal lancio. Vedi il gemello
+        sincrono in `launcher.py` per il perche' non si aggiorna al volo."""
+        if not self._proxy or not self._webrtc_egress_ip:
+            return
+        adesso = time.monotonic()
+        if adesso - self._ultimo_controllo_uscita < self._INTERVALLO_CONTROLLO_USCITA_S:
+            return
+        self._ultimo_controllo_uscita = adesso
+        # La scoperta e' sincrona e fa rete: non deve bloccare il loop.
+        esito, attuale = await asyncio.get_running_loop().run_in_executor(
+            None, _session.egress_ancora_valido, self._proxy,
+            self._webrtc_egress_ip)
+        if esito == _session.USCITA_DERIVATA:
+            raise _session.ProxyEgressDrifted(
+                "l'IP di uscita del proxy e' cambiato durante la sessione: "
+                "al lancio era %s, adesso e' %s. Il candidato WebRTC srflx "
+                "dichiara ancora il primo, quindi da questo momento la pagina "
+                "esce da un indirizzo e WebRTC ne annuncia un altro - e' il "
+                "disaccordo che i rilevatori cercano. Questo proxy non tiene "
+                "la sessione appiccicosa per la durata richiesta: usane uno "
+                "che la garantisca, o accorcia la sessione."
+                % (self._webrtc_egress_ip, attuale))
+        if esito == _session.USCITA_NON_MISURABILE:
+            # NON e' "regge", ed e' per questo che gli esiti sono tre. Una sonda
+            # che cade UNA volta e' la rete; una che cade sempre e' cecita': da
+            # quel momento il motore continua a dichiarare a ogni pagina un
+            # indirizzo che nessuno sta piu' confermando. Si conta, invece di
+            # ignorare, e si rifiuta solo se si ripete.
+            self._uscite_non_misurabili += 1
+            if self._uscite_non_misurabili >= self._MAX_USCITE_NON_MISURABILI:
+                raise _session.ProxyEgressNonVerificabile(
+                    "l'IP di uscita non e' stato verificabile per %d controlli "
+                    "di fila. Non e' una deriva - la sonda non ha risposto "
+                    "affatto - ma non e' nemmeno parita': da qui in avanti il "
+                    "motore dichiarerebbe a ogni pagina un indirizzo che "
+                    "nessuno conferma piu'. Controlla che il proxy sia "
+                    "raggiungibile, poi rilancia la sessione."
+                    % self._uscite_non_misurabili)
+            return
+        self._uscite_non_misurabili = 0
+
     def _patch_new_context_defaults(self, browser: Browser) -> None:
         """Both entry points, for the reason spelled out in the sync launcher:
         Playwright's `Browser.new_page` forwards to the IMPLEMENTATION object,
@@ -193,12 +273,29 @@ class InvisiblePlaywright:
         loc = self._locale  # used by _recaptcha_seed for CONSENT lang+region
 
         async def patched(**kw):
+            await self._assert_uscita_invariata()
             merged = dict(defaults)
             merged.update(kw)
             ctx = await original(**merged)
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_async
                 await seed_recaptcha_cookies_async(ctx, profile, locale=loc)
+            # ⛔ ANCHE `context.new_page`: stessa lacuna del percorso sincrono,
+            # stessa correzione. La guardia stava su `browser.new_context` e
+            # `browser.new_page`, e non sul modo NORMALE di aprire una scheda,
+            # quindi una sessione che apre un contesto e poi N pagine faceva un
+            # controllo solo. Misurato: al lancio l'uscita era una, nove schede
+            # dopo un'altra, e comparivano insieme sulla stessa pagina.
+            #
+            # Correggerlo su un solo percorso avrebbe lasciato le due API a
+            # dare garanzie diverse sulla stessa cosa.
+            _new_page_ctx = ctx.new_page
+
+            async def _new_page_sorvegliata(**kw2):
+                await self._assert_uscita_invariata()
+                return await _new_page_ctx(**kw2)
+
+            ctx.new_page = _new_page_sorvegliata  # type: ignore[assignment]
             return ctx
 
         browser.new_context = patched  # type: ignore[assignment]
@@ -206,6 +303,7 @@ class InvisiblePlaywright:
         original_page = browser.new_page
 
         async def patched_page(**kw):
+            await self._assert_uscita_invariata()
             merged = dict(defaults)
             merged.update(kw)  # user-supplied wins, same rule as new_context
             page = await original_page(**merged)
@@ -225,8 +323,14 @@ class InvisiblePlaywright:
                                                 - p.screen.taskbar_px
                                                 - p.screen.chrome_h)},
             "screen":              {"width": p.screen.width, "height": p.screen.height},
-            "device_scale_factor": p.screen.dpr,
-            "color_scheme":        "dark" if p.dark_theme else "light",
+            # ⛔ device_scale_factor e color_scheme NON si passano piu'.
+            # Erano una seconda fonte per due fatti che invisible_core gia'
+            # dichiara (layout.css.devPixelsPerPx e
+            # layout.css.prefers-color-scheme.content-override), e vinceva
+            # questa: misurato, mettendo la pref a un valore diverso il browser
+            # non si muoveva. Tenuto identico al ramo sincrono, che
+            # test_async_default_context_kwargs_match_sync pretende - ed e' il
+            # test che ha visto questa riga rimasta indietro.
         }
         # Pass timezone via Playwright per-realm override (works for every
         # IANA name, including no-DST zones that Windows ICU silently drops
@@ -284,7 +388,7 @@ class InvisiblePlaywright:
         """
         return self._session_token.stamp(
             _session.build_env(timezone=self._timezone,
-                               egress_ip=self._webrtc_egress_ip,
+                               srflx_dichiarato=self._srflx_dichiarato,
                                profile=self._profile,
                                executable=resolve_executable(self._binary_path)))
 
@@ -301,6 +405,7 @@ class InvisiblePlaywright:
             timezone=self._timezone,
             extra_prefs=self._extra_prefs,
             headless=self._headless,
+            virtual_display=self._virtual_display is not None,
             cursor_engine=self._cursor_engine,
             humanize=self._humanize,
         )

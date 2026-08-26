@@ -47,6 +47,17 @@ _enforce_core_pin()
 from ._engine import assert_playwright_range as _assert_pw_range
 _assert_pw_range()
 
+# ── Il driver Playwright biforcato ───────────────────────────────────────────
+# Non c'e' niente da agganciare qui. Il client vendorizzato in _pw/ punta al
+# driver in _driver/ per COSTRUZIONE - lo fa _pw/_impl/_driver.py, l'unico file
+# del client in cui abbiamo cambiato del comportamento - invece che con una
+# sostituzione a runtime.
+#
+# Il gancio c'e' stato per qualche ora, quando avevamo forkato il solo driver
+# Node e il client era ancora quello installato. Con il fork completo diventava
+# una seconda fonte di verita' per lo stesso fatto, quindi e' stato tolto:
+# un percorso, scritto in un posto solo.
+
 from invisible_core import get_default_args, get_default_stealth_prefs
 from invisible_core import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
 from invisible_core import GeoTimezoneError, resolve_session_timezone

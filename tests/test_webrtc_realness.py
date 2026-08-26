@@ -231,10 +231,35 @@ def test_shipped_webrtc_baseline_is_the_validated_config():
     # validated on BrowserLeaks/CreepJS through a residential proxy) - not a
     # raw LAN IP.
     assert prefs["media.peerconnection.ice.obfuscate_host_addresses"] is True
-    # IPv6 dropped via OUR live filter pref; the native pref is dead on FF150
-    # and must not be relied upon (or re-introduced as if it worked).
-    assert prefs["zoom.stealth.webrtc.disable_ipv6"] is True
+    # IPv6 si toglie dall'ICE gathering, ma NON da una pref: dal 2026-08-25 il
+    # ponte nativo legge una fonte sola, l'ambiente. La pref omonima non si
+    # emette piu' - il ponte non la leggeva piu' e sarebbe diventata un'orfana,
+    # cioe' proprio cio' che test_no_orphan_prefs_in_baseline qui sotto vieta.
+    # Prima erano due fonti, e quale decidesse dipendeva dalla presenza del
+    # proxy: con proxy vinceva l'ambiente, senza proxy la pref.
+    assert "zoom.stealth.webrtc.disable_ipv6" not in prefs
     assert "media.peerconnection.ice.disableIPv6" not in prefs
+    # La fonte unica e' l'ambiente, e si accende SOLO dietro un proxy.
+    #
+    # Misurato il 2026-08-25 contro il Firefox retail installato, stessa
+    # connessione (dual-stack, senza VPN): il retail emette 6 candidati - host
+    # UDP x2 e host TCP x2 offuscati mDNS, piu' srflx v4 e **srflx v6 con
+    # l'indirizzo globale vero IN CHIARO** (l'mDNS copre solo gli host). Noi ne
+    # emettevamo 3, perche' filtravamo l'IPv6 sempre: sembravamo una macchina
+    # IPv4-only dove il riferimento e' dual-stack.
+    #
+    # Dietro un proxy IPv4 il filtro serve davvero (quell'IPv6 sarebbe un leak
+    # e un'incoerenza con l'IP HTTP); senza proxy non protegge niente e costa
+    # solo forma.
+    from invisible_core.launch import build_launch_env
+    from invisible_playwright._session import build_env
+    for costruisci in (lambda **k: build_launch_env({}, **k), build_env):
+        con = costruisci(timezone=None, srflx_dichiarato="203.0.113.77", base_env={})
+        assert con["STEALTHFOX_WEBRTC_DISABLE_IPV6"] == "1"
+        assert con["STEALTHFOX_WEBRTC_PUBLIC_IP"] == "203.0.113.77"
+        senza = costruisci(timezone=None, srflx_dichiarato=None, base_env={})
+        assert "STEALTHFOX_WEBRTC_DISABLE_IPV6" not in senza
+        assert "STEALTHFOX_WEBRTC_PUBLIC_IP" not in senza
     # peerconnection stays ON (a disabled WebRTC is itself a tell).
     assert prefs["media.peerconnection.enabled"] is True
 
@@ -488,3 +513,198 @@ def test_not_blocked_behind_tcp_only_socks(socks5_tcp_only):
         pytest.skip("synthetic srflx not engaged in this environment "
                     "(needs the remote origin fully through the proxy); validated locally")
     assert creep_get_ipaddress(res["sdp"]) == _FAKE_EGRESS
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  L'IP di uscita non deve cambiare a META' SESSIONE.
+#
+#  Misurato il 2026-08-25 su browserleaks, dietro un proxy residenziale: la
+#  pagina usciva da 216.131.76.63 mentre il candidato WebRTC srflx annunciava
+#  216.131.76.64, e il sito lo dice in chiaro ("WebRTC IP doesn't match your
+#  Remote IP"). Non era una regressione del binario - A/B interleaved fra il
+#  binario di release e quello nuovo: 4 corse su 4 coerenti su entrambi.
+#
+#  La causa e' che l'IP dichiarato al motore viene fotografato UNA volta, al
+#  lancio, e i proxy residenziali non promettono di tenerlo: le doc dei due
+#  provider provati dichiarano sessioni appiccicose a TEMPO (60 minuti al
+#  massimo per l'uno; timeout a scorrimento per l'altro, che decade anche prima
+#  se il peer si disconnette). Su una sessione lunga la deriva e' una certezza,
+#  non un rischio - ed e' per questo che le sonde brevi non la vedevano mai.
+#
+#  Decisione del proprietario, 2026-08-25: non si aggiorna al volo. Un IP
+#  WebRTC che cambia sotto gli occhi del sito e' innaturale quanto il
+#  disaccordo. Un proxy che non tiene la sessione non e' adatto, e il prodotto
+#  deve DIRLO invece di continuare.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_una_uscita_che_non_cambia_non_fa_scattare_niente(monkeypatch):
+    """Il controllo deve TACERE quando il proxy si comporta bene."""
+    from invisible_playwright import _session
+    monkeypatch.setattr("invisible_core._geo.discover_egress_ip",
+                        lambda *a, **k: "203.0.113.5")
+    esito, attuale = _session.egress_ancora_valido(
+        {"server": "http://p:1"}, "203.0.113.5")
+    assert esito == _session.USCITA_REGGE
+    assert attuale == "203.0.113.5"
+
+
+@pytest.mark.unit
+def test_una_uscita_cambiata_viene_vista(monkeypatch):
+    """L'INPUT NOTO-CATTIVO. Senza questo, il controllo sopra non prova nulla."""
+    from invisible_playwright import _session
+    monkeypatch.setattr("invisible_core._geo.discover_egress_ip",
+                        lambda *a, **k: "198.51.100.9")
+    esito, attuale = _session.egress_ancora_valido(
+        {"server": "http://p:1"}, "203.0.113.5")
+    assert esito == _session.USCITA_DERIVATA
+    assert attuale == "198.51.100.9"
+
+
+@pytest.mark.unit
+def test_una_scoperta_fallita_non_e_una_deriva(monkeypatch):
+    """Un problema di rete non si trasforma in un'accusa al proxy.
+
+    Alzare `ProxyEgressDrifted` qui vorrebbe dire uccidere una sessione sana
+    ogni volta che un endpoint di echo e' irraggiungibile per un istante.
+
+    ⛔ MA IL NOME DI QUESTO TEST ERA GIUSTO E LA SUA ASSERZIONE NO. Fino al
+    2026-08-25 pretendeva `(True, None)`, cioe' chiedeva alla funzione di
+    rispondere **regge** dopo una misura che non era avvenuta. "Non e' una
+    deriva" e' vero; "quindi e' parita'" non segue, ed era il secondo mezzo
+    passo che nessuno aveva scritto. Adesso il test asserisce le due cose
+    separatamente: non e' deriva, E non e' conferma.
+    """
+    from invisible_playwright import _session
+
+    def esplode(*a, **k):
+        raise RuntimeError("rete giu'")
+
+    monkeypatch.setattr("invisible_core._geo.discover_egress_ip", esplode)
+    esito, attuale = _session.egress_ancora_valido(
+        {"server": "http://p:1"}, "203.0.113.5")
+    assert esito != _session.USCITA_DERIVATA, "un timeout non e' una deriva"
+    assert esito != _session.USCITA_REGGE, (
+        "e non e' nemmeno una conferma: nessuna misura e' avvenuta")
+    assert esito == _session.USCITA_NON_MISURABILE
+    assert attuale is None
+
+
+@pytest.mark.unit
+def test_le_due_classi_controllano_entrambe(monkeypatch):
+    """Il difetto che `_session.py` esiste per non ripetere.
+
+    Tre bug reali sono nati da una correzione arrivata a una sola delle due
+    classi. Questo test guarda che il controllo sia cablato in ENTRAMBE.
+
+    ⛔ E SI LEGGE L'ALBERO SINTATTICO, non il testo del sorgente. La prima
+    stesura faceva `sorgente.count("_assert_uscita_invariata") == 2`, e quel
+    conteggio ha due difetti: pretende un numero ESATTO, quindi diventa rosso
+    quando si aggiunge un punto di controllo legittimo, e conta anche le
+    menzioni nei COMMENTI, quindi il numero non e' nemmeno quello delle
+    chiamate. Aggiungendo la sorveglianza su `context.new_page` sono diventate
+    4: tre chiamate e una menzione in un commento.
+
+    I punti sono TRE, e il terzo e' quello che mancava: `browser.new_context`,
+    `browser.new_page`, e **`context.new_page`**, che e' il modo NORMALE di
+    aprire una scheda. Senza il terzo, una sessione che apre un contesto e poi
+    N pagine faceva UN controllo solo, al primo istante. Misurato il
+    2026-08-25: al lancio l'uscita era una, nove schede dopo un'altra, e le due
+    comparivano insieme sulla stessa pagina di un rilevatore.
+    """
+    import ast
+    import inspect
+    import textwrap
+    from invisible_playwright import async_api, launcher
+
+    def _chiamate(fn):
+        albero = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        return [n for n in ast.walk(albero)
+                if isinstance(n, ast.Call)
+                and getattr(n.func, "attr", getattr(n.func, "id", None))
+                == "_assert_uscita_invariata"]
+
+    for modulo in (launcher, async_api):
+        fn = modulo.InvisiblePlaywright._patch_new_context_defaults
+        chiamate = _chiamate(fn)
+        assert len(chiamate) == 3, (
+            f"{modulo.__name__}: il controllo dell'uscita va cablato in TRE "
+            f"punti - browser.new_context, browser.new_page e "
+            f"context.new_page - e ne ho contati {len(chiamate)}. "
+            f"context.new_page e' il modo normale di aprire una scheda: senza, "
+            f"una sessione lunga smette di guardare dopo il primo istante")
+
+
+# ---------------------------------------------------------------------------
+# Il controllo dell'uscita ha TRE esiti, e il terzo e' quello che mancava.
+# ---------------------------------------------------------------------------
+
+def _con_sonda(monkeypatch, comportamento):
+    """Sostituisce la sonda di rete con `comportamento`, che puo' anche alzare."""
+    from invisible_core import _geo
+    monkeypatch.setattr(_geo, "discover_egress_ip", comportamento)
+
+
+def test_una_sonda_caduta_non_e_una_conferma(monkeypatch):
+    """⛔ IL DIFETTO CHE QUESTO TEST ESISTE PER TENERE CHIUSO.
+
+    Fino al 2026-08-25 `egress_ancora_valido` tornava `(True, None)` quando la
+    sonda FALLIVA. Il commento accanto argomentava la meta' giusta - una
+    scoperta fallita non e' una deriva, ed e' vero - ma il valore restituito
+    diceva `regge`, cioe' affermava la parita' sulla base di una misura che non
+    era avvenuta. E' la stessa classe di `fppro_consistency.py`, che stampava
+    CONSISTENCY PASS quando `visitor_id` era muto in entrambi i giri.
+    """
+    from invisible_playwright import _session
+
+    def esplode(*a, **k):
+        raise OSError("rete giu'")
+
+    _con_sonda(monkeypatch, esplode)
+    esito, ip = _session.egress_ancora_valido({"server": "socks5://x"}, "203.0.113.5")
+    assert esito == _session.USCITA_NON_MISURABILE, (
+        "una sonda caduta non puo' rispondere 'regge': non ha misurato niente")
+    assert esito != _session.USCITA_REGGE
+    assert ip is None
+
+
+def test_i_tre_esiti_sono_distinti_e_tutti_raggiungibili(monkeypatch):
+    from invisible_playwright import _session
+
+    _con_sonda(monkeypatch, lambda *a, **k: "203.0.113.5")
+    assert _session.egress_ancora_valido({"server": "s"}, "203.0.113.5")[0] == _session.USCITA_REGGE
+
+    _con_sonda(monkeypatch, lambda *a, **k: "198.51.100.9")
+    derivata = _session.egress_ancora_valido({"server": "s"}, "203.0.113.5")
+    assert derivata[0] == _session.USCITA_DERIVATA
+    assert derivata[1] == "198.51.100.9", "l'IP attuale serve al messaggio di rifiuto"
+
+    def esplode(*a, **k):
+        raise RuntimeError("boom")
+    _con_sonda(monkeypatch, esplode)
+    assert (_session.egress_ancora_valido({"server": "s"}, "203.0.113.5")[0]
+            == _session.USCITA_NON_MISURABILE)
+
+    assert len({_session.USCITA_REGGE, _session.USCITA_DERIVATA,
+                _session.USCITA_NON_MISURABILE}) == 3
+
+
+def test_senza_proxy_non_c_e_niente_da_tradire():
+    """Diverso dagli altri due: qui non manca una misura, manca un obbligo."""
+    from invisible_playwright import _session
+    assert _session.egress_ancora_valido(None, None)[0] == _session.USCITA_REGGE
+    assert _session.egress_ancora_valido({"server": "s"}, None)[0] == _session.USCITA_REGGE
+
+
+def test_una_raffica_di_sonde_mute_fa_rifiutare_la_sessione():
+    """Una cade: rete. Tre di fila: cecita', e la sessione non e' piu' difendibile."""
+    from invisible_playwright import _session
+    from invisible_playwright.launcher import InvisiblePlaywright
+
+    assert InvisiblePlaywright._MAX_USCITE_NON_MISURABILI >= 2, (
+        "rifiutare alla PRIMA sonda muta trasforma ogni timeout in un errore")
+    assert issubclass(_session.ProxyEgressNonVerificabile, RuntimeError)
+    assert _session.ProxyEgressNonVerificabile is not _session.ProxyEgressDrifted, (
+        "non misurabile e derivata sono due diagnosi diverse e vanno distinte "
+        "anche nel tipo, o chi cattura non puo' reagire diversamente")

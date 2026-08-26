@@ -915,10 +915,10 @@ def _clamp(x: float, y: float, w: Optional[float], h: Optional[float]) -> Tuple[
 # that an unexpected bindings layout cannot stop the module importing.
 def _page_errors() -> Tuple[type, ...]:
     try:
-        from playwright._impl._errors import Error as PWError  # type: ignore
+        from invisible_playwright._pw._impl._errors import Error as PWError  # type: ignore
     except ImportError:  # an older bindings layout, or a newer one
         try:
-            from playwright._impl._api_types import Error as PWError  # type: ignore
+            from invisible_playwright._pw._impl._api_types import Error as PWError  # type: ignore
         except ImportError:
             return ()
     return (PWError,)
@@ -926,10 +926,10 @@ def _page_errors() -> Tuple[type, ...]:
 
 def _timeout_errors() -> Tuple[type, ...]:
     try:
-        from playwright._impl._errors import TimeoutError as PWTimeout  # type: ignore
+        from invisible_playwright._pw._impl._errors import TimeoutError as PWTimeout  # type: ignore
     except ImportError:
         try:
-            from playwright._impl._api_types import TimeoutError as PWTimeout  # type: ignore
+            from invisible_playwright._pw._impl._api_types import TimeoutError as PWTimeout  # type: ignore
         except ImportError:
             return ()
     return (PWTimeout,)
@@ -1147,6 +1147,7 @@ def _plan_fidget(cursor: _PageCursor, page: Any, timer: Any) -> List[Any]:
 _PATCH_STATE: Optional[bool] = None
 _ORIGINAL_MOUSE_MOVE: Optional[Callable[..., Any]] = None
 _ORIGINAL_MOUSE_WHEEL: Optional[Callable[..., Any]] = None
+_ORIGINAL_MOUSE_CLICK: Optional[Callable[..., Any]] = None
 # Kept so the wrappers can be reasoned about (and asserted on) without having
 # to re-import a pristine copy of the bindings.
 _ORIGINAL_FRAME_ACTIONS: dict = {}
@@ -1427,6 +1428,40 @@ def _wrap_mouse_move(original: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def _wrap_mouse_click(original: Callable[..., Any]) -> Callable[..., Any]:
+    """Porta il puntatore sul punto prima di cliccarlo.
+
+    `Mouse.click` e `Mouse.dblclick` passano entrambe da `_click`, che manda
+    `mouseClick` senza chiamare `self.move`: il rattoppo su `move` non le vede,
+    e il puntatore compare sul bersaglio senza esserci mai arrivato. Misurato:
+    un solo mousemove contro i dieci di `locator.click()`.
+
+    Il movimento passa da `self.move`, che e' gia' rattoppato: un solo
+    generatore di traiettorie, un solo seme.
+    """
+
+    async def wrapper(self: Any, x: float, y: float, **kwargs: Any) -> Any:
+        try:
+            await self.move(x, y)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            # Un percorso mancato non deve diventare un'azione mancata: stessa
+            # scelta gia' fatta per move.
+            _warn_once(
+                "click-move-failed",
+                "the pointer path raised before mouse.click (%s: %s); the click "
+                "itself is unaffected. Please report this."
+                % (type(exc).__name__, exc),
+            )
+        return await original(self, x, y, **kwargs)
+
+    setattr(wrapper, _MARKER, True)
+    wrapper.__name__ = getattr(original, "__name__", "_click")
+    wrapper.__doc__ = original.__doc__
+    return wrapper
+
+
 def _scroll_plan(cursor: _PageCursor, page: Any, delta_x: float, delta_y: float
                  ) -> List[Any]:
     """A wheel burst carrying exactly (delta_x, delta_y), with the hand on it.
@@ -1525,11 +1560,12 @@ def _wrap_mouse_wheel(original: Callable[..., Any]) -> Callable[..., Any]:
 def _ensure_patched() -> bool:
     """Install the wrappers once per process. Idempotent, and honest on failure."""
     global _PATCH_STATE, _ORIGINAL_MOUSE_MOVE, _ORIGINAL_MOUSE_WHEEL
+    global _ORIGINAL_MOUSE_CLICK
     if _PATCH_STATE is not None:
         return _PATCH_STATE
     try:
-        from playwright._impl._frame import Frame
-        from playwright._impl._input import Mouse
+        from invisible_playwright._pw._impl._frame import Frame
+        from invisible_playwright._pw._impl._input import Mouse
 
         for name in _FRAME_ACTIONS:
             original = getattr(Frame, name, None)
@@ -1542,6 +1578,10 @@ def _ensure_patched() -> bool:
         if not getattr(move, _MARKER, False):
             _ORIGINAL_MOUSE_MOVE = move
             Mouse.move = _wrap_mouse_move(move)  # type: ignore[method-assign]
+        click = getattr(Mouse, "_click", None)
+        if click is not None and not getattr(click, _MARKER, False):
+            _ORIGINAL_MOUSE_CLICK = click
+            Mouse._click = _wrap_mouse_click(click)  # type: ignore[method-assign]
         wheel = getattr(Mouse, "wheel", None)
         if wheel is not None and not getattr(wheel, _MARKER, False):
             _ORIGINAL_MOUSE_WHEEL = wheel
