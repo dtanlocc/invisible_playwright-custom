@@ -89,6 +89,23 @@ dependencies = [
     # exception, a killed runner - so an optional reaper would be absent on
     # precisely the machines that need it, and absent silently.
     "psutil>=5.9",
+    # ⛔ ERANO DIPENDENZE TRANSITIVE DI `playwright`, e togliendo quello sono
+    # sparite con lui. Il client vendorizzato in `_pw/` le importa comunque -
+    # `pyee` per gli emettitori di eventi, `greenlet` per l'API sincrona - quindi
+    # ora deve dichiararle questo pacchetto: chi vendorizza eredita le
+    # dipendenze di cio' che ha vendorizzato.
+    #
+    # Misurato il 2026-08-26 e non dedotto: il wheel 0.7.3 si installava e poi
+    # `import invisible_playwright` moriva con `No module named 'pyee'`. In CI
+    # non si vedeva perche' il job e2e fa ancora `pip install playwright` per il
+    # solo `install-deps`, e quel comando le ritirava dentro dalla porta di
+    # servizio. E' la classe della issue #14: si installa, e si rompe solo
+    # dall'utente.
+    #
+    # Gli intervalli sono quelli che playwright 1.61 dichiarava, per non
+    # inventare un vincolo diverso da quello con cui il client e' stato provato.
+    "pyee>=13,<14",
+    "greenlet>=3.1.1,<4.0.0",
 ]
 
 [project.optional-dependencies]
