@@ -273,7 +273,12 @@ def test_clean_install_the_way_a_user_does_it(clean_venv: Path):
         [str(clean_venv), "-c",
          "import invisible_playwright as ip; "
          "from importlib.metadata import version; "
-         "print('OK', ip.__name__, version('invisible-core'), version('playwright'))"],
+         # NON `version('playwright')`: dal fork quel pacchetto non e' piu' una
+         # dipendenza, quindi in un venv pulito NON C'E' e questa riga alzava
+         # PackageNotFoundError. La versione del client si legge dal client
+         # vendorizzato, che e' l'unico che questo pacchetto usa davvero.
+         "from invisible_playwright._pw._repo_version import version as pw; "
+         "print('OK', ip.__name__, version('invisible-core'), pw)"],
         timeout=60,
     )
     assert "OK invisible_playwright" in out.stdout, out.stdout
@@ -299,17 +304,40 @@ def test_the_resolved_playwright_is_inside_the_range_the_package_declares(
     from packaging.requirements import Requirement
     from packaging.version import Version
 
+    # ⛔ LA DOMANDA E' CAMBIATA CON IL FORK, e la vecchia non era piu' ponibile.
+    # Fino al 2026-08-26 questo test leggeva `version('playwright')` e la
+    # confrontava con il `playwright>=...` dichiarato in pyproject. Da quando il
+    # client e' vendorizzato, `playwright` NON e' piu' una dipendenza: in un venv
+    # pulito quel pacchetto non esiste e la riga alzava PackageNotFoundError, e
+    # la dichiarazione da confrontare non c'e' piu'.
+    #
+    # Il vincolo pero' non e' sparito, e' cambiato di posto: il SEAL porta
+    # l'intervallo di client con cui quel binario e' stato provato, e la versione
+    # da confrontare e' quella del client VENDORIZZATO. E' esattamente cio' che
+    # `_engine.assert_playwright_range()` fa a ogni import; qui si verifica dal
+    # di fuori, in un venv vero, che i due numeri siano coerenti - perche' un
+    # client fuori intervallo uccide `new_context` per ogni installazione nuova.
     got = _run([str(clean_venv), "-c",
-                "from importlib.metadata import version, requires; "
-                "print(version('playwright')); "
-                "print([r for r in requires('invisible-playwright') "
-                "if r.startswith('playwright')][0])"], timeout=60)
-    resolved, declaration = got.stdout.strip().splitlines()[:2]
-    spec = Requirement(declaration).specifier
-    assert Version(resolved) in spec, (
-        f"pip resolved playwright {resolved}, which the package's own "
-        f"declaration ({declaration}) does not allow - the two disagree and "
-        f"the user gets the resolver's answer")
+                "from invisible_playwright._pw._repo_version import version; "
+                "from invisible_core.seal import active_seal; "
+                "s = active_seal(); "
+                "print(version); print(s.playwright_min); print(s.playwright_max)"],
+               timeout=60)
+    righe = got.stdout.strip().splitlines()
+    vendorizzato, lo, hi = righe[0].strip(), righe[1].strip(), righe[2].strip()
+
+    def _t(v: str):
+        parti = []
+        for p in v.split(".")[:3]:
+            cifre = "".join(c for c in p if c.isdigit())
+            parti.append(int(cifre or 0))
+        return tuple(parti + [0] * (3 - len(parti)))
+
+    assert _t(lo) <= _t(vendorizzato) <= _t(hi), (
+        f"il client vendorizzato e' {vendorizzato}, fuori dall'intervallo che il "
+        f"seal dichiara per questo motore ({lo} .. {hi}). Il protocollo Juggler e' "
+        f"a mondo chiuso: un client non provato uccide ogni sessione alla "
+        f"creazione del contesto.")
 
 
 @pytest.mark.e2e
