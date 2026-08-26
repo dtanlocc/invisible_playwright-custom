@@ -34,7 +34,8 @@ from ._cursor import (
     max_seconds_for as _cursor_max_seconds,
 )
 
-__all__ = ["build_prefs", "true_headless_requested", "TRUE_HEADLESS_ENV"]
+__all__ = ["build_prefs", "true_headless_requested", "TRUE_HEADLESS_ENV",
+           "ProxyEgressDrifted", "egress_ancora_valido"]
 
 #: Opt-in to real headless. Read HERE rather than in one of the two classes,
 #: because reading it in one of them is exactly how it came to work on the async
@@ -117,7 +118,13 @@ FONT_MANIFEST_ENV = "STEALTHFOX_FONT_MANIFEST"
 def build_env(
     *,
     timezone: Optional[str],
-    egress_ip: Optional[str],
+    #: L'indirizzo da DICHIARARE come srflx, oppure None per non dichiarare
+    #: niente e lasciar passare quello vero. ⛔ NON e' l'IP di uscita: e' una
+    #: DECISIONE che il core prende in un punto solo, guardando le capacita'
+    #: dell'uscita (`SessionGeo.srflx_da_dichiarare`). Il nome vecchio,
+    #: `egress_ip`, diceva un'altra cosa e faceva sembrare la regola
+    #: "c'e' un proxy -> dichiara", che e' la domanda sbagliata.
+    srflx_dichiarato: Optional[str],
     profile: Any = None,
     executable: Optional[str] = None,
     base_env: Optional[Dict[str, str]] = None,
@@ -167,10 +174,28 @@ def build_env(
         if path is not None:
             # setdefault: an already-set value wins, same rule as the WebRTC IP.
             env.setdefault(FONT_MANIFEST_ENV, str(path))
-    # WebRTC srflx override, plus dropping IPv6 from gathering behind a proxy.
-    webrtc_ip = env.get(WEBRTC_IP_ENV) or egress_ip
+    # WebRTC srflx override, plus dropping IPv6 from gathering.
+    webrtc_ip = env.get(WEBRTC_IP_ENV) or srflx_dichiarato
     if webrtc_ip:
         env[WEBRTC_IP_ENV] = webrtc_ip
+        # SOLO dietro un proxy, e la ragione e' una misura.
+        #
+        # Un Firefox retail su una connessione dual-stack emette un srflx IPv6
+        # con l'indirizzo globale VERO, in chiaro: l'offuscamento mDNS copre
+        # solo i candidati host. Dietro un proxy IPv4 quell'indirizzo sarebbe
+        # un leak e, peggio, un'incoerenza - HTTP esce dal proxy e WebRTC
+        # mostra casa. Quindi li' il filtro serve.
+        #
+        # Senza proxy non protegge da NIENTE e costa forma: misurato il
+        # 2026-08-25 contro il retail installato sulla stessa connessione, il
+        # retail emette 6 candidati (host UDP x2, host TCP x2, srflx v4, srflx
+        # v6) e noi ne emettevamo 3. Sembravamo una macchina IPv4-only dove il
+        # riferimento e' dual-stack.
+        #
+        # Prima di oggi questo `if` non c'entrava: il filtro era acceso sempre
+        # dalla pref `zoom.stealth.webrtc.disable_ipv6`, che l'ambiente si
+        # limitava a scavalcare. Tolta la seconda fonte, la condizione e'
+        # diventata esprimibile in una riga.
         env[WEBRTC_NO_IPV6_ENV] = "1"
     return env
 
@@ -182,6 +207,7 @@ def build_prefs(
     timezone: Optional[str],
     extra_prefs: Optional[Dict[str, Any]],
     headless: bool,
+    virtual_display: bool,
     cursor_engine: str,
     humanize: Any,
 ) -> Dict[str, Any]:
@@ -221,8 +247,96 @@ def build_prefs(
         locale=locale,
         timezone=timezone,
         extra_prefs=extra_prefs,
-        virtual_display=bool(headless and sys.platform == "win32"),
+        # Il valore VERO, non una congettura: B172, 2026-08-24. Chi
+        # chiama passa il risultato reale di make_virtual_display() - se
+        # non ha creato niente (sempre il caso su Windows, dove il cloak
+        # ha sostituito il desktop alternativo), qui e' False, e i
+        # workaround del sandbox pensati per quel desktop non si
+        # applicano.
+        virtual_display=virtual_display,
         cloak=bool(headless and sys.platform in ("win32", "darwin")),
         humanize=(_cursor_max_seconds(humanize)
                   if cursor_engine == ENGINE_BINARY else False),
     ).prefs
+
+
+class ProxyEgressDrifted(RuntimeError):
+    """L'IP di uscita e' cambiato a META' SESSIONE.
+
+    Non e' una condizione da cui il prodotto possa riprendersi, ed e' voluto che
+    sia un errore invece di un aggiornamento silenzioso.
+
+    L'IP che dichiariamo al motore per il candidato WebRTC srflx viene scoperto
+    UNA volta, al lancio. Se l'uscita cambia dopo, la pagina esce da un indirizzo
+    e WebRTC ne annuncia un altro: e' esattamente il confronto che i rilevatori
+    fanno ("WebRTC IP doesn't match your Remote IP"), e nessun Firefox su una
+    connessione vera lo produce.
+
+    Aggiornare il valore al volo sarebbe peggio, non meglio: il sito vedrebbe
+    l'IP WebRTC cambiare sotto i propri occhi a meta' sessione, che e' un
+    segnale altrettanto innaturale. Se l'uscita non regge per la durata della
+    sessione, quel proxy non e' sticky e non e' utilizzabile per questo scopo.
+
+    Misurato il 2026-08-25: i due provider provati dichiarano entrambi sessioni
+    appiccicose a TEMPO (60 minuti al massimo per l'uno, timeout a scorrimento
+    per l'altro, che decade anche prima se il peer residenziale si disconnette),
+    quindi su una sessione abbastanza lunga la deriva non e' un rischio: e' una
+    certezza.
+    """
+
+
+class ProxyEgressNonVerificabile(RuntimeError):
+    """L'uscita non si e' potuta MISURARE, ripetutamente.
+
+    Non e' deriva e non e' parita': e' assenza di misura. Un proxy che non
+    risponde alla sonda per piu' controlli di fila non e' un proxy che regge,
+    e' un proxy su cui stiamo volando alla cieca mentre il motore continua a
+    dichiarare a ogni pagina un indirizzo che nessuno sta piu' confermando.
+    """
+
+
+#: I tre esiti del controllo. Sono TRE e non due apposta: vedi il perche' nella
+#: docstring di `egress_ancora_valido`.
+USCITA_REGGE = "regge"
+USCITA_DERIVATA = "derivata"
+USCITA_NON_MISURABILE = "non_misurabile"
+
+
+def egress_ancora_valido(proxy: Optional[Dict[str, str]],
+                         atteso: Optional[str],
+                         *, timeout: int = 20) -> "tuple[str, Optional[str]]":
+    """(esito, ip_attuale), con esito fra i tre `USCITA_*`.
+
+    ⛔ GLI ESITI SONO TRE PERCHE' DUE MENTONO. Fino al 2026-08-25 questa
+    funzione tornava `(True, None)` quando la sonda FALLIVA, con un commento che
+    argomentava bene la meta' giusta della cosa - "una scoperta fallita non e'
+    una deriva", ed e' vero, non si trasforma un problema di rete in un'accusa
+    al proxy. Ma il valore restituito diceva `regge`, cioe' **affermava la
+    parita' sulla base di una misura che non era avvenuta**.
+
+    E' la stessa classe di difetto che questo progetto ha gia' pagato due volte
+    e corretto due volte:
+
+    - `fppro_consistency.py` stampava CONSISTENCY PASS quando `visitor_id` era
+      muto in ENTRAMBI i giri, perche' due `None` risultano identici. Ha un
+      terzo esito dal 2026-08-15, uscita 2 = NON INTERPRETABILE.
+    - `repair_core` metteva `verdict = None` sotto un handler che diceva "a
+      broken probe is not a licence", sopra un test `verdict is not None` che
+      poi lasciava proseguire la reinstallazione.
+
+    Il chiamante ora distingue: su `USCITA_DERIVATA` rifiuta subito, su
+    `USCITA_NON_MISURABILE` conta e rifiuta solo se si ripete, perche' una
+    sonda che cade una volta e' rete e una che cade sempre e' cecita'.
+
+    Il caso senza proxy o senza valore atteso resta `USCITA_REGGE`, ed e'
+    diverso dagli altri due: li' non c'e' niente da tradire, non c'e' una misura
+    mancata.
+    """
+    if not proxy or not atteso:
+        return USCITA_REGGE, None
+    from invisible_core import _geo
+    try:
+        attuale = _geo.discover_egress_ip(proxy, timeout=timeout)
+    except Exception:
+        return USCITA_NON_MISURABILE, None
+    return (USCITA_REGGE if attuale == atteso else USCITA_DERIVATA), attuale

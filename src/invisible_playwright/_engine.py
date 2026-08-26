@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import warnings
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from pathlib import Path
 from typing import Optional, Union
 
@@ -77,10 +76,18 @@ def assert_playwright_range() -> None:
     seal = active_seal()
     if not seal.playwright_min or not seal.playwright_max:
         return
-    try:
-        have = _pkg_version("playwright")
-    except PackageNotFoundError:
-        return
+    # La versione del client VENDORIZZATO, non di un pacchetto installato.
+    #
+    # Fino al fork questa riga faceva `_pkg_version("playwright")` con un
+    # `except PackageNotFoundError: return`. Tolta la dipendenza, quel percorso
+    # sarebbe diventato l'UNICO percorso: il gate avrebbe smesso di controllare
+    # qualunque cosa continuando a stampare verde, che e' il modo esatto in cui
+    # nove workflow di questo progetto sono stati verdi mentre erano rotti.
+    #
+    # Il client ora e' dentro di noi e la sua versione e' un fatto locale, quindi
+    # non c'e' piu' nessun caso "assente" da tollerare: se _repo_version non si
+    # importa, il pacchetto e' rotto e deve dirlo.
+    from invisible_playwright._pw._repo_version import version as have
 
     def t(v: str):
         out = []

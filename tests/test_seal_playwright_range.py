@@ -36,7 +36,11 @@ def sealed_range(tmp_path, monkeypatch):
 
 
 def set_reported_version(monkeypatch, value: str) -> None:
-    monkeypatch.setattr(_engine, "_pkg_version", lambda _name: value)
+    # Dal fork la versione del client e' un fatto LOCALE: la porta
+    # invisible_playwright._pw._repo_version, non importlib.metadata.
+    # _engine la importa dentro la funzione, quindi basta spostare
+    # l'attributo del modulo prima della chiamata.
+    monkeypatch.setattr("invisible_playwright._pw._repo_version.version", value)
 
 
 def test_client_inside_the_range_is_accepted(sealed_range, monkeypatch):

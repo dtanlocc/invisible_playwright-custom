@@ -593,7 +593,7 @@ def test_the_wrappers_accept_the_arguments_the_bindings_actually_pass():
     ...)``. A wrapper that renames one of those parameters does not shadow the
     method, it raises TypeError on every call to it, and no amount of testing
     the wrapper positionally would show it."""
-    from playwright._impl._input import Mouse
+    from invisible_playwright._pw._impl._input import Mouse
 
     assert _cursor._ensure_patched() is True
     for name in ("move", "wheel"):
@@ -610,8 +610,8 @@ def test_the_wrappers_accept_the_arguments_the_bindings_actually_pass():
 def test_the_hooked_funnel_still_exists():
     """If the bindings rename these, the wrappers land on nothing and every
     session silently teleports again. Cheap to check, expensive to miss."""
-    from playwright._impl._frame import Frame
-    from playwright._impl._input import Mouse
+    from invisible_playwright._pw._impl._frame import Frame
+    from invisible_playwright._pw._impl._input import Mouse
 
     for name in _cursor._FRAME_ACTIONS:
         assert callable(getattr(Frame, name, None)), f"Frame.{name} is gone"
@@ -623,8 +623,8 @@ def test_page_frame_and_locator_all_funnel_through_the_hook():
     """The whole no-new-API claim rests on this: page.click, frame.click and
     locator.click must all reach Frame._click, or wrapping one of them would
     leave the other two teleporting."""
-    from playwright._impl._locator import Locator
-    from playwright._impl._page import Page
+    from invisible_playwright._pw._impl._locator import Locator
+    from invisible_playwright._pw._impl._page import Page
 
     assert _cursor._ensure_patched() is True
     assert "_main_frame._click(" in inspect.getsource(Page.click)
@@ -638,7 +638,7 @@ def test_page_frame_and_locator_all_funnel_through_the_hook():
 
 @pytest.mark.unit
 def test_wrappers_are_installed_exactly_once():
-    from playwright._impl._frame import Frame
+    from invisible_playwright._pw._impl._frame import Frame
 
     assert _cursor._ensure_patched() is True
     first = Frame._click
@@ -817,7 +817,7 @@ def test_a_landing_that_is_not_actionable_retries_the_caller_s_own_call(
     """The invariant that outranks every stealth property in this module:
     aiming must never turn a call that would have succeeded into one that
     fails."""
-    from playwright._impl._errors import TimeoutError as PWTimeout
+    from invisible_playwright._pw._impl._errors import TimeoutError as PWTimeout
 
     monkeypatch.setattr(_cursor, "_ORIGINAL_MOUSE_MOVE", _fake_move)
     browser = _FakeBrowser()
