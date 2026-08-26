@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-08-26
+
+### Changed
+
+- The Playwright client is now vendored inside the package. `invisible_playwright._pw`
+  (client) and `_driver` (Node driver) ship with the wheel, and `playwright` is no
+  longer a dependency: the code that runs is the code we ship. The vendored copy
+  carries four changes over upstream 1.61.1 - `set_content` waits for load the way a
+  driven page needs, ~643 KB of unused subsystems removed (android, electron, bidi,
+  recorder, chromium, webkit), `_exposeConsoleApi` neutralised, and `console.debug`
+  dropped from injected code. It is Apache-2.0 inside an otherwise MIT package;
+  `pyproject.toml` declares `MIT AND Apache-2.0` and `THIRD_PARTY_FORK.md` records
+  the provenance.
+- Pins `invisible-core` 20.16.0.
+
+### Removed
+
+- **macOS is no longer supported.** Releases stopped at `firefox-20`; the CI builds
+  Windows and Linux only. On a Mac the package now refuses at launch with a message
+  that says why, instead of trying to download a binary that will not exist. Already
+  published macOS assets are untouched.
+
+### Fixed
+
+- Without a proxy the egress IP was discovered twice before the browser started -
+  two identical requests to an external service, from the real address, where a real
+  user makes none. It is discovered once now.
+- `pyee` and `greenlet` are declared explicitly. They were transitive dependencies of
+  `playwright`; removing that dependency removed them too, while the vendored client
+  still imports them, so the wheel installed and then failed to import.
+
 ## [0.7.2] - 2026-08-18
 
 ### Fixed
