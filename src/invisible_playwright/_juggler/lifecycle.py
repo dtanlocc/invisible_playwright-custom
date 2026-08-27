@@ -193,6 +193,43 @@ class Lifecycle:
                     and time.monotonic() - self._last_activity >= IDLE_QUIET)
         return state in f.states
 
+    def wait_for_new_navigation(self, frame_id: str, previous: Optional[str],
+                                state: str = "load",
+                                timeout: float = 30.0) -> None:
+        """Wait for a navigation that is NOT the one already in progress.
+
+        ⛔ THIS IS THE HISTORY CASE, AND WITHOUT IT `go_back` IS A NO-OP THAT
+        REPORTS SUCCESS. `Page.goBack` answers `{success: true}` the moment the
+        browser accepts the request, not when the new document is loaded. Wait
+        for `load` at that instant and it is already set - by the document you
+        are navigating AWAY from - so the wait returns immediately and the next
+        read sees the old page.
+
+        Measured on 2026-08-27: `go_back()` from the second page, then
+        `title()`, answered "second". The states were right, the document was
+        not, and nothing raised.
+
+        `goto` does not need this because `Page.navigate` hands back the
+        navigationId to wait on. History gives no id, so the only thing to
+        anchor on is that the frame's CURRENT navigation has changed.
+        """
+        deadline = time.monotonic() + timeout
+        with self._cv:
+            while True:
+                f = self.frames.get(frame_id)
+                if f is not None and f.navigation != previous:
+                    break
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise TimeoutError(
+                        "no new navigation on frame %s in %.0fs: the previous "
+                        "one (%s) is still current" % (frame_id, timeout,
+                                                       previous))
+                self._cv.wait(min(left, 0.05))
+            navigation = self.frames[frame_id].navigation
+        self.wait_for_state(frame_id, state, navigation=navigation,
+                            timeout=max(0.05, deadline - time.monotonic()))
+
     def wait_for_main_frame(self, timeout: float = 20.0) -> str:
         """The main frame id, waiting for it to arrive.
 

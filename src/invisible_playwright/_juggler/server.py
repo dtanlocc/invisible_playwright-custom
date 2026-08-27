@@ -26,8 +26,10 @@ hard failure. Everything here creates first and returns the channel second.
 """
 from __future__ import annotations
 
+import json
 import tempfile
 import threading
+import time
 from typing import Any, Dict, List, Optional
 
 from . import connection as juggler
@@ -35,6 +37,67 @@ from .actions import Actions
 from .dispatcher import Dispatcher, ProtocolException, Server
 from .injected import InjectedScript
 from .lifecycle import Lifecycle
+
+
+def _as_callable(expression: str) -> str:
+    """Wrap an expression so it can always be CALLED with the argument.
+
+    <M> PLAYWRIGHT SENDS BOTH FORMS DOWN THE SAME FIELD. `page.evaluate("1+1")`
+    and `page.evaluate("() => document.title")` arrive as the same
+    `expression` string, and the client does not say which is which. Evaluating
+    the raw string works for the first and, for the second, produces a FUNCTION
+    OBJECT: no error, no exception, and the caller gets None back for a call
+    that looked fine.
+
+    Measured on 2026-08-27: `page.evaluate("() => !!x")` answered None, and the
+    assertion that caught it read like the browser had changed behaviour.
+
+    So the string is wrapped and the result called if it turned out to be a
+    function. Deciding by shape - does it start with `(` or `function` or
+    `async` - is the version that gets it wrong: `(1+2)` starts with a
+    parenthesis and is not a function.
+    """
+    return ("(() => { const r = (%s);"
+            "  return typeof r === 'function' ? r(ARG) : r; })()" % expression)
+
+
+def _deserialize(value: Any) -> Any:
+    """The tagged union Playwright sends for an ARGUMENT, back to a value."""
+    if not isinstance(value, dict):
+        return value
+    if "value" in value and "handles" in value:
+        return _deserialize(value["value"])
+    for tag, convert in (("n", lambda v: v), ("s", lambda v: v),
+                         ("b", lambda v: v)):
+        if tag in value:
+            return convert(value[tag])
+    if "v" in value:
+        return {"null": None, "undefined": None, "NaN": float("nan"),
+                "Infinity": float("inf"),
+                "-Infinity": float("-inf")}.get(value["v"])
+    if "a" in value:
+        return [_deserialize(x) for x in value["a"]]
+    if "o" in value:
+        return {e["k"]: _deserialize(e["v"]) for e in value["o"]}
+    return None
+
+
+def _with_argument(params: Dict) -> str:
+    """The expression, callable, with the caller's argument substituted in."""
+    argument = _deserialize(params.get("arg"))
+    return _as_callable(params["expression"]).replace(
+        "ARG", json.dumps(argument, default=str))
+
+
+def _js_string(value: str) -> str:
+    """A Python string as a JavaScript literal.
+
+    ⛔ `json.dumps` and never manual quoting: the html handed to `set_content`
+    is arbitrary, and a single quote, a backslash or a line separator inside it
+    would close the literal early. That exact defect - an apostrophe closing a
+    single-quoted JavaScript string - broke the driver bundle on 2026-08-24.
+    """
+    return json.dumps(value)
 
 
 def _guid_of(value: Any) -> Optional[str]:
@@ -140,10 +203,15 @@ class ElementHandleDispatcher(Dispatcher):
             self.frame.frame_id, self.object_id)}
 
     def op_evaluate(self, params: Dict) -> Any:
+        # ⛔ On a handle the expression is ALWAYS called with the element, so
+        # the bare-expression form does not arise here - but a non-function
+        # still has to answer rather than raise.
         return {"value": _serialize(self.page.injected.call(
             self.frame.frame_id,
-            "(injected, el, expr) => (%s)(el)" % params["expression"],
-            {"objectId": self.object_id}, params.get("expression")))}
+            "(injected, el) => { const r = (%s);"
+            "  return typeof r === 'function' ? r(el) : r; }"
+            % params["expression"],
+            {"objectId": self.object_id}))}
 
     def op_text_content(self, params: Dict) -> Any:
         return {"value": self.page.injected.text_content(
@@ -166,7 +234,7 @@ class ElementHandleDispatcher(Dispatcher):
             self.frame.frame_id, self.object_id, params["name"])}
 
 
-def _serialize(value: Any) -> Any:
+def _serialize(value: Any, counter: Optional[Dict] = None) -> Any:
     """A Python value in the shape `parse_result` expects.
 
     ⛔ Playwright does not send bare JSON: it sends a tagged union, and
@@ -174,6 +242,8 @@ def _serialize(value: Any) -> Any:
     is expected does not raise - it falls through to the object branch and comes
     back as something else entirely.
     """
+    if counter is None:
+        counter = {"n": 0}
     if value is None:
         return {"v": "null"}
     if isinstance(value, bool):
@@ -183,9 +253,19 @@ def _serialize(value: Any) -> Any:
     if isinstance(value, str):
         return {"s": value}
     if isinstance(value, (list, tuple)):
-        return {"a": [_serialize(x) for x in value]}
+        # <M> `id` IS MANDATORY on a list and on an object, and its absence is
+        # a KeyError deep inside `parse_value`, not a message. Playwright uses
+        # it to rebuild cyclic references: every container is registered under
+        # its id so a later `{"ref": id}` can point back at it. We never emit a
+        # `ref` - the values crossing here come from JSON and cannot be cyclic
+        # - but the id has to be there anyway, because the reader indexes on it
+        # unconditionally.
+        counter["n"] += 1
+        return {"a": [_serialize(x, counter) for x in value], "id": counter["n"]}
     if isinstance(value, dict):
-        return {"o": [{"k": k, "v": _serialize(v)} for k, v in value.items()]}
+        counter["n"] += 1
+        return {"o": [{"k": k, "v": _serialize(v, counter)}
+                      for k, v in value.items()], "id": counter["n"]}
     return {"s": str(value)}
 
 
@@ -220,6 +300,23 @@ class FrameDispatcher(Dispatcher):
         "press": "op_press",
         "type": "op_type",
         "evaluateExpression": "op_evaluate",
+        "evaluateExpressionHandle": "op_evaluate_handle",
+        "querySelectorAll": "op_query_selector_all",
+        "queryCount": "op_query_count",
+        "waitForSelector": "op_wait_for_selector",
+        "waitForFunction": "op_wait_for_function",
+        "waitForTimeout": "op_wait_for_timeout",
+        "waitForLoadState": "op_wait_for_load_state",
+        "setContent": "op_set_content",
+        "evalOnSelector": "op_eval_on_selector",
+        "evalOnSelectorAll": "op_eval_on_selector_all",
+        "selectOption": "op_select_option",
+        "setInputFiles": "op_set_input_files",
+        "tap": "op_tap",
+        "dispatchEvent": "op_dispatch_event",
+        "dragAndDrop": "op_drag_and_drop",
+        "frameElement": "op_frame_element",
+        "expect": "op_expect",
     }
 
     def __init__(self, server, page: "PageDispatcher", frame_id: str,
@@ -313,8 +410,24 @@ class FrameDispatcher(Dispatcher):
         return self._state(params, "editable")
 
     def op_evaluate(self, params: Dict) -> Any:
-        return {"value": _serialize(self.page.injected.evaluate(
-            self.frame_id, params["expression"]))}
+        """⛔ THE PAGE'S OWN WORLD, not the utility one, and the distinction
+        is the semantics of the API rather than a preference.
+
+        `page.evaluate()` is the user asking to run code AS THE PAGE: it must
+        see the page's globals, the page's prototypes, and whatever the site
+        has monkey-patched. The utility world sees the same DOM through an
+        Xray, so those are exactly what it does NOT see.
+
+        The first draft ran it in utility and it was caught by the opposite
+        assertion to the one you would expect: a test checking that the PAGE
+        cannot see a closed shadow root found that it could - because the code
+        asking was not running as the page at all.
+
+        Everything else in this file stays in utility on purpose. This one
+        method leaves, because the caller asked for it.
+        """
+        return {"value": _serialize(self.page.injected.evaluate_in_main(
+            self.frame_id, _with_argument(params)))}
 
     # ── acting ──────────────────────────────────────────────────────────────
     def _timeout(self, params: Dict) -> float:
@@ -375,6 +488,157 @@ class FrameDispatcher(Dispatcher):
                                     timeout=self._timeout(params))
         return None
 
+    def op_select_option(self, params: Dict) -> Any:
+        # ⛔ A bare string never reaches the option filter: it starts from
+        # `matches = true` and narrows only on valueOrLabel / value / label /
+        # index, so a plain string matches everything and picks the FIRST
+        # option. Measured: ["b"] answered ['a'].
+        chosen = self.page.actions.select_option(
+            params["selector"], params.get("options") or [],
+            timeout=self._timeout(params))
+        return {"values": chosen or []}
+
+    def op_set_input_files(self, params: Dict) -> Any:
+        paths = [f.get("name") if isinstance(f, dict) else f
+                 for f in (params.get("localPaths") or params.get("files") or [])]
+        self.page.actions.set_input_files(params["selector"], paths,
+                                          timeout=self._timeout(params))
+        return None
+
+    def op_tap(self, params: Dict) -> Any:
+        self.page.actions.tap(params["selector"],
+                              timeout=self._timeout(params))
+        return None
+
+    def op_dispatch_event(self, params: Dict) -> Any:
+        self.page.actions.dispatch_event(
+            params["selector"], params["type"],
+            params.get("eventInit") or {}, timeout=self._timeout(params))
+        return None
+
+    def op_drag_and_drop(self, params: Dict) -> Any:
+        self.page.actions.drag_and_drop(params["source"], params["target"],
+                                        timeout=self._timeout(params))
+        return None
+
+    def op_set_content(self, params: Dict) -> Any:
+        """⛔ Goes through `document.open/write/close` in the MAIN world.
+
+        The utility world has an EXTENDED principal, and Gecko requires
+        `document.open()` to run under a principal EQUAL to the document's, so
+        from there it answers `The operation is insecure` every single time -
+        the same defect the fork already fixed inside the driver.
+        """
+        self.page.injected.evaluate_in_main(
+            self.frame_id,
+            "(() => { document.open(); document.write(%s); document.close(); })()"
+            % _js_string(params["html"]), by_value=True)
+        # ⛔ The load states of the OLD document do not count for the new one,
+        # and `document.open()` starts a new one without a navigation event to
+        # reset them. Waiting here would wait on states that are already set.
+        self.page.lifecycle.wait_for_state(
+            self.frame_id, params.get("waitUntil") or "load",
+            timeout=self._timeout(params))
+        return None
+
+    def op_wait_for_timeout(self, params: Dict) -> Any:
+        time.sleep((params.get("timeout") or 0) / 1000.0)
+        return None
+
+    def op_wait_for_load_state(self, params: Dict) -> Any:
+        self.page.lifecycle.wait_for_state(
+            self.frame_id, params.get("state") or "load",
+            timeout=self._timeout(params))
+        return None
+
+    def op_wait_for_selector(self, params: Dict) -> Any:
+        state = params.get("state") or "visible"
+        object_id = self.page.actions.wait_for_selector(
+            params["selector"], state=state, timeout=self._timeout(params))
+        if object_id is None:
+            return {"element": None}
+        handle = ElementHandleDispatcher(self.server, self, object_id)
+        return {"element": handle.channel}
+
+    def op_wait_for_function(self, params: Dict) -> Any:
+        deadline = time.monotonic() + self._timeout(params)
+        expression = params["expression"]
+        while True:
+            value = self.page.injected.evaluate(self.frame_id, expression)
+            if value:
+                return {"handle": None}
+            if time.monotonic() > deadline:
+                raise ProtocolException(
+                    "the expression never became truthy in %.0fs: %s"
+                    % (self._timeout(params), expression[:120]))
+            time.sleep(0.05)
+
+    def op_expect(self, params: Dict) -> Any:
+        """⛔ The polling half of `expect()`. It answers ONE probe; the
+        retrying is the client's, in `_assertions.py`, which is why this must
+        not loop: looping here would multiply the caller's timeout by ours."""
+        expression = params.get("expression") or ""
+        selector = params.get("selector")
+        try:
+            if expression.startswith("to.have.count"):
+                count = self.page.injected.count(self.frame_id, selector)
+                expected = int((params.get("expectedNumber") or 0))
+                return {"matches": count == expected,
+                        "received": _serialize(count)}
+            if expression.startswith("to.be."):
+                state = expression.split("to.be.", 1)[1]
+                return self._with_element(
+                    {"selector": selector},
+                    lambda o: None) and {"matches": True}
+        except ProtocolException:
+            return {"matches": False, "received": _serialize(None)}
+        raise ProtocolException(
+            "expect(%r) is not implemented yet" % expression)
+
+    # ── frames as objects ───────────────────────────────────────────────────
+    def op_frame_element(self, params: Dict) -> Any:
+        raise ProtocolException(
+            "frameElement needs the owner frame's handle, which this server "
+            "does not track yet")
+
+    # ── selectors that answer many ──────────────────────────────────────────
+    def op_query_count(self, params: Dict) -> Any:
+        return {"value": self.page.injected.count(self.frame_id,
+                                                  params["selector"])}
+
+    def op_query_selector_all(self, params: Dict) -> Any:
+        ids = self.page.injected.query_selector_all(self.frame_id,
+                                                    params["selector"])
+        handles = [ElementHandleDispatcher(self.server, self, oid)
+                   for oid in ids]
+        return {"elements": [h.channel for h in handles]}
+
+    def op_eval_on_selector(self, params: Dict) -> Any:
+        return self._with_element(
+            params,
+            lambda o: _serialize(self.page.injected.call(
+                self.frame_id,
+                "(injected, el) => { const r = (%s);"
+                "  return typeof r === 'function' ? r(el) : r; }"
+                % params["expression"],
+                {"objectId": o})))
+
+    def op_eval_on_selector_all(self, params: Dict) -> Any:
+        value = self.page.injected.call(
+            self.frame_id,
+            "(injected, sel) => { const els = injected.querySelectorAll("
+            "  injected.parseSelector(sel), document);"
+            "  const r = (%s); return typeof r === 'function' ? r(els) : r; }"
+            % params["expression"],
+            params["selector"])
+        return {"value": _serialize(value)}
+
+    def op_evaluate_handle(self, params: Dict) -> Any:
+        object_id = self.page.injected.evaluate_in_main(
+            self.frame_id, _with_argument(params), by_value=False)
+        handle = ElementHandleDispatcher(self.server, self, object_id)
+        return {"handle": handle.channel}
+
 
 # ── page ────────────────────────────────────────────────────────────────────
 class PageDispatcher(Dispatcher):
@@ -391,6 +655,9 @@ class PageDispatcher(Dispatcher):
         "keyboardType": "op_key_type",
         "keyboardInsertText": "op_key_insert",
         "close": "op_close",
+        "goBack": "op_go_back",
+        "goForward": "op_go_forward",
+        "reload": "op_reload",
         "setDefaultNavigationTimeoutNoReply": "op_noop",
         "setDefaultTimeoutNoReply": "op_noop",
         "updateSubscription": "op_noop",
@@ -418,7 +685,54 @@ class PageDispatcher(Dispatcher):
         self.emit("__adopt__", {"guid": self.frame.guid})
         self.frame.parent = self
 
-    # ── pointer and keyboard ────────────────────────────────────────────────
+    def send(self, command: str, params: Dict) -> Any:
+        """A Juggler command on THIS page's session.
+
+        ⛔ The session is not optional and it is not a detail: without it the
+        command lands on whichever page the browser feels like, and with two
+        pages open the events of one are indistinguishable from the other.
+        """
+        return self.context.browser.conn.send(command, params,
+                                              session=self.session, timeout=30)
+
+    # ── history ─────────────────────────────────────────────────────────────
+    def _history(self, command: str, params: Dict) -> Any:
+        """⛔ goBack / goForward / reload are sent to the PAGE, not the Frame.
+
+        The first draft put them on the Frame because everything else that
+        navigates lives there, and it was wrong: `_page.py` sends them on the
+        page channel. Guessing which object owns an operation is exactly what
+        the recorded trace exists to stop.
+        """
+        frame_id = self.frame.frame_id
+        # ⛔ READ THE CURRENT NAVIGATION FIRST. History gives back no
+        # navigationId, so the only thing to anchor the wait on is that this
+        # one has changed - and reading it after the command would sometimes
+        # read the new one.
+        frame = self.lifecycle.frames.get(frame_id)
+        previous = frame.navigation if frame is not None else None
+        result = self.send(command, {"frameId": frame_id}
+                           if command != "Page.reload" else {}) or {}
+        if command != "Page.reload" and not result.get("success"):
+            # ⛔ NULL, not an error: `go_back` at the start of history is a
+            # normal answer in Playwright, and raising would turn an ordinary
+            # "there is nothing behind" into a failed script.
+            return {"response": None}
+        self.lifecycle.wait_for_new_navigation(
+            frame_id, previous, params.get("waitUntil") or "load",
+            timeout=(params.get("timeout") or 30000) / 1000.0)
+        return {"response": None}
+
+    def op_go_back(self, params: Dict) -> Any:
+        return self._history("Page.goBack", params)
+
+    def op_go_forward(self, params: Dict) -> Any:
+        return self._history("Page.goForward", params)
+
+    def op_reload(self, params: Dict) -> Any:
+        return self._history("Page.reload", params)
+
+    # ── pointer and keyboard ──────────────────────────────────────────
     def op_mouse_move(self, params: Dict) -> Any:
         self.actions.move(params["x"], params["y"],
                           steps=params.get("steps") or 1)
@@ -633,6 +947,7 @@ class BrowserTypeDispatcher(Dispatcher):
         env = {e["name"]: e["value"] for e in (params.get("env") or [])}
         profile = params.get("userDataDir") or tempfile.mkdtemp(
             prefix="invisible_profile_")
+        _write_user_js(profile, params.get("firefoxUserPrefs") or {})
         conn = juggler.launch(executable, profile,
                               headless=bool(params.get("headless", True)),
                               env=env, argv_extra=params.get("args") or [])
@@ -640,6 +955,58 @@ class BrowserTypeDispatcher(Dispatcher):
         version = _read_version(executable)
         browser = BrowserDispatcher(self.server, self, conn, version)
         return {"browser": browser.channel}
+
+
+def _write_user_js(profile_dir: str, prefs: Dict) -> int:
+    """The prefs, into the profile, BEFORE the browser starts.
+
+    ⛔ WITHOUT THIS THE PYTHON PATH LAUNCHES A BROWSER THAT IS NOT THE PRODUCT,
+    and it does so silently. Two hundred prefs arrive in `firefoxUserPrefs` on
+    every `launch`, and the first draft of this server threw them away and
+    started Firefox on an empty temporary profile. Everything worked - pages
+    loaded, clicks landed, the tests were green - and every stealth declaration
+    the package exists to make was simply absent.
+
+    It was caught by a closed shadow root, of all things: the engine patch that
+    lets a locator reach inside one is gated on `StealthEngineActive()`, which
+    is a pref. The same probe found the root through `_juggler` directly and
+    lost it through the public API, and the only difference between those two
+    arms was who wrote the profile. A gate for a completely different feature
+    is what made the absence visible; nothing was checking for it directly.
+
+    ⛔ AND THEY ARE WRITTEN, NOT SENT. Our fork already removed prefs from the
+    protocol - `Browser.enable` does not accept them any more - because a
+    browser configured on the second launch is a browser that was wrong on the
+    first. This mirrors what the driver's `defaultArgs` does, in Python.
+
+    ⛔ Gecko HAS NO FLOAT PREF TYPE: a fraction must be written as a STRING, or
+    the parser fails on that line and IGNORES EVERY LINE AFTER IT. That is not
+    a hypothetical - `ui.textScaleFactor` written as a number once killed the
+    browser on the second context, and the failure looked nothing like a prefs
+    problem.
+    """
+    import os
+    lines = []
+    for name in sorted(prefs):
+        value = prefs[name]
+        if isinstance(value, bool):
+            rendered = "true" if value else "false"
+        elif isinstance(value, int):
+            rendered = str(value)
+        elif isinstance(value, float):
+            # ⛔ A string, deliberately. See the docstring.
+            rendered = json.dumps(str(value))
+        else:
+            rendered = json.dumps(str(value))
+        lines.append('user_pref(%s, %s);' % (json.dumps(name), rendered))
+    os.makedirs(profile_dir, exist_ok=True)
+    body = ("// Written by invisible_playwright before the browser starts.\n"
+            + "\n".join(lines) + "\n")
+    # ⛔ `write_bytes`: on Windows a text-mode write translates every newline,
+    # and a prefs file is read by the browser, not by git.
+    with open(os.path.join(profile_dir, "user.js"), "wb") as handle:
+        handle.write(body.encode("utf-8"))
+    return len(lines)
 
 
 def _read_version(executable: str) -> str:

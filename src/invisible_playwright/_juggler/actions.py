@@ -216,6 +216,53 @@ class Actions:
         finally:
             self.inj.dispose(f, h)
 
+    # ── waiting ─────────────────────────────────────────────────────────────
+    def wait_for_selector(self, selector: str, *, state: str = "visible",
+                          timeout: float = 30.0):
+        """Waits for a selector to reach a state, and returns its handle.
+
+        ⛔ THE HANDLE IS NOT DISPOSED HERE, and that is deliberate: the caller
+        is about to use it. `_retry` disposes what it resolves on every turn
+        precisely because it re-resolves, so this cannot go through it - it
+        would hand back an objectId it has just released, and a released handle
+        does not raise, it answers wrong.
+
+        ⛔ AND `state="attached"` AND `"detached"` ARE NOT ELEMENT STATES. The
+        injected script knows visible / hidden / enabled / disabled / editable
+        / checked; presence in the DOM is answered by the selector resolving at
+        all, so those two are handled here rather than asked of a function that
+        would reject them.
+        """
+        frame = self.lifecycle.main_frame
+        if frame is None:
+            raise RuntimeError("no main frame: the page is not ready")
+        deadline = time.monotonic() + timeout
+        reason = "not tried yet"
+        while True:
+            element = self.inj.query_selector(frame, selector)
+            if state == "detached":
+                if not element:
+                    return None
+                self.inj.dispose(frame, element)
+                reason = "the element is still attached"
+            elif element:
+                if state == "attached":
+                    return element
+                try:
+                    if self.inj.element_state(frame, element, state):
+                        return element
+                    reason = "the element is not %s" % state
+                except EvaluationError as failure:
+                    reason = str(failure)
+                self.inj.dispose(frame, element)
+            else:
+                reason = "the selector matches nothing"
+            if time.monotonic() > deadline:
+                raise ElementNotActionable(
+                    "%r did not become %s in %.0fs. Last reason: %s"
+                    % (selector, state, timeout, reason))
+            time.sleep(0.05)
+
     # ── the actions ─────────────────────────────────────────────────────────
     def hover(self, selector: str, *, timeout: float = 30.0):
         def run(f, element, point):

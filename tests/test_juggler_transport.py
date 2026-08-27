@@ -22,17 +22,31 @@ PAGE = b"""<!doctype html><html><head><title>seam</title></head><body>
 <button id=b onclick="this.dataset.n=(+(this.dataset.n||0)+1)">press</button>
 <input id=f>
 <div id=t>hello</div>
+<ul><li class=x>one</li><li class=x>two</li><li class=x>three</li></ul>
+<input id=c type=checkbox>
+<select id=s><option value=a>A</option><option value=b>B</option></select>
+<div id=late></div>
+<a id=next href="/second">go</a>
+<script>
+  setTimeout(function () {
+    document.getElementById('late').innerHTML = '<span id=slow>arrived</span>';
+  }, 800);
+</script>
 </body></html>"""
+
+SECOND = b"""<!doctype html><html><head><title>second</title></head>
+<body><div id=t>page two</div></body></html>"""
 
 
 def _serve(body):
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
+            page = SECOND if self.path.startswith("/second") else body
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Length", str(len(page)))
             self.end_headers()
-            self.wfile.write(body)
+            self.wfile.write(page)
 
         def log_message(self, *a):
             pass
@@ -73,8 +87,13 @@ def test_the_serializer_TAGS_values_instead_of_sending_them_bare():
     assert _serialize(True) == {"b": True}
     assert _serialize(3) == {"n": 3}
     assert _serialize("x") == {"s": "x"}
-    assert _serialize([1, "a"]) == {"a": [{"n": 1}, {"s": "a"}]}
-    assert _serialize({"k": 1}) == {"o": [{"k": "k", "v": {"n": 1}}]}
+    # ⛔ A CONTAINER MUST CARRY AN `id`. `parse_value` writes
+    # `refs[value["id"]]` unconditionally, so its absence is a bare KeyError
+    # from inside the client, several frames away from the cause. The ids are
+    # what lets a cyclic structure point back at itself; we never emit a `ref`,
+    # but the reader indexes on the id anyway.
+    assert _serialize([1, "a"]) == {"a": [{"n": 1}, {"s": "a"}], "id": 1}
+    assert _serialize({"k": 1}) == {"o": [{"k": "k", "v": {"n": 1}}], "id": 1}
     # ⛔ A bool is an int in Python, so the order of the checks is the whole
     # correctness of this function: reversed, `True` would leave as `{"n": 1}`.
     assert _serialize(False) == {"b": False}
@@ -164,6 +183,288 @@ def test_the_public_API_drives_a_page_WITHOUT_node(firefox_binary):
             assert page.is_visible("#b")
             box = page.query_selector("#b").bounding_box()
             assert box and box["width"] > 0
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_the_public_API_reads_MANY_elements_without_node(firefox_binary):
+    """`query_selector_all`, `count` and `eval_on_selector_all`.
+
+    ⛔ Each handle holds a DOM node alive until it is disposed, so a page with a
+    thousand matches leaks a thousand nodes. That is a property of the protocol,
+    not of this test, and it is written down where the handles are made.
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            found = page.query_selector_all("li.x")
+            assert len(found) == 3, "query_selector_all returned %d" % len(found)
+            assert [h.text_content() for h in found] == ["one", "two", "three"]
+            assert page.eval_on_selector("#t", "el => el.textContent") == "hello"
+            assert page.eval_on_selector_all(
+                "li.x", "els => els.length") == 3
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_the_public_API_WAITS_for_an_element_that_arrives_late(firefox_binary):
+    """⛔ THE POINT OF `wait_for_selector`, and the reason it cannot go through
+    the retry loop: that loop disposes what it resolves on every turn, so it
+    would hand back a handle it has just released - and a released handle does
+    not raise, it answers wrong. The element below arrives after 800 ms."""
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            assert page.query_selector("#slow") is None, (
+                "the element was already there: the test proves nothing")
+            handle = page.wait_for_selector("#slow", timeout=8000)
+            assert handle is not None
+            assert handle.text_content() == "arrived"
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+@pytest.mark.xfail(reason="[B185] Page.goBack answers success and does nothing "
+                          "in the shipped engine - the Node driver fails the "
+                          "same way, so this is not the server",
+                   strict=True)
+def test_the_public_API_navigates_BACK_and_FORWARD_without_node(firefox_binary):
+    """⛔ XFAIL ON AN ENGINE DEFECT, MEASURED ON BOTH ARMS.
+
+    `Page.goBack` answers `{success: true}` and then nothing happens: no
+    navigation event, no state change, the title stays on the page you were
+    already on. Measured on 2026-08-27 with `history.length == 2`, so the
+    history entries exist and the command simply does not act on them.
+
+    The control is what makes this an engine defect rather than a gap here: the
+    SAME call through the Node driver, same binary, times out with `waiting for
+    navigation until load`. Two different clients, one engine, one behaviour.
+
+    `strict=True` on purpose: the day the engine is fixed this must turn RED so
+    somebody deletes the xfail, instead of quietly passing forever as an
+    expected failure that is no longer failing.
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            page.goto(url + "second")
+            assert page.title() == "second"
+            # ⛔ A SHORT TIMEOUT because this failure is EXPECTED: at the
+            # default 30 seconds the xfail holds a browser open for half a
+            # minute, and the tests running beside it start failing on load.
+            # That is the rule about never measuring under load, applied to the
+            # bench itself.
+            page.go_back(timeout=3000)
+            assert page.title() == "seam"
+            page.go_forward()
+            assert page.title() == "second"
+            page.reload()
+            assert page.title() == "second"
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_set_content_runs_in_the_MAIN_world_without_node(firefox_binary):
+    """⛔ THE KNOWN-BAD OF `set_content`. Run from the utility world it answers
+    `The operation is insecure` EVERY time: that world has an extended
+    principal, and Gecko requires `document.open()` to run under a principal
+    equal to the document's. The fork already fixed this inside the driver; the
+    Python server has to get it right for the same reason, not by luck.
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.set_content("<html><head><title>written</title></head>"
+                             "<body><p id=w>from set_content</p></body></html>")
+            assert page.title() == "written"
+            assert page.text_content("#w") == "from set_content"
+            # And an apostrophe in the html must not close the JavaScript
+            # literal it travels inside: that is the 2026-08-24 defect.
+            page.set_content("<p id=q>it's fine</p>")
+            assert page.text_content("#q") == "it's fine"
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+
+
+@pytest.mark.e2e
+def test_the_public_API_selects_and_checks_without_node(firefox_binary):
+    """`select_option` and `check`, through the generated API."""
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            assert page.input_value("#s") == "a"
+            page.select_option("#s", "b")
+            assert page.input_value("#s") == "b", (
+                "a bare string picked the first option instead of the asked one")
+            assert not page.is_checked("#c")
+            page.check("#c")
+            assert page.is_checked("#c")
+            page.uncheck("#c")
+            assert not page.is_checked("#c")
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+# ── closed shadow roots ─────────────────────────────────────────────────────
+
+SHADOW = b"""<!doctype html><html><head><title>shadow</title></head><body>
+<div id=host></div>
+<div id=openhost></div>
+<script>
+  const closed = document.getElementById('host').attachShadow({mode: 'closed'});
+  closed.innerHTML = '<p id=secret>hidden text</p><div id=inner></div>';
+  const nested = closed.getElementById('inner')
+      .attachShadow({mode: 'closed'});
+  nested.innerHTML = '<p id=deep>two levels down</p>';
+  const open_ = document.getElementById('openhost').attachShadow({mode: 'open'});
+  open_.innerHTML = '<p id=visible>open text</p>';
+</script>
+</body></html>"""
+
+
+@pytest.mark.e2e
+def test_locators_reach_INSIDE_a_closed_shadow_root(firefox_binary):
+    """⛔ Side A of the closed-shadow-root research, verified on the product.
+
+    The engine patch lives in `Element::GetShadowRootForBindings` and is gated
+    on the ExpandedPrincipal, so the utility world sees a closed root and the
+    page does not. This asserts the automation half; the test below asserts
+    the half that matters more - that the page gained nothing.
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(SHADOW))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            assert page.text_content("#secret") == "hidden text"
+            assert page.text_content("#visible") == "open text"
+            assert page.text_content("#deep") == "two levels down", (
+                "a root nested inside a closed root was not reached")
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_the_PAGE_still_sees_nothing_of_a_closed_root(firefox_binary):
+    """⛔ THE HALF THAT MATTERS MORE, and it is the known-bad of the engine
+    patch. A real Firefox NEVER hands a closed root to content: if our build
+    did, `!!el.shadowRoot` on a closed host would be a one-line detector that
+    no fingerprint suite would even need to be clever to run.
+
+    So the assertion is not "automation works" but "the page is unchanged".
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(SHADOW))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            # `evaluate` runs in the page's own world, which is the whole
+            # point: this is what a site would see.
+            assert page.evaluate(
+                "() => document.getElementById('host').shadowRoot") is None, (
+                "the PAGE can see a closed shadow root: that is a one-line "
+                "detector, and a real Firefox never does this")
+            assert page.evaluate(
+                "() => !!document.getElementById('openhost').shadowRoot"), (
+                "an OPEN root stopped being visible to the page: the patch "
+                "moved something it should not have touched")
+            assert page.evaluate(
+                "() => document.getElementById('host').outerHTML"
+            ) == '<div id="host"></div>', (
+                "the page's own serialisation changed")
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_content_SERIALISES_shadow_roots_including_closed_ones(firefox_binary):
+    """⛔ Side B of the research, and what forking the client unlocked.
+
+    Upstream serialises with `documentElement.outerHTML`, which walks the light
+    DOM only: every shadow root comes back as an empty host. This asserts the
+    divergence is real and complete - open, closed, and a root NESTED inside a
+    closed one, which is where a depth-one walk would look right and be wrong.
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(SHADOW))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            html = page.content()
+            assert "hidden text" in html, (
+                "the CLOSED root was not serialised: %s" % html[:400])
+            assert "open text" in html, "the OPEN root was not serialised"
+            assert "two levels down" in html, (
+                "the nested root was not serialised: the walk stops at depth "
+                "one, which looks right and is not")
+            assert 'shadowrootmode="closed"' in html, (
+                "the closed root was serialised without saying it was closed")
+            # And the page's own serialisation is untouched: the difference
+            # is ours, not the document's.
+            # ⛔ ASSERT ON THE SERIALISED ROOT, NOT ON ITS TEXT. The first
+            # version looked for "hidden text" and failed: that string is also
+            # in the inline <script> that BUILDS the root, so it is present in
+            # any serialisation of this page and proves nothing either way.
+            own = page.evaluate("() => document.documentElement.outerHTML")
+            assert "shadowrootmode" not in own, (
+                "the page can serialise its own shadow roots: %s" % own[:200])
     finally:
         os.environ.pop(factory.CHOICE_ENV, None)
         srv.shutdown()

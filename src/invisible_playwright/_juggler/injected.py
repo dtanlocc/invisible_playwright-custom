@@ -194,6 +194,64 @@ class InjectedScript:
             "injected.parseSelector(sel), document).length",
             selector)
 
+    def evaluate_in_main(self, frame_id: str, expression: str, *,
+                         by_value: bool = True, timeout: float = 30.0):
+        """Evaluate in the PAGE's own world, deliberately and rarely.
+
+        ⛔ THIS IS THE ONE PLACE THAT LEAVES THE XRAY, AND IT NEEDS A REASON
+        EVERY TIME. Everything else in this module runs in the utility world
+        precisely so a site cannot count our reads. Running here is visible to
+        anything that has wrapped an accessor.
+
+        The reason it exists at all is `set_content`, and it is not a
+        preference: the utility world has an EXTENDED principal (a sandbox over
+        the window, deliberately, so closed shadow roots are reachable), and
+        Gecko requires `document.open()` to run under a principal EQUAL to the
+        document's. From the utility world it answers `The operation is
+        insecure` EVERY time - measured here on 2026-08-27, and the same defect
+        was already fixed once inside the driver, where it shipped a broken
+        `set_content` to users.
+
+        ⛔ AND THE MAIN WORLD IS THE ONE WITH THE EMPTY NAME. `auxData.name` is
+        absent for the page's own context, which is why the key is `""` and not
+        a missing lookup.
+        """
+        deadline = time.monotonic() + timeout
+        key = (frame_id, "")
+        while key not in self.contexts:
+            if time.monotonic() > deadline:
+                raise TimeoutError(
+                    "the main world never appeared for frame %s. Worlds seen: "
+                    "%s" % (frame_id, sorted(n for f, n in self.contexts
+                                             if f == frame_id)))
+            time.sleep(0.01)
+        r = self._result(self.c.send(
+            "Runtime.evaluate",
+            {"executionContextId": self.contexts[key],
+             "expression": expression, "returnByValue": by_value},
+            session=self.session, timeout=timeout))
+        return r.get("value") if by_value else r.get("objectId")
+
+    def query_selector_all(self, frame_id: str, selector: str) -> list:
+        """Every match, as a list of objectIds the caller must dispose.
+
+        ⛔ IT RETURNS HANDLES, AND EACH ONE HOLDS A DOM NODE ALIVE. A page with
+        a thousand matches leaves a thousand nodes uncollectable until they are
+        disposed, which is a leak that grows with the page and not with the
+        code. The caller owns them; there is no scope here that could.
+        """
+        count = self.count(frame_id, selector)
+        ids = []
+        for index in range(count):
+            object_id = self.call(
+                frame_id,
+                "(injected, sel, i) => injected.querySelectorAll("
+                "injected.parseSelector(sel), document)[i]",
+                selector, index, by_value=False)
+            if object_id:
+                ids.append(object_id)
+        return ids
+
     def element_states(self, frame_id: str, element: str,
                        states: list) -> dict:
         """Asks the injected script whether the element is actionable.
@@ -292,17 +350,58 @@ class InjectedScript:
         return self.evaluate(frame_id, "document.title")
 
     def content(self, frame_id: str) -> str:
-        """`page.content()`.
+        """`page.content()`, INCLUDING shadow roots - open and closed.
 
-        ⛔ Serializes with `outerHTML`, so it does NOT enter any shadow
-        root, not even an open one. This is a known limitation of the
-        product: do not promise otherwise.
+        ⛔ THIS IS A DELIBERATE DIVERGENCE FROM UPSTREAM PLAYWRIGHT, and it is
+        the whole point of owning the client. Upstream serialises with
+        `documentElement.outerHTML`, which walks the light DOM only: every
+        shadow root, open or closed, comes back as an empty host element. A
+        `content()` that silently omits half the document is the defect, not
+        the contract - and closed roots are exactly where the interesting parts
+        of a hostile page live.
+
+        **HOW, and every piece was measured on the shipped engine on
+        2026-08-27:**
+
+        - `Element.getHTML({serializableShadowRoots, shadowRoots})` exists here
+          and serialises a root as `<template shadowrootmode="closed">`. It only
+          serialises roots it is HANDED, or ones the page marked `serializable`,
+          so the list has to be collected first.
+        - Collecting them is possible because this runs in the UTILITY world,
+          where `element.shadowRoot` answers for a closed root too. That is our
+          C++ patch in `Element::GetShadowRootForBindings`, gated on the
+          ExpandedPrincipal, so the PAGE still gets `null` and nothing about
+          this is observable from content. Measured both ways in the same run.
+        - The walk is recursive: a shadow root can contain hosts of its own,
+          and stopping at depth one would produce a document that looks
+          complete and is not.
+
+        On the probe page: 508 characters against 433 for the `outerHTML` path,
+        and the closed root's text is present in the first and absent in the
+        second.
+
+        ⛔ NO FALLBACK. If `getHTML` is missing the call raises, and that is
+        correct: this package pins its own engine through the seal, so a
+        missing `getHTML` means the engine is not the one we pinned, and
+        quietly returning a document with holes in it would hide that.
         """
         return self.evaluate(
             frame_id,
-            "(document.doctype ? new XMLSerializer()"
-            ".serializeToString(document.doctype) : '')"
-            " + (document.documentElement ? document.documentElement.outerHTML : '')")
+            "(() => {"
+            "  const roots = [];"
+            "  const walk = (root) => {"
+            "    for (const el of root.querySelectorAll('*')) {"
+            "      const sr = el.shadowRoot;"
+            "      if (sr) { roots.push(sr); walk(sr); }"
+            "    }"
+            "  };"
+            "  walk(document);"
+            "  const doctype = document.doctype"
+            "    ? new XMLSerializer().serializeToString(document.doctype) : '';"
+            "  if (!document.documentElement) return doctype;"
+            "  return doctype + document.documentElement.getHTML("
+            "    {serializableShadowRoots: true, shadowRoots: roots});"
+            "})()")
 
     def bounding_box(self, frame_id: str, element: str):
         """`bounding_box`: x, y, width, height from the quads, or None.
