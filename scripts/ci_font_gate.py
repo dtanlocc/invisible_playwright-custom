@@ -28,7 +28,11 @@ Exit 0 + "FONT GATE OK ..." on success; non-zero + the diff on failure.
 """
 from __future__ import annotations
 
+import json
+import shutil
 import sys
+import tempfile
+from pathlib import Path
 
 # The canonical Windows-11 family set the bundle exposes. Verified byte-for-byte
 # identical on Windows/DWrite and Linux/fontconfig; macOS/CoreText must match it
@@ -300,15 +304,37 @@ def main(exe: str) -> int:
 
     prefs = dict(_PREFS)
     prefs["zoom.stealth.fonts.generics"] = GENERICS_DECL
+
+    # ⛔ Le prefs si scrivono nel PROFILO, non si mandano sul protocollo.
+    # Fino a firefox-20 questo era `launch(firefox_user_prefs=prefs)`, che
+    # Playwright consegna al browser dentro `Browser.enable` - cioe' DOPO
+    # l'avvio. Da firefox-21 il motore lo RIFIUTA invece di applicarle tardi:
+    #
+    #     Browser.enable no longer applies preferences. They are written into
+    #     the profile before startup...
+    #
+    # ed e' il rifiuto giusto. Applicarle dopo l'avvio significa che il primo
+    # lancio inizializza gfx e font coi default e il secondo con le prefs
+    # attive: due percorsi diversi, che sono la causa di [B150]. E ignorarle
+    # sarebbe peggio - un browser senza le prefs che il chiamante crede di aver
+    # impostato, e nessun errore.
+    #
+    # Un `user.js` nel profilo viene letto all'AVVIO, quindi la mappa dei
+    # generici c'e' gia' quando gfx si inizializza: un percorso solo.
+    profilo = Path(tempfile.mkdtemp(prefix="ci-font-gate-"))
+    (profilo / "user.js").write_bytes(
+        ("".join("user_pref(%s, %s);\n" % (json.dumps(k), json.dumps(v))
+                 for k, v in sorted(prefs.items()))).encode("utf-8"))
     with sync_playwright() as p:
-        browser = p.firefox.launch(executable_path=exe, headless=True,
-                                   firefox_user_prefs=prefs)
+        ctx = p.firefox.launch_persistent_context(
+            str(profilo), executable_path=exe, headless=True)
         try:
-            page = browser.new_page()
+            page = ctx.new_page()
             page.goto("about:blank")
             r = page.evaluate(DETECT_JS, arg)
         finally:
-            browser.close()
+            ctx.close()
+            shutil.rmtree(profilo, ignore_errors=True)
 
     detected = {f for f, v in r["present"].items() if v}
     expected = set(EXPECTED)
