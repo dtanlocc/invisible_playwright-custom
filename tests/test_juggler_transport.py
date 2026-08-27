@@ -468,3 +468,137 @@ def test_content_SERIALISES_shadow_roots_including_closed_ones(firefox_binary):
     finally:
         os.environ.pop(factory.CHOICE_ENV, None)
         srv.shutdown()
+
+
+# ── events ──────────────────────────────────────────────────────────────────
+
+NOISY = b"""<!doctype html><html><head><title>events</title></head><body>
+<button id=alert onclick="window.alert('are you sure')">alert</button>
+<button id=boom onclick="undefinedFunctionCall()">boom</button>
+<script>
+  console.log('first line', 42);
+  console.warn('a warning');
+</script>
+</body></html>"""
+
+
+@pytest.mark.e2e
+def test_console_messages_reach_the_page_listener(firefox_binary):
+    """⛔ `console` and `pageError` are emitted on the CONTEXT, not on the
+    Page, and `_browser_context.py` re-emits them on the page it finds in
+    `params["page"]`. Emitting them on the Page produces no error at all: the
+    handler simply never runs, and the user concludes their page prints
+    nothing."""
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(NOISY))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            seen = []
+            page.on("console", lambda m: seen.append((m.type, m.text)))
+            page.goto(url)
+            page.wait_for_timeout(500)
+            assert seen, "no console message arrived at all"
+            kinds = {t for t, _ in seen}
+            texts = " | ".join(text for _, text in seen)
+            assert "first line" in texts, texts
+            assert "42" in texts, (
+                "the numeric argument was dropped: %s" % texts)
+            assert "warning" in kinds or "warn" in kinds, (
+                "the message type was lost: %s" % kinds)
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_an_uncaught_error_reaches_the_pageerror_listener(firefox_binary):
+    """A page that throws must reach `page.on("pageerror")`, with the message
+    intact - that is the only way a caller learns the site broke."""
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(NOISY))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(url)
+            page.click("#boom")
+            page.wait_for_timeout(600)
+            assert errors, "the uncaught error never arrived"
+            assert "undefinedFunctionCall" in " ".join(errors), (
+                "the message was lost: %s" % errors)
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_a_dialog_can_be_ANSWERED_and_not_answering_hangs_the_page(
+        firefox_binary):
+    """⛔ THE ONE OBJECT WHERE FORGETTING IS A HANG, NOT A LEAK. A dialog
+    blocks the content process inside `window.alert`, so an unanswered one
+    makes every later command time out with no hint about the cause.
+
+    Playwright's client answers automatically when nobody is listening, and
+    that safety net only works if the event ARRIVES - which is what this
+    asserts. The second half then checks the explicit path.
+    """
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(NOISY))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            seen = []
+
+            def answer(dialog):
+                seen.append((dialog.type, dialog.message))
+                dialog.accept()
+
+            page.on("dialog", answer)
+            page.goto(url)
+            page.click("#alert")
+            page.wait_for_timeout(600)
+            assert seen == [("alert", "are you sure")], seen
+            # And the page is still alive: if the dialog had not been
+            # answered, this would time out instead of returning.
+            assert page.title() == "events"
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_an_unanswered_dialog_is_dismissed_by_the_client(firefox_binary):
+    """⛔ The known-bad of the wiring above: with NO listener the client
+    dismisses on its own, and the page keeps running. If the event never
+    reached the client, this would hang - so a green here proves the event
+    arrives even when nobody visibly consumes it."""
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(NOISY))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            page.click("#alert")
+            assert page.title() == "events", (
+                "the page is stuck: the dialog event never reached the client")
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()

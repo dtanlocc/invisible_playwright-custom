@@ -640,6 +640,47 @@ class FrameDispatcher(Dispatcher):
         return {"handle": handle.channel}
 
 
+class DialogDispatcher(Dispatcher):
+    """A dialog the page opened, and the two ways it can end.
+
+    ⛔ A DIALOG BLOCKS THE PAGE UNTIL IT IS ANSWERED, which makes this the one
+    object where forgetting to reply is not a leak but a hang: the content
+    process sits inside `window.alert` and every later command times out with
+    no hint about why. Playwright's client answers automatically when nobody is
+    listening, and that safety net only works if the event actually arrives -
+    which is why this is created and emitted from the event handler rather than
+    on demand.
+    """
+
+    TYPE = "Dialog"
+    METHODS = {"accept": "op_accept", "dismiss": "op_dismiss"}
+
+    def __init__(self, server, page: "PageDispatcher", dialog_id: str,
+                 kind: str, message: str, default_value: str) -> None:
+        self.page_dispatcher = page
+        self.dialog_id = dialog_id
+        super().__init__(server, page, {
+            "type": kind, "message": message,
+            "defaultValue": default_value or "",
+            "page": page.channel,
+        })
+
+    def _answer(self, accept: bool, prompt_text: Optional[str] = None) -> Any:
+        params: Dict[str, Any] = {"dialogId": self.dialog_id,
+                                  "accept": accept}
+        if prompt_text is not None:
+            params["promptText"] = prompt_text
+        self.page_dispatcher.send("Page.handleDialog", params)
+        self.dispose()
+        return None
+
+    def op_accept(self, params: Dict) -> Any:
+        return self._answer(True, params.get("promptText"))
+
+    def op_dismiss(self, params: Dict) -> Any:
+        return self._answer(False)
+
+
 # ── page ────────────────────────────────────────────────────────────────────
 class PageDispatcher(Dispatcher):
     TYPE = "Page"
@@ -684,6 +725,92 @@ class PageDispatcher(Dispatcher):
                           "viewportSize": viewport, "isClosed": False})
         self.emit("__adopt__", {"guid": self.frame.guid})
         self.frame.parent = self
+        # ⛔ AFTER the Page exists: an event that fires during construction
+        # would name a guid the client has not been told about yet.
+        self._install_events()
+
+
+    def _install_events(self) -> None:
+        """Turn Juggler events into protocol events.
+
+        ⛔ THE SUBSCRIPTION IS NOT OPTIONAL AND IT IS NOT FREE. Playwright asks
+        the server to enable categories with `updateSubscription`, and this
+        server ignores that and always sends: the events are cheap here because
+        they are already crossing the pipe for the lifecycle, and a category
+        that is off is a `page.on("console")` that silently never fires.
+
+        ⛔ AND `console` AND `pageError` GO TO THE CONTEXT, not to the Page.
+        `_browser_context.py` listens for them and re-emits on the page it
+        finds in `params["page"]`. Emitting them on the Page instead produces
+        no error at all: the handler simply never runs, and the user concludes
+        their page prints nothing.
+        """
+        connection = self.context.browser.conn
+        previous = connection.on_event
+
+        def route(method, params, session):
+            if session == self.session:
+                try:
+                    self._on_juggler_event(method, params)
+                except Exception as failure:
+                    # ⛔ An event handler that raises must not take the read
+                    # loop with it, and must not vanish either: the connection
+                    # records it, and a test can read it.
+                    if len(connection.handler_errors) < 32:
+                        connection.handler_errors.append(
+                            "page-events %s: %s" % (method, failure))
+            previous(method, params, session)
+
+        connection.on_event = route
+
+    def _on_juggler_event(self, method: str, params: Dict) -> None:
+        if method == "Runtime.console":
+            self.context.emit("console", {
+                "page": self.channel,
+                "type": params.get("type") or "log",
+                "text": _console_text(params.get("args") or []),
+                "args": [],
+                "location": _location(params.get("location")),
+            })
+        elif method == "Page.uncaughtError":
+            self.context.emit("pageError", {
+                "page": self.channel,
+                "error": {"error": {
+                    "name": "Error",
+                    "message": params.get("message") or "",
+                    "stack": params.get("stack") or "",
+                }},
+                "location": _location(params.get("location")),
+            })
+        elif method == "Page.dialogOpened":
+            dialog = DialogDispatcher(self.server, self, params["dialogId"],
+                                      params.get("type") or "alert",
+                                      params.get("message") or "",
+                                      params.get("defaultValue") or "")
+            # ⛔ CREATING THE OBJECT IS NOT EMITTING THE EVENT, and the
+            # difference is a hang rather than an error. `__create__` only
+            # tells the client the object exists; `_browser_context.py`
+            # listens for a `dialog` EVENT carrying its channel, and without
+            # that the dialog sits unanswered, the content process stays
+            # blocked inside `window.alert`, and the next command times out
+            # naming a completely unrelated call - measured on 2026-08-28 as
+            # `Runtime.callFunction: no response in 30s`.
+            self.context.emit("dialog", {"dialog": dialog.channel})
+        elif method == "Page.crashed":
+            self.emit("crash")
+        elif method == "Page.eventFired":
+            state = {"load": "load",
+                     "DOMContentLoaded": "domcontentloaded"}.get(
+                         params.get("name") or "")
+            if state and params.get("frameId") == self.frame.frame_id:
+                self.frame.emit("loadstate", {"add": state})
+        elif method == "Page.navigationCommitted":
+            if params.get("frameId") == self.frame.frame_id:
+                self.frame.emit("navigated", {
+                    "url": params.get("url") or "",
+                    "name": params.get("name") or "",
+                    "newDocument": {"request": None},
+                })
 
     def send(self, command: str, params: Dict) -> Any:
         """A Juggler command on THIS page's session.
@@ -1070,3 +1197,32 @@ class JugglerServer(Server):
                          "utils": utils.channel},
             guid="Playwright")
         return {"playwright": playwright.channel}
+
+
+def _console_text(args: list) -> str:
+    """⛔ The console arguments arrive as remote objects, not as text. Reading
+    `value` works for a primitive and gives nothing for an object, so the
+    preview is used when there is one - which is what the driver shows too."""
+    pieces = []
+    for a in args:
+        if not isinstance(a, dict):
+            pieces.append(str(a))
+        elif "value" in a:
+            pieces.append(str(a["value"]))
+        elif a.get("preview"):
+            pieces.append(str(a["preview"]))
+        elif a.get("unserializableValue"):
+            pieces.append(str(a["unserializableValue"]))
+        else:
+            pieces.append(str(a.get("type") or "object"))
+    return " ".join(pieces)
+
+
+def _location(raw) -> Dict:
+    """⛔ ALWAYS a location, never None: `_browser_context.py` casts it and
+    falls back only on a missing KEY, so a null here becomes an AttributeError
+    somewhere else entirely."""
+    raw = raw or {}
+    return {"url": raw.get("url") or "",
+            "lineNumber": raw.get("lineNumber") or raw.get("line") or 0,
+            "columnNumber": raw.get("columnNumber") or raw.get("column") or 0}
