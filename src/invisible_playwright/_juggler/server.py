@@ -384,6 +384,7 @@ class FrameDispatcher(Dispatcher):
         "dragAndDrop": "op_drag_and_drop",
         "frameElement": "op_frame_element",
         "expect": "op_expect",
+        "resolveSelector": "op_resolve_selector",
         "waitForElementState": "op_wait_for_element_state",
         "setTestIdAttributeName": "op_set_test_id",
     }
@@ -664,6 +665,24 @@ class FrameDispatcher(Dispatcher):
         raise ProtocolException(
             "expect(%r) is not implemented yet" % expression)
 
+    def op_resolve_selector(self, params: Dict) -> Any:
+        """The frame and selector a locator finally points at.
+
+        ⛔ It answers THIS frame and the selector unchanged, which is correct
+        only because frame-crossing locators are not supported here yet: an
+        `iframe >> internal:control=enter-frame >> ...` would resolve into a
+        child frame upstream. Answering this frame for one of those would be a
+        wrong answer rather than a missing feature, so the compound form is
+        refused.
+        """
+        selector = params.get("selector") or ""
+        if "enter-frame" in selector:
+            raise ProtocolException(
+                "a frame-crossing locator (%s) cannot be resolved yet: "
+                "answering this frame would be a wrong answer, not a missing "
+                "one" % selector[:80])
+        return {"frame": self.channel, "selector": selector}
+
     def op_wait_for_element_state(self, params: Dict) -> Any:
         self.page.actions.wait_for_selector(
             params["selector"], state=params["state"],
@@ -788,6 +807,7 @@ class RequestDispatcher(Dispatcher):
     METHODS = {
         "response": "op_response",
         "rawRequestHeaders": "op_raw_request_headers",
+        "failure": "op_failure",
     }
 
     def __init__(self, server, page: "PageDispatcher", params: Dict) -> None:
@@ -795,6 +815,10 @@ class RequestDispatcher(Dispatcher):
         self.request_id = params.get("requestId")
         self.raw_headers = _headers_array(params.get("headers"))
         self.response: Optional["ResponseDispatcher"] = None
+        #: Filled by `Network.requestFailed`. ⛔ None until it fails: an
+        #: empty string would say "failed for no reason", which is a different
+        #: answer from "did not fail".
+        self.failure: Optional[str] = None
         frame_id = params.get("frameId") or page.frame.frame_id
         super().__init__(server, page, {
             "url": params.get("url") or "",
@@ -812,6 +836,13 @@ class RequestDispatcher(Dispatcher):
     def op_raw_request_headers(self, params: Dict) -> Any:
         return {"headers": self.raw_headers}
 
+    def op_failure(self, params: Dict) -> Any:
+        """⛔ NULL means "it did not fail", and that is a different answer from
+        an empty string. `_network.py` reads `errorText` and hands back None
+        when there is none, so an empty string here would make every successful
+        request look like it failed with a blank reason."""
+        return {"error": {"errorText": self.failure} if self.failure else None}
+
 
 class ResponseDispatcher(Dispatcher):
     TYPE = "Response"
@@ -821,12 +852,14 @@ class ResponseDispatcher(Dispatcher):
         "securityDetails": "op_security_details",
         "serverAddr": "op_server_addr",
         "sizes": "op_sizes",
+        "httpVersion": "op_http_version",
     }
 
     def __init__(self, server, request: RequestDispatcher,
                  params: Dict) -> None:
         self.request = request
         self.raw_headers = _headers_array(params.get("headers"))
+        self.protocol_version = params.get("protocolVersion") or ""
         self.remote = {"ipAddress": params.get("remoteIPAddress") or "",
                        "port": params.get("remotePort") or 0}
         super().__init__(server, request.page, {
@@ -854,6 +887,13 @@ class ResponseDispatcher(Dispatcher):
     def op_raw_response_headers(self, params: Dict) -> Any:
         return {"headers": self.raw_headers}
 
+    def op_http_version(self, params: Dict) -> Any:
+        """⛔ Juggler sends it on `requestFinished`, not on `responseReceived`,
+        so a response asked before the request finished does not know yet. It
+        answers what it has - the alternative is blocking a property read on a
+        network event that may never come."""
+        return {"value": self.protocol_version or "unknown"}
+
     def op_security_details(self, params: Dict) -> Any:
         return {"value": None}
 
@@ -863,6 +903,84 @@ class ResponseDispatcher(Dispatcher):
     def op_sizes(self, params: Dict) -> Any:
         return {"sizes": {"requestBodySize": 0, "requestHeadersSize": 0,
                           "responseBodySize": 0, "responseHeadersSize": 0}}
+
+
+class RouteDispatcher(Dispatcher):
+    """One intercepted request, waiting for the caller to decide.
+
+    ⛔ A ROUTE THAT IS NEVER ANSWERED HANGS THE PAGE, and it hangs it silently.
+    The request sits held in the network layer; nothing errors, the page simply
+    never finishes loading, and the failure surfaces as a timeout on whatever
+    the caller does next. Playwright's client answers automatically when no
+    handler matches - that safety net only works if this object reaches it,
+    which is why the `route` event is emitted the instant the request is
+    intercepted and never lazily.
+    """
+
+    TYPE = "Route"
+    METHODS = {
+        "abort": "op_abort",
+        "continue": "op_continue",
+        "fulfill": "op_fulfill",
+        "redirectNavigationRequest": "op_redirect",
+    }
+
+    def __init__(self, server, request: "RequestDispatcher") -> None:
+        self.request = request
+        self.answered = False
+        super().__init__(server, request.page, {"request": request.channel})
+
+    def _send(self, command: str, params: Dict) -> Any:
+        if self.answered:
+            raise ProtocolException(
+                "this route was already answered: a request can be aborted, "
+                "continued or fulfilled exactly once")
+        self.answered = True
+        params = dict(params)
+        params["requestId"] = self.request.request_id
+        result = self.request.page.context.browser.conn.send(
+            command, params, timeout=30)
+        self.dispose()
+        return result
+
+    def op_abort(self, params: Dict) -> Any:
+        """⛔ The error code travels: `NS_ERROR_ABORT` and `NS_ERROR_FAILURE`
+        are not the same thing to a page that inspects the failure, and
+        collapsing every reason into one is the sort of flattening a detector
+        can read."""
+        return self._send("Network.abortInterceptedRequest",
+                          {"errorCode": params.get("errorCode") or "aborted"})
+
+    def op_continue(self, params: Dict) -> Any:
+        payload = _only_set({
+            "url": params.get("url"),
+            "method": params.get("method"),
+            "headers": _headers_array(params.get("headers"))
+                       if params.get("headers") is not None else None,
+            "postData": params.get("postData"),
+        })
+        return self._send("Network.resumeInterceptedRequest", payload)
+
+    def op_fulfill(self, params: Dict) -> Any:
+        """⛔ THE BODY IS BASE64 ON THE WIRE, always. The client already
+        encodes it and names the field `body` with `isBase64` beside it;
+        Juggler wants `base64body`. Handing over the raw string produces a page
+        whose bytes are the base64 TEXT, which renders as gibberish rather than
+        failing."""
+        body = params.get("body")
+        if body is not None and not params.get("isBase64"):
+            import base64 as _b64
+            body = _b64.b64encode(str(body).encode("utf-8")).decode("ascii")
+        return self._send("Network.fulfillInterceptedRequest", _only_set({
+            "status": params.get("status") or 200,
+            "statusText": params.get("statusText") or "",
+            "headers": _headers_array(params.get("headers")),
+            "base64body": body,
+        }))
+
+    def op_redirect(self, params: Dict) -> Any:
+        return self._send("Network.resumeInterceptedRequest",
+                          {"url": params["url"]})
 
 
 def _resource_type(params: Dict) -> str:
@@ -904,6 +1022,7 @@ class PageDispatcher(Dispatcher):
         "emulateMedia": "op_emulate_media",
         "screenshot": "op_screenshot",
         "bringToFront": "op_bring_to_front",
+        "exposeBinding": "op_expose_binding",
         "requestGC": "op_request_gc",
         "addScriptTag": "op_add_script_tag",
         "addStyleTag": "op_add_style_tag",
@@ -911,6 +1030,12 @@ class PageDispatcher(Dispatcher):
         "pageErrors": "op_page_errors",
         "clearConsoleMessages": "op_clear_console_messages",
         "clearPageErrors": "op_clear_page_errors",
+        "webStorageItems": "op_storage_items",
+        "webStorageGetItem": "op_storage_get",
+        "webStorageSetItem": "op_storage_set",
+        "webStorageRemoveItem": "op_storage_remove",
+        "webStorageClear": "op_storage_clear",
+        "runBeforeUnload": "op_run_before_unload",
     }
 
     def __init__(self, server, context: "BrowserContextDispatcher",
@@ -1046,6 +1171,10 @@ class PageDispatcher(Dispatcher):
             self._requests[params.get("requestId")] = request
             self.context.emit("request", {"request": request.channel,
                                           "page": self.channel})
+            if self.context.intercepting and params.get("isIntercepted"):
+                route = RouteDispatcher(self.server, request)
+                self.context.emit("route", {"route": route.channel,
+                                            "page": self.channel})
         elif method == "Network.responseReceived":
             request = self._requests.get(params.get("requestId"))
             if request is not None:
@@ -1056,6 +1185,9 @@ class PageDispatcher(Dispatcher):
         elif method == "Network.requestFinished":
             request = self._requests.pop(params.get("requestId"), None)
             if request is not None:
+                if request.response is not None:
+                    request.response.protocol_version = (
+                        params.get("protocolVersion") or "")
                 self.context.emit("requestFinished", {
                     "request": request.channel,
                     "response": request.response.channel
@@ -1066,6 +1198,7 @@ class PageDispatcher(Dispatcher):
         elif method == "Network.requestFailed":
             request = self._requests.pop(params.get("requestId"), None)
             if request is not None:
+                request.failure = params.get("errorCode") or "failed"
                 self.context.emit("requestFailed", {
                     "request": request.channel,
                     "failureText": params.get("errorCode") or "failed",
@@ -1348,6 +1481,86 @@ class PageDispatcher(Dispatcher):
         self._error_log.clear()
         return None
 
+    # ── web storage ───────────────────────────────────────────────
+    def _storage(self, params: Dict, code: str, *args) -> Any:
+        """localStorage or sessionStorage, in the PAGE's own world.
+
+        ⛔ THE MAIN WORLD, and this one is not a style choice: web storage is
+        keyed by ORIGIN and the utility world sandbox has an ExpandedPrincipal.
+        Reading it from there does not raise - it answers a DIFFERENT store,
+        empty, and the caller concludes the site saved nothing.
+
+        ⛔ AND THE KIND IS VALIDATED. `kind` arrives as a string from the
+        client; interpolating it into the expression would let anything through
+        and produce a JavaScript error the caller cannot read.
+        """
+        kind = params.get("kind")
+        if kind not in ("localStorage", "sessionStorage"):
+            raise ProtocolException(
+                "unknown storage kind %r: the two are localStorage and "
+                "sessionStorage" % kind)
+        return self.injected.evaluate_in_main(
+            self.frame.frame_id, code % ((kind,) + args))
+
+    def op_storage_items(self, params: Dict) -> Any:
+        items = self._storage(params,
+                              "(() => { const s = window.%s; const o = [];"
+                              " for (let i = 0; i < s.length; i++) {"
+                              "   const k = s.key(i);"
+                              "   o.push({name: k, value: s.getItem(k)}); }"
+                              " return o; })()")
+        return {"items": items or []}
+
+    def op_storage_get(self, params: Dict) -> Any:
+        value = self._storage(params, "window.%s.getItem(%s)",
+                              _js_string(params["name"]))
+        return {"value": value}
+
+    def op_storage_set(self, params: Dict) -> Any:
+        self._storage(params, "window.%s.setItem(%s, %s)",
+                      _js_string(params["name"]), _js_string(params["value"]))
+        return None
+
+    def op_storage_remove(self, params: Dict) -> Any:
+        self._storage(params, "window.%s.removeItem(%s)",
+                      _js_string(params["name"]))
+        return None
+
+    def op_storage_clear(self, params: Dict) -> Any:
+        self._storage(params, "window.%s.clear()")
+        return None
+
+    def op_run_before_unload(self, params: Dict) -> Any:
+        """⛔ `close(run_before_unload=True)` means: let the page show its
+        `beforeunload` dialog. Answering it is the CALLER's job through the
+        dialog event, so this must not close the page itself - doing that
+        would dismiss the very dialog the option exists to raise."""
+        self.injected.evaluate_in_main(self.frame.frame_id, "window.close()")
+        return None
+
+    def op_expose_binding(self, params: Dict) -> Any:
+        """`expose_binding` / `expose_function`.
+
+        ⛔ THE PAGE-FACING HALF IS NOT THE HARD PART. Installing a function on
+        the page is one init script; what makes this a real feature is the
+        REPLY path - the page calls it, the server raises `bindingCalled`, the
+        client runs Python, and the answer has to travel back into the promise
+        the page is holding. That is what `reject` and `resolve` are for, and
+        they are only reachable through the BindingCall object this creates.
+
+        ⛔ AND THE FUNCTION MUST LIVE IN THE PAGE'S WORLD. Installed behind the
+        Xray it would be invisible to the site, which is the whole point of the
+        call. Juggler's `Page.addBinding` does that, so the world is not ours
+        to choose here - which is also why it cannot be hidden from the page:
+        a binding is a name the site can enumerate, and a caller asking for one
+        is asking for that trade.
+        """
+        raise ProtocolException(
+            "expose_binding() is not implemented yet: the page-facing half is "
+            "one init script, but the reply path - bindingCalled, then resolve "
+            "or reject into the promise the page holds - is not wired, and a "
+            "binding that never answers hangs the page that called it")
+
     def op_bring_to_front(self, params: Dict) -> Any:
         self.send("Page.bringToFront", {})
         return None
@@ -1388,6 +1601,9 @@ class BrowserContextDispatcher(Dispatcher):
         "setOffline": "op_set_offline",
         "setExtraHTTPHeaders": "op_set_extra_headers",
         "storageState": "op_storage_state",
+        "setStorageState": "op_set_storage_state",
+        "setNetworkInterceptionPatterns": "op_set_interception",
+        "setWebSocketInterceptionPatterns": "op_set_ws_interception",
     }
 
     def __init__(self, server, browser: "BrowserDispatcher", options: Dict,
@@ -1414,6 +1630,50 @@ class BrowserContextDispatcher(Dispatcher):
         for child in (debugger, request_context, tracing):
             self.emit("__adopt__", {"guid": child.guid})
         self.pages: List[PageDispatcher] = []
+        self.intercepting = False
+
+    def op_set_storage_state(self, params: Dict) -> Any:
+        """⛔ COOKIES ONLY, and it refuses the rest rather than dropping it.
+        A storage state carries cookies AND per-origin localStorage; writing
+        the cookies and silently ignoring the origins would restore half a
+        session and look like it worked, which is worse than saying no - the
+        caller would debug the site instead of the tool.
+        """
+        state = params.get("storageState") or {}
+        if state.get("origins"):
+            raise ProtocolException(
+                "set_storage_state() with per-origin localStorage is not "
+                "implemented: restoring only the cookies would look like it "
+                "worked and leave half the session missing. Use "
+                "page.evaluate on each origin, or open an issue")
+        cookies = state.get("cookies") or []
+        if cookies:
+            self._browser_send("Browser.setCookies", {"cookies": cookies})
+        return None
+
+    def op_set_interception(self, params: Dict) -> Any:
+        """Turn request interception on or off for this context.
+
+        ⛔ THE PATTERNS ARE NOT SENT, and that is a real narrowing that has to
+        be said out loud rather than discovered. Juggler's
+        `Browser.setRequestInterception` is a BOOLEAN: it intercepts
+        everything or nothing. Playwright's client filters by url on its side
+        and calls `continue` on what it does not want, so behaviour is correct
+        - but every request now makes a round trip through this process, which
+        a narrow pattern would have avoided. It is a cost, not a defect, and it
+        is the reason `route()` on a busy page is slower here than upstream.
+        """
+        wanted = bool(params.get("patterns"))
+        self._browser_send("Browser.setRequestInterception",
+                           {"enabled": wanted})
+        self.intercepting = wanted
+        return None
+
+    def op_set_ws_interception(self, params: Dict) -> Any:
+        raise ProtocolException(
+            "WebSocket routing is not implemented: Juggler reports websocket "
+            "frames but has no command to hold or rewrite one, so a route that "
+            "appeared to work would silently pass everything through")
 
     def op_noop(self, params: Dict) -> Any:
         return None
