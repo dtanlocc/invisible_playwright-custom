@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import http.server
 import os
+import pathlib
 import socketserver
 import threading
 
@@ -700,3 +701,94 @@ def test_the_viewport_can_be_resized(firefox_binary):
     finally:
         os.environ.pop(factory.CHOICE_ENV, None)
         srv.shutdown()
+
+
+# ── the refusal layer ───────────────────────────────────────────────────────
+
+def test_an_out_of_perimeter_call_NAMES_THE_FEATURE():
+    """⛔ THE WHOLE POINT OF THE REFUSAL LAYER, and the known-bad is what it
+    used to say. Before `perimeter.py` an out-of-perimeter call landed on a
+    guid that was never created and came back as
+    `no object 'artifact@3' to answer 'read'` - technically true, unreadable,
+    and indistinguishable from a bug in this package.
+
+    The mutation: empty `perimeter.OUTSIDE`, and this test goes red.
+    """
+    from invisible_playwright._juggler.dispatcher import ProtocolException
+    from invisible_playwright._juggler.server import JugglerServer
+    server = JugglerServer()
+    with pytest.raises(ProtocolException) as failure:
+        server.handle({"id": 1, "guid": "artifact@3", "method": "read",
+                       "params": {}})
+    message = str(failure.value)
+    assert "artifact stream" in message, (
+        "the refusal does not name the feature: %s" % message)
+    assert "does not implement" in message
+    assert "section 5.4" in message, "no pointer to where the decision lives"
+
+
+def test_a_GAP_and_a_DECISION_do_not_read_the_same():
+    """⛔ Two genuinely different failures, and the message has to say which.
+    An in-perimeter method that is missing is OUR bug; an out-of-perimeter one
+    is a decision. Collapsing them sends the reader to the wrong place."""
+    from invisible_playwright._juggler.dispatcher import (Dispatcher,
+                                                          ProtocolException,
+                                                          Server)
+
+    class Thing(Dispatcher):
+        TYPE = "Thing"
+        METHODS = {}
+
+    server = Server()
+    server.attach(type("R", (), {"emit_message": lambda self, m: None})())
+    thing = Thing(server, None, {})
+
+    with pytest.raises(ProtocolException) as decision:
+        thing.call("harExport", {})
+    assert "HAR" in str(decision.value)
+    assert "by decision" in str(decision.value)
+
+    with pytest.raises(ProtocolException) as gap:
+        thing.call("click", {})
+    assert "INSIDE the perimeter" in str(gap.value), str(gap.value)
+    assert "gap, not a decision" in str(gap.value)
+
+
+def test_the_perimeter_and_the_courtesy_list_do_not_OVERLAP_by_accident():
+    """⛔ Every courtesy name must ALSO be out of perimeter - it is an
+    exception to the refusal, not a category of its own. A courtesy entry for
+    an in-perimeter operation would silently make it a no-op, which is exactly
+    the "no-op instead of a refusal" that section 5.4 forbids."""
+    from invisible_playwright._juggler import perimeter
+    stray = sorted(set(perimeter.COURTESY) - set(perimeter.OUTSIDE))
+    assert not stray, (
+        "these answer as a courtesy but are INSIDE the perimeter, so they are "
+        "silently no-ops: %s" % stray)
+
+
+def test_every_courtesy_entry_says_WHO_calls_it():
+    """⛔ An entry here is a piece of perimeter coming back in through the
+    window. The list stays short and each line names its caller, or it grows
+    into a second perimeter nobody reviews."""
+    from invisible_playwright._juggler import perimeter
+    for name, reason in perimeter.COURTESY.items():
+        assert "client" in reason, (
+            "%s does not say who calls it: %r" % (name, reason))
+
+
+def test_the_workbench_inventory_and_the_package_cannot_DRIFT():
+    """⛔ There is one perimeter and it lives in the shipped package. The
+    workbench tool that counts remaining work reads it from there; if it kept
+    its own copy the two would disagree the first time one was edited - and the
+    one that matters, the one that REFUSES, would be the one nobody updated."""
+    from invisible_playwright._juggler import perimeter
+    tool = pathlib.Path(__file__).resolve().parents[3] / "scripts" \
+        / "inventario_voce6.py"
+    if not tool.exists():
+        pytest.skip("the workbench is not next to this checkout")
+    source = tool.read_text(encoding="utf-8", errors="replace")
+    assert "_fuori_dal_pacchetto" in source, (
+        "the inventory no longer reads the package: it has grown its own copy "
+        "of the perimeter")
+    assert "perimeter.py" in source
+    assert len(perimeter.OUTSIDE) > 50

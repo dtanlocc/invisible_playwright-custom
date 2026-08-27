@@ -35,6 +35,8 @@ import itertools
 import threading
 from typing import Any, Callable, Dict, Optional
 
+from . import perimeter
+
 
 class ProtocolException(Exception):
     """A failure the client should see as a protocol error, with its reason.
@@ -97,12 +99,18 @@ class Dispatcher:
     def call(self, method: str, params: Dict) -> Any:
         name = self.METHODS.get(method)
         if name is None:
+            # ⛔ NAME THE FEATURE, not just the missing method. "Page has no
+            # method X" reads like a bug in this package; "X is part of HAR,
+            # which is outside the perimeter by decision" is something the
+            # caller can act on. The two cases are genuinely different and the
+            # message has to say which one this is.
+            outside = perimeter.refusal(method)
             raise ProtocolException(
-                "%s has no method %r. invisible_playwright implements the "
-                "automation core; if this call is inside that perimeter it is "
-                "a gap, and if it is outside it the refusal is deliberate - "
-                "see 32-stacco-da-playwright.md section 5.4."
-                % (self.TYPE, method))
+                outside or
+                ("%s has no method %r, and %r is INSIDE the perimeter this "
+                 "package covers - so this is a gap, not a decision. See "
+                 "32-stacco-da-playwright.md section 6.5."
+                 % (self.TYPE, method, method)))
         return getattr(self, name)(params)
 
 
@@ -175,9 +183,16 @@ class Server:
         with self._lock:
             obj = self._objects.get(guid)
         if obj is None:
+            # ⛔ THE PERIMETER IS CHECKED FIRST, and this is the case the
+            # refusal layer exists for. An out-of-perimeter call lands on a
+            # guid that was never created, so without this the answer is `no
+            # object 'artifact@3' to answer 'read'` - true, unreadable, and
+            # indistinguishable from a bug here.
+            outside = perimeter.refusal(method)
             raise ProtocolException(
-                "no object %r to answer %r: it was either never created or "
-                "already disposed" % (guid, method))
+                outside or
+                ("no object %r to answer %r: it was either never created or "
+                 "already disposed" % (guid, method)))
         return obj.call(method, params)
 
     def handle_root(self, method: str, params: Dict) -> Any:
