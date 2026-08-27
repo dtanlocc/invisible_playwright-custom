@@ -86,11 +86,15 @@ class Connessione:
             self._errore = e
         finally:
             self._chiuso = True
+            # ⛔ Chi sta aspettando va SVEGLIATO, non lasciato al timeout:
+            # una pipe chiusa e' un'informazione, e farla arrivare fra trenta
+            # secondi come "nessuna risposta" nasconde cosa e' successo.
             with self._lucchetto:
                 attese = list(self._attese.values())
                 self._attese.clear()
-            for cassetta in attese:
+            for pronto, cassetta in attese:
                 cassetta.append({"error": {"message": "la pipe si e' chiusa"}})
+                pronto.set()
 
     def _consegna(self, grezzo: bytes) -> None:
         try:
@@ -112,9 +116,11 @@ class Connessione:
                     pass
             return
         with self._lucchetto:
-            cassetta = self._attese.pop(ident, None)
-        if cassetta is not None:
+            attesa = self._attese.pop(ident, None)
+        if attesa is not None:
+            pronto, cassetta = attesa
             cassetta.append(msg)
+            pronto.set()
 
     # ── scrittura ───────────────────────────────────────────────────────────
     def manda(self, metodo: str, params: Optional[dict] = None,
@@ -124,22 +130,34 @@ class Connessione:
         with self._lucchetto:
             self._prossimo_id += 1
             ident = self._prossimo_id
+            # Un EVENTO, non un ciclo di `sleep`: il risveglio arriva dal thread
+            # di lettura quando la risposta c'e', invece che dal prossimo tick
+            # di un `time.sleep(0.002)`.
+            #
+            # ⛔ E qui va scritto anche cio' che questa riga NON ha risolto,
+            # perche' la prima stesura del commento citava una misura falsa.
+            # Diceva "un comando NUDO costava 26,8 ms": quel comando era
+            # `Heap.collectGarbage`, **che raccoglie davvero la spazzatura**, e
+            # infatti costa 23,1 ms anche dopo il cambio. La latenza vera della
+            # pipe, misurata il 2026-08-27 su comandi che non fanno lavoro, e'
+            # **2,4 ms** per `Runtime.evaluate("1")` e 4,3 ms per
+            # `Page.getContentQuads`. Scegliere un comando costoso come
+            # campione di "nudo" fa attribuire al trasporto il tempo del
+            # browser.
             cassetta: list = []
-            self._attese[ident] = cassetta
+            pronto = threading.Event()
+            self._attese[ident] = (pronto, cassetta)
         msg: dict = {"id": ident, "method": metodo, "params": params or {}}
         if sessione:
             msg["sessionId"] = sessione
         os.write(self._verso, json.dumps(msg).encode("utf-8") + ZERO)
 
-        scade = time.monotonic() + timeout
-        while not cassetta:
-            if time.monotonic() > scade:
-                with self._lucchetto:
-                    self._attese.pop(ident, None)
-                raise ErroreProtocollo(
-                    "%s: nessuna risposta in %.0fs. Se e' il PRIMO comando, "
-                    "guarda il segnale di prontezza prima della pipe." % (metodo, timeout))
-            time.sleep(0.002)
+        if not pronto.wait(timeout):
+            with self._lucchetto:
+                self._attese.pop(ident, None)
+            raise ErroreProtocollo(
+                "%s: nessuna risposta in %.0fs. Se e' il PRIMO comando, "
+                "guarda il segnale di prontezza prima della pipe." % (metodo, timeout))
         risposta = cassetta[0]
         if "error" in risposta:
             e = risposta["error"]
