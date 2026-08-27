@@ -1,5 +1,6 @@
-"""Lo script iniettato chiamato da Python: selettori, azionabilita', e la
-verifica che conta - che il nostro client non attraversi nel realm della pagina.
+"""The injected script called from Python: selectors, actionability, and
+the check that matters - that our client does not cross into the page
+realm.
 """
 from __future__ import annotations
 
@@ -15,25 +16,25 @@ import pytest
 
 from invisible_playwright._juggler import injected as ini
 
-PAGINA = b"""<!doctype html><html><head><title>azionabile</title></head><body>
-<h1 id=titolo>ciao mondo</h1>
-<button id=ok>premi</button>
-<button id=spento disabled>spento</button>
-<div id=invisibile style="display:none">non mi vedi</div>
-<input id=campo placeholder=scrivi>
-<div data-testid=marchiato>col testid</div>
-<p class=tre>a</p><p class=tre>b</p><p class=tre>c</p>
+PAGE = b"""<!doctype html><html><head><title>actionable</title></head><body>
+<h1 id=title>hello world</h1>
+<button id=ok>press</button>
+<button id=off disabled>off</button>
+<div id=invisible style="display:none">you can't see me</div>
+<input id=field placeholder=type>
+<div data-testid=tagged>with testid</div>
+<p class=three>a</p><p class=three>b</p><p class=three>c</p>
 </body></html>"""
 
 
-def _servi(corpo):
+def _serve(body):
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(corpo)))
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(corpo)
+            self.wfile.write(body)
 
         def log_message(self, *a):
             pass
@@ -41,277 +42,301 @@ def _servi(corpo):
     return H
 
 
-def _apri(binario, corpo):
-    """Lancia, naviga, e torna (connessione, ciclo, iniettato, frame, chiudi)."""
+def _open(binary, body):
+    """Launches, navigates, and returns (connection, lifecycle, injected,
+    frame, close)."""
     from invisible_core.launch import build_launch_plan
     from invisible_playwright._juggler import connection as conn
-    from invisible_playwright._juggler.lifecycle import CicloDiVita
+    from invisible_playwright._juggler.lifecycle import Lifecycle
 
-    profilo = tempfile.mkdtemp(prefix="inj_test_")
-    piano = build_launch_plan(5, profile_dir=profilo, timezone="UTC", locale="en-US")
-    srv = socketserver.TCPServer(("127.0.0.1", 0), _servi(corpo))
+    profile_dir = tempfile.mkdtemp(prefix="inj_test_")
+    plan = build_launch_plan(5, profile_dir=profile_dir, timezone="UTC",
+                             locale="en-US")
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(body))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    c = conn.avvia(binario, profilo, headless=True, ambiente=piano.env)
-    sessioni: dict = {}
-    c.su_evento = lambda m, p, s: (
-        sessioni.__setitem__(p["targetInfo"]["targetId"], p["sessionId"])
+    c = conn.launch(binary, profile_dir, headless=True, env=plan.env)
+    sessions: dict = {}
+    c.on_event = lambda m, p, s: (
+        sessions.__setitem__(p["targetInfo"]["targetId"], p["sessionId"])
         if m == "Browser.attachedToTarget" else None)
-    c.manda("Browser.enable", {"attachToDefaultContext": True})
-    ctx = c.manda("Browser.createBrowserContext", {"removeOnDetach": True})
-    pag = c.manda("Browser.newPage", {"browserContextId": ctx["browserContextId"]})
-    fine = time.time() + 20
-    while pag["targetId"] not in sessioni and time.time() < fine:
+    c.send("Browser.enable", {"attachToDefaultContext": True})
+    ctx = c.send("Browser.createBrowserContext", {"removeOnDetach": True})
+    page = c.send("Browser.newPage",
+                  {"browserContextId": ctx["browserContextId"]})
+    deadline = time.time() + 20
+    while page["targetId"] not in sessions and time.time() < deadline:
         time.sleep(0.02)
-    sess = sessioni[pag["targetId"]]
-    ciclo = CicloDiVita(c, sess)
-    inj = ini.ScriptIniettato(c, sess)
-    inj.prepara()
+    sess = sessions[page["targetId"]]
+    lifecycle = Lifecycle(c, sess)
+    inj = ini.InjectedScript(c, sess)
+    inj.install()
     time.sleep(0.4)
-    ciclo.naviga("http://127.0.0.1:%d/" % srv.server_address[1],
-                 aspetta="load", timeout=30)
+    lifecycle.goto("http://127.0.0.1:%d/" % srv.server_address[1],
+                   until="load", timeout=30)
 
-    def chiudi():
-        c.chiudi()
+    def close():
+        c.close()
         srv.shutdown()
 
-    return c, ciclo, inj, ciclo.frame_principale, chiudi
+    return c, lifecycle, inj, lifecycle.main_frame, close
 
 
-# ── senza browser ───────────────────────────────────────────────────────────
+# ── without a browser ───────────────────────────────────────────────────────
 
-def test_il_nome_del_mondo_e_quello_del_NOSTRO_fork():
-    """⛔ Upstream lo chiama diversamente: il nostro fork lo ha rinominato
-    perche' viaggiava sul window della pagina. Se questa costante e il driver
-    divergono, l'aggancio si rompe in SILENZIO - il contesto nasce, ma con un
-    altro nome, e nessuno lo riconosce."""
-    assert ini.MONDO_UTILITA == "__ctx_aux__"
+def test_the_world_name_is_OUR_forks():
+    """⛔ Upstream calls it something else: our fork renamed it because it
+    traveled on the page's window. If this constant and the driver
+    diverge, the hookup breaks SILENTLY - the context is born, but under
+    a different name, and nobody recognizes it."""
+    assert ini.UTILITY_WORLD == "__ctx_aux__"
 
 
-def test_lo_script_iniettato_e_il_NOSTRO_non_upstream():
-    """Un blob estratto da un bundle upstream perderebbe tutte le correzioni di
-    stealth senza che niente dia errore."""
+def test_the_injected_script_is_OURS_not_upstreams():
+    """A blob extracted from an upstream bundle would lose every stealth
+    fix without anything raising an error."""
     js = pathlib.Path(ini.__file__).with_name("injected.js").read_text(
         encoding="utf-8", errors="replace")
-    assert "MODIFICATO da invisible_playwright" in js
+    assert "MODIFIED by invisible_playwright" in js
     assert "InjectedScript" in js
-    for motore in ("internal:role", "internal:testid", "internal:label"):
-        assert motore in js, motore
+    for engine in ("internal:role", "internal:testid", "internal:label"):
+        assert engine in js, engine
 
 
-def test_le_opzioni_dichiarano_il_mondo_di_utilita_e_NON_underTest():
-    """Le due righe che tengono fuori i tell: `isUtilityWorld` vero (o il
-    costruttore installa 13 listener sull'addEventListener della pagina) e
-    `isUnderTest` falso (o pianta window.builtins ENUMERABILE)."""
-    sorgente = pathlib.Path(ini.__file__).read_text(encoding="utf-8")
-    assert '"isUtilityWorld": True' in sorgente
-    assert '"isUnderTest": False' in sorgente
+def test_the_options_declare_the_utility_world_and_NOT_underTest():
+    """The two lines that keep the tells out: `isUtilityWorld` true (or
+    the constructor installs 13 listeners on the page's
+    addEventListener) and `isUnderTest` false (or it plants an
+    ENUMERABLE window.builtins)."""
+    source = pathlib.Path(ini.__file__).read_text(encoding="utf-8")
+    assert '"isUtilityWorld": True' in source
+    assert '"isUnderTest": False' in source
 
 
-# ── col browser ─────────────────────────────────────────────────────────────
+# ── with a browser ──────────────────────────────────────────────────────────
 
 @pytest.mark.e2e
-def test_i_motori_di_selettori_rispondono(firefox_binary):
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, PAGINA)
+def test_the_selector_engines_respond(firefox_binary):
+    c, lifecycle, inj, f, close = _open(firefox_binary, PAGE)
     try:
-        for sel in ("#titolo", "css=#ok", "text=ciao mondo",
-                    "internal:testid=[data-testid='marchiato']",
+        for sel in ("#title", "css=#ok", "text=hello world",
+                    "internal:testid=[data-testid='tagged']",
                     "xpath=//button[@id='ok']"):
-            oid = inj.risolvi(f, sel)
-            assert oid, "il selettore %r non ha trovato niente" % sel
-            inj.libera(f, oid)
-        assert inj.risolvi(f, "#nonesiste") is None
-        assert inj.quanti(f, ".tre") == 3
+            oid = inj.query_selector(f, sel)
+            assert oid, "selector %r found nothing" % sel
+            inj.dispose(f, oid)
+        assert inj.query_selector(f, "#doesnotexist") is None
+        assert inj.count(f, ".three") == 3
     finally:
-        chiudi()
+        close()
 
 
 @pytest.mark.e2e
-def test_l_azionabilita_DISTINGUE_invece_di_dire_sempre_si(firefox_binary):
-    """⛔ L'INPUT NOTO-CATTIVO DI QUESTO FILE.
+def test_actionability_DISTINGUISHES_instead_of_always_saying_yes(
+        firefox_binary):
+    """⛔ THE KNOWN-BAD INPUT OF THIS FILE.
 
-    `checkElementStates` e' ASINCRONA. Se la funzione che la chiama non
-    l'aspettasse, tornerebbe una Promise, la Promise e' un oggetto vero, e OGNI
-    elemento risulterebbe azionabile - compreso un bottone disabilitato e un
-    div con `display:none`. Un'azionabilita' che dice sempre si' non e' un
-    controllo, e il guasto sarebbe muto.
+    `checkElementStates` is ASYNCHRONOUS. If the function calling it did
+    not await it, it would return a Promise, the Promise is a truthy
+    object, and EVERY element would come out actionable - including a
+    disabled button and a div with `display:none`. An actionability
+    check that always says yes is not a check, and the failure would be
+    silent.
 
-    Qui si pretende che DISTINGUA, e che dica QUALE stato manca.
+    Here we demand that it DISCRIMINATES, and that it says WHICH state
+    is missing.
     """
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, PAGINA)
+    c, lifecycle, inj, f, close = _open(firefox_binary, PAGE)
     try:
-        pieni = ["visible", "stable", "enabled"]
+        full_states = ["visible", "stable", "enabled"]
 
-        ok = inj.stati(f, inj.risolvi(f, "#ok"), pieni)
+        ok = inj.element_states(f, inj.query_selector(f, "#ok"), full_states)
         assert ok == {"ok": True}, ok
 
-        spento = inj.stati(f, inj.risolvi(f, "#spento"), pieni)
-        assert spento["ok"] is False and spento["manca"] == "enabled", spento
+        off = inj.element_states(f, inj.query_selector(f, "#off"), full_states)
+        assert off["ok"] is False and off["missing"] == "enabled", off
 
-        invisibile = inj.stati(f, inj.risolvi(f, "#invisibile"), ["visible"])
-        assert invisibile["ok"] is False and invisibile["manca"] == "visible", invisibile
+        invisible = inj.element_states(
+            f, inj.query_selector(f, "#invisible"), ["visible"])
+        assert invisible["ok"] is False and \
+            invisible["missing"] == "visible", invisible
 
-        campo = inj.stati(f, inj.risolvi(f, "#campo"),
-                          ["visible", "stable", "enabled", "editable"])
-        assert campo == {"ok": True}, campo
+        field = inj.element_states(
+            f, inj.query_selector(f, "#field"),
+            ["visible", "stable", "enabled", "editable"])
+        assert field == {"ok": True}, field
     finally:
-        chiudi()
+        close()
 
 
 @pytest.mark.e2e
-def test_il_testo_si_legge(firefox_binary):
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, PAGINA)
+def test_the_text_reads(firefox_binary):
+    c, lifecycle, inj, f, close = _open(firefox_binary, PAGE)
     try:
-        oid = inj.risolvi(f, "#titolo")
-        assert inj.testo(f, oid) == "ciao mondo"
+        oid = inj.query_selector(f, "#title")
+        assert inj.text_content(f, oid) == "hello world"
     finally:
-        chiudi()
+        close()
 
 
 @pytest.mark.e2e
-def test_un_javascript_che_LANCIA_arriva_come_errore_non_come_None(firefox_binary):
-    """⛔ Un'eccezione della pagina NON torna come errore di protocollo: torna
-    come `exceptionDetails` dentro una risposta RIUSCITA. Chi guarda solo il
-    codice di ritorno legge `None` e prosegue con un valore che non esiste."""
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, PAGINA)
+def test_a_javascript_that_THROWS_arrives_as_an_error_not_as_None(
+        firefox_binary):
+    """⛔ A page exception does NOT come back as a protocol error: it
+    comes back as `exceptionDetails` inside a SUCCESSFUL response.
+    Whoever looks only at the return code reads `None` and proceeds with
+    a value that does not exist."""
+    c, lifecycle, inj, f, close = _open(firefox_binary, PAGE)
     try:
-        with pytest.raises(ini.ErroreValutazione) as e:
-            inj.valuta(f, "(() => { throw new Error('rotto apposta'); })()")
-        assert "rotto apposta" in str(e.value)
+        with pytest.raises(ini.EvaluationError) as e:
+            inj.evaluate(
+                f, "(() => { throw new Error('broken on purpose'); })()")
+        assert "broken on purpose" in str(e.value)
     finally:
-        chiudi()
+        close()
 
 
-LETTURA = b"""<!doctype html><html><head><title>lettura</title></head><body>
-<div id=t>ciao <b>mondo</b></div>
-<input id=campo value=pippo>
-<input id=spunta type=checkbox checked>
-<button id=spento disabled>no</button>
-<div id=nascosto style=display:none>x</div>
-<a id=link href="/qui">vai</a>
+READING = b"""<!doctype html><html><head><title>reading</title></head><body>
+<div id=t>hello <b>world</b></div>
+<input id=field value=foo>
+<input id=ticked type=checkbox checked>
+<button id=off disabled>no</button>
+<div id=hidden style=display:none>x</div>
+<a id=link href="/here">go</a>
 </body></html>"""
 
 
 @pytest.mark.e2e
-def test_il_gruppo_LETTURA_DEL_DOM(firefox_binary):
-    """Le operazioni della voce 6, gruppo "lettura del DOM" (§6.5)."""
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, LETTURA)
+def test_the_DOM_READING_group(firefox_binary):
+    """The operations from item 6, group "DOM reading" (§6.5)."""
+    c, lifecycle, inj, f, close = _open(firefox_binary, READING)
     try:
-        assert inj.titolo(f) == "lettura"
-        assert inj.contenuto(f).startswith("<!DOCTYPE html>")
+        assert inj.title(f) == "reading"
+        assert inj.content(f).startswith("<!DOCTYPE html>")
 
-        t = inj.risolvi(f, "#t")
-        assert inj.testo_interno(f, t) == "ciao mondo"
-        assert inj.html_interno(f, t) == "ciao <b>mondo</b>"
-        riq = inj.riquadro(f, t)
-        assert riq and riq["width"] > 0 and riq["height"] > 0, riq
+        t = inj.query_selector(f, "#t")
+        assert inj.inner_text(f, t) == "hello world"
+        assert inj.inner_html(f, t) == "hello <b>world</b>"
+        box = inj.bounding_box(f, t)
+        assert box and box["width"] > 0 and box["height"] > 0, box
 
-        assert inj.valore(f, inj.risolvi(f, "#campo")) == "pippo"
+        assert inj.input_value(f, inj.query_selector(f, "#field")) == "foo"
 
-        link = inj.risolvi(f, "#link")
-        assert inj.attributo(f, link, "href") == "/qui"
-        # ⛔ Un attributo ASSENTE torna None, non la stringa vuota: sono due
-        # cose diverse e chi legge deve poterle distinguere.
-        assert inj.attributo(f, link, "nonesiste") is None
+        link = inj.query_selector(f, "#link")
+        assert inj.get_attribute(f, link, "href") == "/here"
+        # ⛔ A MISSING attribute returns None, not the empty string: they
+        # are two different things and whoever reads it must be able to
+        # tell them apart.
+        assert inj.get_attribute(f, link, "doesnotexist") is None
 
-        # un elemento nascosto non ha quad: None, non un riquadro a zero
-        assert inj.riquadro(f, inj.risolvi(f, "#nascosto")) is None
+        # a hidden element has no quad: None, not a zero-sized box
+        assert inj.bounding_box(f, inj.query_selector(f, "#hidden")) is None
     finally:
-        chiudi()
+        close()
 
 
 @pytest.mark.e2e
-def test_gli_stati_DISTINGUONO_invece_di_dire_sempre_vero(firefox_binary):
-    """⛔ IL SECONDO NOTO-CATTIVO DI QUESTO FILE.
+def test_states_DISCRIMINATE_instead_of_always_saying_true(firefox_binary):
+    """⛔ THE SECOND KNOWN-BAD INPUT OF THIS FILE.
 
-    `injected.elementState` NON torna un booleano: torna
-    `{matches, received}`. Leggerlo come un booleano darebbe `True` sempre,
-    perche' un dizionario non vuoto e' vero - e ogni elemento risulterebbe
-    visibile, abilitato e spuntato. Un controllo che dice sempre si' non e' un
-    controllo.
+    `injected.elementState` does NOT return a boolean: it returns
+    `{matches, received}`. Reading it as a boolean would give `True`
+    always, because a non-empty dict is truthy - and every element
+    would come out visible, enabled and checked. A check that always
+    says yes is not a check.
     """
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, LETTURA)
+    c, lifecycle, inj, f, close = _open(firefox_binary, READING)
     try:
-        assert inj.stato(f, inj.risolvi(f, "#t"), "visible") is True
-        assert inj.stato(f, inj.risolvi(f, "#nascosto"), "visible") is False
-        assert inj.stato(f, inj.risolvi(f, "#nascosto"), "hidden") is True
-        assert inj.stato(f, inj.risolvi(f, "#spento"), "disabled") is True
-        assert inj.stato(f, inj.risolvi(f, "#spento"), "enabled") is False
-        assert inj.stato(f, inj.risolvi(f, "#spunta"), "checked") is True
-        assert inj.stato(f, inj.risolvi(f, "#campo"), "editable") is True
+        assert inj.element_state(
+            f, inj.query_selector(f, "#t"), "visible") is True
+        assert inj.element_state(
+            f, inj.query_selector(f, "#hidden"), "visible") is False
+        assert inj.element_state(
+            f, inj.query_selector(f, "#hidden"), "hidden") is True
+        assert inj.element_state(
+            f, inj.query_selector(f, "#off"), "disabled") is True
+        assert inj.element_state(
+            f, inj.query_selector(f, "#off"), "enabled") is False
+        assert inj.element_state(
+            f, inj.query_selector(f, "#ticked"), "checked") is True
+        assert inj.element_state(
+            f, inj.query_selector(f, "#field"), "editable") is True
     finally:
-        chiudi()
+        close()
 
 
 @pytest.mark.e2e
-def test_le_letture_che_non_hanno_senso_RIFIUTANO(firefox_binary):
-    """Un `input_value` su un div e uno stato inventato tornerebbero
-    `undefined` in silenzio. Un valore che non vuol dire niente e' peggio di
-    un errore, perche' prosegue."""
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, LETTURA)
+def test_reads_that_make_no_sense_are_REJECTED(firefox_binary):
+    """An `input_value` on a div and a made-up state would come back as
+    `undefined` silently. A value that means nothing is worse than an
+    error, because it lets execution continue."""
+    c, lifecycle, inj, f, close = _open(firefox_binary, READING)
     try:
-        with pytest.raises(ini.ErroreValutazione) as e:
-            inj.valore(f, inj.risolvi(f, "#t"))
+        with pytest.raises(ini.EvaluationError) as e:
+            inj.input_value(f, inj.query_selector(f, "#t"))
         assert "input" in str(e.value)
 
         with pytest.raises(ValueError) as e2:
-            inj.stato(f, inj.risolvi(f, "#t"), "quandoMiPare")
-        assert "sconosciuto" in str(e2.value)
+            inj.element_state(
+                f, inj.query_selector(f, "#t"), "wheneverIFeelLikeIt")
+        assert "unknown" in str(e2.value)
     finally:
-        chiudi()
+        close()
 
 
 @pytest.mark.e2e
-def test_IL_NOSTRO_CLIENT_NON_ATTRAVERSA_nel_realm_della_pagina(firefox_binary):
-    """La verifica che conta piu' di tutte.
+def test_OUR_CLIENT_DOES_NOT_CROSS_into_the_page_realm(firefox_binary):
+    """The check that matters more than any other.
 
-    Riusa la pagina-trappola del gate degli attraversamenti - venti trappole
-    armate nel PRIMO script - ma la pilota con `_juggler` invece che con
-    Playwright. Se il driver era pulito e il nostro client no, il difetto e'
-    nostro e questo test e' l'unico posto che lo direbbe.
+    Reuses the trap page from the crossings gate - twenty traps armed in
+    the FIRST script - but drives it with `_juggler` instead of
+    Playwright. If the driver was clean and our client was not, the
+    defect is ours, and this test is the only place that would say so.
     """
     spec = importlib.util.spec_from_file_location(
         "oc", str(pathlib.Path(__file__).resolve().parents[3]
                   / "tests" / "gates" / "observable_crossings.py"))
     if spec is None or not pathlib.Path(spec.origin).is_file():
-        pytest.skip("la pagina-trappola vive nel workbench, che qui non c'e'")
+        pytest.skip("the trap page lives in the workbench, not here")
     oc = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(oc)
 
-    c, ciclo, inj, f, chiudi = _apri(firefox_binary, oc.PAGINA)
+    c, lifecycle, inj, f, close = _open(firefox_binary, oc.PAGINA)
     try:
-        viva = inj.chiama(f, "(injected) => document.getElementById('spia')"
-                             ".getAttribute('data-viva')")
-        assert viva == "1", (
-            "trappole NON agganciate (%s): uno zero non varrebbe niente" % viva)
+        alive = inj.call(f, "(injected) => document.getElementById('spia')"
+                            ".getAttribute('data-viva')")
+        assert alive == "1", (
+            "traps NOT hooked (%s): a zero would be worth nothing" % alive)
 
-        def leggi():
+        def read():
             time.sleep(0.15)
-            g = inj.chiama(f, "(injected) => document.getElementById('spia')"
-                              ".getAttribute('data-conta') || ''") or ""
-            fuori = {}
+            g = inj.call(f, "(injected) => document.getElementById('spia')"
+                            ".getAttribute('data-conta') || ''") or ""
+            counts = {}
             for x in g.split():
                 k, _, v = x.partition("=")
                 try:
-                    fuori[k] = int(v)
+                    counts[k] = int(v)
                 except ValueError:
                     pass
-            return fuori
+            return counts
 
-        prima = leggi()
-        assert prima, "la pagina non ha pubblicato i contatori"
+        before = read()
+        assert before, "the page did not publish the counters"
 
-        for azione in (lambda: inj.risolvi(f, "#bersaglio"),
-                       lambda: inj.quanti(f, "div"),
-                       lambda: inj.risolvi(f, "text=cliccami"),
-                       lambda: inj.stati(f, inj.risolvi(f, "#bersaglio"),
-                                         ["visible", "stable", "enabled"]),
-                       lambda: inj.testo(f, inj.risolvi(f, "#bersaglio")),
-                       lambda: inj.valuta(f, "({a: 1, b: [1,2,3]})")):
-            azione()
-        dopo = leggi()
+        for action in (lambda: inj.query_selector(f, "#bersaglio"),
+                       lambda: inj.count(f, "div"),
+                       lambda: inj.query_selector(f, "text=cliccami"),
+                       lambda: inj.element_states(
+                           f, inj.query_selector(f, "#bersaglio"),
+                           ["visible", "stable", "enabled"]),
+                       lambda: inj.text_content(
+                           f, inj.query_selector(f, "#bersaglio")),
+                       lambda: inj.evaluate(f, "({a: 1, b: [1,2,3]})")):
+            action()
+        after = read()
 
-        mossi = {k: dopo[k] - prima.get(k, 0)
-                 for k in dopo if dopo[k] - prima.get(k, 0)}
-        assert not mossi, "il nostro client ha attraversato: %s" % mossi
+        moved = {k: after[k] - before.get(k, 0)
+                 for k in after if after[k] - before.get(k, 0)}
+        assert not moved, "our client crossed over: %s" % moved
     finally:
-        chiudi()
+        close()

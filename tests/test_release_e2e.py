@@ -69,17 +69,17 @@ _NON_ERMETICHE = ("PYTHONPATH", "INVISIBLE_SEAL_FILE", "PYTHONHOME")
 
 
 def _clean_env(base=None):
-    """L'ambiente da passare a un sottoprocesso, senza le variabili che filtrano.
+    """The environment to pass to a subprocess, without the variables that leak.
 
-    Torna anche cosa ha tolto, cosi' il messaggio di errore puo' dirlo: una
-    variabile rimossa in silenzio e' la stessa classe di difetto di una
-    ereditata in silenzio, solo con il segno cambiato.
+    Also returns what it removed, so the error message can say so: a variable
+    removed silently is the same class of defect as one inherited silently,
+    just with the sign flipped.
     """
     env = dict(os.environ if base is None else base)
-    tolte = [k for k in _NON_ERMETICHE if k in env]
-    for k in tolte:
+    removed = [k for k in _NON_ERMETICHE if k in env]
+    for k in removed:
         env.pop(k, None)
-    return env, tolte
+    return env, removed
 
 
 # ── venv mechanics, LOCAL ON PURPOSE ────────────────────────────────────────
@@ -98,25 +98,25 @@ def _clean_env(base=None):
 # the path. The core's suite now parses these files and refuses the import, so
 # the rule does not depend on this comment being read.
 def _run(cmd, *, timeout: int = 600, check: bool = True, env=None, cwd=None):
-    # `env=None` significava EREDITA, che e' esattamente il difetto. Adesso il
-    # default e' l'ambiente ripulito; passare `env=` esplicitamente lo ripulisce
-    # comunque, perche' un chiamante che costruisce un ambiente parte quasi
-    # sempre da `os.environ`.
-    env, tolte = _clean_env(env)
+    # `env=None` used to mean INHERIT, which is exactly the defect. Now the
+    # default is the cleaned environment; passing `env=` explicitly still gets
+    # it cleaned, because a caller building an environment almost always
+    # starts from `os.environ`.
+    env, removed = _clean_env(env)
     r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
                        timeout=timeout, env=env,
                        cwd=str(cwd) if cwd is not None else None)
     if check and r.returncode != 0:
-        nota = ""
-        if tolte:
-            nota = ("\n--- ambiente ---\nrimosse prima di lanciare: {}\n"
-                    "(sono le variabili che entrerebbero nel venv e lo farebbero "
-                    "misurare qualcosa che non e' cio' che riceve un utente)"
-                    .format(", ".join(tolte)))
+        note = ""
+        if removed:
+            note = ("\n--- environment ---\nremoved before launching: {}\n"
+                    "(these are the variables that would enter the venv and make it "
+                    "measure something other than what a user gets)"
+                    .format(", ".join(removed)))
         raise AssertionError(
             "{} exited {}\n--- stdout ---\n{}\n--- stderr ---\n{}{}".format(
                 " ".join(str(c) for c in cmd), r.returncode,
-                r.stdout[-3000:], r.stderr[-3000:], nota))
+                r.stdout[-3000:], r.stderr[-3000:], note))
     return r
 
 
@@ -152,9 +152,9 @@ make_venv = _make_venv
 # Reading it from the VENV is also the more honest question: what a user gets
 # is what the installed package says, not what this checkout says.
 def _upstream_version(py: Path) -> str:
-    # `_clean_env()` e non l'ambiente ereditato: questa e' la lettura che decide
-    # quale COPIA del pacchetto risponde, ed e' proprio quella che `PYTHONPATH`
-    # dirotta sui sorgenti del banco.
+    # `_clean_env()` and not the inherited environment: this is the read that
+    # decides which COPY of the package answers, and it is exactly the one
+    # `PYTHONPATH` redirects to the workbench sources.
     out = subprocess.run(
         [str(py), "-c",
          "from invisible_playwright.constants import FIREFOX_UPSTREAM_VERSION as v; print(v)"],
@@ -237,23 +237,23 @@ def test_clean_install_the_way_a_user_does_it(clean_venv: Path):
     Set ``INVPW_E2E_SOURCE=git`` to test an unpublished commit instead; that is
     a pre-release check, not the default, and it says so in the failure.
 
-    ⛔ E QUINDI QUESTO TEST NON PUO' VEDERE UN WHEEL ROTTO CHE STAI PER
-    PUBBLICARE. Il bersaglio predefinito e' la stringa ``invisible-playwright``,
-    cioe' l'INDICE: la versione GIA' pubblicata. Verifica che il passato
-    funzioni - domanda vera e utile - e per questo resta verde anche quando il
-    codice in rilascio produce un pacchetto che non si importa. Il 2026-08-26 e'
-    stato verde due volte mentre il wheel 0.7.3 era rotto: prima senza
-    ``_pw/_repo_version.py`` (escluso dal wheel da una riga di ``.gitignore``,
-    che hatchling rispetta anche su un file tracciato), poi senza ``pyee``
-    (transitiva di ``playwright``, sparita quando ``playwright`` e' uscito dalle
-    dipendenze). Entrambi li ha trovati la CI per caso, non un test.
+    ⛔ AND SO THIS TEST CANNOT SEE A BROKEN WHEEL YOU ARE ABOUT TO PUBLISH.
+    The default target is the string ``invisible-playwright``, i.e. the INDEX:
+    the version ALREADY published. It verifies that the past works - a true and
+    useful question - and for that reason it stays green even when the code
+    being released produces a package that does not import. On 2026-08-26 it
+    was green twice while wheel 0.7.3 was broken: first without
+    ``_pw/_repo_version.py`` (excluded from the wheel by a line in
+    ``.gitignore``, which hatchling respects even for a tracked file), then
+    without ``pyee`` (a transitive of ``playwright``, gone once ``playwright``
+    left the dependencies). CI found both by accident, not a test.
 
-    La domanda del PRE-rilascio - "il wheel costruito dal codice di adesso si
-    installa e si importa?" - la fa
-    ``tests/gates/wheel_si_importa.py`` nel workbench (scheda BE
-    dell'inventario dei gate), che costruisce, installa in un venv vuoto e
-    importa. Non e' qui perche' tutta questa suite gira su un'installazione
-    EDITABLE del working tree, dove ogni file esiste sul disco per definizione.
+    The PRE-release question - "does the wheel built from the code as it is now
+    install and import?" - is asked by
+    ``tests/gates/wheel_si_importa.py`` in the workbench (row BE of the gate
+    inventory), which builds, installs into an empty venv and imports. It is
+    not here because this whole suite runs on an EDITABLE install of the
+    working tree, where every file exists on disk by definition.
     """
     source = os.environ.get("INVPW_E2E_SOURCE", "index")
     if source == "git":
@@ -273,10 +273,11 @@ def test_clean_install_the_way_a_user_does_it(clean_venv: Path):
         [str(clean_venv), "-c",
          "import invisible_playwright as ip; "
          "from importlib.metadata import version; "
-         # NON `version('playwright')`: dal fork quel pacchetto non e' piu' una
-         # dipendenza, quindi in un venv pulito NON C'E' e questa riga alzava
-         # PackageNotFoundError. La versione del client si legge dal client
-         # vendorizzato, che e' l'unico che questo pacchetto usa davvero.
+         # NOT `version('playwright')`: since the fork that package is no
+         # longer a dependency, so in a clean venv it is NOT THERE and this
+         # line raised PackageNotFoundError. The client version is read from
+         # the vendored client, which is the only one this package actually
+         # uses.
          "from invisible_playwright._pw._repo_version import version as pw; "
          "print('OK', ip.__name__, version('invisible-core'), pw)"],
         timeout=60,
@@ -304,40 +305,41 @@ def test_the_resolved_playwright_is_inside_the_range_the_package_declares(
     from packaging.requirements import Requirement
     from packaging.version import Version
 
-    # ⛔ LA DOMANDA E' CAMBIATA CON IL FORK, e la vecchia non era piu' ponibile.
-    # Fino al 2026-08-26 questo test leggeva `version('playwright')` e la
-    # confrontava con il `playwright>=...` dichiarato in pyproject. Da quando il
-    # client e' vendorizzato, `playwright` NON e' piu' una dipendenza: in un venv
-    # pulito quel pacchetto non esiste e la riga alzava PackageNotFoundError, e
-    # la dichiarazione da confrontare non c'e' piu'.
+    # ⛔ THE QUESTION CHANGED WITH THE FORK, and the old one could no longer be
+    # asked. Until 2026-08-26 this test read `version('playwright')` and
+    # compared it against the `playwright>=...` declared in pyproject. Since
+    # the client is vendored, `playwright` is NO LONGER a dependency: in a
+    # clean venv that package does not exist and the line raised
+    # PackageNotFoundError, and the declaration to compare against is gone too.
     #
-    # Il vincolo pero' non e' sparito, e' cambiato di posto: il SEAL porta
-    # l'intervallo di client con cui quel binario e' stato provato, e la versione
-    # da confrontare e' quella del client VENDORIZZATO. E' esattamente cio' che
-    # `_engine.assert_playwright_range()` fa a ogni import; qui si verifica dal
-    # di fuori, in un venv vero, che i due numeri siano coerenti - perche' un
-    # client fuori intervallo uccide `new_context` per ogni installazione nuova.
+    # But the constraint has not disappeared, it moved: the SEAL carries the
+    # range of clients that binary was tested against, and the version to
+    # compare is that of the VENDORED client. This is exactly what
+    # `_engine.assert_playwright_range()` does on every import; here it is
+    # verified from the outside, in a real venv, that the two numbers agree -
+    # because a client outside the range kills `new_context` for every fresh
+    # install.
     got = _run([str(clean_venv), "-c",
                 "from invisible_playwright._pw._repo_version import version; "
                 "from invisible_core.seal import active_seal; "
                 "s = active_seal(); "
                 "print(version); print(s.playwright_min); print(s.playwright_max)"],
                timeout=60)
-    righe = got.stdout.strip().splitlines()
-    vendorizzato, lo, hi = righe[0].strip(), righe[1].strip(), righe[2].strip()
+    lines = got.stdout.strip().splitlines()
+    vendored, lo, hi = lines[0].strip(), lines[1].strip(), lines[2].strip()
 
     def _t(v: str):
-        parti = []
+        parts = []
         for p in v.split(".")[:3]:
-            cifre = "".join(c for c in p if c.isdigit())
-            parti.append(int(cifre or 0))
-        return tuple(parti + [0] * (3 - len(parti)))
+            digits = "".join(c for c in p if c.isdigit())
+            parts.append(int(digits or 0))
+        return tuple(parts + [0] * (3 - len(parts)))
 
-    assert _t(lo) <= _t(vendorizzato) <= _t(hi), (
-        f"il client vendorizzato e' {vendorizzato}, fuori dall'intervallo che il "
-        f"seal dichiara per questo motore ({lo} .. {hi}). Il protocollo Juggler e' "
-        f"a mondo chiuso: un client non provato uccide ogni sessione alla "
-        f"creazione del contesto.")
+    assert _t(lo) <= _t(vendored) <= _t(hi), (
+        f"the vendored client is {vendored}, outside the range the seal "
+        f"declares for this engine ({lo} .. {hi}). The Juggler protocol is a "
+        f"closed world: an untested client kills every session at context "
+        f"creation.")
 
 
 @pytest.mark.e2e
@@ -412,10 +414,10 @@ def test_binary_executes_after_fetch(clean_venv: Path, isolated_cache_env: dict)
         # Linux binary path on Windows host - skip launch, the previous
         # ensure_binary() already proved cache landed correctly.
         pytest.skip("Cross-platform binary launch from Windows requires WSL.")
-    # Anche qui `_clean_env()`, e non perche' Firefox legga `PYTHONPATH`: non lo
-    # legge. Perche' cosi' in questo file NON c'e' un solo sottoprocesso lanciato
-    # con l'ambiente ereditato, quindi non c'e' un'eccezione da ricordare ne' un
-    # esempio da ricopiare. Costa niente.
+    # `_clean_env()` here too, and not because Firefox reads `PYTHONPATH`: it
+    # does not. Because this way there is not a single subprocess in this file
+    # launched with the inherited environment, so there is no exception to
+    # remember and no example to copy from. It costs nothing.
     r = subprocess.run([str(binary_path), "--version"],
                        capture_output=True, text=True, timeout=30,
                        env=_clean_env()[0])
@@ -590,30 +592,30 @@ def test_the_published_version_has_a_github_release():
         recorded = {e["version"]: e for e in
                     json.loads(ledger_path.read_text(encoding="utf-8"))["released"]}
 
-    # ⛔ LA VERSIONE CHE QUESTO ALBERO DICHIARA E' ESENTE, e solo lei.
+    # ⛔ THE VERSION THIS TREE DECLARES IS EXEMPT, and only that one.
     #
-    # Il registro non puo' arrivare su main insieme alla pubblicazione: publish.yml
-    # pubblica su PyPI e POI prova a spingere PUBLISHED.json, ma main e' protetto e
-    # la spinta diretta viene rifiutata sempre, per costruzione. La voce finisce su
-    # un ramo ledger/<versione> la cui PR resta bloccata da sola ([B136]), quindi
-    # fra la pubblicazione e il merge a mano l'indice ha la versione e il registro
-    # no. Senza questa riga il caso e' ROSSO su un rilascio andato a buon fine, ed
-    # e' la QUARTA occorrenza della stessa forma trovata il 2026-08-18: un
-    # controllo scritto guardando lo stato a regime che diventa rosso esattamente
-    # quando serve.
+    # The ledger cannot land on main together with the publish: publish.yml
+    # publishes to PyPI and THEN tries to push PUBLISHED.json, but main is
+    # protected and the direct push is always refused, by construction. The
+    # entry ends up on a branch ledger/<version> whose PR stays blocked on its
+    # own ([B136]), so between the publish and the manual merge the index has
+    # the version and the ledger does not. Without this line the case is RED on
+    # a release that succeeded, and it is the FOURTH occurrence of the same
+    # shape found on 2026-08-18: a check written by looking at steady state
+    # that turns red exactly when it matters.
     #
-    # L'esenzione non apre un buco permanente, e la ragione e' che si richiude da
-    # sola. Se quel ramo del registro non viene mai unito, al rilascio successivo
-    # la versione rimasta indietro non e' piu' quella dichiarata dall'albero:
-    # ricade in unrecorded e il caso torna rosso. E' lo stesso modello che il
-    # commento qui sopra descrive per version_gate - una pubblicazione fuori dal
-    # cancello resta invisibile fino al rilascio dopo, che la rifiuta.
+    # The exemption does not open a permanent hole, and the reason is that it
+    # closes itself. If that ledger branch is never merged, at the NEXT release
+    # the version left behind is no longer the one the tree declares: it falls
+    # into unrecorded and the case goes red again. It is the same pattern the
+    # comment above describes for version_gate - a publish outside the gate
+    # stays invisible until the release after it, which refuses it.
     import tomllib
-    in_volo = tomllib.loads(
+    in_flight = tomllib.loads(
         (Path(__file__).resolve().parents[1] / "pyproject.toml")
         .read_text(encoding="utf-8"))["project"]["version"]
 
-    unrecorded = [v for v in live if recorded and v not in recorded and v != in_volo]
+    unrecorded = [v for v in live if recorded and v not in recorded and v != in_flight]
     thin = {v: [k for k in ("published_at", "requires_dist", "wheel_filename",
                             "sdist_filename", "wheel", "sdist")
                 if k not in recorded[v]]
@@ -710,25 +712,25 @@ def test_the_changelog_documents_every_version_it_claims_to_cover():
     # has nothing to say. The first draft of this gate flagged all fifteen.
     first_published = min(published, key=key)
 
-    # La versione che QUESTO albero dichiara e' il rilascio IN CORSO, non
-    # un'invenzione. Senza questa riga il gate rendeva impossibile una PR di
-    # rilascio verde: la voce del changelog deve stare nel commit che alza la
-    # versione, l'indice non la serve ancora, e il gate la chiamava inventata.
-    # Misurato il 2026-08-18 sulla PR #80, dove era l'UNICO rosso rimasto e
-    # nessuna sequenza di passi poteva evitarlo. Togliere la voce per far tacere
-    # il gate avrebbe ricreato esattamente il buco che questo gate esiste per
-    # impedire, e che aveva gia' lasciato 0.7.1 senza voce per un giorno.
-    # Ogni ALTRA versione documentata e mai pubblicata resta un errore, e le
-    # date restano confrontate: quando il rilascio atterra, la sua data deve
-    # coincidere con quella dell'upload come per tutte le altre.
+    # The version THIS tree declares is the release IN FLIGHT, not an
+    # invention. Without this line the gate made a green release PR impossible:
+    # the changelog entry has to sit in the commit that bumps the version, the
+    # index does not serve it yet, and the gate called it invented. Measured on
+    # 2026-08-18 on PR #80, where it was the ONLY red left and no sequence of
+    # steps could avoid it. Removing the entry to silence the gate would have
+    # recreated exactly the hole this gate exists to prevent, and which had
+    # already left 0.7.1 without an entry for a day.
+    # Every OTHER documented and never-published version remains an error, and
+    # dates are still compared: when the release lands, its date must match the
+    # upload's, same as every other one.
     import tomllib
-    in_volo = tomllib.loads(
+    in_flight = tomllib.loads(
         (Path(__file__).resolve().parents[1] / "pyproject.toml")
         .read_text(encoding="utf-8"))["project"]["version"]
 
     missing = sorted(expected - set(documented), key=key)
     invented = sorted((v for v in set(documented) - set(published)
-                       if key(v) > key(first_published) and v != in_volo), key=key)
+                       if key(v) > key(first_published) and v != in_flight), key=key)
     misdated = sorted((v, documented[v], published[v]) for v in
                       set(documented) & set(published) if documented[v] != published[v])
 

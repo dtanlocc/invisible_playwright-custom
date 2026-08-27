@@ -1,27 +1,29 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# e2e-hunt.yml - gira la suite e2e in CICLO finche' non cattura un impiccamento.
+# e2e-hunt.yml - runs the e2e suite in a LOOP until it catches a hang.
 #
-# Perche' esiste. Il job e2e si impicca nel 12% delle corse (4 su 33 fra il
-# 2026-08-01 e il 08-13) e uccide il job al tetto dei 40 minuti. Al 12% una corsa
-# verde non dimostra niente e servono ~18 giri per avere il 90% di probabilita' di
-# vederne uno: aspettare che succeda da solo su una PR significa aspettare giorni
-# e bruciare il tempo di qualcun altro ogni volta.
+# Why it exists. The e2e job hangs in 12% of runs (4 out of 33 between
+# 2026-08-01 and 08-13), and the 40-minute ceiling kills the job. At 12% a
+# green run proves nothing, and it takes ~18 runs to have a 90% probability
+# of seeing one: waiting for it to happen on its own on a PR means waiting
+# days and burning someone else's time every time.
 #
-# E perche' QUI e non in locale, per DUE ragioni diverse a seconda dell'input `os`.
+# And why HERE and not locally, for TWO different reasons depending on the
+# `os` input.
 #
-#   ubuntu-24.04 - l'impiccamento del job viveva li'. CHIUSO il 2026-08-13 con 36
-#   giri (due cacce da 18): zero impiccamenti, zero ritentativi. Resta come
-#   controllo di non-regressione.
+#   ubuntu-24.04 - the job hang lived there. CLOSED on 2026-08-13 with 36
+#   runs (two hunts of 18): zero hangs, zero retries. Stays as a
+#   non-regression check.
 #
-#   windows-latest - una domanda diversa e ancora aperta: sulla macchina di
-#   sviluppo i test di interazione producono ritentativi (41 su 17 giri) e su
-#   Linux nemmeno uno in 36. Ma quella macchina non era ferma - chi misurava ci
-#   girava sopra, e piu' tardi ci e' tornato il proprietario - quindi il confronto
-#   e' CONFUSO fra piattaforma e contesa. Un runner Windows dedicato separa le due
-#   cose senza chiedere a nessuno di stare fermo sei ore.
+#   windows-latest - a different question, still open: on the dev machine
+#   interaction tests produce retries (41 out of 17 runs) and on Linux not
+#   even one in 36. But that machine was not idle - whoever was measuring
+#   was running on it, and later the owner came back to it - so the
+#   comparison is CONFUSED between platform and contention. A dedicated
+#   Windows runner separates the two without asking anyone to stay off it
+#   for six hours.
 #
-# Non parte da solo: solo `workflow_dispatch`. Non e' un cancello, e' uno
-# strumento di indagine, e non deve entrare fra i contesti richiesti.
+# Doesn't start on its own: `workflow_dispatch` only. It's not a gate, it's
+# an investigation tool, and it must not be added to the required contexts.
 # ─────────────────────────────────────────────────────────────────────────────
 name: e2e hunt
 
@@ -29,11 +31,11 @@ on:
   workflow_dispatch:
     inputs:
       giri:
-        description: "Quanti giri al massimo (al 12% ne servono ~18 per il 90%)"
+        description: "How many runs at most (at 12% it takes ~18 for a 90% chance)"
         required: false
         default: "18"
       os:
-        description: "Dove cacciare. windows-latest risponde a una domanda DIVERSA: i ritentativi dell'interazione visti sulla macchina di sviluppo sono il prodotto o la contesa?"
+        description: "Where to hunt. windows-latest answers a DIFFERENT question: are the interaction retries seen on the dev machine the product or contention?"
         required: false
         default: "ubuntu-24.04"
         type: choice
@@ -50,18 +52,18 @@ concurrency:
 
 jobs:
   hunt:
-    name: caccia (${{ inputs.os }})
+    name: hunt (${{ inputs.os }})
     runs-on: ${{ inputs.os }}
-    # 18 giri da ~6 minuti piu' l'installazione. Generoso di proposito: il tetto
-    # qui non deve MAI essere la cosa che ferma la caccia, altrimenti torniamo a
-    # un job ucciso che non spiega niente, che e' il difetto di partenza.
+    # 18 runs of ~6 minutes plus install time. Deliberately generous: the
+    # ceiling here must NEVER be the thing that stops the hunt, or we're back
+    # to a killed job that explains nothing, which is the original defect.
     timeout-minutes: 300
-    # Su Windows GitHub esegue i blocchi `run:` con POWERSHELL, non con bash, e
-    # il primo lancio su windows-latest e' morto in 5 minuti con un ParserError
-    # sulla riga `if [ "$RUNNER_OS" = "Linux" ]`. Il blocco era stato eseguito
-    # prima di spedirlo, come vuole la regola - ma in bash, sulla macchina di chi
-    # scriveva, cioe' con un interprete diverso da quello del bersaglio.
-    # Eseguire il blocco non basta: va eseguito con la SHELL del runner.
+    # On Windows GitHub runs `run:` blocks with POWERSHELL, not bash, and the
+    # first launch on windows-latest died in 5 minutes with a ParserError on
+    # the line `if [ "$RUNNER_OS" = "Linux" ]`. The block had been run before
+    # shipping it, as the rule requires - but in bash, on the writer's own
+    # machine, i.e. with an interpreter different from the target's.
+    # Running the block is not enough: it has to run with the runner's SHELL.
     defaults:
       run:
         shell: bash
@@ -75,8 +77,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ".[dev]"
           python -m pip install "playwright==$(cat scripts/playwright_pin.txt)"
-      # Solo Linux: su Windows il browser si lancia sul desktop del runner, e
-      # `firefox-launch-matrix.yml` dimostra da mesi che li' parte davvero.
+      # Linux only: on Windows the browser launches on the runner's desktop,
+      # and `firefox-launch-matrix.yml` has shown for months that it really
+      # starts there.
       - name: System deps (xvfb + Firefox runtime libs)
         if: runner.os == 'Linux'
         run: |
@@ -86,20 +89,21 @@ jobs:
       - name: Fetch the published firefox binary
         run: echo "FF=$(python -m invisible_playwright fetch | tail -1)" >> "$GITHUB_ENV"
 
-      - name: Ciclo finche' non cattura
+      - name: Loop until it catches one
         env:
           PYTHONUNBUFFERED: "1"
           INVPW_TEST_WATCHDOG_FILE: prove/e2e-watchdog.log
         run: |
           set -u
-          giri="${{ inputs.giri }}"
+          runs="${{ inputs.giri }}"
           mkdir -p prove/giri
-          # `prove/` dentro lo spazio di lavoro, non RUNNER_TEMP: su Windows quella
-          # variabile contiene backslash e non attraversa bash in modo affidabile.
-          # xvfb solo dove esiste; su Windows il browser va sul desktop del runner.
+          # `prove/` inside the workspace, not RUNNER_TEMP: on Windows that
+          # variable contains backslashes and does not cross bash reliably.
+          # xvfb only where it exists; on Windows the browser goes to the
+          # runner's desktop.
           if [ "$RUNNER_OS" = "Linux" ]; then PRE="xvfb-run -a"; else PRE=""; fi
-          catturato=0
-          for n in $(seq 1 "$giri"); do
+          captured=0
+          for n in $(seq 1 "$runs"); do
             log="prove/giri/giro_$(printf '%02d' "$n").log"
             t0=$(date +%s)
             set +e
@@ -107,30 +111,30 @@ jobs:
             code=$?
             set -e
             dur=$(( $(date +%s) - t0 ))
-            # Un impiccamento adesso NON e' piu' un job ucciso: la scadenza per
-            # test lo trasforma in un fallimento, e il banner lo nomina.
+            # A hang is no longer a killed job now: the per-test deadline
+            # turns it into a failure, and the banner names it.
             if grep -aq "Timeout" "$log" && grep -aq "Stack of" "$log"; then
-              echo "::error::giro $n: IMPICCAMENTO CATTURATO dopo ${dur}s"
-              echo "--- l'ultimo test che ha parlato ---"
+              echo "::error::run $n: HANG CAUGHT after ${dur}s"
+              echo "--- the last test that spoke ---"
               grep -aE "::.*(PASSED|SKIPPED|FAILED)" "$log" | tail -3
-              echo "--- lo stack ---"
+              echo "--- the stack ---"
               sed -n '/Timeout/,$p' "$log" | head -60
-              catturato=1
+              captured=1
               break
             fi
-            echo "giro $n/$giri: exit=$code, ${dur}s"
+            echo "run $n/$runs: exit=$code, ${dur}s"
           done
-          if [ "$catturato" = "0" ]; then
-            echo "::warning::$giri giri, nessun impiccamento catturato."
-            echo "Se il tasso qui e' lo stesso del 12%, la probabilita' di questo"
-            echo "esito e' $(python -c "print(round(100*0.88**$giri))")%, quindi non e' una prova"
-            echo "che il difetto non ci sia: e' una misura del tasso con questo campione."
+          if [ "$captured" = "0" ]; then
+            echo "::warning::$runs runs, no hang caught."
+            echo "If the rate here is the same 12%, the probability of this"
+            echo "outcome is $(python -c "print(round(100*0.88**$runs))")%, so this is not proof"
+            echo "the defect is not there: it is a measurement of the rate with this sample."
           fi
-          # Il passo fallisce SOLO se ha catturato: cosi' il rosso significa
-          # "trovato", non "rotto", ed e' il rosso che si va a leggere.
-          exit "$catturato"
+          # The step fails ONLY if it caught one: that way red means "found",
+          # not "broken", and red is what you go read.
+          exit "$captured"
 
-      - name: Portare fuori tutte le prove
+      - name: Upload all the evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

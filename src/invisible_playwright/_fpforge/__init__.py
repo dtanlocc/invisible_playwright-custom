@@ -1,9 +1,9 @@
-"""Backward-compat shim - spostato in invisible_core._fpforge (alias completo).
+"""Backward-compat shim - moved to invisible_core._fpforge (full alias).
 
-Aliasa il package E i suoi submodule agli stessi oggetti del core, cosi'
-``from invisible_playwright._fpforge.profile import Profile`` e
-``from invisible_core._fpforge.profile import Profile`` sono la STESSA classe
-(isinstance funziona) e i nomi privati restano accessibili.
+Aliases the package AND its submodules to the same objects as the core, so
+``from invisible_playwright._fpforge.profile import Profile`` and
+``from invisible_core._fpforge.profile import Profile`` are the SAME class
+(isinstance works) and the private names stay accessible.
 """
 import sys as _sys
 import invisible_core._fpforge as _pkg

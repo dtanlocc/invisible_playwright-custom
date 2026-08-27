@@ -1,24 +1,24 @@
-"""La copia della mappa dei generici dentro il gate non puo' divergere dal core.
+"""The gate's copy of the generics map must not diverge from the core.
 
-`scripts/ci_font_gate.py` porta una copia letterale di
-`zoom.stealth.fonts.generics`, ed e' l'unica copia di quel dato nel progetto.
-Esiste per una ragione stretta: il job di gate della CI installa soltanto
-Playwright, quindi `invisible_core` non e' importabile li' e non puo' esserlo
-senza cambiare il workflow del repo sorgente, cioe' senza ricostruire i cinque
-archivi.
+`scripts/ci_font_gate.py` carries a literal copy of
+`zoom.stealth.fonts.generics`, and it is the only copy of that data in the
+project. It exists for a narrow reason: the CI gate job installs only
+Playwright, so `invisible_core` is not importable there and cannot become so
+without changing the source repo's workflow, i.e. without rebuilding the five
+archives.
 
-La regola 16 vieta le seconde fonti. Una copia che nessuno puo' vedere andare
-alla deriva sarebbe esattamente quello. Questo test la lega: se il core cambia
-la dichiarazione e il gate resta indietro, la suite diventa rossa e il messaggio
-dice quale delle due si e' mossa.
+Rule 16 forbids second sources. A copy nobody can see drifting would be
+exactly that. This test binds it: if the core changes the declaration and the
+gate falls behind, the suite goes red and the message says which of the two
+moved.
 
-Perche' serve DAVVERO, e non e' una formalita': senza quella dichiarazione un
-motore lanciato grezzo non mappa i generici, perche' da quando la mappa e'
-dichiarata invece che compilata il motore non se la inventa (engine rule 7).
-Misurato 2026-08-11 sullo stesso binario, lancio grezzo su Linux: serif,
-sans-serif, monospace, cursive e fantasy collassano TUTTI su Arial. Con la
-dichiarazione consegnata mappano su Times New Roman, Arial, Consolas e Comic
-Sans, con gli stessi identici numeri di Windows.
+Why it is REALLY needed, and is not a formality: without that declaration an
+engine launched raw does not map the generics, because ever since the map is
+declared instead of compiled the engine does not invent it (engine rule 7).
+Measured 2026-08-11 on the same binary, raw launch on Linux: serif,
+sans-serif, monospace, cursive and fantasy ALL collapse onto Arial. With the
+declaration delivered they map onto Times New Roman, Arial, Consolas and Comic
+Sans, with the exact same numbers as Windows.
 """
 from __future__ import annotations
 
@@ -30,16 +30,17 @@ import pytest
 _GATE = Path(__file__).resolve().parents[1] / "scripts" / "ci_font_gate.py"
 
 
-def _generics_decl_dal_gate() -> str:
-    """Il letterale dentro il gate, letto senza importare Playwright.
+def _generics_decl_from_gate() -> str:
+    """The literal inside the gate, read without importing Playwright.
 
-    Il file importa playwright dentro `main()`, quindi si compila e si esegue
-    solo la parte che precede la definizione: le costanti ci sono, il driver no.
+    The file imports playwright inside `main()`, so only the part preceding
+    the definition compiles and executes: the constants are there, the driver
+    is not.
     """
     src = _GATE.read_text(encoding="utf-8")
-    testa = src.split("def main")[0]
+    head = src.split("def main")[0]
     ns: dict = {}
-    exec(compile(testa, str(_GATE), "exec"), ns)  # noqa: S102 - e' il nostro file
+    exec(compile(head, str(_GATE), "exec"), ns)  # noqa: S102 - it's our own file
     return ns["GENERICS_DECL"]
 
 
@@ -49,95 +50,94 @@ def test_ci_font_gate_generics_match_the_core():
     from invisible_core.prefs import translate_profile_to_prefs
 
     prefs = translate_profile_to_prefs(generate_profile(970411))
-    dal_core = prefs["zoom.stealth.fonts.generics"]
-    dal_gate = _generics_decl_dal_gate()
+    from_core = prefs["zoom.stealth.fonts.generics"]
+    from_gate = _generics_decl_from_gate()
 
-    assert dal_gate == dal_core, (
-        "la mappa dei generici dentro scripts/ci_font_gate.py non e' piu' "
-        "quella che invisible_core dichiara.\n"
+    assert from_gate == from_core, (
+        "the generics map inside scripts/ci_font_gate.py is no longer the "
+        "one that invisible_core declares.\n"
         "  core: %r\n  gate: %r\n"
-        "Aggiorna GENERICS_DECL nel gate. Se non lo fai, il gate misura un "
-        "browser con una persona diversa da quella che spediamo, e il suo "
-        "verde non vuol dire piu' niente."
-        % (dal_core[-70:], dal_gate[-70:]))
+        "Update GENERICS_DECL in the gate. If you don't, the gate measures a "
+        "browser with a different persona than the one we ship, and its "
+        "green no longer means anything."
+        % (from_core[-70:], from_gate[-70:]))
 
 
 @pytest.mark.unit
 def test_the_generics_declaration_does_not_depend_on_the_seed():
-    """Se dipendesse dal seme, una copia fissa sarebbe sbagliata per costruzione.
+    """If it depended on the seed, a fixed copy would be wrong by construction.
 
-    E' il presupposto che rende lecita la copia: va verificato, non assunto.
+    This is the assumption that makes the copy legitimate: it must be
+    verified, not assumed.
     """
     from invisible_core._fpforge import generate_profile
     from invisible_core.prefs import translate_profile_to_prefs
 
-    valori = {
+    values = {
         translate_profile_to_prefs(generate_profile(s))["zoom.stealth.fonts.generics"]
         for s in (1, 42, 970411, 20260811, 999999)
     }
-    assert len(valori) == 1, (
-        "zoom.stealth.fonts.generics cambia con il seme (%d valori distinti su "
-        "5 semi): la copia dentro il gate non puo' piu' essere un letterale "
-        "fisso e va letta dal core." % len(valori))
-def _expected_dal_gate() -> list:
-    """La lista EXPECTED dentro il gate, letta senza importare Playwright."""
+    assert len(values) == 1, (
+        "zoom.stealth.fonts.generics changes with the seed (%d distinct values "
+        "across 5 seeds): the copy inside the gate can no longer be a fixed "
+        "literal and must be read from the core." % len(values))
+def _expected_from_gate() -> list:
+    """The EXPECTED list inside the gate, read without importing Playwright."""
     src = _GATE.read_text(encoding="utf-8")
-    testa = src.split("def main")[0]
+    head = src.split("def main")[0]
     ns: dict = {}
-    exec(compile(testa, str(_GATE), "exec"), ns)  # noqa: S102 - e' il nostro file
+    exec(compile(head, str(_GATE), "exec"), ns)  # noqa: S102 - it's our own file
     return ns["EXPECTED"]
 
 
 @pytest.mark.unit
 def test_the_family_list_in_the_gate_matches_the_core_manifest():
-    """Il letterale del gate contro i record `F|` che il core dichiara.
+    """The gate's literal against the `F|` records the core declares.
 
-    ⛔ Questo test e' l'UNICA cosa che tiene onesto quel letterale, e per un
-    giorno e' esistito solo nei documenti: `18-gate-inventory.md` lo nominava
-    come attivo mentre nell'albero non c'era nessuna funzione con questo nome.
-    In quella finestra il manifest e' passato a 71 famiglie e la lista del gate
-    e' rimasta a 68.
+    ⛔ This test is the ONLY thing that keeps that literal honest, and for one
+    day it existed only in the docs: `18-gate-inventory.md` named it as active
+    while the tree had no function with this name. In that window the manifest
+    moved to 71 families and the gate's list stayed at 68.
 
-    ⛔ E cio' che la deriva produce e' un VERDE, non un rosso, il che spiega
-    perche' nessuno se ne fosse accorto: il gate sonda `EXPECTED +
-    HOST_MUST_BE_ABSENT` e nient'altro, quindi una famiglia tolta dalla lista
-    smette anche di essere CERCATA, il conto torna da solo e il gate stampa
-    `detected 68 families (expected 68)` e OK. Misurato sul binario vero il
-    2026-08-17, uscita 0, su una build che ne espone 71.
+    ⛔ And what the drift produces is a GREEN, not a red, which explains why
+    nobody noticed: the gate probes `EXPECTED + HOST_MUST_BE_ABSENT` and
+    nothing else, so a family removed from the list also stops being SEARCHED
+    FOR, the count balances on its own, and the gate prints
+    `detected 68 families (expected 68)` and OK. Measured on the real binary on
+    2026-08-17, exit 0, on a build that exposes 71 of them.
 
-    Il letterale non si puo' togliere: il job di `release.yml` che esegue il
-    gate installa soltanto Playwright, quindi li' `invisible_core` non e'
-    importabile. La ragione per esteso sta nel commento sopra EXPECTED.
+    The literal cannot be removed: the `release.yml` job that runs the gate
+    installs only Playwright, so `invisible_core` is not importable there. The
+    reason in full is in the comment above EXPECTED.
     """
     from invisible_core._fpforge.profile import FONT_MANIFEST
 
-    dal_core = [r.split("|")[1] for r in FONT_MANIFEST.splitlines()
-                if r.startswith("F|")]
-    dal_gate = _expected_dal_gate()
+    from_core = [r.split("|")[1] for r in FONT_MANIFEST.splitlines()
+                 if r.startswith("F|")]
+    from_gate = _expected_from_gate()
 
-    # ⛔ NESSUN `%` in questo messaggio, e non e' uno stile: la prima stesura lo
-    # usava dopo una concatenazione con `+`, cosi' il `%` finale si legava SOLO
-    # all'ultimo gruppo di letterali adiacenti - quello senza segnaposti - e
-    # alzava `TypeError: not all arguments converted`. Un messaggio di asserzione
-    # viene valutato solo QUANDO l'asserzione fallisce, quindi il difetto si
-    # manifesta esattamente nell'istante in cui serve la spiegazione: in CI si e'
-    # visto un TypeError al posto della differenza fra le due liste. Concatenare
-    # valori gia' resi con `repr` non ha questo modo di sbagliare.
-    if dal_gate != dal_core:
-        nel_core = sorted(set(dal_core) - set(dal_gate))
-        nel_gate = sorted(set(dal_gate) - set(dal_core))
+    # ⛔ NO `%` in this message, and it is not a style choice: the first draft
+    # used it after a `+` concatenation, so the trailing `%` bound ONLY to the
+    # last group of adjacent literals - the one with no placeholders - and
+    # raised `TypeError: not all arguments converted`. An assertion message is
+    # evaluated only WHEN the assertion fails, so the defect manifests exactly
+    # at the moment the explanation is needed: in CI a TypeError showed up
+    # instead of the difference between the two lists. Concatenating values
+    # already rendered with `repr` does not have this way of failing.
+    if from_gate != from_core:
+        in_core = sorted(set(from_core) - set(from_gate))
+        in_gate = sorted(set(from_gate) - set(from_core))
         raise AssertionError(
-            "la lista delle famiglie dentro scripts/ci_font_gate.py non e' "
-            "quella che invisible_core dichiara." + chr(10)
-            + "  nel core e non nel gate: " + repr(nel_core) + chr(10)
-            + "  nel gate e non nel core: " + repr(nel_gate) + chr(10)
-            + "  famiglie: gate " + str(len(dal_gate))
-            + ", core " + str(len(dal_core)) + chr(10)
-            + "Il gate NON diventerebbe rosso da solo: le famiglie che mancano "
-            "da EXPECTED smettono di essere sondate, quindi stamperebbe OK "
-            "restando cieco su di loro." + chr(10)
-            + "Se questo scatta in CI durante un rilascio, guarda l'ORDINE: la "
-            "CI installa il core PUBBLICATO, non quello dell'albero, quindi un "
-            "gate aggiornato prima che il core sia sull'indice vede il manifest "
-            "vecchio. Si pubblica il core, poi si sposta il pin, poi si usa la "
-            "lista nuova.")
+            "the family list inside scripts/ci_font_gate.py is not the one "
+            "that invisible_core declares." + chr(10)
+            + "  in the core and not in the gate: " + repr(in_core) + chr(10)
+            + "  in the gate and not in the core: " + repr(in_gate) + chr(10)
+            + "  families: gate " + str(len(from_gate))
+            + ", core " + str(len(from_core)) + chr(10)
+            + "The gate would NOT go red on its own: families missing from "
+            "EXPECTED also stop being probed, so it would print OK while "
+            "staying blind to them." + chr(10)
+            + "If this fires in CI during a release, look at the ORDER: CI "
+            "installs the PUBLISHED core, not the tree's, so a gate updated "
+            "before the core is on the index sees the old manifest. Publish "
+            "the core, then move the pin, then use the new list.")

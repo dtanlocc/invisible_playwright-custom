@@ -1,29 +1,29 @@
-"""Procura il Node che esegue il driver biforcato.
+"""Procures the Node that runs the forked driver.
 
-PERCHE' NON LO SPEDIAMO. Il driver Playwright pesa 105 MB, di cui 92,3 sono
-``node.exe``. Committarlo vorrebbe dire un binario da 92 MB nella storia di git
-per sempre, contro un limite GitHub di 100 MB per file, moltiplicato per quattro
-piattaforme. Quindi il codice lo versioniamo (``_pw/`` e ``_driver/``, 9 MB in
-tutto) e il runtime lo scarichiamo al primo uso, come fa Playwright stesso con i
-browser.
+WHY WE DON'T SHIP IT. The Playwright driver weighs 105 MB, of which 92.3 are
+``node.exe``. Committing it would mean a 92 MB binary in git history
+forever, against a GitHub limit of 100 MB per file, times four
+platforms. So we version the code (``_pw/`` and ``_driver/``, 9 MB in
+all) and download the runtime on first use, the same way Playwright itself does
+with browsers.
 
-UNA FONTE SOLA. Il download, il checksum e la cartella di cache sono quelli di
-``invisible_core.download``: sono gia' scritti, gia' provati, e averne un
-secondo esemplare qui sarebbe lo stesso fatto in due posti. Sono nomi privati
-di un pacchetto che scriviamo noi e che questo wrapper pinna a una versione
-ESATTA (il numero sta nel ``pyproject.toml`` e in nessun altro posto: scriverlo
-due volte e' la deriva che ``tests/test_core_pin.py`` esiste per impedire, e
-questo modulo l'ha violata al primo tentativo). E' quel pin a rendere lecito
-appoggiarsi a nomi privati, ed e' stato verificato che esistano nel wheel
-PUBBLICATO e non solo nell'albero di lavoro: un consumatore puo' usare solo
-cio' che l'indice ha.
+ONE SOURCE ONLY. The download, the checksum and the cache folder are those of
+``invisible_core.download``: they are already written, already tested, and having a
+second copy of them here would be the same fact done in two places. They are private
+names of a package we write ourselves and that this wrapper pins to an EXACT
+version (the number lives in ``pyproject.toml`` and nowhere else: writing it
+twice is the drift ``tests/test_core_pin.py`` exists to prevent, and
+this module violated it on its first attempt). It's that pin which makes it legitimate
+to rely on private names, and it has been verified that they exist in the PUBLISHED
+wheel and not only in the working tree: a consumer can only use
+what the index has.
 
-⛔ NIENTE RIPIEGO SUL NODE DI QUALCUN ALTRO. La tentazione e' riusare il
-``node.exe`` del pacchetto ``playwright``, se per caso e' installato: gratis, e
-gia' su disco. E' esattamente il ripiego verso la macchina che la regola 7
-vieta, in piccolo: due utenti finirebbero per eseguire due Node diversi a
-seconda di cosa hanno installato per altri motivi, e nessun gate se ne
-accorgerebbe. Una versione dichiarata, uguale per tutti.
+⛔ NO FALLING BACK TO SOMEONE ELSE'S NODE. The temptation is to reuse the
+``playwright`` package's ``node.exe``, if it happens to be installed: free, and
+already on disk. It is exactly the fallback-to-the-host that rule 7
+forbids, in miniature: two users would end up running two different Node
+runtimes depending on what they had installed for other reasons, and no gate would
+notice. One declared version, the same for everyone.
 """
 
 from __future__ import annotations
@@ -36,124 +36,124 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-#: La versione che Playwright 1.61.0 imbarca nel suo driver. Il driver e' un
-#: programma Node come un altro: gira su qualunque runtime abbastanza recente,
-#: ma dichiararne UNA e' cio' che rende la stessa sessione la stessa sessione su
-#: due macchine diverse.
+#: The version that Playwright 1.61.0 bundles in its driver. The driver is a
+#: Node program like any other: it runs on any sufficiently recent runtime,
+#: but declaring ONE is what makes the same session the same session on
+#: two different machines.
 NODE_VERSION = "v24.17.0"
 
 BASE = "https://nodejs.org/dist/" + NODE_VERSION
 
 
 class NodeError(RuntimeError):
-    """Node non e' disponibile e non si e' potuto procurarlo."""
+    """Node is not available and could not be procured."""
 
 
-def _bersaglio() -> tuple[str, str, str]:
-    """(nome archivio, percorso del binario dentro l'archivio, nome del file)."""
-    macchina = platform.machine().lower()
-    arm = macchina in ("arm64", "aarch64")
+def _target() -> tuple[str, str, str]:
+    """(archive name, path to the binary inside the archive, file name)."""
+    machine = platform.machine().lower()
+    arm = machine in ("arm64", "aarch64")
     if sys.platform == "win32":
-        arco = "win-arm64" if arm else "win-x64"
-        return ("node-%s-%s.zip" % (NODE_VERSION, arco),
-                "node-%s-%s/node.exe" % (NODE_VERSION, arco), "node.exe")
+        arch = "win-arm64" if arm else "win-x64"
+        return ("node-%s-%s.zip" % (NODE_VERSION, arch),
+                "node-%s-%s/node.exe" % (NODE_VERSION, arch), "node.exe")
     if sys.platform == "darwin":
-        arco = "darwin-arm64" if arm else "darwin-x64"
-        return ("node-%s-%s.tar.gz" % (NODE_VERSION, arco),
-                "node-%s-%s/bin/node" % (NODE_VERSION, arco), "node")
-    arco = "linux-arm64" if arm else "linux-x64"
-    return ("node-%s-%s.tar.xz" % (NODE_VERSION, arco),
-            "node-%s-%s/bin/node" % (NODE_VERSION, arco), "node")
+        arch = "darwin-arm64" if arm else "darwin-x64"
+        return ("node-%s-%s.tar.gz" % (NODE_VERSION, arch),
+                "node-%s-%s/bin/node" % (NODE_VERSION, arch), "node")
+    arch = "linux-arm64" if arm else "linux-x64"
+    return ("node-%s-%s.tar.xz" % (NODE_VERSION, arch),
+            "node-%s-%s/bin/node" % (NODE_VERSION, arch), "node")
 
 
-def cartella() -> Path:
-    """Dove finisce il Node scaricato. Sotto la stessa radice del motore."""
+def folder() -> Path:
+    """Where the downloaded Node ends up. Under the same root as the engine."""
     from invisible_core.download import cache_root
     return cache_root() / "node" / NODE_VERSION
 
 
-def _estrai(archivio: Path, interno: str, dest: Path) -> None:
-    """Tira fuori UN file dall'archivio. Non srotola l'intero pacchetto Node.
+def _extract(archive: Path, inner: str, dest: Path) -> None:
+    """Pulls ONE file out of the archive. Does not unpack the whole Node package.
 
-    Sono 50 MB di headers, npm e documentazione che non eseguiamo mai; a noi
-    serve un eseguibile solo.
+    That's 50 MB of headers, npm and documentation we never run; we
+    only need one executable.
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if archivio.suffix == ".zip":
-        with zipfile.ZipFile(archivio) as z, open(dest, "wb") as out:
-            with z.open(interno) as src:
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive) as z, open(dest, "wb") as out:
+            with z.open(inner) as src:
                 shutil.copyfileobj(src, out)
     else:
-        with tarfile.open(archivio) as t:
-            src = t.extractfile(interno)
+        with tarfile.open(archive) as t:
+            src = t.extractfile(inner)
             if src is None:
-                raise NodeError("%s non contiene %s" % (archivio.name, interno))
+                raise NodeError("%s does not contain %s" % (archive.name, inner))
             with open(dest, "wb") as out:
                 shutil.copyfileobj(src, out)
     if sys.platform != "win32":
         dest.chmod(0o755)
 
 
-def _scarica(progress=None) -> Path:
+def _download(progress=None) -> Path:
     from invisible_core.download import (_download_file, _parse_checksums,
                                          _sha256_file)
 
-    nome_archivio, interno, nome_bin = _bersaglio()
-    dst = cartella() / nome_bin
-    d = cartella()
+    archive_name, inner, bin_name = _target()
+    dst = folder() / bin_name
+    d = folder()
     d.mkdir(parents=True, exist_ok=True)
 
-    # I checksum PRIMA dell'archivio: se la lista non si scarica, non si scarica
-    # nemmeno un archivio che poi non si potrebbe verificare. Un download non
-    # verificato non e' un download riuscito a meta', e' un rischio in piu'.
-    somme = d / "SHASUMS256.txt"
-    _download_file(BASE + "/SHASUMS256.txt", somme)
-    attesi = _parse_checksums(somme.read_text(encoding="utf-8", errors="replace"))
-    atteso = attesi.get(nome_archivio)
-    if not atteso:
+    # Checksums BEFORE the archive: if the list doesn't download, we don't download
+    # an archive either that we could then not verify. An unverified download
+    # is not a download that half-succeeded, it's an added risk.
+    sums = d / "SHASUMS256.txt"
+    _download_file(BASE + "/SHASUMS256.txt", sums)
+    expected_all = _parse_checksums(sums.read_text(encoding="utf-8", errors="replace"))
+    expected = expected_all.get(archive_name)
+    if not expected:
         raise NodeError(
-            "SHASUMS256.txt di %s non elenca %s. O la versione dichiarata non "
-            "esiste piu' su nodejs.org, o questa piattaforma non ha una build "
-            "ufficiale." % (NODE_VERSION, nome_archivio))
+            "SHASUMS256.txt of %s does not list %s. Either the declared version "
+            "no longer exists on nodejs.org, or this platform doesn't have an "
+            "official build." % (NODE_VERSION, archive_name))
 
-    archivio = d / nome_archivio
-    _download_file(BASE + "/" + nome_archivio, archivio, progress=progress)
-    avuto = _sha256_file(archivio)
-    if avuto.lower() != atteso.lower():
-        archivio.unlink(missing_ok=True)
-        somme.unlink(missing_ok=True)
+    archive = d / archive_name
+    _download_file(BASE + "/" + archive_name, archive, progress=progress)
+    got = _sha256_file(archive)
+    if got.lower() != expected.lower():
+        archive.unlink(missing_ok=True)
+        sums.unlink(missing_ok=True)
         raise NodeError(
-            "il checksum di %s non torna: atteso %s, ottenuto %s. L'archivio e' "
-            "stato buttato." % (nome_archivio, atteso[:16], avuto[:16]))
+            "the checksum of %s doesn't match: expected %s, got %s. The archive was "
+            "thrown away." % (archive_name, expected[:16], got[:16]))
 
     try:
-        _estrai(archivio, interno, dst)
+        _extract(archive, inner, dst)
     finally:
-        # Anche quando va male: un archivio a meta' e una lista di checksum
-        # orfana sono 30 MB di spazzatura che il prossimo giro riscarica
-        # comunque. Misurato scrivendo il braccio noto-cattivo di questo
-        # modulo, che lasciava indietro SHASUMS256.txt a ogni rifiuto.
-        archivio.unlink(missing_ok=True)
-        somme.unlink(missing_ok=True)
+        # Even when it fails: a half-downloaded archive and an orphaned checksum
+        # list are 30 MB of garbage that the next run downloads again
+        # anyway. Measured while writing this module's known-bad arm,
+        # which left SHASUMS256.txt behind on every rejection.
+        archive.unlink(missing_ok=True)
+        sums.unlink(missing_ok=True)
     return dst
 
 
 def node_path(progress=None) -> str:
-    """Il Node da usare. Lo scarica se manca.
+    """The Node to use. Downloads it if missing.
 
-    L'ordine e' dichiarato apposta, e le due variabili non sono la stessa cosa:
-    ``INVPW_NODE_PATH`` e' la nostra, ``PLAYWRIGHT_NODEJS_PATH`` esiste perche'
-    chi arriva da Playwright la conosce gia' e sarebbe crudele ignorarla.
+    The order is declared on purpose, and the two variables aren't the same thing:
+    ``INVPW_NODE_PATH`` is ours, ``PLAYWRIGHT_NODEJS_PATH`` exists because
+    whoever comes from Playwright already knows it and it would be cruel to ignore it.
     """
     for var in ("INVPW_NODE_PATH", "PLAYWRIGHT_NODEJS_PATH"):
-        scelto = os.environ.get(var)
-        if scelto:
-            if not Path(scelto).is_file():
-                raise NodeError("%s punta a %s, che non e' un file." % (var, scelto))
-            return scelto
+        chosen = os.environ.get(var)
+        if chosen:
+            if not Path(chosen).is_file():
+                raise NodeError("%s points to %s, which is not a file." % (var, chosen))
+            return chosen
 
-    _, _, nome_bin = _bersaglio()
-    gia = cartella() / nome_bin
-    if gia.is_file():
-        return str(gia)
-    return str(_scarica(progress=progress))
+    _, _, bin_name = _target()
+    already = folder() / bin_name
+    if already.is_file():
+        return str(already)
+    return str(_download(progress=progress))

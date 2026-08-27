@@ -7,31 +7,34 @@ from pathlib import Path
 
 import pytest
 
-# ── Il cane da guardia che dice DOVE e' fermo, mentre e' ancora fermo ─────────
+# ── The watchdog that says WHERE it is stuck, while it is still stuck ─────────
 #
-# L'e2e si impicca nel 12% delle corse su CI (4 su 33, dal 2026-08-01 al 08-13) e
-# fino al 2026-08-13 non lasciava niente: il job veniva ucciso dal tetto dei 40
-# minuti, quindi risultava `cancelled` e non `failure`, e i passi successivi non
-# giravano. `--timeout 420 --timeout-method thread` in run_e2e.py adesso lo uccide
-# a 7 minuti stampando lo stack, ma sette minuti sono lunghi e uno stack solo non
-# dice se il processo e' FERMO o soltanto lento.
+# The e2e hangs in 12% of CI runs (4 out of 33, from 2026-08-01 to 08-13) and
+# until 2026-08-13 it left nothing behind: the job was killed by the 40-minute
+# ceiling, so it came back `cancelled` and not `failure`, and the following
+# steps never ran. `--timeout 420 --timeout-method thread` in run_e2e.py now
+# kills it at 7 minutes printing the stack, but seven minutes is a long time
+# and a single stack alone does not say whether the process is STUCK or just
+# slow.
 #
-# Questo lo dice: a 150 secondi dentro UN test stampa lo stack di ogni thread, e
-# lo ripete. Due dump identici significano bloccato; due dump diversi significano
-# lento. Sono due diagnosi opposte e nessun altro strumento le distingue.
+# This is what says it: at 150 seconds inside ONE test it prints the stack of
+# every thread, and repeats it. Two identical dumps mean stuck; two different
+# dumps mean slow. Those are opposite diagnoses and no other tool tells them
+# apart.
 #
-# 150 secondi perche' il test legittimo piu' lento misurato in CI e'
-# `test_webgl_readpixels_no_masking_signature` a 94,4 s, e il secondo a 11,4: su
-# una corsa sana non stampa niente, e su un runner lento al massimo stampa una
-# volta, che e' output e non un fallimento.
+# 150 seconds because the slowest legitimate test measured on CI is
+# `test_webgl_readpixels_no_masking_signature` at 94.4 s, and the second at
+# 11.4: on a healthy run it prints nothing, and on a slow runner it prints at
+# most once, which is output and not a failure.
 #
-# Su FILE, non su stderr, e non e' un dettaglio: con la cattura predefinita
-# pytest redirige i descrittori 1 e 2 a livello di sistema operativo, quindi
-# anche scrivere sul `sys.__stderr__` originale finisce nel buffer di cattura -
-# che pytest mostra solo a fallimento avvenuto, e qui il processo viene UCCISO.
-# Provato: con la soglia a 3 secondi su un test bloccato in `accept()`, la stessa
-# chiamata stampa quattro stack se lanciata a mano e ZERO sotto pytest. Un file
-# sopravvive all'uccisione e su CI si carica come artifact.
+# To a FILE, not stderr, and this is not a detail: with pytest's default
+# capture it redirects file descriptors 1 and 2 at the OS level, so even
+# writing to the original `sys.__stderr__` ends up in the capture buffer -
+# which pytest shows only once a failure has occurred, and here the process
+# is being KILLED. Tested: with the threshold at 3 seconds on a test stuck in
+# `accept()`, the same call prints four stacks when run by hand and ZERO
+# under pytest. A file survives the kill and gets uploaded as an artifact on
+# CI.
 _WATCHDOG_S = float(os.environ.get("INVPW_TEST_WATCHDOG_S", "150"))
 _WATCHDOG_FILE = os.environ.get(
     "INVPW_TEST_WATCHDOG_FILE",
@@ -40,12 +43,12 @@ _watchdog_handle = None
 
 
 def _watchdog_open():
-    """Apre il file alla PRIMA occorrenza, non all'avvio della sessione.
+    """Opens the file on the FIRST occurrence, not at session start.
 
-    Solo i test `e2e` sono sorvegliati: sono gli unici che aprono un browser, e
-    l'unico impiccamento misurato vive li'. Armarlo anche sulla suite unitaria
-    scriveva 439 righe di intestazione per 38 KB di file a ogni corsa, cioe'
-    rumore su un banco che non ne aveva bisogno.
+    Only `e2e` tests are watched: they are the only ones that open a browser,
+    and the one measured hang lives there. Arming it on the unit suite too
+    wrote 439 header lines for 38 KB of file on every run, i.e. noise on a
+    bench that did not need it.
     """
     global _watchdog_handle
     if _watchdog_handle is not None or _WATCHDOG_S <= 0:
@@ -53,11 +56,11 @@ def _watchdog_open():
     try:
         _watchdog_handle = open(_WATCHDOG_FILE, "a", buffering=1, encoding="utf-8")
     except OSError:
-        # Un cane da guardia che fa fallire la suite per un problema PROPRIO e'
-        # peggio del difetto che sorveglia.
+        # A watchdog that fails the suite over its OWN problem is worse than
+        # the defect it is watching for.
         return None
-    _watchdog_handle.write("\n=== sessione avviata, soglia %ss ===\n" % _WATCHDOG_S)
-    print("[watchdog] stack dei test oltre %ss -> %s" % (_WATCHDOG_S, _WATCHDOG_FILE))
+    _watchdog_handle.write("\n=== session started, threshold %ss ===\n" % _WATCHDOG_S)
+    print("[watchdog] test stacks past %ss -> %s" % (_WATCHDOG_S, _WATCHDOG_FILE))
     return _watchdog_handle
 
 

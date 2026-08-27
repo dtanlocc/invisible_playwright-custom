@@ -1,25 +1,27 @@
-"""Estrae lo script iniettato dal bundle del driver in `_juggler/injected.js`.
+"""Extracts the injected script from the driver bundle into
+`_juggler/injected.js`.
 
-PERCHE' SI ESTRAE E NON SI RISCRIVE. Quel JavaScript e' i motori di selettori
-(css, xpath, text, role, testid, label), l'actionability, lo snapshot ARIA e
-`expect`: migliaia di righe di logica DOM sottile che **gira nella pagina** e
-che nessuna riscrittura in Python potrebbe sostituire, perche' Python non e'
-nella pagina. Non e' lavoro da rifare: e' merce da trasportare.
+WHY WE EXTRACT AND DO NOT REWRITE. That JavaScript is the selector engines
+(css, xpath, text, role, testid, label), actionability, the ARIA snapshot and
+`expect`: thousands of lines of subtle DOM logic that **runs in the page**
+and that no Python rewrite could replace, because Python is not in the page.
+It is not work to redo: it is cargo to carry over.
 
-⛔ MA NON E' UPSTREAM VERGINE. Porta gia' correzioni nostre - `markTargetElements`
-svuotata, `__pwClock` letto via descrittore, `Symbol.hasInstance` catturato, e
-dal 2026-08-27 le installazioni di listener guardate da `_isUtilityWorld`.
-Estrarlo da un bundle diverso da QUESTO le perde tutte, in silenzio.
-Vedi `31-client-fork.md` §3.
+⛔ BUT IT IS NOT VIRGIN UPSTREAM. It already carries our own fixes -
+`markTargetElements` emptied out, `__pwClock` read via a descriptor,
+`Symbol.hasInstance` captured, and since 2026-08-27 listener installs
+guarded by `_isUtilityWorld`. Extracting it from a bundle other than THIS
+one loses all of them, silently. See `31-client-fork.md` §3.
 
-⛔ E NON E' ANCORA TAGLIATO. Il perimetro scelto (`32-stacco-da-playwright.md`
-§1) lascia fuori snapshot ARIA, `locatorGenerators`, `highlight` e `consoleApi`,
-cioe' **87.468 byte su 311.365**. Qui si estrae INTERO: il taglio e' un passo a
-se', e va fatto sui confini veri dei moduli, che nel bundle emesso **non sono
-confini** (§3.3).
+⛔ AND IT IS NOT YET TRIMMED. The chosen perimeter
+(`32-stacco-da-playwright.md` §1) leaves out the ARIA snapshot,
+`locatorGenerators`, `highlight` and `consoleApi`, that is **87,468 bytes
+out of 311,365**. Here we extract the WHOLE thing: the trim is a step of
+its own, and it has to be done on the real module boundaries, which in the
+emitted bundle **are not boundaries** (§3.3).
 
-    python scripts/gen_injected_source.py            (estrae)
-    python scripts/gen_injected_source.py --check    (rigenera e confronta)
+    python scripts/gen_injected_source.py            (extracts)
+    python scripts/gen_injected_source.py --check    (regenerates and compares)
 """
 from __future__ import annotations
 
@@ -27,18 +29,18 @@ import argparse
 import pathlib
 import sys
 
-ANCORA = "source4 = '"
+ANCHOR = "source4 = '"
 
 
-def estrai(bundle: str) -> str:
-    """Il valore della stringa `source4`, de-escapato.
+def extract(bundle: str) -> str:
+    """The value of the `source4` string, de-escaped.
 
-    ⛔ E' una stringa ad APICE SINGOLO su UNA riga fisica da trecentomila
-    caratteri. Si scandisce a mano rispettando le barre rovesce: una regex
-    ingorda prende fino all'ultimo apice del FILE, e una pigra si ferma al primo
-    apostrofo dentro un commento.
+    ⛔ It is a SINGLE-QUOTE string on ONE physical line of three hundred
+    thousand characters. It is scanned by hand respecting backslashes: a
+    greedy regex would grab all the way to the last quote in the FILE, and
+    a lazy one would stop at the first apostrophe inside a comment.
     """
-    i = bundle.index(ANCORA) + len(ANCORA)
+    i = bundle.index(ANCHOR) + len(ANCHOR)
     bs = chr(92)
     j = i
     n = len(bundle)
@@ -50,61 +52,67 @@ def estrai(bundle: str) -> str:
             break
         j += 1
     else:
-        raise SystemExit("la stringa source4 non si chiude: bundle corrotto?")
-    grezzo = bundle[i:j]
-    # De-escape: la stringa e' JavaScript, ma gli escape usati sono quelli che
-    # `unicode_escape` capisce. Si passa da latin-1 per non rompere i byte alti.
-    return grezzo.encode("latin-1", "backslashreplace").decode("unicode_escape")
+        raise SystemExit("the source4 string never closes: corrupted bundle?")
+    raw = bundle[i:j]
+    # De-escape: the string is JavaScript, but the escapes it uses are the
+    # ones `unicode_escape` understands. We go through latin-1 so as not to
+    # break the high bytes.
+    return raw.encode("latin-1", "backslashreplace").decode("unicode_escape")
 
 
 def main() -> int:
-    qui = pathlib.Path(__file__).resolve().parent.parent
+    here = pathlib.Path(__file__).resolve().parent.parent
     ap = argparse.ArgumentParser()
     ap.add_argument("--bundle", default=str(
-        qui / "src" / "invisible_playwright" / "_driver" / "package" / "lib" / "coreBundle.js"))
+        here / "src" / "invisible_playwright" / "_driver" / "package" / "lib" / "coreBundle.js"))
     ap.add_argument("--out", default=str(
-        qui / "src" / "invisible_playwright" / "_juggler" / "injected.js"))
+        here / "src" / "invisible_playwright" / "_juggler" / "injected.js"))
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
 
     bundle = pathlib.Path(a.bundle).read_bytes().decode("utf-8", "replace")
-    sorgente = estrai(bundle)
+    source = extract(bundle)
 
-    # Prova che cio' che abbiamo estratto e' DAVVERO lo script iniettato, non
-    # una stringa qualsiasi che comincia allo stesso modo. Un controllo su cio'
-    # che DEVE contenere costa niente e impedisce di spedire un blob sbagliato.
-    ATTESI = ("InjectedScript", "internal:role", "internal:testid",
-              "_setupHitTargetInterceptors", "createRoleEngine")
-    mancanti = [x for x in ATTESI if x not in sorgente]
-    if mancanti:
-        raise SystemExit("l'estratto non sembra lo script iniettato: mancano %s"
-                         % ", ".join(mancanti))
-    # E che porti le NOSTRE correzioni: un bundle upstream le perderebbe tutte
-    # senza che niente dia errore.
-    if "MODIFICATO da invisible_playwright" not in sorgente:
-        raise SystemExit("l'estratto NON porta le modifiche di invisible_playwright: "
-                         "e' un bundle upstream, non il nostro")
+    # Proof that what we extracted is REALLY the injected script, not some
+    # random string that happens to start the same way. A check on what it
+    # MUST contain costs nothing and stops us from shipping the wrong blob.
+    EXPECTED = ("InjectedScript", "internal:role", "internal:testid",
+                "_setupHitTargetInterceptors", "createRoleEngine")
+    missing = [x for x in EXPECTED if x not in source]
+    if missing:
+        raise SystemExit("the extract does not look like the injected script: "
+                         "missing %s" % ", ".join(missing))
+    # And that it carries OUR fixes: an upstream bundle would lose all of
+    # them without anything raising an error.
+    #
+    # NOTE: the marker below is a LITERAL, not prose. It has to match the
+    # actual bytes of the comments `injected.js` carries, so it is compared
+    # exactly and never reworded. It was `MODIFICATO da invisible_playwright`
+    # until 2026-08-27, when the whole repository moved to English.
+    if "MODIFIED by invisible_playwright" not in source:
+        raise SystemExit("the extract does NOT carry invisible_playwright's "
+                         "changes: it is an upstream bundle, not ours")
 
-    print("estratto: %d byte, %d righe" % (len(sorgente.encode("utf-8")),
-                                           sorgente.count(chr(10))))
-    print("  modifiche nostre marcate: %d"
-          % sorgente.count("MODIFICATO da invisible_playwright"))
+    print("extracted: %d bytes, %d lines" % (len(source.encode("utf-8")),
+                                              source.count(chr(10))))
+    print("  our changes marked: %d"
+          % source.count("MODIFIED by invisible_playwright"))
 
     out = pathlib.Path(a.out)
-    nuovo = sorgente.encode("utf-8")
+    new_bytes = source.encode("utf-8")
     if a.check:
         if not out.is_file():
-            print("MANCA: %s" % out)
+            print("MISSING: %s" % out)
             return 1
-        if out.read_bytes() == nuovo:
-            print("SCRIPT INIETTATO ALLINEATO")
+        if out.read_bytes() == new_bytes:
+            print("INJECTED SCRIPT ALIGNED")
             return 0
-        print("DERIVA: l'estratto non corrisponde al file in albero")
+        print("DRIFT: the extract does not match the file in the tree")
         return 1
 
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_bytes(nuovo)
-    print("scritto %s" % out)
+    out.write_bytes(new_bytes)
+    print("wrote %s" % out)
     return 0
 
 

@@ -34,11 +34,11 @@ DELIBERATE_VS_PUBLIC_API = {
     # get_default_stealth_prefs exists for a caller who has no generator of
     # their own, so it leaves the binary's on.
     "stealthfox.humanize.maxTime",
-    # Stesso motivo, terzo fratello: governa la CADENZA del generatore del
-    # binario, che solo l'API pubblica accende. Dichiarato dal 2026-08-25 -
-    # prima non lo scriveva nessuno e il motore usava il proprio default di
-    # 10 ms, che misurato dava il 79% degli intervalli fra due `mousemove` piu'
-    # fitti di quanto un 60 Hz reale possa consegnare.
+    # Same reason, third sibling: it governs the CADENCE of the binary's
+    # generator, which only the public API turns on. Declared since 2026-08-25 -
+    # before that nobody wrote it and the engine used its own default of
+    # 10 ms, which measured gave 79% of the intervals between two `mousemove`
+    # tighter than a real 60 Hz can deliver.
     "stealthfox.humanize.stepMs",
 }
 

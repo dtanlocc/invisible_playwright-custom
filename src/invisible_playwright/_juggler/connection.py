@@ -1,31 +1,33 @@
-"""La connessione a Juggler: la pipe, senza Node in mezzo.
+"""The connection to Juggler: the pipe, with no Node in between.
 
-IL CONTRATTO, letto in `juggler/pipe/nsRemoteDebuggingPipe.cpp` e non dedotto:
+THE CONTRACT, read from `juggler/pipe/nsRemoteDebuggingPipe.cpp` and not
+guessed:
 
-  - i messaggi sono JSON delimitati da un BYTE ZERO, non da un a capo
-    (`ReaderLoop` accumula finche' non trova `'\\0'`);
-  - su POSIX i descrittori sono **cablati a 3 e 4**: `const int readFD = 3;
-    const int writeFD = 4;`. Non si negoziano;
-  - su Windows NON esistono descrittori: sono HANDLE letti dall'ambiente,
-    `GetEnvironmentVariableA("PW_PIPE_READ", ...)` piu' `atoi`, quindi il valore
-    va passato in DECIMALE e l'handle va reso ereditabile;
-  - i nomi sono dal punto di vista del BROWSER: il suo `PW_PIPE_READ` e' cio' da
-    cui LUI legge, cioe' dove NOI scriviamo.
+  - messages are JSON delimited by a ZERO BYTE, not a newline
+    (`ReaderLoop` accumulates until it finds `'\\0'`);
+  - on POSIX the descriptors are **hardwired to 3 and 4**: `const int
+    readFD = 3; const int writeFD = 4;`. They are not negotiated;
+  - on Windows there are NO descriptors: they are HANDLEs read from the
+    environment, `GetEnvironmentVariableA("PW_PIPE_READ", ...)` plus
+    `atoi`, so the value must be passed in DECIMAL and the handle must be
+    made inheritable;
+  - the names are from the BROWSER's point of view: its `PW_PIPE_READ` is
+    what IT reads from, i.e. where WE write.
 
-⛔ E il flag `-juggler-pipe` deve comparire sulla riga di comando, o su Windows
-gli handle non vengono armati affatto e la pipe si tronca alla transizione
-launcher -> parent.
+⛔ And the flag `-juggler-pipe` must appear on the command line, or on
+Windows the handles never get armed at all and the pipe breaks at the
+launcher -> parent transition.
 
-⛔ IL SEGNALE DI PRONTEZZA NON PASSA DALLA PIPE. Il browser stampa
-`Juggler listening to the pipe` su stdout, e quella riga esce da una `dump()`
-che una build `MOZILLA_OFFICIAL` spegne: una `dump()` disabilitata RITORNA CON
-SUCCESSO senza scrivere. Il rimedio vive nel sorgente Firefox
-(`30-upstream-playwright-patches.md`), non qui. Chi legge un timeout lungo al
-lancio guardi prima li'.
+⛔ THE READINESS SIGNAL DOES NOT TRAVEL OVER THE PIPE. The browser prints
+`Juggler listening to the pipe` on stdout, and that line comes out of a
+`dump()` that a `MOZILLA_OFFICIAL` build disables: a disabled `dump()`
+RETURNS SUCCESSFULLY without writing. The fix lives in the Firefox source
+(`30-upstream-playwright-patches.md`), not here. Anyone reading a long
+timeout at launch should look there first.
 
-Stato: primo pezzo. Apre la connessione, manda comandi, riceve risposte ed
-eventi. Non e' ancora un client: non c'e' il ciclo di vita, non ci sono i
-frame, non c'e' l'actionability.
+State: first piece. Opens the connection, sends commands, receives
+responses and events. Not yet a client: no lifecycle, no frames, no
+actionability.
 """
 from __future__ import annotations
 
@@ -37,158 +39,183 @@ import threading
 import time
 from typing import Any, Callable, Optional
 
-ZERO = b"\x00"
-_PRONTO = "Juggler listening to the pipe"
+NUL = b"\x00"
+_READY = "Juggler listening to the pipe"
 
 
-class ErroreProtocollo(RuntimeError):
-    """Il browser ha rifiutato un comando. Porta il messaggio suo, non il nostro.
+class ProtocolError(RuntimeError):
+    """The browser refused a command. Carries its message, not ours.
 
-    ⛔ `checkScheme` e' a MONDO CHIUSO: un campo non dichiarato non viene
-    ignorato, viene rifiutato, e succede a RUNTIME. Il messaggio del browser e'
-    l'unica cosa che dice quale campo.
+    ⛔ `checkScheme` is CLOSED WORLD: an undeclared field is not ignored,
+    it is rejected, and it happens at RUNTIME. The browser's message is
+    the only thing that says which field.
     """
 
 
-class Connessione:
-    """Una pipe verso un Firefox gia' avviato."""
+class Connection:
+    """A pipe to an already-launched Firefox."""
 
-    def __init__(self, verso_browser, dal_browser, processo=None):
-        self._verso = verso_browser        # dove NOI scriviamo
-        self._da = dal_browser             # dove NOI leggiamo
-        self._processo = processo
-        self._prossimo_id = 0
-        self._attese: dict[int, list] = {}
-        self._lucchetto = threading.Lock()
-        self._chiuso = False
-        self._errore: Optional[BaseException] = None
-        #: (metodo, params, sessionId|None). Il terzo argomento e' quello che
-        #: distingue due pagine aperte insieme.
-        self.su_evento: Callable[[str, dict, Optional[str]], None] = (
-            lambda metodo, params, sessione: None)
-        self._lettore = threading.Thread(target=self._ciclo_lettura, daemon=True)
-        self._lettore.start()
+    def __init__(self, to_browser, from_browser, process=None):
+        self._to_browser = to_browser      # where WE write
+        self._from_browser = from_browser  # where WE read
+        self._process = process
+        self._next_id = 0
+        self._pending: dict[int, list] = {}
+        self._lock = threading.Lock()
+        self._closed = False
+        self._error: Optional[BaseException] = None
+        #: (method, params, sessionId|None). The third argument is what
+        #: distinguishes two pages open at the same time.
+        self.on_event: Callable[[str, dict, Optional[str]], None] = (
+            lambda method, params, session: None)
+        #: Every exception `on_event` raised, as "method: message". Bounded at
+        #: 32 so a handler that raises on every event cannot eat memory.
+        #: ⛔ READ THIS IN A TEST. An empty event list plus an empty
+        #: `handler_errors` means the browser sent nothing; an empty event list
+        #: with entries HERE means your handler is broken, and those are two
+        #: completely different bugs that used to look identical.
+        self.handler_errors: list = []
+        self._reader = threading.Thread(target=self._read_loop, daemon=True)
+        self._reader.start()
 
-    # ── lettura ─────────────────────────────────────────────────────────────
-    def _ciclo_lettura(self) -> None:
-        resto = b""
+    # ── reading ─────────────────────────────────────────────────────────────
+    def _read_loop(self) -> None:
+        buffer = b""
         try:
-            while not self._chiuso:
-                pezzo = os.read(self._da, 65536)
-                if not pezzo:
+            while not self._closed:
+                chunk = os.read(self._from_browser, 65536)
+                if not chunk:
                     break
-                resto += pezzo
-                while ZERO in resto:
-                    grezzo, resto = resto.split(ZERO, 1)
-                    if grezzo:
-                        self._consegna(grezzo)
+                buffer += chunk
+                while NUL in buffer:
+                    raw, buffer = buffer.split(NUL, 1)
+                    if raw:
+                        self._deliver(raw)
         except OSError as e:
-            self._errore = e
+            self._error = e
         finally:
-            self._chiuso = True
-            # ⛔ Chi sta aspettando va SVEGLIATO, non lasciato al timeout:
-            # una pipe chiusa e' un'informazione, e farla arrivare fra trenta
-            # secondi come "nessuna risposta" nasconde cosa e' successo.
-            with self._lucchetto:
-                attese = list(self._attese.values())
-                self._attese.clear()
-            for pronto, cassetta in attese:
-                cassetta.append({"error": {"message": "la pipe si e' chiusa"}})
-                pronto.set()
+            self._closed = True
+            # ⛔ Whoever is waiting must be WOKEN UP, not left to the
+            # timeout: a closed pipe is information, and delivering it
+            # thirty seconds later as "no response" hides what happened.
+            with self._lock:
+                pending = list(self._pending.values())
+                self._pending.clear()
+            for ready, box in pending:
+                box.append({"error": {"message": "the pipe closed"}})
+                ready.set()
 
-    def _consegna(self, grezzo: bytes) -> None:
+    def _deliver(self, raw: bytes) -> None:
         try:
-            msg = json.loads(grezzo.decode("utf-8"))
+            msg = json.loads(raw.decode("utf-8"))
         except Exception:
             return
-        ident = msg.get("id")
-        if ident is None:
-            metodo = msg.get("method")
-            if metodo:
-                # ⛔ Il `sessionId` va consegnato insieme all'evento. Senza, gli
-                # eventi di DUE pagine aperte insieme sono indistinguibili, e
-                # chi aspetta un `load` prende quello dell'altra scheda. Non e'
-                # un caso raro: e' cio' che succede al secondo `new_page()`.
+        msg_id = msg.get("id")
+        if msg_id is None:
+            method = msg.get("method")
+            if method:
+                # ⛔ The `sessionId` must be delivered together with the
+                # event. Without it, the events of TWO pages open at the
+                # same time are indistinguishable, and whoever is
+                # waiting for a `load` gets the other tab's. It is not a
+                # rare case: it is what happens on the second
+                # `new_page()`.
                 try:
-                    self.su_evento(metodo, msg.get("params") or {},
-                                   msg.get("sessionId"))
-                except Exception:
-                    pass
+                    self.on_event(method, msg.get("params") or {},
+                                  msg.get("sessionId"))
+                except Exception as failure:
+                    # ⛔ SWALLOWING IT IS RIGHT, LOSING IT IS NOT. A handler
+                    # that raises must not kill the read loop, or one bad
+                    # callback takes the whole connection down. But a bare
+                    # `pass` here makes the failure INVISIBLE, and that is not
+                    # a theory: `test_python_talks_to_juggler_without_node`
+                    # installed a two-argument lambda where this call passes
+                    # three, so every delivery raised TypeError, the event list
+                    # stayed empty and the test could never pass. Nobody saw it
+                    # because the test is marked e2e and the default selection
+                    # deselects it - the exception had nowhere to be seen even
+                    # when it did run.
+                    if len(self.handler_errors) < 32:
+                        self.handler_errors.append(
+                            "%s: %s" % (method, failure))
             return
-        with self._lucchetto:
-            attesa = self._attese.pop(ident, None)
-        if attesa is not None:
-            pronto, cassetta = attesa
-            cassetta.append(msg)
-            pronto.set()
+        with self._lock:
+            entry = self._pending.pop(msg_id, None)
+        if entry is not None:
+            ready, box = entry
+            box.append(msg)
+            ready.set()
 
-    # ── scrittura ───────────────────────────────────────────────────────────
-    def manda(self, metodo: str, params: Optional[dict] = None,
-              sessione: Optional[str] = None, timeout: float = 30.0) -> Any:
-        if self._chiuso:
-            raise ErroreProtocollo("la pipe e' chiusa: %s" % (self._errore or ""))
-        with self._lucchetto:
-            self._prossimo_id += 1
-            ident = self._prossimo_id
-            # Un EVENTO, non un ciclo di `sleep`: il risveglio arriva dal thread
-            # di lettura quando la risposta c'e', invece che dal prossimo tick
-            # di un `time.sleep(0.002)`.
+    # ── writing ─────────────────────────────────────────────────────────────
+    def send(self, method: str, params: Optional[dict] = None,
+             session: Optional[str] = None, timeout: float = 30.0) -> Any:
+        if self._closed:
+            raise ProtocolError("the pipe is closed: %s" % (self._error or ""))
+        with self._lock:
+            self._next_id += 1
+            msg_id = self._next_id
+            # An EVENT, not a `sleep` loop: the wakeup comes from the
+            # reader thread when the response is there, instead of from
+            # the next tick of a `time.sleep(0.002)`.
             #
-            # ⛔ E qui va scritto anche cio' che questa riga NON ha risolto,
-            # perche' la prima stesura del commento citava una misura falsa.
-            # Diceva "un comando NUDO costava 26,8 ms": quel comando era
-            # `Heap.collectGarbage`, **che raccoglie davvero la spazzatura**, e
-            # infatti costa 23,1 ms anche dopo il cambio. La latenza vera della
-            # pipe, misurata il 2026-08-27 su comandi che non fanno lavoro, e'
-            # **2,4 ms** per `Runtime.evaluate("1")` e 4,3 ms per
-            # `Page.getContentQuads`. Scegliere un comando costoso come
-            # campione di "nudo" fa attribuire al trasporto il tempo del
-            # browser.
-            cassetta: list = []
-            pronto = threading.Event()
-            self._attese[ident] = (pronto, cassetta)
-        msg: dict = {"id": ident, "method": metodo, "params": params or {}}
-        if sessione:
-            msg["sessionId"] = sessione
-        os.write(self._verso, json.dumps(msg).encode("utf-8") + ZERO)
+            # ⛔ And what this line did NOT fix also belongs here,
+            # because the first draft of this comment cited a false
+            # measurement. It said "a BARE command cost 26.8 ms": that
+            # command was `Heap.collectGarbage`, **which really does
+            # collect garbage**, and it still costs 23.1 ms even after
+            # the change. The real latency of the pipe, measured on
+            # 2026-08-27 on commands that do no work, is **2.4 ms** for
+            # `Runtime.evaluate("1")` and 4.3 ms for
+            # `Page.getContentQuads`. Picking an expensive command as
+            # the sample of "bare" attributes the browser's own time to
+            # the transport.
+            box: list = []
+            ready = threading.Event()
+            self._pending[msg_id] = (ready, box)
+        msg: dict = {"id": msg_id, "method": method, "params": params or {}}
+        if session:
+            msg["sessionId"] = session
+        os.write(self._to_browser, json.dumps(msg).encode("utf-8") + NUL)
 
-        if not pronto.wait(timeout):
-            with self._lucchetto:
-                self._attese.pop(ident, None)
-            raise ErroreProtocollo(
-                "%s: nessuna risposta in %.0fs. Se e' il PRIMO comando, "
-                "guarda il segnale di prontezza prima della pipe." % (metodo, timeout))
-        risposta = cassetta[0]
-        if "error" in risposta:
-            e = risposta["error"]
-            raise ErroreProtocollo("%s: %s" % (metodo, e.get("message", e)))
-        return risposta.get("result")
+        if not ready.wait(timeout):
+            with self._lock:
+                self._pending.pop(msg_id, None)
+            raise ProtocolError(
+                "%s: no response in %.0fs. If this is the FIRST command, "
+                "look at the readiness signal before the pipe."
+                % (method, timeout))
+        response = box[0]
+        if "error" in response:
+            e = response["error"]
+            raise ProtocolError("%s: %s" % (method, e.get("message", e)))
+        return response.get("result")
 
-    def chiudi(self, attesa: float = 5.0) -> None:
-        """Chiude la pipe e aspetta che il browser se ne vada da solo.
+    def close(self, timeout: float = 5.0) -> None:
+        """Closes the pipe and waits for the browser to exit on its own.
 
-        ⛔ NON si comincia da `terminate()`, e la ragione e' misurata in questo
-        progetto: su Windows il pid che `Popen` restituisce e' lo stub del
-        LAUNCHER, che esce dopo circa un secondo, quindi al momento del kill
-        l'albero del browser non e' piu' suo figlio e sopravvive. Contati un
-        giorno: 88 processi orfani.
+        ⛔ Do NOT start from `terminate()`, and the reason is measured in
+        this project: on Windows the pid that `Popen` returns is the
+        LAUNCHER stub, which exits after about a second, so by the time
+        of the kill the browser's tree is no longer its child and
+        survives. Counted in one day: 88 orphaned processes.
 
-        La via pulita passa dal contratto: `nsRemoteDebuggingPipe::ReaderLoop`
-        chiama `Disconnected` quando la lettura torna zero, e Juggler spegne il
-        browser. Chiudere la pipe E' il comando di uscita. `terminate()` resta
-        solo come ultima spiaggia, e su cio' che non e' morto da solo.
+        The clean path goes through the contract:
+        `nsRemoteDebuggingPipe::ReaderLoop` calls `Disconnected` when the
+        read returns zero, and Juggler shuts the browser down. Closing
+        the pipe IS the exit command. `terminate()` remains only as a
+        last resort, for whatever did not die on its own.
         """
-        self._chiuso = True
-        for fd in (self._verso, self._da):
+        self._closed = True
+        for fd in (self._to_browser, self._from_browser):
             try:
                 os.close(fd)
             except OSError:
                 pass
-        p = self._processo
+        p = self._process
         if not p:
             return
-        scade = time.monotonic() + attesa
-        while p.poll() is None and time.monotonic() < scade:
+        deadline = time.monotonic() + timeout
+        while p.poll() is None and time.monotonic() < deadline:
             time.sleep(0.05)
         if p.poll() is None:
             try:
@@ -197,105 +224,109 @@ class Connessione:
                 pass
 
 
-# ── avvio ───────────────────────────────────────────────────────────────────
+# ── launch ──────────────────────────────────────────────────────────────────
 
-def _avvia_windows(eseguibile, argv, ambiente):
+def _spawn_windows(executable, argv, env):
     import _winapi
     import msvcrt
 
-    def ereditabile(h):
-        """⛔ `_winapi.CreatePipe` di CPython chiama la CreatePipe di Windows con
-        security attributes NULL, quindi gli handle NON sono ereditabili. Passarli
-        in `handle_list` cosi' com'erano faceva fallire `CreateProcess` con
-        `WinError 87 - The parameter is incorrect`, che non nomina la causa.
-        Si duplicano chiedendo l'ereditarieta' e si chiude l'originale."""
-        io = _winapi.GetCurrentProcess()
-        nuovo = _winapi.DuplicateHandle(io, h, io, 0, True,
-                                        _winapi.DUPLICATE_SAME_ACCESS)
+    def inheritable(h):
+        """⛔ CPython's `_winapi.CreatePipe` calls Windows' CreatePipe with
+        NULL security attributes, so the handles are NOT inheritable.
+        Passing them in `handle_list` as they were made `CreateProcess`
+        fail with `WinError 87 - The parameter is incorrect`, which does
+        not name the cause. They get duplicated asking for inheritance,
+        and the original is closed."""
+        current_process = _winapi.GetCurrentProcess()
+        new = _winapi.DuplicateHandle(current_process, h, current_process,
+                                      0, True, _winapi.DUPLICATE_SAME_ACCESS)
         _winapi.CloseHandle(h)
-        return nuovo
+        return new
 
-    # Due pipe. I nomi seguono il punto di vista del BROWSER, come l'ambiente
-    # che leggera': "read" e' cio' da cui lui legge, quindi dove NOI scriviamo.
-    suo_read, nostro_write = _winapi.CreatePipe(0, 0)
-    nostro_read, suo_write = _winapi.CreatePipe(0, 0)
-    suo_read, suo_write = ereditabile(suo_read), ereditabile(suo_write)
+    # Two pipes. The names follow the BROWSER's point of view, like the
+    # environment it will read: "read" is what it reads from, so where
+    # WE write.
+    its_read, our_write = _winapi.CreatePipe(0, 0)
+    our_read, its_write = _winapi.CreatePipe(0, 0)
+    its_read, its_write = inheritable(its_read), inheritable(its_write)
 
-    ambiente = dict(ambiente)
-    # `atoi` lato C++: il valore va in DECIMALE.
-    ambiente["PW_PIPE_READ"] = str(int(suo_read))
-    ambiente["PW_PIPE_WRITE"] = str(int(suo_write))
+    env = dict(env)
+    # `atoi` on the C++ side: the value must be DECIMAL.
+    env["PW_PIPE_READ"] = str(int(its_read))
+    env["PW_PIPE_WRITE"] = str(int(its_write))
 
     si = subprocess.STARTUPINFO()
-    si.lpAttributeList = {"handle_list": [int(suo_read), int(suo_write)]}
-    # `handle_list` PRETENDE close_fds=True: e' l'unico modo in cui Windows
-    # eredita esattamente quei due handle e nient'altro.
-    p = subprocess.Popen([eseguibile] + argv, env=ambiente, startupinfo=si,
+    si.lpAttributeList = {"handle_list": [int(its_read), int(its_write)]}
+    # `handle_list` REQUIRES close_fds=True: it is the only way Windows
+    # inherits exactly those two handles and nothing else.
+    p = subprocess.Popen([executable] + argv, env=env, startupinfo=si,
                          close_fds=True, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
-    # Gli estremi del figlio non servono piu' a noi: tenerli aperti impedirebbe
-    # di accorgersi che il browser ha chiuso.
-    _winapi.CloseHandle(suo_read)
-    _winapi.CloseHandle(suo_write)
-    return (msvcrt.open_osfhandle(nostro_write, 0),
-            msvcrt.open_osfhandle(nostro_read, os.O_RDONLY), p)
+    # The child's ends no longer serve us: keeping them open would
+    # prevent us from noticing that the browser has closed.
+    _winapi.CloseHandle(its_read)
+    _winapi.CloseHandle(its_write)
+    return (msvcrt.open_osfhandle(our_write, 0),
+            msvcrt.open_osfhandle(our_read, os.O_RDONLY), p)
 
 
-def _avvia_posix(eseguibile, argv, ambiente):
-    suo_read, nostro_write = os.pipe()
-    nostro_read, suo_write = os.pipe()
+def _spawn_posix(executable, argv, env):
+    its_read, our_write = os.pipe()
+    our_read, its_write = os.pipe()
 
-    def sistema_descrittori():
-        # Su POSIX i numeri sono CABLATI nel C++: 3 in lettura, 4 in scrittura.
-        os.dup2(suo_read, 3)
-        os.dup2(suo_write, 4)
+    def fix_descriptors():
+        # On POSIX the numbers are HARDWIRED in the C++: 3 for reading,
+        # 4 for writing.
+        os.dup2(its_read, 3)
+        os.dup2(its_write, 4)
 
-    p = subprocess.Popen([eseguibile] + argv, env=ambiente,
-                         preexec_fn=sistema_descrittori,
-                         pass_fds=(suo_read, suo_write),
+    p = subprocess.Popen([executable] + argv, env=env,
+                         preexec_fn=fix_descriptors,
+                         pass_fds=(its_read, its_write),
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    os.close(suo_read)
-    os.close(suo_write)
-    return nostro_write, nostro_read, p
+    os.close(its_read)
+    os.close(its_write)
+    return our_write, our_read, p
 
 
-def avvia(eseguibile: str, profilo: str, *, headless: bool = True,
-          argv_extra: Optional[list] = None, ambiente: Optional[dict] = None,
-          attesa_prontezza: float = 60.0) -> Connessione:
-    """Lancia Firefox con la pipe e torna una connessione gia' pronta."""
+def launch(executable: str, profile_dir: str, *, headless: bool = True,
+          argv_extra: Optional[list] = None, env: Optional[dict] = None,
+          ready_timeout: float = 60.0) -> Connection:
+    """Launches Firefox over the pipe and returns an already-ready
+    connection."""
     argv = ["-no-remote"]
     if headless:
         argv.append("-headless")
     else:
         argv += ["-wait-for-browser", "-foreground"]
-    argv += ["-profile", profilo, "-juggler-pipe"]
+    argv += ["-profile", profile_dir, "-juggler-pipe"]
     argv += list(argv_extra or [])
     argv.append("-silent")
 
-    amb = dict(os.environ if ambiente is None else ambiente)
-    avvio = _avvia_windows if sys.platform == "win32" else _avvia_posix
-    verso, da, p = avvio(eseguibile, argv, amb)
+    full_env = dict(os.environ if env is None else env)
+    spawn = _spawn_windows if sys.platform == "win32" else _spawn_posix
+    to_browser, from_browser, p = spawn(executable, argv, full_env)
 
-    # ⛔ La prontezza si legge su stdout, non sulla pipe, e la riga puo' non
-    # uscire affatto su una build MOZILLA_OFFICIAL senza il rimedio in Juggler.
-    # Si aspetta la riga, ma NON si muore se non arriva: si prova comunque a
-    # parlare, cosi' il modo di fallire e' un errore di protocollo che nomina il
-    # comando invece di un timeout muto.
-    visto = _aspetta_prontezza(p, attesa_prontezza)
-    c = Connessione(verso, da, p)
-    c.prontezza_vista = visto
+    # ⛔ Readiness is read on stdout, not on the pipe, and the line may
+    # not come out at all on a MOZILLA_OFFICIAL build without the fix in
+    # Juggler. It waits for the line, but it does NOT die if it does not
+    # arrive: it tries to talk anyway, so the failure mode is a protocol
+    # error naming the command instead of a silent timeout.
+    seen = _wait_until_ready(p, ready_timeout)
+    c = Connection(to_browser, from_browser, p)
+    c.ready_seen = seen
     return c
 
 
-def _aspetta_prontezza(p, timeout: float) -> bool:
-    scade = time.monotonic() + timeout
-    while time.monotonic() < scade:
+def _wait_until_ready(p, timeout: float) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
         if p.poll() is not None:
             return False
-        riga = p.stdout.readline()
-        if not riga:
+        line = p.stdout.readline()
+        if not line:
             time.sleep(0.01)
             continue
-        if _PRONTO in riga.decode("utf-8", "replace"):
+        if _READY in line.decode("utf-8", "replace"):
             return True
     return False

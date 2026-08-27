@@ -6486,7 +6486,7 @@ var UtilityScript = class {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     this.global = global;
     this.isUnderTest = isUnderTest;
-    // MODIFICATO da invisible_playwright: si guarda il descrittore, non si
+    // MODIFIED by invisible_playwright: the descriptor is looked at, not
     // legge la proprieta. Un getter piazzato dal sito su questo nome
     // partirebbe al primo evaluate e direbbe al sito che e pilotato.
     // getOwnPropertyDescriptor non invoca niente.
@@ -6677,7 +6677,7 @@ var InjectedScript = class {
     this._isUtilityWorld = !!options.isUtilityWorld;
     setGlobalOptions({ browserNameForWorkarounds: options.browserName });
     if (this._isUtilityWorld) {
-      // MODIFICATO da invisible_playwright: queste due installazioni girano SOLO
+      // MODIFIED by invisible_playwright: these two installations run ONLY
       // nel mondo di utilita. Nel mondo MAIN usavano l addEventListener della
       // PAGINA, e un sito che lo avvolge contava TREDICI listener a ogni
       // bounding_box(): un __ctx_ping__ piu i dodici intercettori di hit-target.
@@ -7713,7 +7713,7 @@ var InjectedScript = class {
     }
   }
   markTargetElements(markedElements) {
-    // MODIFICATO da invisible_playwright: non dispatcha niente.
+    // MODIFIED by invisible_playwright: does not dispatch anything.
     //
     // Qui partivano due CustomEvent sul DOM della pagina prima di ogni
     // azione: __playwright_reset_targets__ e __playwright_mark_target__ -
@@ -7721,11 +7721,11 @@ var InjectedScript = class {
     // window anche da dentro una shadow root. Misurati: 4 eventi dopo un
     // solo click, 8 dopo una sola lettura di testo.
     //
-    // Li ascoltava soltanto lo Streamer degli snapshot: il
-    // visualizzatore di trace. Fuori da quel caso partivano verso nessuno.
+    // Only the snapshot Streamer listened to them: the trace
+    // viewer. Outside that case they went to nobody at all.
   }
   _setupGlobalListenersRemovalDetection() {
-    // MODIFICATO da invisible_playwright: nome neutro. Questo CustomEvent
+    // MODIFIED by invisible_playwright: neutral name. This CustomEvent
     // viaggia sul window della PAGINA, e un sito che sostituisce
     // documentElement e ascolta quel nome otteneva un riscontro.
     const customEventName = "__ctx_ping__";

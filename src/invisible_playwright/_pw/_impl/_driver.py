@@ -13,31 +13,31 @@
 # limitations under the License.
 #
 # ---------------------------------------------------------------------------
-# MODIFICATO da invisible_playwright rispetto all'originale di Playwright
-# 1.61.0. Apache-2.0 chiede che le modifiche siano dichiarate: questa e' la
-# dichiarazione.
+# MODIFIED by invisible_playwright compared to the original Playwright
+# 1.61.0. Apache-2.0 requires that changes be declared: this is the
+# declaration.
 #
-# Questa riga diceva "l'unico file del client vendorizzato in cui e' stato
-# cambiato del COMPORTAMENTO". Non e' piu' vero dal 2026-08-24, e un conteggio
-# scritto a mano in un file che nessuno rilegge invecchia in giorni: i file del
-# client con comportamento cambiato si trovano cercando il marcatore
-# `MODIFICATO da invisible_playwright` dentro `_pw/`, che e' l'elenco vero.
+# This line used to say "the only file in the vendored client where
+# BEHAVIOR was changed". That is no longer true since 2026-08-24, and a count
+# written by hand in a file that nobody rereads goes stale in days: the client
+# files with changed behavior are found by searching for the marker
+# `MODIFIED by invisible_playwright` inside `_pw/`, which is the real list.
 #
-# Cosa cambia, e perche':
+# What changes, and why:
 #
-#   1. Il ``cli.js`` e' quello nostro, in ``invisible_playwright/_driver/``, non
-#      quello dentro ``site-packages/playwright/``. E' il motivo per cui il fork
-#      esiste: il serializzatore che Playwright inietta nella pagina interroga i
-#      costruttori DEL SITO - misurate sedici letture regalate alla pagina per
-#      ogni oggetto restituito da una evaluate - e nessuna opzione le spegne.
-#      Per cambiarle bisogna possedere il file.
+#   1. The ``cli.js`` is ours, in ``invisible_playwright/_driver/``, not
+#      the one inside ``site-packages/playwright/``. This is why the fork
+#      exists: the serializer that Playwright injects into the page queries
+#      the constructors of the SITE - sixteen reads handed to the page were
+#      measured for each object returned by an evaluate call - and no option
+#      turns them off. To change them you have to own the file.
 #
-#   2. Il ``node`` arriva da ``invisible_playwright._node``, che lo scarica al
-#      primo uso e ne verifica il checksum, invece di essere un binario da
-#      92,3 MB dentro la nostra distribuzione.
+#   2. The ``node`` comes from ``invisible_playwright._node``, which downloads it on
+#      first use and verifies its checksum, instead of being a 92.3 MB
+#      binary inside our distribution.
 #
-# L'originale calcolava entrambi da ``inspect.getfile(playwright)``, che dopo la
-# vendorizzazione punterebbe a ``_pw/driver/``: una cartella che non esiste.
+# The original computed both from ``inspect.getfile(playwright)``, which after
+# vendoring would point to ``_pw/driver/``: a folder that does not exist.
 # ---------------------------------------------------------------------------
 
 import os

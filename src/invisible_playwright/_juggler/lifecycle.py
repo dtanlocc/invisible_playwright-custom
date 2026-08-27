@@ -1,31 +1,33 @@
-"""Il ciclo di vita: albero dei frame, navigazioni, load state.
+"""The lifecycle: frame tree, navigations, load state.
 
-⛔ E' IL PEZZO CHE DECIDE SE LO STACCO STA IN PIEDI, e il motivo e' il modo in
-cui sbaglia: non va in crash, va in "funziona diciannove volte su venti". Per
-questo qui i commenti dicono PERCHE' una riga e' com'e', non cosa fa.
+⛔ THIS IS THE PIECE THAT DECIDES WHETHER THE BREAK FROM PLAYWRIGHT HOLDS UP,
+and the reason is how it fails: it does not crash, it "works nineteen times
+out of twenty". This is why the comments here say WHY a line is the way it
+is, not what it does.
 
-IL DIFETTO CLASSICO, e la ragione di meta' di questo file: **gli stati vanno
-tenuti per NAVIGAZIONE, non per frame.** Se si tengono per frame, un `load`
-rimasto dal documento PRECEDENTE soddisfa l'attesa del successivo, e la
-`goto()` torna prima che la pagina esista. E' l'errore che non si vede quasi
-mai, perche' serve che i due eventi arrivino nell'ordine sbagliato.
+THE CLASSIC DEFECT, and the reason for half of this file: **states must be
+kept per NAVIGATION, not per frame.** If kept per frame, a `load` left over
+from the PREVIOUS document satisfies the wait for the next one, and
+`goto()` returns before the page exists. It is the error that almost never
+shows, because it needs the two events to arrive in the wrong order.
 
-LA CORRELAZIONE, che il protocollo NON regala. `Page.eventFired` porta
-`frameId` e `name` (`load` o `DOMContentLoaded`) e **non porta il
-navigationId**. Quindi l'appartenenza si stabilisce per ORDINE: dopo il
-`navigationCommitted` della navigazione N, il primo `load` di quel frame e' di
-N. E' cio' che rende obbligatorio azzerare gli stati su `navigationStarted`.
+THE CORRELATION, which the protocol does NOT hand you. `Page.eventFired`
+carries `frameId` and `name` (`load` or `DOMContentLoaded`) and **does not
+carry the navigationId**. So membership is established by ORDER: after the
+`navigationCommitted` of navigation N, the first `load` of that frame
+belongs to N. That is what makes it mandatory to clear the states on
+`navigationStarted`.
 
-LE QUATTRO ATTESE, e quale evento le chiude:
+THE FOUR WAITS, and which event closes each:
 
     commit             Page.navigationCommitted
     domcontentloaded   Page.eventFired name=DOMContentLoaded
     load               Page.eventFired name=load
-    networkidle        zero richieste in volo per QUIETE secondi
+    networkidle        zero inflight requests for IDLE_QUIET seconds
 
-⛔ `sameDocumentNavigation` NON azzera niente: e' lo stesso documento, e un
-push di history non ricarica la pagina. Trattarlo come una navigazione fa
-aspettare un `load` che non arrivera' mai.
+⛔ `sameDocumentNavigation` does NOT clear anything: it is the same
+document, and a history push does not reload the page. Treating it as a
+navigation means waiting for a `load` that will never arrive.
 """
 from __future__ import annotations
 
@@ -33,244 +35,259 @@ import threading
 import time
 from typing import Optional
 
-#: Quanto silenzio serve perche' la rete sia "ferma". E' il valore di
-#: Playwright: piu' corto prende una pausa fra due richieste per una quiete.
-QUIETE = 0.5
+#: How much silence the network needs before it counts as "still". It is
+#: Playwright's value: shorter, and a pause between two requests would read
+#: as quiet.
+IDLE_QUIET = 0.5
 
-STATI = ("commit", "domcontentloaded", "load", "networkidle")
+STATES = ("commit", "domcontentloaded", "load", "networkidle")
 
 
-class ErroreNavigazione(RuntimeError):
-    """La navigazione e' stata abortita dal browser, col suo testo."""
+class NavigationError(RuntimeError):
+    """The navigation was aborted by the browser, with its text."""
 
 
 class Frame:
-    def __init__(self, frame_id: str, padre: Optional[str]):
+    def __init__(self, frame_id: str, parent: Optional[str]):
         self.id = frame_id
-        self.padre = padre
+        self.parent = parent
         self.url = ""
-        #: la navigazione corrente, e SOLO i suoi stati
-        self.navigazione: Optional[str] = None
-        self.stati: set = set()
-        #: le navigazioni abortite, col loro testo, per chi le stava aspettando
-        self.abortite: dict = {}
+        #: the current navigation, and ONLY its states
+        self.navigation: Optional[str] = None
+        self.states: set = set()
+        #: the aborted navigations, with their text, for whoever was
+        #: waiting on them
+        self.aborted: dict = {}
 
 
-class CicloDiVita:
-    """Segue una pagina sola. Si aggancia agli eventi di una `Connessione`."""
+class Lifecycle:
+    """Follows a single page. Hooks into a `Connection`'s events."""
 
-    def __init__(self, connessione, sessione: str):
-        self.c = connessione
-        self.sessione = sessione
+    def __init__(self, connection, session: str):
+        self.c = connection
+        self.session = session
         self.frames: dict = {}
-        self.frame_principale: Optional[str] = None
-        self.pronta = False
-        self._in_volo = 0
-        self._ultimo_movimento = time.monotonic()
+        self.main_frame: Optional[str] = None
+        self.ready = False
+        self._inflight = 0
+        self._last_activity = time.monotonic()
         self._cv = threading.Condition()
-        precedente = connessione.su_evento
+        previous = connection.on_event
 
-        def instrada(metodo, params, sessione_evento):
-            if sessione_evento == self.sessione:
-                self._evento(metodo, params)
-            # ⛔ Non si INGOIA l'evento: chi era agganciato prima resta
-            # agganciato. Un ciclo di vita che ruba gli eventi rende muto
-            # qualunque altro osservatore, e il guasto sarebbe silenzioso.
-            precedente(metodo, params, sessione_evento)
+        def route(method, params, event_session):
+            if event_session == self.session:
+                self._on_event(method, params)
+            # ⛔ The event is NOT SWALLOWED: whoever was hooked in before
+            # stays hooked in. A lifecycle that steals events silences any
+            # other observer, and the failure would be silent.
+            previous(method, params, event_session)
 
-        connessione.su_evento = instrada
+        connection.on_event = route
 
-    # ── ingresso degli eventi ───────────────────────────────────────────────
-    def _evento(self, metodo: str, p: dict) -> None:
+    # ── event intake ────────────────────────────────────────────────────────
+    def _on_event(self, method: str, p: dict) -> None:
         with self._cv:
-            f = self._applica(metodo, p)
-            if f is not None or metodo.startswith("Network."):
+            f = self._apply(method, p)
+            if f is not None or method.startswith("Network."):
                 self._cv.notify_all()
 
-    def _applica(self, metodo: str, p: dict):
-        if metodo == "Page.ready":
-            self.pronta = True
+    def _apply(self, method: str, p: dict):
+        if method == "Page.ready":
+            self.ready = True
             return None
 
-        if metodo == "Page.frameAttached":
+        if method == "Page.frameAttached":
             fid = p["frameId"]
             self.frames[fid] = Frame(fid, p.get("parentFrameId"))
             if p.get("parentFrameId") is None:
-                self.frame_principale = fid
+                self.main_frame = fid
             return self.frames[fid]
 
-        if metodo == "Page.frameDetached":
+        if method == "Page.frameDetached":
             fid = p["frameId"]
-            # Si toglie il sottoalbero, non il solo nodo: un figlio orfano
-            # resterebbe a rispondere per un frame che non esiste piu'.
+            # The whole subtree is removed, not just the one node: an
+            # orphaned child would be left answering for a frame that no
+            # longer exists.
             for x in [k for k, v in self.frames.items()
-                      if k == fid or self._discende(k, fid)]:
+                      if k == fid or self._descendants(k, fid)]:
                 self.frames.pop(x, None)
             return None
 
-        if metodo == "Page.navigationStarted":
+        if method == "Page.navigationStarted":
             f = self._frame(p["frameId"])
-            f.navigazione = p["navigationId"]
-            # ⛔ QUI sta la correttezza di tutto il file: gli stati del
-            # documento precedente NON valgono per questo.
-            f.stati = set()
+            f.navigation = p["navigationId"]
+            # ⛔ THIS is where the correctness of the whole file lives: the
+            # states of the previous document do NOT count for this one.
+            f.states = set()
             return f
 
-        if metodo == "Page.navigationCommitted":
+        if method == "Page.navigationCommitted":
             f = self._frame(p["frameId"])
             nav = p.get("navigationId")
             if nav is not None:
-                f.navigazione = nav
+                f.navigation = nav
             f.url = p.get("url", f.url)
-            f.stati.add("commit")
+            f.states.add("commit")
             return f
 
-        if metodo == "Page.navigationAborted":
+        if method == "Page.navigationAborted":
             f = self._frame(p["frameId"])
-            f.abortite[p["navigationId"]] = p.get("errorText", "abortita")
+            f.aborted[p["navigationId"]] = p.get("errorText", "aborted")
             return f
 
-        if metodo == "Page.sameDocumentNavigation":
+        if method == "Page.sameDocumentNavigation":
             f = self._frame(p["frameId"])
             f.url = p.get("url", f.url)
-            # ⛔ Nessun azzeramento: e' lo stesso documento.
+            # ⛔ No clearing here: it is the same document.
             return f
 
-        if metodo == "Page.eventFired":
+        if method == "Page.eventFired":
             f = self._frame(p["frameId"])
-            nome = p.get("name")
-            if nome == "load":
-                f.stati.add("load")
-                # `load` implica `domcontentloaded`: se per un ordine di eventi
-                # inatteso il secondo non fosse arrivato, chi lo aspetta
-                # resterebbe fermo davanti a una pagina gia' carica.
-                f.stati.add("domcontentloaded")
-            elif nome == "DOMContentLoaded":
-                f.stati.add("domcontentloaded")
+            name = p.get("name")
+            if name == "load":
+                f.states.add("load")
+                # `load` implies `domcontentloaded`: if an unexpected event
+                # order meant the second one never arrived, whoever is
+                # waiting for it would be stuck in front of a page that is
+                # already loaded.
+                f.states.add("domcontentloaded")
+            elif name == "DOMContentLoaded":
+                f.states.add("domcontentloaded")
             return f
 
-        if metodo == "Network.requestWillBeSent":
-            self._in_volo += 1
-            self._ultimo_movimento = time.monotonic()
-        elif metodo in ("Network.requestFinished", "Network.requestFailed"):
-            # Non si scende sotto zero: una risposta senza la sua richiesta
-            # arriva davvero, per esempio per un caricamento cominciato prima
-            # che ci agganciassimo, e un contatore negativo renderebbe
-            # `networkidle` irraggiungibile per sempre.
-            self._in_volo = max(0, self._in_volo - 1)
-            self._ultimo_movimento = time.monotonic()
+        if method == "Network.requestWillBeSent":
+            self._inflight += 1
+            self._last_activity = time.monotonic()
+        elif method in ("Network.requestFinished", "Network.requestFailed"):
+            # It never drops below zero: a response without its request
+            # does arrive for real, for instance for a load that started
+            # before we hooked in, and a negative counter would make
+            # `networkidle` unreachable forever.
+            self._inflight = max(0, self._inflight - 1)
+            self._last_activity = time.monotonic()
         return None
 
-    def _discende(self, fid: str, avo: str) -> bool:
-        visto = set()
+    def _descendants(self, fid: str, ancestor: str) -> bool:
+        seen = set()
         cur = self.frames.get(fid)
-        while cur and cur.padre and cur.padre not in visto:
-            if cur.padre == avo:
+        while cur and cur.parent and cur.parent not in seen:
+            if cur.parent == ancestor:
                 return True
-            visto.add(cur.padre)
-            cur = self.frames.get(cur.padre)
+            seen.add(cur.parent)
+            cur = self.frames.get(cur.parent)
         return False
 
     def _frame(self, fid: str) -> Frame:
-        # Un evento puo' nominare un frame che non abbiamo visto attaccare (ci
-        # siamo agganciati a pagina gia' viva). Si crea invece di perderlo.
+        # An event can name a frame we never saw attach (we hooked in on an
+        # already-live page). It gets created instead of being lost.
         if fid not in self.frames:
             self.frames[fid] = Frame(fid, None)
-            if self.frame_principale is None:
-                self.frame_principale = fid
+            if self.main_frame is None:
+                self.main_frame = fid
         return self.frames[fid]
 
-    # ── attese ──────────────────────────────────────────────────────────────
-    def _raggiunto(self, f: Frame, stato: str) -> bool:
-        if stato == "networkidle":
-            return (self._in_volo == 0
-                    and time.monotonic() - self._ultimo_movimento >= QUIETE)
-        return stato in f.stati
+    # ── waiting ─────────────────────────────────────────────────────────────
+    def _reached(self, f: Frame, state: str) -> bool:
+        if state == "networkidle":
+            return (self._inflight == 0
+                    and time.monotonic() - self._last_activity >= IDLE_QUIET)
+        return state in f.states
 
-    def aspetta_stato(self, frame_id: str, stato: str, *,
-                      navigazione: Optional[str] = None,
-                      timeout: float = 30.0) -> None:
-        if stato not in STATI:
-            raise ValueError("stato sconosciuto: %r (i quattro sono %s)"
-                             % (stato, ", ".join(STATI)))
-        scade = time.monotonic() + timeout
+    def wait_for_state(self, frame_id: str, state: str, *,
+                        navigation: Optional[str] = None,
+                        timeout: float = 30.0) -> None:
+        if state not in STATES:
+            raise ValueError("unknown state: %r (the four are %s)"
+                              % (state, ", ".join(STATES)))
+        deadline = time.monotonic() + timeout
         with self._cv:
             while True:
                 f = self.frames.get(frame_id)
                 if f is not None:
-                    if navigazione and navigazione in f.abortite:
-                        raise ErroreNavigazione(f.abortite[navigazione])
-                    # ⛔ AZZERARE GLI STATI SU `navigationStarted` NON BASTA, e
-                    # questo e' il difetto vero misurato il 2026-08-27.
+                    if navigation and navigation in f.aborted:
+                        raise NavigationError(f.aborted[navigation])
+                    # ⛔ CLEARING THE STATES ON `navigationStarted` IS NOT
+                    # ENOUGH, and this is the real defect measured on
+                    # 2026-08-27.
                     #
-                    # `Page.navigate` risponde con il navigationId PRIMA che
-                    # `navigationStarted` sia arrivato. In quella finestra il
-                    # frame porta ancora gli stati del documento precedente -
-                    # `about:blank` ne ha gia' commit, domcontentloaded e load -
-                    # e chi aspetta `commit` lo trova subito e torna. Misurato:
-                    # la prima `naviga(aspetta="commit")` tornava in 0,01s con
-                    # `url=about:blank`, cioe' prima ancora di partire.
+                    # `Page.navigate` answers with the navigationId BEFORE
+                    # `navigationStarted` has arrived. In that window the
+                    # frame still carries the states of the previous
+                    # document - `about:blank` already has commit,
+                    # domcontentloaded and load - and whoever is waiting
+                    # for `commit` finds it right away and returns.
+                    # Measured: the first `goto(until="commit")` returned
+                    # in 0.01s with `url=about:blank`, i.e. before it had
+                    # even started.
                     #
-                    # Il rimedio non e' aspettare un attimo: e' pretendere che
-                    # gli stati appartengano ALLA NOSTRA navigazione. Finche'
-                    # `f.navigazione` e' un'altra, quello che vediamo non e'
-                    # nostro, qualunque cosa dica.
-                    if navigazione is not None and f.navigazione != navigazione:
+                    # The fix is not to wait a moment: it is to require
+                    # that the states belong to OUR navigation. As long as
+                    # `f.navigation` is a different one, whatever we are
+                    # seeing is not ours, no matter what it says.
+                    if navigation is not None and f.navigation != navigation:
                         pass
-                    elif self._raggiunto(f, stato):
+                    elif self._reached(f, state):
                         return
-                resta = scade - time.monotonic()
-                if resta <= 0:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
                     if f is None:
-                        dove = "il frame non esiste"
-                    elif navigazione is not None and f.navigazione != navigazione:
-                        # Il messaggio deve dire QUESTO, perche' e' il caso in
-                        # cui gli stati ci sono ma non sono nostri, e senza la
-                        # riga sembrerebbe che il browser non risponda.
-                        dove = ("la navigazione corrente e' %s, non la nostra %s"
-                                % (f.navigazione, navigazione))
+                        reason = "the frame does not exist"
+                    elif (navigation is not None
+                          and f.navigation != navigation):
+                        # The message must say THIS, because it is the
+                        # case where the states are there but are not
+                        # ours, and without this line it would look like
+                        # the browser is not responding.
+                        reason = ("the current navigation is %s, not our "
+                                  "%s" % (f.navigation, navigation))
                     else:
-                        dove = "stati raggiunti: %s" % (sorted(f.stati) or "nessuno")
+                        reason = ("states reached: %s"
+                                  % (sorted(f.states) or "none"))
                     raise TimeoutError(
-                        "%s non raggiunto in %.0fs (%s, richieste in volo: %d)"
-                        % (stato, timeout, dove, self._in_volo))
-                # ⛔ Con `networkidle` non si dorme fino al prossimo evento: la
-                # condizione si avvera per SCADENZA DI SILENZIO, cioe' quando
-                # NON succede niente. Aspettare un notify li' significherebbe
-                # aspettare per sempre proprio nel caso che deve riuscire.
-                self._cv.wait(min(resta, 0.05 if stato == "networkidle" else resta))
+                        "%s not reached in %.0fs (%s, inflight requests: "
+                        "%d)" % (state, timeout, reason, self._inflight))
+                # ⛔ With `networkidle` you do not sleep until the next
+                # event: the condition becomes true on a SILENCE DEADLINE,
+                # i.e. when NOTHING happens. Waiting for a notify there
+                # would mean waiting forever in exactly the case that is
+                # supposed to succeed.
+                self._cv.wait(min(remaining,
+                                   0.05 if state == "networkidle"
+                                   else remaining))
 
-    # ── navigazione ─────────────────────────────────────────────────────────
-    def naviga(self, url: str, *, frame_id: Optional[str] = None,
-               aspetta: str = "load", timeout: float = 30.0,
-               referer: Optional[str] = None) -> dict:
-        fid = frame_id or self.frame_principale
+    # ── navigation ──────────────────────────────────────────────────────────
+    def goto(self, url: str, *, frame_id: Optional[str] = None,
+              until: str = "load", timeout: float = 30.0,
+              referer: Optional[str] = None) -> dict:
+        fid = frame_id or self.main_frame
         if fid is None:
-            raise RuntimeError("nessun frame: la pagina non ha ancora "
-                               "annunciato il suo frame principale")
+            raise RuntimeError("no frame: the page has not announced its "
+                                "main frame yet")
         params = {"frameId": fid, "url": url}
         if referer:
             params["referer"] = referer
-        esito = self.c.manda("Page.navigate", params,
-                             sessione=self.sessione, timeout=timeout) or {}
-        nav = esito.get("navigationId")
+        result = self.c.send("Page.navigate", params,
+                              session=self.session, timeout=timeout) or {}
+        nav = result.get("navigationId")
 
-        # ⛔ `navigationId` NULLO non e' un errore: il protocollo lo dichiara
-        # `Nullable`, e capita quando la navigazione non crea un documento
-        # nuovo - un ancoraggio, o la stessa URL. Non c'e' nessun `load` da
-        # aspettare, e aspettarlo sarebbe un timeout su una cosa riuscita.
+        # ⛔ A NULL `navigationId` is not an error: the protocol declares
+        # it `Nullable`, and it happens when the navigation does not
+        # create a new document - an anchor, or the same URL. There is no
+        # `load` to wait for, and waiting for one would be a timeout on
+        # something that succeeded.
         if nav is None:
             return {"navigationId": None, "url": url}
 
-        self.aspetta_stato(fid, aspetta, navigazione=nav, timeout=timeout)
+        self.wait_for_state(fid, until, navigation=nav, timeout=timeout)
         return {"navigationId": nav, "url": self.frames[fid].url}
 
-    # ── ispezione ───────────────────────────────────────────────────────────
-    def albero(self) -> dict:
-        return {fid: {"padre": f.padre, "url": f.url,
-                      "stati": sorted(f.stati), "navigazione": f.navigazione}
+    # ── inspection ──────────────────────────────────────────────────────────
+    def frame_tree(self) -> dict:
+        return {fid: {"parent": f.parent, "url": f.url,
+                       "states": sorted(f.states),
+                       "navigation": f.navigation}
                 for fid, f in self.frames.items()}
 
     @property
-    def richieste_in_volo(self) -> int:
-        return self._in_volo
+    def inflight(self) -> int:
+        return self._inflight

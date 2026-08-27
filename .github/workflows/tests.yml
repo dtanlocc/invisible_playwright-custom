@@ -132,24 +132,24 @@ jobs:
           print(f"{passed} tests ran")
           PY
 
-  # UN SOLO CONTESTO PER LA BRANCH PROTECTION. Misurato 2026-08-13: la
-  # protezione di questo repo richiedeva `pytest (windows-latest, py3.11)`,
-  # che la matrice ESCLUDE esplicitamente qualche riga piu' su - un contesto
-  # che nessun job puo' produrre, quindi una protezione che non poteva mai
-  # essere soddisfatta. Con `enforce_admins` a false ogni push passava lo
-  # stesso e nessuno se ne accorgeva. Stessa forma nel core e nel manager.
+  # ONE SINGLE CONTEXT FOR BRANCH PROTECTION. Measured 2026-08-13: this
+  # repo's protection required `pytest (windows-latest, py3.11)`, which the
+  # matrix explicitly EXCLUDES a few lines up - a context no job can ever
+  # produce, so a protection that could never be satisfied. With
+  # `enforce_admins` set to false every push went through anyway and nobody
+  # noticed. Same shape in the core and in the manager.
   #
-  # Un elenco di nomi di matrice va alla deriva ogni volta che la matrice
-  # cambia, ed e' esattamente cosi' che ci si e' arrivati. Questo job dipende
-  # dalla matrice intera e il suo nome non cambia mai.
+  # A list of matrix names drifts every time the matrix changes, and that is
+  # exactly how it got here. This job depends on the whole matrix and its
+  # name never changes.
   #
-  # SKIPPED NON E' FAILED, ed e' la parte specifica di questo repo. `unit` e'
-  # saltato di proposito quando `core-on-index` dice che il pin non e' ancora
-  # sull'indice: durante quella finestra nessun install puo' riuscire, e il
-  # workflow ha scelto di SALTARE invece di fingere verde. Un gate che
-  # pretendesse `success` trasformerebbe quella scelta in un rosso e
-  # spingerebbe a togliere la protezione proprio nel giorno del rilascio.
-  # Quindi si rifiuta su `failure` e `cancelled`, non su `skipped`.
+  # SKIPPED IS NOT FAILED, and that is the part specific to this repo. `unit`
+  # is skipped on purpose when `core-on-index` says the pin is not yet on the
+  # index: during that window no install can succeed, and the workflow chose
+  # to SKIP instead of faking green. A gate that required `success` would
+  # turn that choice into a red and push toward dropping the protection on
+  # release day of all days. So it refuses on `failure` and `cancelled`,
+  # never on `skipped`.
   gate:
     needs: [core-on-index, unit]
     if: always()

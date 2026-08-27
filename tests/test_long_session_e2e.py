@@ -168,18 +168,18 @@ def _serve(payload: bytes, port: int) -> ThreadingHTTPServer:
     return srv
 
 
-# La scadenza per test di `run_e2e.py` e' 420s e questo test la sfiora. Non
-# perche' sia scritto male: e' l'unico che paga per intero il difetto APERTO del
-# layout che non mette in cache i font fra documenti su Windows (8 famiglie danno
-# 8ms, 68 ne danno 5166 - `72-next-steps.md`). Misurato il 2026-08-13 sullo stesso
-# commit, con il cane da guardia di conftest: **4,3 secondi su Linux in CI e oltre
-# 300 su Windows**, 69 volte tanto, mentre l'intera suite e' solo 3 volte piu'
-# lenta. Su una macchina piu' carica supererebbe i 420 e verrebbe ucciso, e un
-# test legittimo ucciso da una protezione produce un rosso identico
-# all'impiccamento che quella protezione esiste per trovare.
+# The per-test deadline in `run_e2e.py` is 420s and this test brushes against
+# it. Not because it is badly written: it is the only one that pays in full
+# for the OPEN defect where layout does not cache fonts across documents on
+# Windows (8 families cost 8ms, 68 cost 5166 - `72-next-steps.md`). Measured
+# on 2026-08-13 on the same commit, with conftest's watchdog: **4.3 seconds on
+# Linux in CI and over 300 on Windows**, 69 times as much, while the whole
+# suite is only 3 times slower. On a more loaded machine it would exceed 420
+# and get killed, and a legitimate test killed by a guard produces a red
+# identical to the hang that guard exists to catch.
 #
-# La scadenza globale resta stretta e QUESTO test riceve la sua. Va tolta quando
-# il difetto del layout viene chiuso, non prima.
+# The global deadline stays tight and THIS test gets its own. It comes off
+# when the layout defect is closed, not before.
 @pytest.mark.timeout(900)
 @pytest.mark.e2e
 def test_a_long_session_survives_heavy_text_shaping(firefox_binary):

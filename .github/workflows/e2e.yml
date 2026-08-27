@@ -67,21 +67,21 @@ jobs:
         with: { fetch-depth: 1 }
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: '3.11' }
-      - name: Install wrapper + test deps (+ Playwright SOLO come strumento di sistema)
+      - name: Install wrapper + test deps (+ Playwright ONLY as a system tool)
         run: |
           python -m pip install --upgrade pip
           python -m pip install ".[dev]"
-          # ⛔ Il pacchetto playwright NON e' piu' una dipendenza del prodotto: il
-          # client vive in invisible_playwright._pw e il driver in _driver. Si
-          # installa qui per UNA cosa sola, il passo `playwright install-deps
-          # firefox` qui sotto, che scarica le librerie di SISTEMA di cui Firefox
-          # ha bisogno su un runner nudo. Il fork non espone quella sottocomando
-          # apposta (serve a pilotare, non a fare da toolchain).
+          # ⛔ The playwright package is NO LONGER a product dependency: the
+          # client lives in invisible_playwright._pw and the driver in _driver. It
+          # is installed here for ONE thing only, the `playwright install-deps
+          # firefox` step below, which downloads the SYSTEM libraries Firefox
+          # needs on a bare runner. The fork does not expose that subcommand
+          # on purpose (it is meant to drive, not to be a toolchain).
           #
-          # Che il prodotto non lo IMPORTI e' verificato da tests/test_fork.py,
-          # non da qui: se un giorno qualcuno reintroducesse
-          # `from playwright...` in src/, questa riga lo maschererebbe, ed e'
-          # esattamente per quello che quel test esiste.
+          # That the product does not IMPORT it is verified by tests/test_fork.py,
+          # not from here: if someone one day reintroduced
+          # `from playwright...` in src/, this line would mask it, and that is
+          # exactly why that test exists.
           python -m pip install "playwright==$(cat scripts/playwright_pin.txt)"
       - name: System deps (xvfb + Firefox runtime libs)
         run: |
@@ -99,45 +99,45 @@ jobs:
         # actually comes from.
         env:
           PYTHONUNBUFFERED: "1"
-          # Il cane da guardia di tests/conftest.py: a 150s dentro UN test scrive
-          # QUI lo stack di ogni thread, e lo ripete. Due stack identici dicono
-          # bloccato, due diversi dicono lento - diagnosi opposte che nessun altro
-          # strumento distingue. Su FILE e non su stderr perche' pytest redirige i
-          # descrittori a livello di sistema: cio' che e' catturato si perde
-          # quando il processo viene ucciso, cioe' nel caso per cui esiste.
+          # The watchdog in tests/conftest.py: at 150s inside ONE test it writes
+          # HERE the stack of every thread, and repeats it. Two identical stacks say
+          # stuck, two different ones say slow - opposite diagnoses that no other
+          # tool distinguishes. To a FILE and not to stderr because pytest redirects
+          # the descriptors at the system level: whatever is captured is lost
+          # when the process is killed, which is exactly the case it exists for.
           INVPW_TEST_WATCHDOG_FILE: ${{ runner.temp }}/e2e-watchdog.log
         run: xvfb-run -a python -u scripts/run_e2e.py "$FF"
 
-      # Gira SOLO se il passo sopra fallisce, e prima del 2026-08-13 non poteva
-      # esistere: l'impiccamento veniva ucciso dal tetto dei 40 minuti, quindi il
-      # job risultava `cancelled` e i passi successivi non partivano affatto. Con
-      # `--timeout 420 --timeout-method thread` il processo muore a 7 minuti e il
-      # passo fallisce NORMALMENTE, quindi da qui le prove escono.
-      # Uno strumento che non si vede e' indistinguibile da uno che non c'e'.
-      # L'annuncio che il cane da guardia stampa all'apertura del file finisce
-      # dentro `pytest_runtest_setup`, che pytest CATTURA: nel log del job non
-      # compare, quindi da qui non si poteva distinguere "armato" da "inerte".
-      # Questo passo glielo chiede al file, che e' l'unica prova che esista.
-      - name: Il cane da guardia era armato?
+      # Runs ONLY if the step above fails, and before 2026-08-13 it could not
+      # exist: the hang was killed by the 40-minute ceiling, so the job came out
+      # `cancelled` and the following steps did not start at all. With
+      # `--timeout 420 --timeout-method thread` the process dies at 7 minutes and the
+      # step fails NORMALLY, so the evidence comes out from here.
+      # A tool that cannot be seen is indistinguishable from one that does not exist.
+      # The announcement the watchdog prints when it opens the file ends up
+      # inside `pytest_runtest_setup`, which pytest CAPTURES: it does not show
+      # up in the job log, so from there one could not tell "armed" from "inert".
+      # This step asks the file instead, which is the only proof that exists.
+      - name: Was the watchdog armed?
         if: always()
         run: |
           f="${RUNNER_TEMP}/e2e-watchdog.log"
           if [ -s "$f" ]; then
-            # `|| true` e non e' cosmetico: `grep -c` che conta ZERO esce 1, e
-            # GitHub lancia i blocchi `run:` con `bash -e`. Senza, questo passo
-            # moriva esattamente sulle corse SANE - quelle con zero stack - cioe'
-            # avrebbe fatto fallire ogni e2e verde. Trovato eseguendo il blocco
-            # estratto dallo YAML nei quattro stati, non rileggendolo.
-            sorvegliati=$(grep -ac '^---' "$f" || true)
+            # `|| true` is not cosmetic: `grep -c` that counts ZERO exits 1, and
+            # GitHub runs `run:` blocks with `bash -e`. Without it, this step
+            # died exactly on the HEALTHY runs - the ones with zero stacks - i.e.
+            # it would have failed every green e2e. Found by executing the block
+            # extracted from the YAML in all four states, not by rereading it.
+            watched=$(grep -ac '^---' "$f" || true)
             stack=$(grep -ac 'Timeout' "$f" || true)
-            echo "armato: ${sorvegliati} test sorvegliati, ${stack} stack scritti"
+            echo "armed: ${watched} tests watched, ${stack} stacks written"
           else
-            echo "::warning::il file del cane da guardia e' assente o vuoto: lo strumento NON era armato, e un impiccamento non lascerebbe niente"
+            echo "::warning::the watchdog file is missing or empty: the tool was NOT armed, and a hang would leave nothing"
           fi
 
-      # `always()` e non `failure()`: il file serve anche quando la corsa e'
-      # verde, perche' e' l'unica prova che lo strumento funzioni.
-      - name: Portare fuori le prove dell'impiccamento
+      # `always()` and not `failure()`: the file is needed even when the run is
+      # green, because it is the only proof that the tool works.
+      - name: Upload the hang evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

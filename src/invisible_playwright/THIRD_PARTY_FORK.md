@@ -1,40 +1,40 @@
-# Fork di Playwright incluso in questo pacchetto
+# Playwright fork bundled in this package
 
-Questo pacchetto include e ridistribuisce una copia MODIFICATA di
-[Playwright](https://github.com/microsoft/playwright), di Microsoft Corporation,
-sotto licenza **Apache-2.0**. Il codice di `invisible_playwright` che non sta
-nelle due cartelle qui sotto resta **MIT**; il `pyproject.toml` lo dichiara come
-`license = "MIT AND Apache-2.0"`, perche' dire solo MIT direbbe il falso su cosa
-l'utente riceve.
+This package includes and redistributes a MODIFIED copy of
+[Playwright](https://github.com/microsoft/playwright), by Microsoft Corporation,
+under the **Apache-2.0** license. The `invisible_playwright` code that is not
+in the two folders below stays **MIT**; `pyproject.toml` declares it as
+`license = "MIT AND Apache-2.0"`, because saying MIT alone would misstate what
+the user receives.
 
-## Cosa e' vendorizzato
+## What is vendored
 
-| cartella | cos'e' | licenza |
+| folder | what it is | license |
 |---|---|---|
-| `_pw/` | il client Python di Playwright, versione **1.61.1** | Apache-2.0 (`_pw/LICENSE`) |
-| `_driver/` | il driver Node di Playwright | Apache-2.0 (`_driver/package/LICENSE`, `NOTICE`, `ThirdPartyNotices.txt` - a monte, non toccati) |
+| `_pw/` | Playwright's Python client, version **1.61.1** | Apache-2.0 (`_pw/LICENSE`) |
+| `_driver/` | Playwright's Node driver | Apache-2.0 (`_driver/package/LICENSE`, `NOTICE`, `ThirdPartyNotices.txt` - upstream, untouched) |
 
-Il namespace del client e' `invisible_playwright._pw` invece di `playwright`, per
-non collidere con un eventuale `playwright` di serie installato accanto.
+The client's namespace is `invisible_playwright._pw` instead of `playwright`, so
+it does not collide with a stock `playwright` that might be installed alongside it.
 
-## Le modifiche rispetto al Playwright originale
+## The changes relative to upstream Playwright
 
-Sono nel bundle del driver (`_driver/package/lib/coreBundle.js`), non nel client:
+They are in the driver bundle (`_driver/package/lib/coreBundle.js`), not in the client:
 
-- **[B177]** corretto `set_content`, che nel driver di serie non attendeva il
-  caricamento nel modo che serve a una pagina pilotata in modo indistinguibile.
-- **Rimossi ~643 KB** di sottosistemi che non usiamo e che allargano soltanto la
-  superficie: supporto android ed electron, il protocollo bidi, il recorder, e i
-  motori chromium e webkit (questo pacchetto pilota solo un Firefox).
-- **Neutralizzato `_exposeConsoleApi`**: il driver di serie esponeva una API di
-  console che una pagina poteva osservare.
-- **Tolta `console.debug`** dal codice iniettato, per la stessa ragione.
+- **[B177]** fixed `set_content`, which in the stock driver did not wait for
+  loading in the way a page driven indistinguishably needs.
+- **Removed ~643 KB** of subsystems we don't use and that only widen the
+  surface: android and electron support, the bidi protocol, the recorder, and
+  the chromium and webkit engines (this package drives only a Firefox).
+- **Neutralized `_exposeConsoleApi`**: the stock driver exposed a console API
+  that a page could observe.
+- **Removed `console.debug`** from the injected code, for the same reason.
 
-## Perche' e' in git
+## Why it is in git
 
-Senza queste due cartelle il pacchetto **si installa ma non si importa**: il
-`launcher.py` importa da `invisible_playwright._pw`, e un wheel costruito da un
-checkout che non le contiene alza `ImportError` a ogni `import
-invisible_playwright`. Lasciarle fuori da git era un pacchetto rotto che solo
-l'utente vedeva. La storia completa della decisione sta nel workbench, in
-`docs/firefox-stealth-architecture/72-next-steps.md`, voce 23.
+Without these two folders the package **installs but does not import**: the
+`launcher.py` imports from `invisible_playwright._pw`, and a wheel built from a
+checkout that does not contain them raises `ImportError` on every `import
+invisible_playwright`. Leaving them out of git was a broken package that only
+the user would see. The full story of the decision is in the workbench, in
+`docs/firefox-stealth-architecture/72-next-steps.md`, entry 23.

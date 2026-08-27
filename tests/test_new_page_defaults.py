@@ -130,32 +130,32 @@ def test_the_async_api_wraps_new_page_too():
 
 @pytest.mark.unit
 def test_no_api_sleeps_after_creating_a_tab():
-    """⛔ L'attesa dopo ogni scheda nuova NON deve tornare.
+    """⛔ The wait after every new tab must NOT come back.
 
-    C'era, valeva 0,4 s e serviva a non farsi dirottare la prima `goto()` da una
-    navigazione ad `about:newtab`. La causa non era una corsa da aspettare: era
-    `JugglerFrameParent` che riconosceva il target confrontando `browserId` con
-    l'`id` di un BrowsingContext - due contatori diversi - e lasciava che il
-    browser preallocato della nuova scheda si prendesse il canale della pagina.
-    Corretta nel motore il 2026-08-23 (`70-known-bugs.md` [B166]); l'attesa e'
-    stata tolta lo stesso giorno perche' un secondo rimedio per una causa sola e'
-    una seconda verita'.
+    It existed, was worth 0.4s and served to keep the first `goto()` from
+    being hijacked by a navigation to `about:newtab`. The cause was not a
+    race to wait out: it was `JugglerFrameParent` recognizing the target by
+    comparing `browserId` against a BrowsingContext's `id` - two different
+    counters - and letting the new tab's preallocated browser take over the
+    page's channel. Fixed in the engine on 2026-08-23 (`70-known-bugs.md`
+    [B166]); the wait was removed the same day because a second remedy for a
+    single cause is a second truth.
 
-    Il controllo e' sul CODICE che avvolge la creazione della scheda, non su un
-    nome: reintrodurre il ritardo con un altro nome lo farebbe scattare uguale.
+    The check is on the CODE that wraps tab creation, not on a name:
+    reintroducing the delay under another name would trip it just the same.
     """
     import inspect
 
     import invisible_playwright.async_api as async_api
     import invisible_playwright.launcher as launcher
 
-    for modulo in (launcher, async_api):
-        sorgente = inspect.getsource(
-            modulo.InvisiblePlaywright._patch_new_context_defaults
+    for module in (launcher, async_api):
+        source = inspect.getsource(
+            module.InvisiblePlaywright._patch_new_context_defaults
         )
-        assert "sleep(" not in sorgente, (
-            f"{modulo.__name__} dorme dopo aver creato una scheda: la causa di "
-            "[B166] sta nel motore, non qui")
+        assert "sleep(" not in source, (
+            f"{module.__name__} sleeps after creating a tab: the cause of "
+            "[B166] lives in the engine, not here")
     assert not hasattr(launcher, "_NEWTAB_SETTLE")
     assert not hasattr(async_api, "_patch_new_page_sleep")
 

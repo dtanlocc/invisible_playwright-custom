@@ -14,24 +14,24 @@
 
 #
 # ---------------------------------------------------------------------------
-# MODIFICATO da invisible_playwright rispetto all'originale di Playwright
-# 1.61.0. Apache-2.0 chiede che le modifiche siano dichiarate: questa e' la
-# dichiarazione.
+# MODIFIED by invisible_playwright relative to the original Playwright
+# 1.61.0. Apache-2.0 requires that changes be declared: this is the
+# declaration.
 #
-# L'originale inoltrava `sys.argv[1:]` al `cli.js` vendorizzato SENZA
-# filtrarlo, cioe' esponeva l'intera CLI di Playwright - `codegen`, `open`,
-# `install`, la dashboard - da un pacchetto che nei propri documenti dichiara
-# di non essere un dev-tool ("Is there an MCP server for this project? No, and
+# The original forwarded `sys.argv[1:]` to the vendored `cli.js` WITHOUT
+# filtering it, that is it exposed the entire Playwright CLI - `codegen`, `open`,
+# `install`, the dashboard - from a package that in its own documents declares
+# that it is not a dev-tool ("Is there an MCP server for this project? No, and
 # there does not need to be").
 #
-# Non e' solo superficie in piu': `open`/`codegen` arrivano a `open4()`, che
-# chiama `_exposeConsoleApi()` in modo INCONDIZIONATO, e quello mette
-# `window.playwright` - enumerabile - sulla pagina. E' esattamente il tell che
-# il fork spegne altrove cablando `debugMode()` a "" (vedi `packages/utils/
-# debug.ts` nel bundle), difesa che questa porta di servizio scavalcava.
+# It is not just extra surface: `open`/`codegen` reach `open4()`, which
+# calls `_exposeConsoleApi()` UNCONDITIONALLY, and that puts
+# `window.playwright` - enumerable - on the page. It is exactly the tell that
+# the fork disables elsewhere by hardwiring `debugMode()` to "" (see `packages/utils/
+# debug.ts` in the bundle), a defense that this service door bypassed.
 #
-# Resta permesso solo `show-trace`, l'unico sottocomando che i documenti del
-# pacchetto insegnano davvero (record-playwright-trace-debug-scraper.md).
+# Only `show-trace` remains allowed, the only subcommand that the package's
+# documents actually teach (record-playwright-trace-debug-scraper.md).
 
 import subprocess
 import sys
