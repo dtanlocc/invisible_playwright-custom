@@ -2019,7 +2019,12 @@ def _write_user_js(profile_dir: str, prefs: Dict) -> int:
     """
     import os
     lines = []
-    for name in sorted(prefs):
+    # ⛔ INSERTION ORDER, NOT SORTED. The driver uses `Object.keys()`, and the
+    # two writers have to agree BYTE FOR BYTE - sorting produces a file that is
+    # equally correct and not identical. Caught by
+    # `tests/gates/prefs_byte_parity.py` on its very first real run, which is
+    # the whole argument for keeping a judge around.
+    for name in prefs:
         value = prefs[name]
         if isinstance(value, bool):
             rendered = "true" if value else "false"
@@ -2032,8 +2037,11 @@ def _write_user_js(profile_dir: str, prefs: Dict) -> int:
             rendered = json.dumps(str(value))
         lines.append('user_pref(%s, %s);' % (json.dumps(name), rendered))
     os.makedirs(profile_dir, exist_ok=True)
-    body = ("// Written by invisible_playwright before the browser starts.\n"
-            + "\n".join(lines) + "\n")
+    # ⛔ NO HEADER COMMENT, and no sorting either. The driver writes neither,
+    # and this file has to match the driver's BYTE FOR BYTE - that is the
+    # criterion item 1 was written with. A header is one line of difference in
+    # a comparison whose whole value is that it finds differences.
+    body = "\n".join(lines) + "\n"
     # ⛔ `write_bytes`: on Windows a text-mode write translates every newline,
     # and a prefs file is read by the browser, not by git.
     with open(os.path.join(profile_dir, "user.js"), "wb") as handle:
