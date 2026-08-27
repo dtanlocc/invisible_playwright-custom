@@ -193,6 +193,27 @@ class Lifecycle:
                     and time.monotonic() - self._last_activity >= IDLE_QUIET)
         return state in f.states
 
+    def wait_for_main_frame(self, timeout: float = 20.0) -> str:
+        """The main frame id, waiting for it to arrive.
+
+        ⛔ IT ARRIVES AS AN EVENT, so reading `main_frame` right after attaching
+        to a page is a race: it is set by `Page.frameAttached`, which the
+        browser sends when it is ready and not when we ask. On a free machine
+        the attribute is usually already there, which is exactly what makes
+        this the kind of race that ships - it fails under load, on somebody
+        else's machine, once in twenty runs.
+        """
+        deadline = time.monotonic() + timeout
+        with self._cv:
+            while self.main_frame is None:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise TimeoutError(
+                        "no main frame in %.0fs: the page never announced one. "
+                        "Frames seen: %s" % (timeout, sorted(self.frames)))
+                self._cv.wait(min(left, 0.05))
+            return self.main_frame
+
     def wait_for_state(self, frame_id: str, state: str, *,
                         navigation: Optional[str] = None,
                         timeout: float = 30.0) -> None:
