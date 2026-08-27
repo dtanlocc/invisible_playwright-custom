@@ -62,7 +62,10 @@ class Connessione:
         self._lucchetto = threading.Lock()
         self._chiuso = False
         self._errore: Optional[BaseException] = None
-        self.su_evento: Callable[[str, dict], None] = lambda metodo, params: None
+        #: (metodo, params, sessionId|None). Il terzo argomento e' quello che
+        #: distingue due pagine aperte insieme.
+        self.su_evento: Callable[[str, dict, Optional[str]], None] = (
+            lambda metodo, params, sessione: None)
         self._lettore = threading.Thread(target=self._ciclo_lettura, daemon=True)
         self._lettore.start()
 
@@ -98,8 +101,13 @@ class Connessione:
         if ident is None:
             metodo = msg.get("method")
             if metodo:
+                # ⛔ Il `sessionId` va consegnato insieme all'evento. Senza, gli
+                # eventi di DUE pagine aperte insieme sono indistinguibili, e
+                # chi aspetta un `load` prende quello dell'altra scheda. Non e'
+                # un caso raro: e' cio' che succede al secondo `new_page()`.
                 try:
-                    self.su_evento(metodo, msg.get("params") or {})
+                    self.su_evento(metodo, msg.get("params") or {},
+                                   msg.get("sessionId"))
                 except Exception:
                     pass
             return
