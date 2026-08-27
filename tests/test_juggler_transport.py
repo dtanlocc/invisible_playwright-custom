@@ -792,3 +792,84 @@ def test_the_workbench_inventory_and_the_package_cannot_DRIFT():
         "of the perimeter")
     assert "perimeter.py" in source
     assert len(perimeter.OUTSIDE) > 50
+
+
+# ── the temporary profile ───────────────────────────────────────────────────
+
+def test_a_profile_WE_made_is_removed_and_the_caller_s_is_not():
+    """⛔ THE KNOWN-BAD IS FIVE GIGABYTES. Measured on 2026-08-28 after one day
+    of development: 136 leftover `invisible_profile_*` directories, 5,0 GB.
+    Nothing failed and nothing warned - a Firefox profile is a few dozen
+    megabytes and the disk simply goes. The project has the same defect
+    recorded for Playwright's own throwaway profiles, 7.308 directories over
+    seven months; this reproduced it in hours.
+
+    The distinction is the whole test: a directory we invented is ours to
+    remove, a `userDataDir` the caller named is theirs and must survive.
+    """
+    import shutil
+    import tempfile
+    from invisible_playwright._juggler.server import (BrowserTypeDispatcher,
+                                                      JugglerServer)
+
+    server = JugglerServer()
+    server.attach(type("R", (), {"emit_message": lambda self, m: None})())
+    launched: list = []
+
+    class FakeConnection:
+        """⛔ It has to look enough like the real one for BrowserDispatcher to
+        build: that constructor chains `on_event` and sends `Browser.enable`.
+        The first version of this fake had neither and failed with an
+        AttributeError that read like a defect in the server."""
+
+        def __init__(self):
+            self.on_event = lambda method, params, session: None
+            self.handler_errors = []
+
+        def send(self, method, params=None, session=None, timeout=30):
+            return {"browserContextId": "ctx-1", "targetId": "t-1"}
+
+        def close(self):
+            pass
+
+    def fake_launch(executable, profile_dir, **kwargs):
+        launched.append(profile_dir)
+        pathlib.Path(profile_dir, "places.sqlite").write_bytes(b"x" * 32)
+        return FakeConnection()
+
+    from invisible_playwright._juggler import server as module
+    real = module.juggler.launch
+    module.juggler.launch = fake_launch
+    try:
+        kind = BrowserTypeDispatcher(server)
+
+        # ours: no userDataDir, so the server invents one
+        kind.op_launch({"executablePath": "x", "firefoxUserPrefs": {"a": True}})
+        ours = pathlib.Path(launched[-1])
+        assert ours.exists() and (ours / "user.js").exists()
+
+        # theirs: named by the caller, and it must survive
+        theirs = pathlib.Path(tempfile.mkdtemp(prefix="caller_owns_"))
+        kind.op_launch({"executablePath": "x", "userDataDir": str(theirs),
+                        "firefoxUserPrefs": {"a": True}})
+
+        server.shutdown()
+
+        assert not ours.exists(), (
+            "the profile the server invented was left behind: this is the 5 GB")
+        assert theirs.exists(), (
+            "the CALLER's profile was deleted - a persistent profile is the "
+            "one thing that must survive the session")
+        shutil.rmtree(theirs, ignore_errors=True)
+    finally:
+        module.juggler.launch = real
+
+
+def test_removing_a_profile_NEVER_raises():
+    """⛔ It runs while the session is already going away, and on Windows a
+    file can still be held for a moment after the process that owned it exits.
+    A profile left behind costs megabytes; an exception here would be a
+    shutdown that fails for a reason nobody cares about."""
+    from invisible_playwright._juggler.server import _remove_profile
+    _remove_profile("C:/this/path/does/not/exist/at/all")
+    _remove_profile("")

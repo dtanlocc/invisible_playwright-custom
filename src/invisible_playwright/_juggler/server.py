@@ -1977,6 +1977,17 @@ class BrowserTypeDispatcher(Dispatcher):
                 "launch needs an executablePath: invisible_playwright pins its "
                 "own engine and never downloads one at launch time")
         env = {e["name"]: e["value"] for e in (params.get("env") or [])}
+        # ⛔ WHO MAKES THE PROFILE TAKES IT AWAY - AND ONLY THAT ONE. The
+        # caller's `userDataDir` is theirs and survives the session by
+        # definition; a directory we invented is ours and must not.
+        #
+        # Measured on 2026-08-28, after one day of development: 136 leftover
+        # `invisible_profile_*` directories, **5,0 GB**. Nothing failed, nothing
+        # warned - a Firefox profile is a few dozen megabytes and the disk just
+        # goes. The project already has the same defect recorded for
+        # Playwright's own throwaway profiles, 7.308 directories accumulated
+        # over seven months, and this reproduced it in hours.
+        ours = params.get("userDataDir") is None
         profile = params.get("userDataDir") or tempfile.mkdtemp(
             prefix="invisible_profile_")
         _write_user_js(profile, params.get("firefoxUserPrefs") or {})
@@ -1984,9 +1995,29 @@ class BrowserTypeDispatcher(Dispatcher):
                               headless=bool(params.get("headless", True)),
                               env=env, argv_extra=params.get("args") or [])
         self.server.on_shutdown(conn.close)
+        if ours:
+            # ⛔ AFTER `conn.close`, and the order is the point: the hooks run
+            # in reverse, so this one runs LAST - the browser is already gone
+            # and no longer holds a lock on the profile. Removing it first
+            # fails on Windows and fails SILENTLY, because the hook runner
+            # swallows one hook's failure so it cannot stop the others.
+            self.server.on_shutdown(lambda: _remove_profile(profile))
         version = _read_version(executable)
         browser = BrowserDispatcher(self.server, self, conn, version)
         return {"browser": browser.channel}
+
+
+def _remove_profile(directory: str) -> None:
+    """Take away a profile WE created. Never one the caller named.
+
+    ⛔ IT MUST NOT RAISE. This runs while the session is already going away,
+    and on Windows a file can still be held for a moment after the process that
+    owned it exits. A profile left behind is a few dozen megabytes; an
+    exception here would be a shutdown that fails for a reason nobody cares
+    about, on a path the caller has already stopped watching.
+    """
+    import shutil
+    shutil.rmtree(directory, ignore_errors=True)
 
 
 def _write_user_js(profile_dir: str, prefs: Dict) -> int:
