@@ -385,6 +385,9 @@ class FrameDispatcher(Dispatcher):
         "frameElement": "op_frame_element",
         "expect": "op_expect",
         "resolveSelector": "op_resolve_selector",
+        "ariaSnapshot": "op_aria_snapshot",
+        "drop": "op_drop",
+        "registerSelectorEngine": "op_register_selector_engine",
         "waitForElementState": "op_wait_for_element_state",
         "setTestIdAttributeName": "op_set_test_id",
     }
@@ -664,6 +667,61 @@ class FrameDispatcher(Dispatcher):
             return {"matches": False, "received": _serialize(None)}
         raise ProtocolException(
             "expect(%r) is not implemented yet" % expression)
+
+    def op_aria_snapshot(self, params: Dict) -> Any:
+        """The accessibility tree, as the injected script builds it.
+
+        ⛔ It runs in the UTILITY world like every other read, which matters
+        more here than elsewhere: an aria snapshot walks the WHOLE document and
+        reads a role, a name and a description off every node. Done in the
+        page's world that is thousands of accessor calls a site could count -
+        the most expensive read in the API turned into the loudest one.
+        """
+        selector = params.get("selector")
+        if selector:
+            return self._with_element(
+                params,
+                lambda o: self.page.injected.call(
+                    self.frame_id,
+                    "(injected, el, o) => injected.ariaSnapshot(el, o)",
+                    {"objectId": o}, {"mode": params.get("mode") or "raw"}))
+        return {"snapshot": self.page.injected.call(
+            self.frame_id,
+            "(injected, o) => injected.ariaSnapshot(document.documentElement, o)",
+            {"mode": params.get("mode") or "raw"})}
+
+    def op_drop(self, params: Dict) -> Any:
+        """⛔ REFUSED, and the reason is the protocol rather than the effort.
+
+        `drop` carries an explicit DataTransfer payload - mime types and their
+        values - and Juggler declares no command that can inject one:
+        `dispatchDragEvent` exists INSIDE the content agent, reachable only
+        from `Page.dispatchMouseEvent`, which synthesises the drag from real
+        pointer movement and builds its own data.
+
+        So `drag_and_drop()` works, because that is a pointer gesture; `drop()`
+        with a payload cannot be expressed. Faking it by dispatching an
+        untrusted `drop` event from the injected script would produce
+        `isTrusted: false` on a form that saw trusted events for everything
+        else - which is the mixture [B175] exists about.
+        """
+        raise ProtocolException(
+            "drop() with an explicit data payload has no engine command: "
+            "Juggler builds the DataTransfer from a real pointer drag, so "
+            "there is nothing to inject one into. Use drag_and_drop(), which "
+            "is a pointer gesture and works")
+
+    def op_register_selector_engine(self, params: Dict) -> Any:
+        """⛔ REFUSED for the same reason as `set_test_id_attribute`: the
+        engines are handed to the injected script AT CONSTRUCTION, in
+        `customEngines`, and the script is built once per frame. Registering
+        one afterwards would need every live InjectedScript rebuilt, and a
+        rebuild throws away every handle the caller is holding."""
+        raise ProtocolException(
+            "register_selector_engine() cannot be honoured after a page "
+            "exists: custom engines are baked into the injected script when it "
+            "is built, and rebuilding it would invalidate every handle the "
+            "caller holds")
 
     def op_resolve_selector(self, params: Dict) -> Any:
         """The frame and selector a locator finally points at.
@@ -1023,6 +1081,11 @@ class PageDispatcher(Dispatcher):
         "screenshot": "op_screenshot",
         "bringToFront": "op_bring_to_front",
         "exposeBinding": "op_expose_binding",
+        "touchscreenTap": "op_touchscreen_tap",
+        "requests": "op_requests",
+        "__waitInfo__": "op_noop",
+        "reject": "op_binding_reply",
+        "resolve": "op_binding_reply",
         "requestGC": "op_request_gc",
         "addScriptTag": "op_add_script_tag",
         "addStyleTag": "op_add_style_tag",
@@ -1055,6 +1118,9 @@ class PageDispatcher(Dispatcher):
         # the same logs and caps them for the same reason.
         self._console_log: List[Dict] = []
         self._error_log: List[Dict] = []
+        #: ⛔ Capped like the others: a page that fetches in a loop
+        #: must not exhaust the process driving it.
+        self._request_log: List[Any] = []
         self.main_frame_id = self.lifecycle.wait_for_main_frame(timeout=20.0)
         # ⛔ The Frame is created BEFORE the Page and adopted after: the Page
         # initializer has to name a mainFrame the client can already resolve.
@@ -1169,6 +1235,7 @@ class PageDispatcher(Dispatcher):
         elif method == "Network.requestWillBeSent":
             request = RequestDispatcher(self.server, self, params)
             self._requests[params.get("requestId")] = request
+            self._remember(self._request_log, request)
             self.context.emit("request", {"request": request.channel,
                                           "page": self.channel})
             if self.context.intercepting and params.get("isIntercepted"):
@@ -1538,6 +1605,30 @@ class PageDispatcher(Dispatcher):
         self.injected.evaluate_in_main(self.frame.frame_id, "window.close()")
         return None
 
+    def op_touchscreen_tap(self, params: Dict) -> Any:
+        """⛔ It fires whether or not touch is enabled on the context, and that
+        is worth knowing: with touch off the event goes out and the page has no
+        `ontouchstart` to listen with, so the call SUCCEEDS and does nothing.
+        Touch is turned on at context creation with `hasTouch`."""
+        self.send("Page.dispatchTapEvent",
+                  {"x": params["x"], "y": params["y"],
+                   "modifiers": self.actions.keyboard.modifier_mask()})
+        return None
+
+    def op_requests(self, params: Dict) -> Any:
+        return {"requests": [r.channel for r in self._request_log]}
+
+    def op_binding_reply(self, params: Dict) -> Any:
+        """⛔ `resolve` and `reject` are the REPLY half of `expose_binding`,
+        and they are unreachable while that is refused: they arrive on a
+        BindingCall object, and no BindingCall is ever created. This exists so
+        the refusal names the feature instead of answering "Page has no method
+        resolve", which would send the reader looking in the wrong place."""
+        raise ProtocolException(
+            "this is the reply path of expose_binding(), which is not "
+            "implemented: no binding is ever installed, so nothing can call "
+            "back into one")
+
     def op_expose_binding(self, params: Dict) -> Any:
         """`expose_binding` / `expose_function`.
 
@@ -1848,12 +1939,36 @@ class BrowserDispatcher(Dispatcher):
 
 class BrowserTypeDispatcher(Dispatcher):
     TYPE = "BrowserType"
-    METHODS = {"launch": "op_launch"}
+    METHODS = {"launch": "op_launch",
+        "launchPersistentContext": "op_launch_persistent",
+               }
 
     def __init__(self, server, executable_path: str = "") -> None:
         super().__init__(server, None,
                          {"executablePath": executable_path,
                           "name": "firefox"})
+
+    def op_launch_persistent(self, params: Dict) -> Any:
+        """A browser whose profile SURVIVES the session, plus its context.
+
+        ⛔ THE PROFILE IS THE CALLER'S AND IS NOT WIPED. `launch()` makes a
+        throwaway directory; here the caller names one they intend to reuse, so
+        writing `user.js` into it on every launch is correct - the prefs must be
+        re-applied - but deleting anything in it is not.
+
+        ⛔ AND THE CONTEXT COMES BACK, NOT THE BROWSER. That is the whole
+        difference in the contract: `_browser_type.py` reads `context` from the
+        answer, and a persistent browser has exactly one, already created.
+        """
+        directory = params.get("userDataDir")
+        if not directory:
+            raise ProtocolException(
+                "launch_persistent_context() needs a userDataDir: without one "
+                "it is just launch(), and the profile it is supposed to keep "
+                "would be a temporary directory")
+        browser_channel = self.op_launch(dict(params, userDataDir=directory))
+        browser = self.server.object(browser_channel["browser"]["guid"])
+        return browser.op_new_context(params)
 
     def op_launch(self, params: Dict) -> Any:
         executable = params.get("executablePath")
@@ -1973,10 +2088,23 @@ class JugglerServer(Server):
             raise ProtocolException("no object %r" % guid)
         return obj
 
+    #: ⛔ DECLARED like every other table, so the inventory that reads this
+    #: file can SEE it. `initialize` is the only method the root answers and it
+    #: was implemented from the first day, but it lived in an `if` inside
+    #: `handle_root` - so the tool that derives coverage from the METHODS
+    #: tables reported it as missing, and the count was wrong by one in the
+    #: direction that makes you write code twice.
+    METHODS = {"initialize": "op_initialize"}
+
     def handle_root(self, method: str, params: Dict) -> Any:
-        if method != "initialize":
+        name = self.METHODS.get(method)
+        if name is None:
             raise ProtocolException(
-                "the root only answers 'initialize', not %r" % method)
+                "the root only answers %s, not %r"
+                % (", ".join(sorted(self.METHODS)), method))
+        return getattr(self, name)(params)
+
+    def op_initialize(self, params: Dict) -> Any:
         # ⛔ The order below is the recorded one: BrowserType, then LocalUtils,
         # then Playwright naming both. Announcing Playwright first would name
         # two guids the client has never seen.
