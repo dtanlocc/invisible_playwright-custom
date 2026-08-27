@@ -277,21 +277,42 @@ class InvisiblePlaywright:
                 # That is FALSE on the Juggler path, and the false belief is what
                 # made the first-launch/second-launch asymmetry look impossible.
                 # Verified 2026-08-14 in the bundled driver: writePreferences(),
-                # the function that creates user.js, lives in
-                # server/bidi/third_party/firefoxPrefs.ts and is called only by
-                # BidiFirefox.prepareUserDataDir; the BASE prepareUserDataDir is
-                # empty and the Juggler Firefox type does not override it. The
-                # prefs travel over the protocol instead: Browser.enable applies
+                # the function that creates user.js, lived in
+                # server/bidi/third_party/firefoxPrefs.ts and was called only by
+                # BidiFirefox.prepareUserDataDir; the BASE prepareUserDataDir was
+                # empty and the Juggler Firefox type did not override it. The
+                # prefs travelled over the protocol instead: Browser.enable applied
                 # them with Services.prefs.setBoolPref / setStringPref /
                 # setIntPref - USER-branch setters - after
-                # `await this._startCompletePromise`, so Firefox persists them
+                # `await this._startCompletePromise`, so Firefox persisted them
                 # into prefs.js. Measured: 39 zoom.stealth prefs in prefs.js after
                 # the first launch, and no user.js on disk at all.
                 #
-                # Consequence: launch 1 initialises gfx/fonts with the
+                # Consequence: launch 1 initialised gfx/fonts with the
                 # DEFAULTS, launch 2+ with the stealth prefs already active. Two
                 # different code paths, and every gate in this project starts from
                 # a fresh profile - which is how the relaunch hang lived unseen.
+                #
+                # ⛔ TUTTO IL PARAGRAFO SOPRA E' AL PASSATO DA firefox-21, e va
+                # letto come storia. Il fork del driver ora SCRIVE le prefs in
+                # `user.js` dentro il profilo e passa `-profile`, e manda
+                # `Browser.enable` SENZA il campo userPrefs; il motore, dal canto
+                # suo, RIFIUTA quel campo invece di applicarlo tardi:
+                #
+                #     Browser.enable no longer applies preferences. They are
+                #     written into the profile before startup.
+                #
+                # Quindi l'asimmetria primo-lancio/secondo-lancio non esiste piu':
+                # le prefs ci sono gia' quando gfx e i font si inizializzano, un
+                # percorso solo. `firefox_user_prefs=` qui sotto resta il modo di
+                # consegnarle - cambia solo chi le scrive, e dove.
+                #
+                # E la conseguenza per CHI NON usa questo fork: uno script che
+                # lancia il binario con Playwright UPSTREAM e passa
+                # `firefox_user_prefs` ora si becca quel rifiuto. E' successo a
+                # `scripts/ci_font_gate.py` sul primo firefox-21, e li' il rimedio
+                # e' scrivere un `user.js` nel profilo e usare un contesto
+                # persistente - non rimettere il campo nella richiesta.
                 # Cause and fix: `70-known-bugs.md` [B150]. The fix is a pref
                 # applied by invisible_core to every session, not code here: a
                 # geometry-scrubbing remedy lived in this file for a few hours and
