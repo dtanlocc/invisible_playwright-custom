@@ -602,3 +602,101 @@ def test_an_unanswered_dialog_is_dismissed_by_the_client(firefox_binary):
     finally:
         os.environ.pop(factory.CHOICE_ENV, None)
         srv.shutdown()
+
+
+# ── context and page surfaces ───────────────────────────────────────────────
+
+def test_a_cookie_domain_with_a_LEADING_DOT_matches_subdomains():
+    """⛔ A leading dot means "and every subdomain". Comparing the two strings
+    directly is the version that looks right and returns an empty list, so
+    `context.cookies(urls=[...])` would answer nothing for a site-wide
+    cookie."""
+    from invisible_playwright._juggler.server import _domain_matches, _host_of
+    assert _host_of("https://shop.example.com:8443/a/b") == "shop.example.com"
+    assert _domain_matches(".example.com", "shop.example.com")
+    assert _domain_matches("example.com", "example.com")
+    assert not _domain_matches(".example.com", "notexample.com"), (
+        "a suffix match without the dot boundary: badexample.com would pass")
+    assert not _domain_matches("", "example.com")
+
+
+def test_clearing_cookies_with_a_FILTER_is_refused_not_widened():
+    """⛔ The engine command clears the WHOLE context and takes no filter.
+    Honouring a filtered request by clearing everything is worse than
+    refusing: the caller asked to remove one cookie and would lose the
+    session."""
+    from invisible_playwright._juggler.dispatcher import ProtocolException
+    from invisible_playwright._juggler.server import BrowserContextDispatcher
+    method = BrowserContextDispatcher.op_clear_cookies
+    with pytest.raises(ProtocolException) as failure:
+        method(object(), {"name": "session"})
+    assert "whole context" in str(failure.value)
+
+
+@pytest.mark.e2e
+def test_cookies_round_trip_through_the_public_API(firefox_binary):
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            context = page.context
+            context.add_cookies([{"name": "a", "value": "1",
+                                  "domain": "127.0.0.1", "path": "/"}])
+            names = {c["name"]: c["value"] for c in context.cookies()}
+            assert names.get("a") == "1", names
+            context.clear_cookies()
+            assert not [c for c in context.cookies() if c["name"] == "a"]
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_a_screenshot_comes_back_as_real_png_bytes(firefox_binary):
+    """⛔ THE MAGIC NUMBER, not the length. A screenshot that is the string
+    "None" or a base64 blob nobody decoded is still bytes and still non-empty:
+    the only assertion that separates a real image from a plausible one is the
+    PNG signature."""
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            shot = page.screenshot()
+            assert shot[:8] == b"\x89PNG\r\n\x1a\n", (
+                "not a PNG: first bytes are %r" % shot[:12])
+            assert len(shot) > 1000, len(shot)
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()
+
+
+@pytest.mark.e2e
+def test_the_viewport_can_be_resized(firefox_binary):
+    os.environ[factory.CHOICE_ENV] = factory.JUGGLER
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    from invisible_playwright import InvisiblePlaywright
+    try:
+        with InvisiblePlaywright(seed=42, binary_path=firefox_binary,
+                                 headless=True) as browser:
+            page = browser.new_page()
+            page.goto(url)
+            page.set_viewport_size({"width": 640, "height": 480})
+            assert page.evaluate("() => window.innerWidth") == 640
+            assert page.evaluate("() => window.innerHeight") == 480
+    finally:
+        os.environ.pop(factory.CHOICE_ENV, None)
+        srv.shutdown()

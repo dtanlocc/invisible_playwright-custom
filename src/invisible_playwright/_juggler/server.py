@@ -174,6 +174,9 @@ class ElementHandleDispatcher(Dispatcher):
         "innerHTML": "op_inner_html",
         "inputValue": "op_input_value",
         "getAttribute": "op_get_attribute",
+        "scrollIntoViewIfNeeded": "op_scroll_into_view",
+        "ownerFrame": "op_owner_frame",
+        "contentFrame": "op_content_frame",
     }
 
     def __init__(self, server, frame: "FrameDispatcher", object_id: str,
@@ -232,6 +235,36 @@ class ElementHandleDispatcher(Dispatcher):
     def op_get_attribute(self, params: Dict) -> Any:
         return {"value": self.page.injected.get_attribute(
             self.frame.frame_id, self.object_id, params["name"])}
+
+    def op_scroll_into_view(self, params: Dict) -> Any:
+        """⛔ [B184]: this does not work in the shipped engine, and it does not
+        work through the Node driver either. It is wired correctly here so the
+        day the engine is fixed nothing else has to change, and the failure
+        arrives from the engine rather than from a missing method."""
+        self.page.send("Page.scrollIntoViewIfNeeded",
+                       _only_set({"frameId": self.frame.frame_id,
+                                  "objectId": self.object_id,
+                                  "rect": params.get("rect")}))
+        return None
+
+    def op_owner_frame(self, params: Dict) -> Any:
+        return {"frame": self.frame.channel}
+
+    def op_content_frame(self, params: Dict) -> Any:
+        """The frame this element CONTAINS, for an iframe.
+
+        ⛔ Answers null rather than raising when the element is not a frame
+        owner: that is what the client expects, and raising would turn an
+        ordinary "this div is not an iframe" into a failed script.
+        """
+        result = self.page.send("Page.describeNode",
+                                {"frameId": self.frame.frame_id,
+                                 "objectId": self.object_id}) or {}
+        content_frame_id = result.get("contentFrameId")
+        if not content_frame_id:
+            return {"frame": None}
+        frame = self.page.frame_for(content_frame_id)
+        return {"frame": frame.channel}
 
 
 def _serialize(value: Any, counter: Optional[Dict] = None) -> Any:
@@ -306,7 +339,6 @@ class FrameDispatcher(Dispatcher):
         "waitForSelector": "op_wait_for_selector",
         "waitForFunction": "op_wait_for_function",
         "waitForTimeout": "op_wait_for_timeout",
-        "waitForLoadState": "op_wait_for_load_state",
         "setContent": "op_set_content",
         "evalOnSelector": "op_eval_on_selector",
         "evalOnSelectorAll": "op_eval_on_selector_all",
@@ -681,6 +713,124 @@ class DialogDispatcher(Dispatcher):
         return self._answer(False)
 
 
+# ── network ─────────────────────────────────────────────────────────────────
+def _headers_array(raw) -> List[Dict[str, str]]:
+    """Headers as the ARRAY of pairs the client expects, never a dict.
+
+    ⛔ `RawHeaders` iterates over `[{"name": ..., "value": ...}]` and a dict
+    iterates over its KEYS, so handing one over does not raise: it produces a
+    header list whose every value is missing, and `response.headers` comes back
+    full of empty strings. Juggler already sends the array form; this exists so
+    a caller-built dict cannot slip through.
+    """
+    if isinstance(raw, dict):
+        return [{"name": k, "value": str(v)} for k, v in raw.items()]
+    out = []
+    for entry in raw or []:
+        if isinstance(entry, dict) and "name" in entry:
+            out.append({"name": entry["name"],
+                        "value": str(entry.get("value", ""))})
+    return out
+
+
+class RequestDispatcher(Dispatcher):
+    TYPE = "Request"
+    METHODS = {
+        "response": "op_response",
+        "rawRequestHeaders": "op_raw_request_headers",
+    }
+
+    def __init__(self, server, page: "PageDispatcher", params: Dict) -> None:
+        self.page = page
+        self.request_id = params.get("requestId")
+        self.raw_headers = _headers_array(params.get("headers"))
+        self.response: Optional["ResponseDispatcher"] = None
+        frame_id = params.get("frameId") or page.frame.frame_id
+        super().__init__(server, page, {
+            "url": params.get("url") or "",
+            "method": params.get("method") or "GET",
+            "headers": self.raw_headers,
+            "postData": params.get("postData"),
+            "isNavigationRequest": bool(params.get("navigationId")),
+            "resourceType": _resource_type(params),
+            "frame": page.frame_for(frame_id).channel,
+        })
+
+    def op_response(self, params: Dict) -> Any:
+        return {"response": self.response.channel if self.response else None}
+
+    def op_raw_request_headers(self, params: Dict) -> Any:
+        return {"headers": self.raw_headers}
+
+
+class ResponseDispatcher(Dispatcher):
+    TYPE = "Response"
+    METHODS = {
+        "body": "op_body",
+        "rawResponseHeaders": "op_raw_response_headers",
+        "securityDetails": "op_security_details",
+        "serverAddr": "op_server_addr",
+        "sizes": "op_sizes",
+    }
+
+    def __init__(self, server, request: RequestDispatcher,
+                 params: Dict) -> None:
+        self.request = request
+        self.raw_headers = _headers_array(params.get("headers"))
+        self.remote = {"ipAddress": params.get("remoteIPAddress") or "",
+                       "port": params.get("remotePort") or 0}
+        super().__init__(server, request.page, {
+            "url": request.initializer["url"],
+            "status": params.get("status") or 0,
+            "statusText": params.get("statusText") or "",
+            "headers": self.raw_headers,
+            "request": request.channel,
+            "fromServiceWorker": bool(params.get("fromServiceWorker")),
+            # ⛔ EVERY timing field is mandatory and -1 means "did not happen".
+            # Leaving one out is a KeyError in `_network.py`; leaving it at 0
+            # claims the phase took no time, which is a different lie.
+            "timing": {"startTime": 0, "domainLookupStart": -1,
+                       "domainLookupEnd": -1, "connectStart": -1,
+                       "secureConnectionStart": -1, "connectEnd": -1,
+                       "requestStart": -1, "responseStart": -1},
+        })
+
+    def op_body(self, params: Dict) -> Any:
+        raise ProtocolException(
+            "response.body() is not available: this Juggler has no command to "
+            "read a response body back, and returning an empty one would look "
+            "like an empty page instead of a missing feature")
+
+    def op_raw_response_headers(self, params: Dict) -> Any:
+        return {"headers": self.raw_headers}
+
+    def op_security_details(self, params: Dict) -> Any:
+        return {"value": None}
+
+    def op_server_addr(self, params: Dict) -> Any:
+        return {"value": self.remote if self.remote["ipAddress"] else None}
+
+    def op_sizes(self, params: Dict) -> Any:
+        return {"sizes": {"requestBodySize": 0, "requestHeadersSize": 0,
+                          "responseBodySize": 0, "responseHeadersSize": 0}}
+
+
+def _resource_type(params: Dict) -> str:
+    """⛔ Juggler says `cause`, Playwright says `resourceType`, and the two
+    vocabularies only partly overlap. An unmapped cause becomes `other`, which
+    is what upstream does too - guessing a nicer name would make
+    `request.resource_type` disagree with itself between the two transports."""
+    cause = (params.get("cause") or params.get("internalCause") or "").lower()
+    return {
+        "document": "document", "subdocument": "document",
+        "stylesheet": "stylesheet", "script": "script",
+        "image": "image", "imageset": "image",
+        "font": "font", "media": "media",
+        "xmlhttprequest": "xhr", "fetch": "fetch",
+        "websocket": "websocket", "beacon": "other",
+    }.get(cause, "other")
+
+
 # ── page ────────────────────────────────────────────────────────────────────
 class PageDispatcher(Dispatcher):
     TYPE = "Page"
@@ -699,9 +849,11 @@ class PageDispatcher(Dispatcher):
         "goBack": "op_go_back",
         "goForward": "op_go_forward",
         "reload": "op_reload",
-        "setDefaultNavigationTimeoutNoReply": "op_noop",
-        "setDefaultTimeoutNoReply": "op_noop",
         "updateSubscription": "op_noop",
+        "setViewportSize": "op_set_viewport_size",
+        "emulateMedia": "op_emulate_media",
+        "screenshot": "op_screenshot",
+        "bringToFront": "op_bring_to_front",
     }
 
     def __init__(self, server, context: "BrowserContextDispatcher",
@@ -714,6 +866,8 @@ class PageDispatcher(Dispatcher):
         self.injected = InjectedScript(conn, session)
         self.injected.install()
         self.actions = Actions(conn, session, self.lifecycle, self.injected)
+        self._frames: Dict[str, Any] = {}
+        self._requests: Dict[str, Any] = {}
         self.main_frame_id = self.lifecycle.wait_for_main_frame(timeout=20.0)
         # ⛔ The Frame is created BEFORE the Page and adopted after: the Page
         # initializer has to name a mainFrame the client can already resolve.
@@ -804,6 +958,36 @@ class PageDispatcher(Dispatcher):
                          params.get("name") or "")
             if state and params.get("frameId") == self.frame.frame_id:
                 self.frame.emit("loadstate", {"add": state})
+        elif method == "Network.requestWillBeSent":
+            request = RequestDispatcher(self.server, self, params)
+            self._requests[params.get("requestId")] = request
+            self.context.emit("request", {"request": request.channel,
+                                          "page": self.channel})
+        elif method == "Network.responseReceived":
+            request = self._requests.get(params.get("requestId"))
+            if request is not None:
+                response = ResponseDispatcher(self.server, request, params)
+                request.response = response
+                self.context.emit("response", {"response": response.channel,
+                                               "page": self.channel})
+        elif method == "Network.requestFinished":
+            request = self._requests.pop(params.get("requestId"), None)
+            if request is not None:
+                self.context.emit("requestFinished", {
+                    "request": request.channel,
+                    "response": request.response.channel
+                               if request.response else None,
+                    "responseEndTiming": params.get("responseEndTime") or 0,
+                    "page": self.channel,
+                })
+        elif method == "Network.requestFailed":
+            request = self._requests.pop(params.get("requestId"), None)
+            if request is not None:
+                self.context.emit("requestFailed", {
+                    "request": request.channel,
+                    "failureText": params.get("errorCode") or "failed",
+                    "page": self.channel,
+                })
         elif method == "Page.navigationCommitted":
             if params.get("frameId") == self.frame.frame_id:
                 self.frame.emit("navigated", {
@@ -811,6 +995,28 @@ class PageDispatcher(Dispatcher):
                     "name": params.get("name") or "",
                     "newDocument": {"request": None},
                 })
+
+    def frame_for(self, frame_id: str) -> "FrameDispatcher":
+        """The dispatcher for a frame of this page, made on first sight.
+
+        ⛔ ONE DISPATCHER PER FRAME ID, AND THE REGISTRY IS WHY. Building a
+        new one each time would announce a second `__create__` for the same
+        frame, and the client would hold two ChannelOwners that disagree about
+        the load states - the second one starting empty while the first is the
+        one events are delivered to.
+        """
+        if frame_id == self.frame.frame_id:
+            return self.frame
+        existing = self._frames.get(frame_id)
+        if existing is not None:
+            return existing
+        frame = self.lifecycle.frames.get(frame_id)
+        made = FrameDispatcher(
+            self.server, self, frame_id,
+            url=getattr(frame, "url", "") or "",
+            load_states=sorted(getattr(frame, "states", []) or []) or ["commit"])
+        self._frames[frame_id] = made
+        return made
 
     def send(self, command: str, params: Dict) -> Any:
         """A Juggler command on THIS page's session.
@@ -905,6 +1111,64 @@ class PageDispatcher(Dispatcher):
         self.actions.keyboard.insert_text(params["text"])
         return None
 
+    # ── viewport, media, capture ────────────────────────────────────────────
+    def op_set_viewport_size(self, params: Dict) -> Any:
+        self.send("Page.setViewportSize", _only_set(
+            {"viewportSize": params.get("viewportSize")}))
+        return None
+
+    def op_emulate_media(self, params: Dict) -> Any:
+        """⛔ ONLY WHAT WAS ASKED FOR TRAVELS. Our fork turned four hardwired
+        values into "no-override" precisely because a BrowsingContext override
+        SHORT-CIRCUITS the pref: Gecko reads the override first and only
+        consults LookAndFeel when it is None, so an override nobody requested
+        turns every declaration invisible_core makes into dead code without
+        raising anything.
+        """
+        out: Dict[str, Any] = {}
+        for ours, theirs in (("colorScheme", "colorScheme"),
+                             ("reducedMotion", "reducedMotion"),
+                             ("forcedColors", "forcedColors"),
+                             ("contrast", "contrast"),
+                             ("media", "type")):
+            value = params.get(ours)
+            if value is not None:
+                out[theirs] = value
+        if not out:
+            return None
+        self.send("Page.setEmulatedMedia", out)
+        return None
+
+    def op_screenshot(self, params: Dict) -> Any:
+        """⛔ The engine answers base64 and the client wants base64: it does
+        NOT want bytes. Decoding here would send a str() of a bytes object."""
+        # ⛔ `clip` IS MANDATORY, whatever it looks like. The declaration
+        # does not wrap it in `Optional`, so leaving it out is rejected exactly
+        # like sending it as null: `Object "<root>.clip" is undefined, but has
+        # some scheme`. Reading the type declaration is what settled this -
+        # both of the obvious readings of the error are wrong.
+        clip = params.get("clip")
+        if not clip:
+            size = self.injected.evaluate(
+                self.frame.frame_id,
+                "({x: 0, y: 0, width: window.innerWidth,"
+                " height: window.innerHeight})")
+            clip = size or {"x": 0, "y": 0, "width": 1280, "height": 720}
+        result = self.send("Page.screenshot", _only_set({
+            "mimeType": "image/jpeg" if params.get("type") == "jpeg"
+                        else "image/png",
+            "clip": clip,
+            "quality": params.get("quality"),
+            "omitDeviceScaleFactor": False,
+        })) or {}
+        # ⛔ BASE64 IN, BASE64 OUT. The client decodes it; decoding here and
+        # handing back bytes puts a str() of a bytes object in the answer.
+        return {"binary": result.get("data")}
+
+    def op_bring_to_front(self, params: Dict) -> Any:
+        self.send("Page.bringToFront", {})
+        return None
+
     def op_noop(self, params: Dict) -> Any:
         return None
 
@@ -930,10 +1194,17 @@ class BrowserContextDispatcher(Dispatcher):
     METHODS = {
         "newPage": "op_new_page",
         "close": "op_close",
-        "setDefaultNavigationTimeoutNoReply": "op_noop",
-        "setDefaultTimeoutNoReply": "op_noop",
         "updateSubscription": "op_noop",
         "addInitScript": "op_noop",
+        "addCookies": "op_add_cookies",
+        "cookies": "op_cookies",
+        "clearCookies": "op_clear_cookies",
+        "grantPermissions": "op_grant_permissions",
+        "clearPermissions": "op_clear_permissions",
+        "setGeolocation": "op_set_geolocation",
+        "setOffline": "op_set_offline",
+        "setExtraHTTPHeaders": "op_set_extra_headers",
+        "storageState": "op_storage_state",
     }
 
     def __init__(self, server, browser: "BrowserDispatcher", options: Dict,
@@ -974,6 +1245,82 @@ class BrowserContextDispatcher(Dispatcher):
         self.pages.append(page)
         self.emit("page", {"page": page.channel})
         return {"page": page.channel}
+
+    # ── cookies, permissions, geolocation ───────────────────────────────────
+    def _browser_send(self, command: str, params: Dict) -> Any:
+        params = dict(params)
+        params["browserContextId"] = self.context_id
+        return self.browser.conn.send(command, params, timeout=30)
+
+    def op_add_cookies(self, params: Dict) -> Any:
+        """⛔ `expires` IS SECONDS AND -1 MEANS SESSION, not zero and not
+        milliseconds. Playwright's client already speaks that convention, so
+        the cookies pass through unchanged - but a translation added here
+        "helpfully" would silently expire every session cookie in 1970."""
+        self._browser_send("Browser.setCookies",
+                           {"cookies": params.get("cookies") or []})
+        return None
+
+    def op_cookies(self, params: Dict) -> Any:
+        result = self._browser_send("Browser.getCookies", {}) or {}
+        cookies = result.get("cookies") or []
+        urls = params.get("urls") or []
+        if urls:
+            wanted = [_host_of(u) for u in urls]
+            cookies = [c for c in cookies
+                       if any(_domain_matches(c.get("domain") or "", h)
+                              for h in wanted)]
+        return {"cookies": cookies}
+
+    def op_clear_cookies(self, params: Dict) -> Any:
+        # ⛔ Juggler clears the WHOLE context: it takes no filter. Playwright's
+        # client can ask for a subset, and pretending to honour that by
+        # clearing everything would be worse than refusing - so the filtered
+        # form is refused and the unfiltered one works.
+        if any(params.get(k) for k in ("name", "domain", "path")):
+            raise ProtocolException(
+                "clear_cookies() with a filter is not supported: the engine "
+                "command clears the whole context, and quietly clearing more "
+                "than asked is worse than refusing")
+        self._browser_send("Browser.clearCookies", {})
+        return None
+
+    def op_grant_permissions(self, params: Dict) -> Any:
+        self._browser_send("Browser.grantPermissions",
+                           {"origin": params.get("origin") or "",
+                            "permissions": params.get("permissions") or []})
+        return None
+
+    def op_clear_permissions(self, params: Dict) -> Any:
+        self._browser_send("Browser.resetPermissions", {})
+        return None
+
+    def op_set_geolocation(self, params: Dict) -> Any:
+        """⛔ NULL clears the override, and that is not the same as sending
+        zeroes: latitude 0 longitude 0 is a real place in the Atlantic, and a
+        page that reads it gets a fix instead of a refusal."""
+        self._browser_send("Browser.setGeolocationOverride",
+                           {"geolocation": params.get("geolocation")})
+        return None
+
+    def op_set_offline(self, params: Dict) -> Any:
+        raise ProtocolException(
+            "set_offline() has no engine command in this Juggler: the "
+            "protocol declares no offline override, so honouring it would "
+            "mean lying about the network state")
+
+    def op_set_extra_headers(self, params: Dict) -> Any:
+        raise ProtocolException(
+            "set_extra_http_headers() is not wired yet: it needs request "
+            "interception, which is the network group")
+
+    def op_storage_state(self, params: Dict) -> Any:
+        """⛔ COOKIES ONLY, and it says so. Upstream also collects localStorage
+        per origin by evaluating in every page; returning just the cookies with
+        an empty origins list would look complete and silently lose half the
+        state a caller is trying to save."""
+        result = self._browser_send("Browser.getCookies", {}) or {}
+        return {"cookies": result.get("cookies") or [], "origins": []}
 
     def op_close(self, params: Dict) -> Any:
         try:
@@ -1226,3 +1573,37 @@ def _location(raw) -> Dict:
     return {"url": raw.get("url") or "",
             "lineNumber": raw.get("lineNumber") or raw.get("line") or 0,
             "columnNumber": raw.get("columnNumber") or raw.get("column") or 0}
+
+
+def _only_set(params: Dict) -> Dict:
+    """The parameters that were actually given, with the absent ones REMOVED.
+
+    ⛔ IN A CLOSED-WORLD SCHEMA, `null` AND ABSENT ARE DIFFERENT ANSWERS.
+    Juggler validates every field it is handed: an Optional that arrives as
+    `null` is not "not provided", it is a value of the wrong type, and the
+    command is REJECTED at runtime with `Object "<root>.clip" is undefined,
+    but has some scheme`. Measured on 2026-08-28 on `Page.screenshot`, whose
+    clip and quality are both optional and were both being sent as null.
+
+    ⛔ AND THIS IS NOT DONE INSIDE `Connection.send`, tempting as that is:
+    some commands mean something BY sending null. `Browser.setGeolocationOverride`
+    with `geolocation: null` CLEARS the override, and stripping it there would
+    turn "stop pretending to be somewhere" into "do nothing".
+    """
+    return {k: v for k, v in params.items() if v is not None}
+
+
+def _host_of(url: str) -> str:
+    """The host of a url, without importing a parser for three characters."""
+    without_scheme = url.split("://", 1)[-1]
+    return without_scheme.split("/", 1)[0].split(":", 1)[0].lower()
+
+
+def _domain_matches(cookie_domain: str, host: str) -> bool:
+    """⛔ A LEADING DOT MEANS "AND EVERY SUBDOMAIN", and dropping it turns a
+    site-wide cookie into one that matches nothing. Comparing the two strings
+    directly is the version that looks right and returns an empty list."""
+    domain = (cookie_domain or "").lstrip(".").lower()
+    if not domain or not host:
+        return False
+    return host == domain or host.endswith("." + domain)
