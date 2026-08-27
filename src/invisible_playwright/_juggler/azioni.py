@@ -29,6 +29,7 @@ import time
 from typing import Optional
 
 from .injected import ErroreValutazione
+from .tastiera import MASCHERA_BOTTONI, Tastiera, TastoSconosciuto
 
 #: Gli stati che un'azione di puntatore pretende, nell'ordine in cui Playwright
 #: li chiede. `stable` e' il piu' caro (aspetta due fotogrammi) e viene per
@@ -40,12 +41,56 @@ class ElementoNonAzionabile(TimeoutError):
     """Il ciclo e' scaduto. Il messaggio porta il motivo dell'ULTIMO giro."""
 
 
+class BersaglioSbagliato(RuntimeError):
+    """L'evento sarebbe finito su un ALTRO elemento. Condizione RITENTABILE.
+
+    ⛔ E' la finestra che il resto del ciclo non chiude, ed e' stata MISURATA,
+    non temuta. Fra il controllo di azionabilita' e l'evento passano un paio di
+    comandi; se in quel mezzo il layout si muove - un banner che compare, un
+    font che finisce di caricare, un `setTimeout` che sposta la pagina - il
+    punto calcolato prima non appartiene piu' all'elemento voluto.
+
+    Il caso del 2026-08-27: una pagina che a 1200 ms rende visibile un blocco
+    piu' in alto. `doppio_clic` riusciva, la pagina non vedeva NESSUN
+    `dblclick`, e sulla stessa pagina senza quel timer lo stesso codice
+    funzionava. Nessun errore da nessuna parte: il click era finito diciannove
+    pixel piu' su.
+    """
+
+
+def _normalizza_opzioni(opzioni) -> list:
+    """Una stringa diventa `{"valueOrLabel": ...}`, e NON e' un dettaglio.
+
+    ⛔ IL FILTRO DELLO SCRIPT INIETTATO PARTE DA `matches = true` e lo
+    restringe SOLO se il criterio porta uno fra `valueOrLabel`, `value`,
+    `label` o `index`. Una stringa nuda non ne ha nessuno, quindi ogni opzione
+    corrisponde e viene scelta **la prima**.
+
+    Misurato il 2026-08-27 su un `<select>` con A/a e B/b: `["b"]` ha risposto
+    `['a']` lasciando il valore a `a`. Nessun errore, nessuna eccezione,
+    l'operazione riuscita e l'opzione sbagliata - che e' peggio di un rifiuto,
+    perche' il guasto emerge sulla pagina dopo. Con `[{"value": "b"}]` la stessa
+    chiamata risponde `['b']`.
+    """
+    fuori = []
+    for o in opzioni:
+        fuori.append({"valueOrLabel": o} if isinstance(o, str) else dict(o))
+    return fuori
+
+
 class Azioni:
     def __init__(self, connessione, sessione: str, ciclo, iniettato):
         self.c = connessione
         self.sessione = sessione
         self.ciclo = ciclo
         self.inj = iniettato
+        #: ⛔ UNA SOLA tastiera per pagina, ed e' il punto: tiene lo stato dei
+        #: modificatori. Costruirne una per azione perderebbe "Shift e' giu'"
+        #: fra un `giu` e il tasto successivo, e `Shift+a` scriverebbe `a`.
+        self.tastiera = Tastiera(connessione, sessione)
+        #: L'ultima posizione del puntatore. Serve per la rotella e per il
+        #: trascinamento, che partono da dove il mouse E' - non da 0,0.
+        self.dove = (0.0, 0.0)
 
     # ── geometria ───────────────────────────────────────────────────────────
     def _punto(self, frame_id: str, elemento: str):
@@ -109,6 +154,11 @@ class Azioni:
                 if "notconnected" not in str(e):
                     raise
                 motivo = "il nodo si e' staccato mentre lo usavo"
+            except BersaglioSbagliato as e:
+                # ⛔ Anche questa e' una condizione del MONDO, non un guasto: la
+                # pagina si e' mossa fra il controllo e l'evento. Si ricomincia,
+                # e il punto viene ricalcolato sulla nuova geometria.
+                motivo = "l'evento sarebbe finito altrove (%s)" % e
             finally:
                 if elemento:
                     self.inj.libera(f, elemento)
@@ -119,24 +169,305 @@ class Azioni:
                     "motivo: %s" % (selettore, timeout, giri, motivo))
             time.sleep(0.05)
 
+    # ── il bersaglio ────────────────────────────────────────────────────────
+    def _con_bersaglio(self, f, elemento, punto, azione, agisci):
+        """Agisce SOLO se l'evento finisce davvero sull'elemento voluto.
+
+        ⛔ NON e' un controllo in piu' prima di agire: e' un intercettore
+        installato PER TUTTA la durata dell'azione. La differenza conta, perche'
+        un controllo prima lascia aperta esattamente la finestra che questo
+        chiude - la pagina puo' muoversi fra il controllo e l'evento. Qui il
+        listener guarda l'evento MENTRE arriva, e se il punto non appartiene
+        all'elemento voluto lo BLOCCA e lo dice.
+
+        E' il meccanismo del driver (`setupHitTargetInterceptor`), quindi non
+        aggiunge nessuna superficie nuova: i listener che lo servono sono gia'
+        installati, **nel mondo di utilita'** dopo la correzione di
+        `31-client-fork.md` §3.9. Nel mondo della pagina sarebbero contabili.
+        """
+        h = self.inj.chiama(
+            f,
+            "(injected, el, a, p) => {"
+            "  const r = injected.setupHitTargetInterceptor(el, a, p, false);"
+            "  return typeof r === 'string' ? {errore: r} : {fermo: r.stop}; }",
+            {"objectId": elemento}, azione,
+            {"x": punto[0], "y": punto[1]}, per_valore=False)
+        try:
+            guasto = self.inj.chiama(f, "(injected, h) => h.errore || ''",
+                                     {"objectId": h})
+            if guasto:
+                raise BersaglioSbagliato(guasto)
+            esito = agisci()
+            # ⛔ `stop()` torna `"done"` OPPURE un oggetto che descrive cosa e'
+            # stato colpito davvero. Leggerlo come booleano direbbe sempre di
+            # si', che e' lo stesso difetto di `elementState`.
+            finito = self.inj.chiama(
+                f, "(injected, h) => { const r = h.fermo ? h.fermo() : 'done';"
+                   " return typeof r === 'string' ? r : JSON.stringify(r); }",
+                {"objectId": h})
+            if finito != "done":
+                raise BersaglioSbagliato(finito)
+            return esito
+        finally:
+            self.inj.libera(f, h)
+
     # ── le azioni ───────────────────────────────────────────────────────────
     def passa_sopra(self, selettore: str, *, timeout: float = 30.0):
         def esegui(f, elemento, punto):
-            self._mouse("mousemove", punto)
+            return self._con_bersaglio(
+                f, elemento, punto, "hover",
+                lambda: self._mouse("mousemove", punto) or punto)
+        return self._ritenta(selettore, esegui, timeout=timeout)
+
+    def clicca(self, selettore: str, *, timeout: float = 30.0, bottone: int = 0,
+               volte: int = 1):
+        def esegui(f, elemento, punto):
+            def agisci():
+                # L'ordine e' quello di un utente: ci si avvicina, si preme, si
+                # rilascia. Saltare il mousemove lascia la pagina senza
+                # l'hover, e ci sono siti che aprono il menu proprio li'.
+                self._mouse("mousemove", punto)
+                self._clic_qui(punto, bottone=bottone, volte=volte)
+                return punto
+            return self._con_bersaglio(f, elemento, punto, "mouse", agisci)
+        return self._ritenta(selettore, esegui, timeout=timeout)
+
+    def doppio_clic(self, selettore: str, *, timeout: float = 30.0,
+                    bottone: int = 0):
+        """⛔ NON sono due `clicca` di fila: il secondo deve portare
+        `clickCount: 2`, ed e' quel campo - non l'intervallo fra i due - che fa
+        nascere l'evento `dblclick`. Due click con `clickCount: 1` producono due
+        `click` e nessun `dblclick`, che e' un guasto silenzioso: l'azione
+        riesce e il gestore del sito non parte mai."""
+        return self.clicca(selettore, timeout=timeout, bottone=bottone, volte=2)
+
+    def spunta(self, selettore: str, *, timeout: float = 30.0):
+        return self._imposta_spunta(selettore, True, timeout=timeout)
+
+    def togli_spunta(self, selettore: str, *, timeout: float = 30.0):
+        return self._imposta_spunta(selettore, False, timeout=timeout)
+
+    def _imposta_spunta(self, selettore: str, voluto: bool, *, timeout: float):
+        """`check` / `uncheck`.
+
+        ⛔ Si CONTROLLA PRIMA, e si ricontrolla dopo. Cliccare senza guardare
+        inverte una casella gia' giusta - e' il difetto ovvio - ma il secondo
+        controllo e' quello che conta: un `<label>` che intercetta il click, o
+        un gestore che rimette il valore, fanno riuscire l'azione e lasciano lo
+        stato sbagliato. Senza il ricontrollo il guasto emerge molto dopo,
+        altrove.
+        """
+        def esegui(f, elemento, punto):
+            stato = "checked" if voluto else "unchecked"
+            if self.inj.stato(f, elemento, stato):
+                return "gia' cosi'"
+
+            def agisci():
+                self._mouse("mousemove", punto)
+                self._clic_qui(punto)
+            # ⛔ PASSA DALL'INTERCETTORE come `clicca`, e non e' una rifinitura:
+            # la prima stesura chiamava `_clic_qui` diretto e falliva sulla
+            # stessa pagina che sposta il layout a 1200 ms. Un solo posto sa
+            # come si clicca; due lo sanno finche' uno dei due non impara
+            # qualcosa che l'altro non sa.
+            self._con_bersaglio(f, elemento, punto, "mouse", agisci)
+            if not self.inj.stato(f, elemento, stato):
+                raise ErroreValutazione(
+                    "cliccato ma la casella e' rimasta %s: qualcuno ha "
+                    "intercettato il click o ha rimesso il valore"
+                    % ("non spuntata" if voluto else "spuntata"))
+            return stato
+        return self._ritenta(selettore, esegui, timeout=timeout)
+
+    def metti_a_fuoco(self, selettore: str, *, timeout: float = 30.0):
+        """⛔ NON pretende `visible`: `focus()` funziona su un elemento fuori
+        schermo, e imporre gli stati del puntatore farebbe scadere un'azione
+        che sarebbe riuscita. Playwright fa lo stesso."""
+        def esegui(f, elemento, punto):
+            return self.inj.chiama(
+                f, "(injected, el) => injected.focusNode(el, true)",
+                {"objectId": elemento})
+        return self._ritenta(selettore, esegui, stati=[], timeout=timeout)
+
+    def togli_fuoco(self, selettore: str, *, timeout: float = 30.0):
+        def esegui(f, elemento, punto):
+            return self.inj.chiama(
+                f,
+                "(injected, el) => { if (!el.isConnected) return "
+                "'error:notconnected'; el.blur(); return 'done'; }",
+                {"objectId": elemento})
+        return self._ritenta(selettore, esegui, stati=[], timeout=timeout)
+
+    def seleziona_testo(self, selettore: str, *, timeout: float = 30.0):
+        def esegui(f, elemento, punto):
+            r = self.inj.chiama(f, "(injected, el) => injected.selectText(el)",
+                                {"objectId": elemento})
+            if isinstance(r, str) and r.startswith("error:"):
+                raise ErroreValutazione("selectText: %s" % r)
+            return r
+        return self._ritenta(selettore, esegui, stati=["visible"],
+                             timeout=timeout)
+
+    def scegli_opzioni(self, selettore: str, opzioni, *, timeout: float = 30.0):
+        """`select_option`. Le opzioni si danno per valore, etichetta o indice.
+
+        ⛔ E gli eventi `input`/`change` si chiedono al comando FIDATO dopo la
+        mutazione, come per `riempi`: senza, un `<select>` cambia valore e la
+        pagina non lo sa - e se li dispatchasse lo script iniettato uscirebbero
+        con `isTrusted: false`, che e' [B175].
+        """
+        voluti = _normalizza_opzioni(opzioni)
+
+        def esegui(f, elemento, punto):
+            r = self.inj.chiama(
+                f, "(injected, el, o) => injected.selectOptions(el, o)",
+                {"objectId": elemento}, voluti)
+            if isinstance(r, str) and r.startswith("error:"):
+                raise ErroreValutazione("selectOptions: %s" % r)
+            self._eventi_fidati(f, elemento, ["input", "change"])
+            return r
+        return self._ritenta(selettore, esegui,
+                             stati=["visible", "stable", "enabled"],
+                             timeout=timeout)
+
+    def manda_evento(self, selettore: str, tipo: str, dettagli=None, *,
+                     timeout: float = 30.0):
+        """`dispatch_event`.
+
+        ⛔ Questo e' l'UNICO punto del file in cui un evento esce NON fidato, e
+        va detto invece che scoperto: lo costruisce lo script iniettato, quindi
+        `isTrusted` e' falso. E' cio' che l'API di Playwright promette - serve
+        proprio a fabbricare un evento arbitrario - ma non e' un modo di
+        simulare un utente: per quello ci sono `clicca` e `digita_su`, che
+        passano dai comandi del browser.
+        """
+        def esegui(f, elemento, punto):
+            return self.inj.chiama(
+                f, "(injected, el, t, d) => injected.dispatchEvent(el, t, d)",
+                {"objectId": elemento}, tipo, dettagli or {})
+        return self._ritenta(selettore, esegui, stati=[], timeout=timeout)
+
+    def premi_su(self, selettore: str, tasto: str, *, timeout: float = 30.0):
+        """`press`: mette a fuoco e preme, con i modificatori del nome."""
+        def esegui(f, elemento, punto):
+            self.inj.chiama(f, "(injected, el) => injected.focusNode(el, true)",
+                            {"objectId": elemento})
+            self.tastiera.premi(tasto)
+            return tasto
+        return self._ritenta(selettore, esegui,
+                             stati=["visible", "stable", "enabled"],
+                             timeout=timeout)
+
+    def digita_su(self, selettore: str, testo: str, *, timeout: float = 30.0,
+                  ritardo: float = 0.0):
+        """`type`: un tasto per carattere, SENZA svuotare prima.
+
+        ⛔ Non e' `riempi`: quello sostituisce il contenuto, questo lo
+        aggiunge. Scambiarli e' il modo piu' facile di scrivere `pippopluto` in
+        un campo che doveva contenere `pluto`.
+        """
+        def esegui(f, elemento, punto):
+            self.inj.chiama(f, "(injected, el) => injected.focusNode(el, true)",
+                            {"objectId": elemento})
+            self.tastiera.digita(testo, ritardo=ritardo)
+            return testo
+        return self._ritenta(selettore, esegui,
+                             stati=["visible", "stable", "enabled"],
+                             timeout=timeout)
+
+    def imposta_file(self, selettore: str, percorsi, *, timeout: float = 30.0):
+        """`set_input_files`. I percorsi sono ASSOLUTI e li risolve il browser.
+
+        ⛔ Passa da `Page.setFileInputFiles` e non dallo script iniettato: una
+        pagina non puo' costruire un `FileList`, e provarci lascerebbe l'input
+        vuoto senza errore.
+        """
+        def esegui(f, elemento, punto):
+            self.c.manda("Page.setFileInputFiles",
+                         {"frameId": f, "objectId": elemento,
+                          "files": [str(p) for p in percorsi]},
+                         sessione=self.sessione, timeout=30)
+            return list(percorsi)
+        return self._ritenta(selettore, esegui, stati=[], timeout=timeout)
+
+    def tocca(self, selettore: str, *, timeout: float = 30.0):
+        """`tap`. ⛔ Richiede che il contesto abbia il tocco ACCESO: senza,
+        l'evento parte e la pagina non ha `ontouchstart`, quindi non lo
+        ascolta - riesce e non fa niente. Il tocco si accende con
+        `Browser.setTouchOverride`, che e' un'operazione di contesto."""
+        def esegui(f, elemento, punto):
+            self.c.manda("Page.dispatchTapEvent",
+                         {"x": punto[0], "y": punto[1],
+                          "modifiers": self.tastiera.maschera()},
+                         sessione=self.sessione, timeout=10)
             return punto
         return self._ritenta(selettore, esegui, timeout=timeout)
 
-    def clicca(self, selettore: str, *, timeout: float = 30.0, bottone: int = 0):
+    def trascina(self, da: str, a: str, *, timeout: float = 30.0):
+        """`drag_and_drop`, in quattro tempi.
+
+        ⛔ IL PRIMO `mousemove` DOPO IL `mousedown` NON SI SALTA. Gecko fa
+        nascere il trascinamento da un movimento con il bottone premuto: premi
+        e rilascia sul bersaglio, e hai fatto due click. E i due estremi si
+        risolvono SEPARATAMENTE, ciascuno col suo ciclo di ritentativo, perche'
+        prendere il secondo punto prima di aver premuto il primo lo misura su
+        una pagina che sta per cambiare.
+        """
+        partenza = self._ritenta(da, lambda f, el, p: p, timeout=timeout)
+        self._mouse("mousemove", partenza)
+        self._mouse("mousedown", partenza, premuti=MASCHERA_BOTTONI[0], clic=1)
+
         def esegui(f, elemento, punto):
-            # L'ordine e' quello di un utente: ci si avvicina, si preme, si
-            # rilascia. Saltare il mousemove lascia la pagina senza l'hover, e
-            # ci sono siti che aprono il menu proprio li'.
-            self._mouse("mousemove", punto)
-            self._mouse("mousedown", punto, bottone=bottone, premuti=1 << bottone,
-                        clic=1)
-            self._mouse("mouseup", punto, bottone=bottone, premuti=0, clic=1)
+            # Due movimenti: uno fa nascere il trascinamento, il secondo lo
+            # porta sul bersaglio. Con uno solo Gecko a volte non lo avvia.
+            self._mouse("mousemove", punto, premuti=MASCHERA_BOTTONI[0])
+            self._mouse("mousemove", punto, premuti=MASCHERA_BOTTONI[0])
+            self._mouse("mouseup", punto, premuti=0, clic=1)
             return punto
-        return self._ritenta(selettore, esegui, timeout=timeout)
+        try:
+            return self._ritenta(a, esegui, timeout=timeout)
+        except BaseException:
+            # ⛔ Un bottone lasciato giu' avvelena OGNI azione successiva: il
+            # `buttons` di ogni evento dopo direbbe "premuto".
+            self._mouse("mouseup", partenza, premuti=0, clic=1)
+            raise
+
+    # ── il puntatore, per coordinate ────────────────────────────────────────
+    def muovi(self, x: float, y: float, *, passi: int = 1) -> None:
+        """`mouse.move`. Con `passi > 1` interpola, come fa Playwright."""
+        x0, y0 = self.dove
+        for i in range(1, max(1, passi) + 1):
+            self._mouse("mousemove",
+                        (x0 + (x - x0) * i / passi, y0 + (y - y0) * i / passi))
+
+    def giu(self, *, bottone: int = 0, volte: int = 1) -> None:
+        self._mouse("mousedown", self.dove, bottone=bottone,
+                    premuti=MASCHERA_BOTTONI[bottone], clic=volte)
+
+    def su(self, *, bottone: int = 0, volte: int = 1) -> None:
+        self._mouse("mouseup", self.dove, bottone=bottone, premuti=0,
+                    clic=volte)
+
+    def clic(self, x: float, y: float, *, bottone: int = 0, volte: int = 1):
+        self.muovi(x, y)
+        self._clic_qui((x, y), bottone=bottone, volte=volte)
+
+    def rotella(self, dx: float, dy: float) -> None:
+        """`mouse.wheel`, dove il puntatore E' - non a 0,0."""
+        self.c.manda("Page.dispatchWheelEvent",
+                     {"x": self.dove[0], "y": self.dove[1], "deltaX": dx,
+                      "deltaY": dy, "deltaZ": 0,
+                      "modifiers": self.tastiera.maschera()},
+                     sessione=self.sessione, timeout=10)
+
+    def _clic_qui(self, punto, *, bottone: int = 0, volte: int = 1) -> None:
+        """⛔ `clickCount` CRESCE fra i colpi: 1, poi 2. E' quel campo a far
+        nascere `dblclick`, non l'intervallo. E il `buttons` del rilascio e'
+        zero, perche' descrive cosa resta premuto DOPO."""
+        for n in range(1, volte + 1):
+            self._mouse("mousedown", punto, bottone=bottone,
+                        premuti=MASCHERA_BOTTONI[bottone], clic=n)
+            self._mouse("mouseup", punto, bottone=bottone, premuti=0, clic=n)
 
     def riempi(self, selettore: str, testo: str, *, timeout: float = 30.0):
         """Scrive in un campo.
@@ -174,34 +505,39 @@ class Azioni:
     def _mouse(self, tipo: str, punto, *, bottone: int = 0, premuti: int = 0,
                clic: Optional[int] = None, modificatori: int = 0):
         p = {"type": tipo, "x": punto[0], "y": punto[1], "button": bottone,
-             "buttons": premuti, "modifiers": modificatori}
+             "buttons": premuti,
+             # I modificatori vengono dalla TASTIERA se non li impone il
+             # chiamante: un click con Shift giu' deve dirlo, o la pagina vede
+             # un click normale mentre l'utente ne stava facendo un altro.
+             "modifiers": modificatori or self.tastiera.maschera()}
         if clic is not None:
             p["clickCount"] = clic
         self.c.manda("Page.dispatchMouseEvent", p,
                      sessione=self.sessione, timeout=10)
+        self.dove = (punto[0], punto[1])
 
     def _digita(self, testo: str):
-        """⛔ DUE tipi soltanto, e nessuno dei due e' `keypress`.
+        """La digitazione carattere per carattere.
 
-        Letto in `juggler/content/PageAgent.js` `_dispatchKeyEvent`, non
-        dedotto: il ramo conosce `keydown` e `keyup` e su tutto il resto alza
-        `Unknown type <x>`. Un `keypress` - che e' quello che verrebbe da
-        scrivere per abitudine - fa fallire l'intera digitazione.
+        ⛔ E' un rinvio alla tastiera, e la ragione per cui non e' piu' scritto
+        qui e' un difetto misurato: questa funzione mandava `code: ""` e
+        `keyCode: 0` per OGNI carattere. L'evento parte lo stesso, il testo
+        compare nel campo, l'azione riesce e i test passano - mentre la pagina
+        legge un `event.code` vuoto su un tasto che ogni Firefox vero nomina.
+        Il layout vero sta in `keylayout.py`, generato dal bundle.
 
-        E il carattere lo produce il `keydown`: il TextInputProcessor di Gecko
-        lo genera dal `key`. ⛔ Un `keyup` con `text` alza
-        `keyup does not support text option`, quindi il campo va messo solo sul
-        primo dei due.
+        ⛔ E i caratteri che il layout US non ha (un ideogramma, un'emoji) non
+        si DIGITANO: `tastiera.digita` li rifiuta e vanno a `Page.insertText`.
+        Fingere una pressione per un tasto che non esiste e' esattamente il
+        difetto di sopra, in una forma piu' difficile da vedere.
         """
-        for ch in testo:
-            self.c.manda("Page.dispatchKeyEvent",
-                         {"type": "keydown", "key": ch, "code": "", "keyCode": 0,
-                          "location": 0, "repeat": False, "text": ch},
-                         sessione=self.sessione, timeout=10)
-            self.c.manda("Page.dispatchKeyEvent",
-                         {"type": "keyup", "key": ch, "code": "", "keyCode": 0,
-                          "location": 0, "repeat": False},
-                         sessione=self.sessione, timeout=10)
+        try:
+            self.tastiera.digita(testo)
+        except TastoSconosciuto:
+            # ⛔ SOLO questa eccezione, e non `Exception`: un errore di
+            # trasporto a meta' digitazione verrebbe inghiottito e il testo
+            # reinserito da capo, raddoppiando cio' che era gia' entrato.
+            self.tastiera.inserisci(testo)
 
     def _eventi_fidati(self, frame_id: str, elemento: str, tipi: list):
         """⛔ Passa dal comando che il NOSTRO fork ha aggiunto a Juggler.
