@@ -213,6 +213,103 @@ class ScriptIniettato:
             "(injected, el) => el.textContent || ''",
             {"objectId": elemento})
 
+    # ── il gruppo "lettura del DOM" della voce 6 (§6.5) ─────────────────────
+    #
+    # ⛔ Ogni lettura passa dal mondo di UTILITA', quindi dall'Xray. Le stesse
+    # righe eseguite nel mondo MAIN sarebbero contabili da un sito che ha
+    # avvolto l'accessore, ed e' il difetto misurato in §3.9 e §3.10 di
+    # `31-client-fork.md`.
+
+    #: Gli stati che `injected.elementState` conosce davvero, letti nel suo
+    #: codice e non supposti. Chiederne uno fuori da questo insieme torna
+    #: silenziosamente un valore che non vuol dire niente.
+    STATI_NOTI = ("visible", "hidden", "enabled", "disabled", "editable",
+                  "checked", "unchecked", "indeterminate")
+
+    def stato(self, frame_id: str, elemento: str, stato: str) -> bool:
+        """`is_visible`, `is_enabled`, `is_checked` e i loro fratelli."""
+        if stato not in self.STATI_NOTI:
+            raise ValueError("stato sconosciuto: %r (quelli veri sono %s)"
+                             % (stato, ", ".join(self.STATI_NOTI)))
+        r = self.chiama(
+            frame_id,
+            "(injected, el, s) => injected.elementState(el, s)",
+            {"objectId": elemento}, stato)
+        # ⛔ `elementState` NON torna un booleano: torna
+        # `{matches, received}`, e su un nodo staccato `received` e'
+        # `error:notconnected`. Leggerlo come un booleano darebbe `True` per
+        # un dizionario non vuoto, cioe' SEMPRE.
+        if isinstance(r, dict):
+            if isinstance(r.get("received"), str) and \
+                    r["received"].startswith("error:"):
+                raise ErroreValutazione("elementState(%s): %s" % (stato, r["received"]))
+            return bool(r.get("matches"))
+        return bool(r)
+
+    def testo_interno(self, frame_id: str, elemento: str) -> str:
+        return self.chiama(frame_id, "(injected, el) => el.innerText",
+                           {"objectId": elemento})
+
+    def html_interno(self, frame_id: str, elemento: str) -> str:
+        return self.chiama(frame_id, "(injected, el) => el.innerHTML",
+                           {"objectId": elemento})
+
+    def valore(self, frame_id: str, elemento: str) -> str:
+        """`input_value`. ⛔ Vale solo su input, textarea e select: su un div
+        tornerebbe `undefined` in silenzio, quindi si RIFIUTA invece."""
+        return self.chiama(
+            frame_id,
+            "(injected, el) => {"
+            "  const e = injected.retarget(el, 'follow-label');"
+            "  const n = e && e.nodeName.toLowerCase();"
+            "  if (n !== 'input' && n !== 'textarea' && n !== 'select')"
+            "    throw new Error('Node is not an <input>, <textarea> or <select> element');"
+            "  return e.value; }",
+            {"objectId": elemento})
+
+    def attributo(self, frame_id: str, elemento: str, nome: str):
+        """⛔ Un attributo ASSENTE deve tornare `None`, non la stringa vuota:
+        `getAttribute` di per se' torna gia' `null`, ma un valore vuoto e
+        un'assenza sono due cose diverse e chi legge deve poterle distinguere."""
+        return self.chiama(
+            frame_id, "(injected, el, n) => el.getAttribute(n)",
+            {"objectId": elemento}, nome)
+
+    def titolo(self, frame_id: str) -> str:
+        return self.valuta(frame_id, "document.title")
+
+    def contenuto(self, frame_id: str) -> str:
+        """`page.content()`.
+
+        ⛔ Serializza con `outerHTML`, quindi NON entra in nessuno shadow root,
+        nemmeno aperto. E' un limite noto del prodotto: non va promesso
+        altrimenti.
+        """
+        return self.valuta(
+            frame_id,
+            "(document.doctype ? new XMLSerializer()"
+            ".serializeToString(document.doctype) : '')"
+            " + (document.documentElement ? document.documentElement.outerHTML : '')")
+
+    def riquadro(self, frame_id: str, elemento: str):
+        """`bounding_box`: x, y, larghezza, altezza dai quad, o None.
+
+        ⛔ Passa da `Page.getContentQuads` e NON da `getBoundingClientRect`
+        della pagina: quel getter e' del sito, e leggerlo sarebbe contabile.
+        """
+        r = self.c.manda("Page.getContentQuads",
+                         {"frameId": frame_id, "objectId": elemento},
+                         sessione=self.sessione, timeout=10) or {}
+        quads = r.get("quads") or []
+        if not quads:
+            return None
+        punti = [p for q in quads for p in (q["p1"], q["p2"], q["p3"], q["p4"])]
+        x1 = min(p["x"] for p in punti)
+        y1 = min(p["y"] for p in punti)
+        x2 = max(p["x"] for p in punti)
+        y2 = max(p["y"] for p in punti)
+        return {"x": x1, "y": y1, "width": x2 - x1, "height": y2 - y1}
+
     def libera(self, frame_id: str, elemento: str) -> None:
         """Un objectId trattenuto tiene vivo un nodo del DOM della pagina.
 

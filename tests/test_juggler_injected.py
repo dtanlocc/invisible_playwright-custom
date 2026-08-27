@@ -181,6 +181,85 @@ def test_un_javascript_che_LANCIA_arriva_come_errore_non_come_None(firefox_binar
         chiudi()
 
 
+LETTURA = b"""<!doctype html><html><head><title>lettura</title></head><body>
+<div id=t>ciao <b>mondo</b></div>
+<input id=campo value=pippo>
+<input id=spunta type=checkbox checked>
+<button id=spento disabled>no</button>
+<div id=nascosto style=display:none>x</div>
+<a id=link href="/qui">vai</a>
+</body></html>"""
+
+
+@pytest.mark.e2e
+def test_il_gruppo_LETTURA_DEL_DOM(firefox_binary):
+    """Le operazioni della voce 6, gruppo "lettura del DOM" (§6.5)."""
+    c, ciclo, inj, f, chiudi = _apri(firefox_binary, LETTURA)
+    try:
+        assert inj.titolo(f) == "lettura"
+        assert inj.contenuto(f).startswith("<!DOCTYPE html>")
+
+        t = inj.risolvi(f, "#t")
+        assert inj.testo_interno(f, t) == "ciao mondo"
+        assert inj.html_interno(f, t) == "ciao <b>mondo</b>"
+        riq = inj.riquadro(f, t)
+        assert riq and riq["width"] > 0 and riq["height"] > 0, riq
+
+        assert inj.valore(f, inj.risolvi(f, "#campo")) == "pippo"
+
+        link = inj.risolvi(f, "#link")
+        assert inj.attributo(f, link, "href") == "/qui"
+        # ⛔ Un attributo ASSENTE torna None, non la stringa vuota: sono due
+        # cose diverse e chi legge deve poterle distinguere.
+        assert inj.attributo(f, link, "nonesiste") is None
+
+        # un elemento nascosto non ha quad: None, non un riquadro a zero
+        assert inj.riquadro(f, inj.risolvi(f, "#nascosto")) is None
+    finally:
+        chiudi()
+
+
+@pytest.mark.e2e
+def test_gli_stati_DISTINGUONO_invece_di_dire_sempre_vero(firefox_binary):
+    """⛔ IL SECONDO NOTO-CATTIVO DI QUESTO FILE.
+
+    `injected.elementState` NON torna un booleano: torna
+    `{matches, received}`. Leggerlo come un booleano darebbe `True` sempre,
+    perche' un dizionario non vuoto e' vero - e ogni elemento risulterebbe
+    visibile, abilitato e spuntato. Un controllo che dice sempre si' non e' un
+    controllo.
+    """
+    c, ciclo, inj, f, chiudi = _apri(firefox_binary, LETTURA)
+    try:
+        assert inj.stato(f, inj.risolvi(f, "#t"), "visible") is True
+        assert inj.stato(f, inj.risolvi(f, "#nascosto"), "visible") is False
+        assert inj.stato(f, inj.risolvi(f, "#nascosto"), "hidden") is True
+        assert inj.stato(f, inj.risolvi(f, "#spento"), "disabled") is True
+        assert inj.stato(f, inj.risolvi(f, "#spento"), "enabled") is False
+        assert inj.stato(f, inj.risolvi(f, "#spunta"), "checked") is True
+        assert inj.stato(f, inj.risolvi(f, "#campo"), "editable") is True
+    finally:
+        chiudi()
+
+
+@pytest.mark.e2e
+def test_le_letture_che_non_hanno_senso_RIFIUTANO(firefox_binary):
+    """Un `input_value` su un div e uno stato inventato tornerebbero
+    `undefined` in silenzio. Un valore che non vuol dire niente e' peggio di
+    un errore, perche' prosegue."""
+    c, ciclo, inj, f, chiudi = _apri(firefox_binary, LETTURA)
+    try:
+        with pytest.raises(ini.ErroreValutazione) as e:
+            inj.valore(f, inj.risolvi(f, "#t"))
+        assert "input" in str(e.value)
+
+        with pytest.raises(ValueError) as e2:
+            inj.stato(f, inj.risolvi(f, "#t"), "quandoMiPare")
+        assert "sconosciuto" in str(e2.value)
+    finally:
+        chiudi()
+
+
 @pytest.mark.e2e
 def test_IL_NOSTRO_CLIENT_NON_ATTRAVERSA_nel_realm_della_pagina(firefox_binary):
     """La verifica che conta piu' di tutte.
