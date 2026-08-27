@@ -27,6 +27,7 @@ hard failure. Everything here creates first and returns the channel second.
 from __future__ import annotations
 
 import json
+import pathlib
 import tempfile
 import threading
 import time
@@ -177,6 +178,9 @@ class ElementHandleDispatcher(Dispatcher):
         "scrollIntoViewIfNeeded": "op_scroll_into_view",
         "ownerFrame": "op_owner_frame",
         "contentFrame": "op_content_frame",
+        "getProperty": "op_get_property",
+        "getPropertyList": "op_get_property_list",
+        "jsonValue": "op_json_value",
     }
 
     def __init__(self, server, frame: "FrameDispatcher", object_id: str,
@@ -235,6 +239,37 @@ class ElementHandleDispatcher(Dispatcher):
     def op_get_attribute(self, params: Dict) -> Any:
         return {"value": self.page.injected.get_attribute(
             self.frame.frame_id, self.object_id, params["name"])}
+
+    def op_get_property(self, params: Dict) -> Any:
+        object_id = self.page.injected.call(
+            self.frame.frame_id,
+            "(injected, o, n) => o[n]",
+            {"objectId": self.object_id}, params["name"], by_value=False)
+        handle = ElementHandleDispatcher(self.server, self.frame, object_id)
+        return {"handle": handle.channel}
+
+    def op_get_property_list(self, params: Dict) -> Any:
+        """⛔ ONE HANDLE PER PROPERTY, and each one holds its value alive. On a
+        large object this is the most expensive call in the file, which is why
+        `json_value` exists and should be preferred when the values are
+        serialisable."""
+        names = self.page.injected.call(
+            self.frame.frame_id,
+            "(injected, o) => o === Object(o) ? Object.keys(o) : []",
+            {"objectId": self.object_id}) or []
+        out = []
+        for name in names:
+            object_id = self.page.injected.call(
+                self.frame.frame_id, "(injected, o, n) => o[n]",
+                {"objectId": self.object_id}, name, by_value=False)
+            handle = ElementHandleDispatcher(self.server, self.frame, object_id)
+            out.append({"name": name, "value": handle.channel})
+        return {"properties": out}
+
+    def op_json_value(self, params: Dict) -> Any:
+        return {"value": _serialize(self.page.injected.call(
+            self.frame.frame_id, "(injected, o) => o",
+            {"objectId": self.object_id}))}
 
     def op_scroll_into_view(self, params: Dict) -> Any:
         """⛔ [B184]: this does not work in the shipped engine, and it does not
@@ -349,6 +384,8 @@ class FrameDispatcher(Dispatcher):
         "dragAndDrop": "op_drag_and_drop",
         "frameElement": "op_frame_element",
         "expect": "op_expect",
+        "waitForElementState": "op_wait_for_element_state",
+        "setTestIdAttributeName": "op_set_test_id",
     }
 
     def __init__(self, server, page: "PageDispatcher", frame_id: str,
@@ -627,6 +664,19 @@ class FrameDispatcher(Dispatcher):
         raise ProtocolException(
             "expect(%r) is not implemented yet" % expression)
 
+    def op_wait_for_element_state(self, params: Dict) -> Any:
+        self.page.actions.wait_for_selector(
+            params["selector"], state=params["state"],
+            timeout=self._timeout(params))
+        return None
+
+    def op_set_test_id(self, params: Dict) -> Any:
+        raise ProtocolException(
+            "set_test_id_attribute() cannot be honoured after the injected "
+            "script is built: the attribute name is baked into it at "
+            "construction. Pass it when the page is created instead of "
+            "changing it mid-session")
+
     # ── frames as objects ───────────────────────────────────────────────────
     def op_frame_element(self, params: Dict) -> Any:
         raise ProtocolException(
@@ -854,6 +904,13 @@ class PageDispatcher(Dispatcher):
         "emulateMedia": "op_emulate_media",
         "screenshot": "op_screenshot",
         "bringToFront": "op_bring_to_front",
+        "requestGC": "op_request_gc",
+        "addScriptTag": "op_add_script_tag",
+        "addStyleTag": "op_add_style_tag",
+        "consoleMessages": "op_console_messages",
+        "pageErrors": "op_page_errors",
+        "clearConsoleMessages": "op_clear_console_messages",
+        "clearPageErrors": "op_clear_page_errors",
     }
 
     def __init__(self, server, context: "BrowserContextDispatcher",
@@ -868,6 +925,11 @@ class PageDispatcher(Dispatcher):
         self.actions = Actions(conn, session, self.lifecycle, self.injected)
         self._frames: Dict[str, Any] = {}
         self._requests: Dict[str, Any] = {}
+        # ⛔ CAPPED, and that is not a detail: a page printing in a loop
+        # would exhaust the memory of the process DRIVING it. Playwright keeps
+        # the same logs and caps them for the same reason.
+        self._console_log: List[Dict] = []
+        self._error_log: List[Dict] = []
         self.main_frame_id = self.lifecycle.wait_for_main_frame(timeout=20.0)
         # ⛔ The Frame is created BEFORE the Page and adopted after: the Page
         # initializer has to name a mainFrame the client can already resolve.
@@ -919,6 +981,18 @@ class PageDispatcher(Dispatcher):
 
     def _on_juggler_event(self, method: str, params: Dict) -> None:
         if method == "Runtime.console":
+            # ⛔ THE LOG FILLS HERE, not inside `console_messages()`. A log
+            # filled on request can only ever hold what arrived AFTER the
+            # request, which is nothing: `page.console_messages()` would always
+            # answer an empty list and look like a page that prints nothing.
+            entry = {
+                "page": self.channel,
+                "type": params.get("type") or "log",
+                "text": _console_text(params.get("args") or []),
+                "args": [],
+                "location": _location(params.get("location")),
+            }
+            self._remember(self._console_log, entry)
             self.context.emit("console", {
                 "page": self.channel,
                 "type": params.get("type") or "log",
@@ -927,6 +1001,15 @@ class PageDispatcher(Dispatcher):
                 "location": _location(params.get("location")),
             })
         elif method == "Page.uncaughtError":
+            self._remember(self._error_log, {
+                "page": self.channel,
+                "error": {"error": {
+                    "name": "Error",
+                    "message": params.get("message") or "",
+                    "stack": params.get("stack") or "",
+                }},
+                "location": _location(params.get("location")),
+            })
             self.context.emit("pageError", {
                 "page": self.channel,
                 "error": {"error": {
@@ -995,6 +1078,18 @@ class PageDispatcher(Dispatcher):
                     "name": params.get("name") or "",
                     "newDocument": {"request": None},
                 })
+
+    #: How many entries are kept. ⛔ A CAP, not a history: a page printing in
+    #: a loop would exhaust the memory of the process DRIVING it, and a driver
+    #: that dies because the page printed too much is a failure nobody will
+    #: look for in the page.
+    LOG_LIMIT = 500
+
+    @staticmethod
+    def _remember(log: list, entry: Dict) -> None:
+        log.append(entry)
+        if len(log) > PageDispatcher.LOG_LIMIT:
+            del log[0]
 
     def frame_for(self, frame_id: str) -> "FrameDispatcher":
         """The dispatcher for a frame of this page, made on first sight.
@@ -1164,6 +1259,94 @@ class PageDispatcher(Dispatcher):
         # ⛔ BASE64 IN, BASE64 OUT. The client decodes it; decoding here and
         # handing back bytes puts a str() of a bytes object in the answer.
         return {"binary": result.get("data")}
+
+    # ── page-level odds and ends ────────────────────────────────────────────
+    def op_request_gc(self, params: Dict) -> Any:
+        """⛔ `Heap.collectGarbage` really does collect, and it is SLOW - it was
+        once used as a "bare command" to measure transport latency and reported
+        26,8 ms of browser work as if it were ours. It is the right command
+        here, and the wrong one to benchmark with."""
+        self.context.browser.conn.send("Heap.collectGarbage", {}, timeout=30)
+        return None
+
+    def _add_tag(self, params: Dict, tag: str) -> Any:
+        """`add_script_tag` / `add_style_tag`.
+
+        ⛔ THE MAIN WORLD, and that is the whole correctness of this method. A
+        tag appended from the utility world would execute BEHIND THE XRAY: it
+        would define nothing the page can see, which is the exact opposite of
+        what these two functions promise. The utility world is right for
+        everything we read and wrong for the one thing the caller wants the
+        page itself to run.
+
+        ⛔ AND A `url` HAS TO BE AWAITED. Appending a `<script src=...>` and
+        returning immediately hands back a handle to a tag whose code has not
+        run yet, so the very next `evaluate` does not see what it defines. The
+        load is awaited here, and a failure to load RAISES rather than
+        answering an element that does nothing.
+        """
+        url = params.get("url")
+        content = params.get("content")
+        path = params.get("path")
+        if path:
+            content = pathlib.Path(path).read_text(encoding="utf-8")
+        if url is None and content is None:
+            raise ProtocolException(
+                "add_%s_tag needs one of url, path or content" % tag)
+
+        if tag == "script":
+            build = ("const el = document.createElement('script');"
+                          " el.type = 'text/javascript';")
+            attribute = "src"
+        else:
+            build = ("const el = document.createElement('style');"
+                          " el.type = 'text/css';")
+            attribute = "href"
+            if url is not None:
+                build = ("const el = document.createElement('link');"
+                              " el.rel = 'stylesheet';")
+
+        if url is not None:
+            body = (
+                "(async () => { %s"
+                "  el.%s = %s;"
+                "  const done = new Promise((ok, no) => {"
+                "    el.onload = ok;"
+                "    el.onerror = () => no(new Error('failed to load ' + %s));"
+                "  });"
+                "  (document.head || document.documentElement).appendChild(el);"
+                "  await done; return el; })()"
+                % (build, attribute, _js_string(url), _js_string(url)))
+        else:
+            body = (
+                "(() => { %s el.textContent = %s;"
+                "  (document.head || document.documentElement).appendChild(el);"
+                "  return el; })()" % (build, _js_string(content)))
+
+        object_id = self.injected.evaluate_in_main(
+            self.frame.frame_id, body, by_value=False)
+        handle = ElementHandleDispatcher(self.server, self.frame, object_id)
+        return {"element": handle.channel}
+
+    def op_add_script_tag(self, params: Dict) -> Any:
+        return self._add_tag(params, "script")
+
+    def op_add_style_tag(self, params: Dict) -> Any:
+        return self._add_tag(params, "style")
+
+    def op_console_messages(self, params: Dict) -> Any:
+        return {"messages": list(self._console_log)}
+
+    def op_page_errors(self, params: Dict) -> Any:
+        return {"errors": list(self._error_log)}
+
+    def op_clear_console_messages(self, params: Dict) -> Any:
+        self._console_log.clear()
+        return None
+
+    def op_clear_page_errors(self, params: Dict) -> Any:
+        self._error_log.clear()
+        return None
 
     def op_bring_to_front(self, params: Dict) -> Any:
         self.send("Page.bringToFront", {})
