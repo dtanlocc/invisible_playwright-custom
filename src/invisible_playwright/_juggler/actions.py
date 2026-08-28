@@ -190,13 +190,31 @@ class Actions:
         `31-client-fork.md` §3.9. In the page world they would be
         countable.
         """
+        # ⛔ THE PRELIMINARY POINT ONLY IN THE MAIN FRAME, and the reason is a
+        # coordinate space, not a preference. `Page.getContentQuads` answers in
+        # the MAIN frame's space - `getBoxQuads({relativeTo: mainFrame})`, read
+        # in `PageAgent.js` - which is exactly what `dispatchMouseEvent` wants.
+        # But the interceptor runs inside the TARGET frame's document, and its
+        # preliminary `expectHitTarget(hitPoint, el)` calls `elementFromPoint`
+        # THERE. Handing it a main-frame point inside a nested iframe asks the
+        # child about a coordinate that means something else, and it answers
+        # `<html>` - measured as `the event would have landed elsewhere` on an
+        # element that was sitting right under the pointer.
+        #
+        # Passing null skips only the check BEFORE the event. The listener
+        # still validates each event as it arrives, using the event's OWN
+        # clientX/clientY, which are already in the right document. The
+        # guarantee is unchanged; a covered element in a child frame is caught
+        # at dispatch time instead of a moment earlier.
+        in_main = f == self.lifecycle.main_frame
         h = self.inj.call(
             f,
             "(injected, el, a, p) => {"
             "  const r = injected.setupHitTargetInterceptor(el, a, p, false);"
             "  return typeof r === 'string' ? {error: r} : {stop: r.stop}; }",
             {"objectId": element}, kind,
-            {"x": point[0], "y": point[1]}, by_value=False)
+            {"x": point[0], "y": point[1]} if in_main else None,
+            by_value=False)
         try:
             failure = self.inj.call(f, "(injected, h) => h.error || ''",
                                     {"objectId": h})
@@ -218,7 +236,7 @@ class Actions:
 
     # ── waiting ─────────────────────────────────────────────────────────────
     def wait_for_selector(self, selector: str, *, state: str = "visible",
-                          timeout: float = 30.0):
+                          timeout: float = 30.0, frame_id: Optional[str] = None):
         """Waits for a selector to reach a state, and returns its handle.
 
         ⛔ THE HANDLE IS NOT DISPOSED HERE, and that is deliberate: the caller
@@ -233,7 +251,7 @@ class Actions:
         all, so those two are handled here rather than asked of a function that
         would reject them.
         """
-        frame = self.lifecycle.main_frame
+        frame = frame_id or self.lifecycle.main_frame
         if frame is None:
             raise RuntimeError("no main frame: the page is not ready")
         deadline = time.monotonic() + timeout
@@ -264,14 +282,14 @@ class Actions:
             time.sleep(0.05)
 
     # ── the actions ─────────────────────────────────────────────────────────
-    def hover(self, selector: str, *, timeout: float = 30.0):
+    def hover(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         def run(f, element, point):
             return self._with_hit_target(
                 f, element, point, "hover",
                 lambda: self._mouse_event("mousemove", point) or point)
-        return self._retry(selector, run, timeout=timeout)
+        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
 
-    def click(self, selector: str, *, timeout: float = 30.0, button: int = 0,
+    def click(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None, button: int = 0,
               clicks: int = 1):
         def run(f, element, point):
             def act():
@@ -283,9 +301,9 @@ class Actions:
                 self._click_at_point(point, button=button, clicks=clicks)
                 return point
             return self._with_hit_target(f, element, point, "mouse", act)
-        return self._retry(selector, run, timeout=timeout)
+        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
 
-    def dblclick(self, selector: str, *, timeout: float = 30.0,
+    def dblclick(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
                  button: int = 0):
         """⛔ These are NOT two `click`s in a row: the second one must carry
         `clickCount: 2`, and it's that field - not the interval between the
@@ -296,10 +314,10 @@ class Actions:
         return self.click(selector, timeout=timeout, button=button,
                           clicks=2)
 
-    def check(self, selector: str, *, timeout: float = 30.0):
+    def check(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         return self._set_checked(selector, True, timeout=timeout)
 
-    def uncheck(self, selector: str, *, timeout: float = 30.0):
+    def uncheck(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         return self._set_checked(selector, False, timeout=timeout)
 
     def _set_checked(self, selector: str, wanted: bool, *, timeout: float):
@@ -332,9 +350,9 @@ class Actions:
                     "the click or put the value back"
                     % ("unchecked" if wanted else "checked"))
             return state
-        return self._retry(selector, run, timeout=timeout)
+        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
 
-    def focus(self, selector: str, *, timeout: float = 30.0):
+    def focus(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """⛔ Does NOT require `visible`: `focus()` works on an off-screen
         element, and imposing the pointer states would time out an action
         that would have succeeded. Playwright does the same."""
@@ -342,18 +360,18 @@ class Actions:
             return self.inj.call(
                 f, "(injected, el) => injected.focusNode(el, true)",
                 {"objectId": element})
-        return self._retry(selector, run, states=[], timeout=timeout)
+        return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id)
 
-    def blur(self, selector: str, *, timeout: float = 30.0):
+    def blur(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         def run(f, element, point):
             return self.inj.call(
                 f,
                 "(injected, el) => { if (!el.isConnected) return "
                 "'error:notconnected'; el.blur(); return 'done'; }",
                 {"objectId": element})
-        return self._retry(selector, run, states=[], timeout=timeout)
+        return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id)
 
-    def select_text(self, selector: str, *, timeout: float = 30.0):
+    def select_text(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         def run(f, element, point):
             r = self.inj.call(f, "(injected, el) => injected.selectText(el)",
                               {"objectId": element})
@@ -361,9 +379,9 @@ class Actions:
                 raise EvaluationError("selectText: %s" % r)
             return r
         return self._retry(selector, run, states=["visible"],
-                           timeout=timeout)
+                           timeout=timeout, frame_id=frame_id)
 
-    def select_option(self, selector: str, options, *, timeout: float = 30.0):
+    def select_option(self, selector: str, options, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """`select_option`. Options are given by value, label or index.
 
         ⛔ And the `input`/`change` events are requested from the TRUSTED
@@ -384,10 +402,10 @@ class Actions:
             return r
         return self._retry(selector, run,
                            states=["visible", "stable", "enabled"],
-                           timeout=timeout)
+                           timeout=timeout, frame_id=frame_id)
 
     def dispatch_event(self, selector: str, event_type: str, detail=None, *,
-                       timeout: float = 30.0):
+                       timeout: float = 30.0, frame_id: Optional[str] = None):
         """`dispatch_event`.
 
         ⛔ This is the ONLY spot in the file where an event comes out NOT
@@ -402,9 +420,9 @@ class Actions:
             return self.inj.call(
                 f, "(injected, el, t, d) => injected.dispatchEvent(el, t, d)",
                 {"objectId": element}, event_type, detail or {})
-        return self._retry(selector, run, states=[], timeout=timeout)
+        return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id)
 
-    def press(self, selector: str, key: str, *, timeout: float = 30.0):
+    def press(self, selector: str, key: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """`press`: focuses and presses, with the modifiers from the name."""
         def run(f, element, point):
             self.inj.call(f, "(injected, el) => injected.focusNode(el, true)",
@@ -413,9 +431,9 @@ class Actions:
             return key
         return self._retry(selector, run,
                            states=["visible", "stable", "enabled"],
-                           timeout=timeout)
+                           timeout=timeout, frame_id=frame_id)
 
-    def type_text(self, selector: str, text: str, *, timeout: float = 30.0,
+    def type_text(self, selector: str, text: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
                   delay: float = 0.0):
         """`type`: one key per character, WITHOUT clearing first.
 
@@ -430,9 +448,9 @@ class Actions:
             return text
         return self._retry(selector, run,
                            states=["visible", "stable", "enabled"],
-                           timeout=timeout)
+                           timeout=timeout, frame_id=frame_id)
 
-    def set_input_files(self, selector: str, files, *, timeout: float = 30.0):
+    def set_input_files(self, selector: str, files, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """`set_input_files`. The paths are ABSOLUTE and the browser
         resolves them.
 
@@ -446,9 +464,9 @@ class Actions:
                          "files": [str(p) for p in files]},
                         session=self.session, timeout=30)
             return list(files)
-        return self._retry(selector, run, states=[], timeout=timeout)
+        return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id)
 
-    def tap(self, selector: str, *, timeout: float = 30.0):
+    def tap(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """`tap`. ⛔ Requires the context to have touch TURNED ON: without
         it, the event fires and the page has no `ontouchstart`, so it
         doesn't listen for it - it succeeds and does nothing. Touch is
@@ -460,7 +478,7 @@ class Actions:
                          "modifiers": self.keyboard.modifier_mask()},
                         session=self.session, timeout=10)
             return point
-        return self._retry(selector, run, timeout=timeout)
+        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
 
     def drag_and_drop(self, source: str, target: str, *,
                       timeout: float = 30.0):
@@ -473,7 +491,7 @@ class Actions:
         own retry loop, because taking the second point before pressing
         the first would measure it on a page that is about to change.
         """
-        start = self._retry(source, lambda f, el, p: p, timeout=timeout)
+        start = self._retry(source, lambda f, el, p: p, timeout=timeout, frame_id=frame_id)
         self._mouse_event("mousemove", start)
         self._mouse_event("mousedown", start, buttons=BUTTON_MASK[0],
                           click_count=1)
@@ -487,7 +505,7 @@ class Actions:
             self._mouse_event("mouseup", point, buttons=0, click_count=1)
             return point
         try:
-            return self._retry(target, run, timeout=timeout)
+            return self._retry(target, run, timeout=timeout, frame_id=frame_id)
         except BaseException:
             # ⛔ A button left down poisons EVERY subsequent action: the
             # `buttons` field of every event after would say "pressed".
@@ -537,7 +555,7 @@ class Actions:
             self._mouse_event("mouseup", point, button=button, buttons=0,
                               click_count=n)
 
-    def fill(self, selector: str, text: str, *, timeout: float = 30.0):
+    def fill(self, selector: str, text: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """Writes into a field.
 
         ⛔ It doesn't just write `element.value = ...`: a site listening
@@ -570,7 +588,7 @@ class Actions:
         return self._retry(selector, run,
                            states=["visible", "stable", "enabled",
                                    "editable"],
-                           timeout=timeout)
+                           timeout=timeout, frame_id=frame_id)
 
     # ── the tools ───────────────────────────────────────────────────────────
     def _mouse_event(self, event_type: str, point, *, button: int = 0,

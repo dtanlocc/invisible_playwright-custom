@@ -271,14 +271,37 @@ def _spawn_windows(executable, argv, env):
 
 
 def _spawn_posix(executable, argv, env):
+    """⛔ NEVER RUN. This leg has no measurement behind it - see below.
+
+    The Windows leg is exercised by every test in this suite; this one has
+    only ever been read. What follows is written so that whoever runs it first
+    knows exactly which two things to suspect, instead of starting from
+    `the browser did not start`.
+    """
     its_read, our_write = os.pipe()
     our_read, its_write = os.pipe()
 
     def fix_descriptors():
         # On POSIX the numbers are HARDWIRED in the C++: 3 for reading,
-        # 4 for writing.
-        os.dup2(its_read, 3)
-        os.dup2(its_write, 4)
+        # 4 for writing. `nsRemoteDebuggingPipe.cpp` does not look them up.
+        #
+        # ⛔ THE FD NUMBERS 3 AND 4 ARE NOT IN `pass_fds`, AND CANNOT BE. That
+        # list names the fds the parent hands down; these two are created HERE,
+        # after the fork, by dup2. Whether they survive depends on the order
+        # CPython does things in `child_exec()` - if it closes unlisted
+        # descriptors after `preexec_fn`, they are closed again before exec and
+        # the browser starts with nothing on 3 and 4.
+        #
+        # `dup2` clears CLOEXEC on the NEW descriptor, which is what saves this
+        # in the ordinary case - but only when the source and target differ.
+        # `dup2(fd, fd)` is documented to be a no-op that does NOT clear it, so
+        # a pipe that happens to land on 3 or 4 would be closed at exec while
+        # every other run works. The explicit `set_inheritable` below removes
+        # that difference instead of relying on which fds the OS handed out.
+        for source, target in ((its_read, 3), (its_write, 4)):
+            if source != target:
+                os.dup2(source, target)
+            os.set_inheritable(target, True)
 
     p = subprocess.Popen([executable] + argv, env=env,
                          preexec_fn=fix_descriptors,
