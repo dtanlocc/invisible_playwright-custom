@@ -38,8 +38,16 @@ START = re.compile(r"USKeyboardLayout\s*=\s*\{")
 #: The escapes the bundle actually uses. Whatever is not here is
 #: passed through as-is, which is the right behavior for `\'` and
 #: `\"`: the escape disappears and the character remains.
-ESCAPES = {"n": "\n", "r": "\r", "t": "\t", "b": "\b", "f": "\f",
-           "0": "\0", chr(92): chr(92)}
+#:
+#: ⛔ SPELLED WITH `chr()`, and not because it reads better. A literal that
+#: EVALUATES to a control character is the same defect class as a Windows path
+#: written in a non-raw string: the bytes on disk look fine and the value the
+#: program uses is a formfeed. `test_marker_vocabulary.py` reads the resolved
+#: value with `ast` precisely to catch that, and it caught this table -
+#: correctly, because nothing here distinguishes a deliberate 0x08 from an
+#: accidental one except saying so.
+ESCAPES = {"n": chr(10), "r": chr(13), "t": chr(9), "b": chr(8),
+           "f": chr(12), "0": chr(0), chr(92): chr(92)}
 
 
 class ExtractionFailed(RuntimeError):
@@ -159,6 +167,14 @@ def render(data: dict) -> str:
     body = json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False)
     body = body.replace("true", "True").replace("false", "False") \
                .replace(": null", ": None")
+    # ⛔ A control character in the DATA becomes `chr(n)`, never an escape.
+    # `NumpadDecimal` really carries a NUL as its `key` upstream, and written
+    # as an escape the generated file holds a literal that EVALUATES to 0x00 -
+    # the defect class `test_marker_vocabulary.py` exists to catch, and it
+    # cannot tell a deliberate NUL from a mangled Windows path. The pattern is
+    # built from `chr(92)` so this source has no backslash of its own.
+    body = re.sub(chr(92) + r'"' + chr(92) + chr(92) + r'u000([0-9a-fA-F])"',
+                  lambda m: "chr(%d)" % int(m.group(1), 16), body)
     return (
         '"""The US keyboard layout, EXTRACTED from the driver bundle.\n'
         "\n"

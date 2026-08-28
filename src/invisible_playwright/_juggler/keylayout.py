@@ -473,7 +473,7 @@ LAYOUT = {
         "location": 3
     },
     "NumpadDecimal": {
-        "key": "\u0000",
+        "key": chr(0),
         "keyCode": 46,
         "location": 3,
         "shiftKey": ".",
