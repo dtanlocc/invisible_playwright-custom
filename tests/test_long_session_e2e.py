@@ -65,7 +65,7 @@ _SPECIMENS = (
     "The quick brown fox jumps over the lazy dog 0123456789",
     "Nel mezzo del cammin di nostra vita mi ritrovai",
     "你好世界 こんにちは",
-    "éàîõü — ❤ ✈ ☀",
+    "éàîõü - ❤ ✈ ☀",
 )
 
 

@@ -127,13 +127,25 @@ def main() -> int:
         juggler.update(run_one("juggler", a.binary, path, extra))
 
     names = sorted(set(driver) | set(juggler))
-    ok = both_fail = only_ours = only_theirs = 0
+    ok = both_fail = only_ours = only_theirs = not_run = 0
     rows = []
     for name in names:
         d = driver.get(name, "ABSENT")
         j = juggler.get(name, "ABSENT")
         good = ("PASSED", "XFAIL", "SKIPPED")
-        if d in good and j in good:
+        # ⛔ A TEST THE OTHER ARM NEVER RAN IS NOT A TEST THE OTHER ARM
+        # FAILED, and folding the two was making this gate lie in the
+        # comfortable direction. The driver arm imports an OLD `src/`, so any
+        # test file naming something added since that commit fails to COLLECT
+        # there and every test in it comes back ABSENT. Counted as "only the
+        # driver fails", they printed under "ours is BETTER here" - measured
+        # 2026-08-28 at 32 of them, essentially all of that kind. The number
+        # grows on its own as this tree moves, which is the property that
+        # turns a gate into decoration.
+        if "ABSENT" in (d, j) and not (d in good and j in good):
+            not_run += 1
+            rows.append(("NOT RUN", name, d, j))
+        elif d in good and j in good:
             ok += 1
         elif d not in good and j not in good:
             both_fail += 1
@@ -158,6 +170,15 @@ def main() -> int:
           % only_ours)
     print("only the DRIVER fails      %d   <- ours is BETTER here, verify why"
           % only_theirs)
+    print("never ran on one arm       %d   <- NOT a comparison: the old arm "
+          "could not collect these" % not_run)
+    if not_run:
+        print()
+        print("  WARNING: %d of the rows above were never compared at all. The driver "
+              "arm's `src/` is a worktree that ages: a test naming anything "
+              "added since it was cut fails to collect there. When this number "
+              "approaches the total, this gate has stopped answering its own "
+              "question and the worktree needs re-cutting." % not_run)
     print()
     if only_ours:
         print("VERDICT: not ready to delete the driver. %d tests pass through "
