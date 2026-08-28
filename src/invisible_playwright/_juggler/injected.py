@@ -54,14 +54,22 @@ class InjectedScript:
         self.contexts: dict = {}
         #: frameId -> objectId of the InjectedScript
         self._handle: dict = {}
-        previous = connection.on_event
+        #: The caller's own init scripts, in the order they were added. Kept
+        #: here because this object is the one that owns the engine's init
+        #: script list - see `_push_scripts`.
+        self._init_scripts: list = []
+        # ⛔ Registered on the connection's list, never chained onto whoever
+        # was there before: see the note in `Connection._listeners`.
+        connection.add_listener(self._route)
 
-        def route(method, params, event_session):
-            if event_session == self.session:
-                self._on_event(method, params)
-            previous(method, params, event_session)
+    def _route(self, method: str, params: dict,
+               event_session: Optional[str]) -> None:
+        if event_session == self.session:
+            self._on_event(method, params)
 
-        connection.on_event = route
+    def detach(self) -> None:
+        """Stop listening. Called when the page this belongs to goes away."""
+        self.c.remove_listener(self._route)
 
     def _on_event(self, method: str, p: dict) -> None:
         if method == "Runtime.executionContextCreated":
@@ -85,9 +93,47 @@ class InjectedScript:
         """Creates the utility world. An EMPTY script is enough: what
         matters is the `worldName`, which is the only thing that makes
         the context come into being."""
-        self.c.send("Page.setInitScripts",
-                    {"scripts": [{"script": "", "worldName": UTILITY_WORLD}]},
+        self._push_scripts()
+
+    def _push_scripts(self) -> None:
+        """Send the WHOLE list, because the command replaces it.
+
+        ⛔ ONE PLACE OWNS THIS LIST. `Page.setInitScripts` takes the complete
+        set and replaces whatever was there, so a second caller that sends only
+        its own script deletes the utility world - and the utility world is
+        what every selector, every actionability check and every evaluation in
+        this package runs in. The failure would not look like a lost init
+        script: it would look like the browser having no DOM.
+        """
+        scripts = [{"script": "", "worldName": UTILITY_WORLD}]
+        scripts += [{"script": s} for s in self._init_scripts]
+        self.c.send("Page.setInitScripts", {"scripts": scripts},
                     session=self.session)
+
+    def add_init_script(self, source: str) -> None:
+        """A script the caller wants run before anything on every document.
+
+        ⛔ APPENDED, never replacing. Playwright's `add_init_script` is
+        cumulative by contract - callers add a stub, then another - and the
+        engine's command is not, so the accumulation has to live here.
+
+        ⛔ IN THE MAIN WORLD, with no `worldName`. The point of a caller's
+        init script is to be seen BY THE PAGE; putting it in the utility world
+        would run it behind the Xray, where the page cannot see anything it
+        defines, and the call would succeed while doing nothing observable.
+        """
+        self._init_scripts.append(source)
+        self._push_scripts()
+
+    def remove_init_script(self, source: str) -> None:
+        """Undo one. Removes ONE occurrence, not every copy.
+
+        ⛔ The same source added twice is two scripts by Playwright's
+        contract, and disposing one handle must leave the other alive.
+        """
+        if source in self._init_scripts:
+            self._init_scripts.remove(source)
+            self._push_scripts()
 
     def context_id(self, frame_id: str, *, timeout: float = 10.0) -> str:
         key = (frame_id, UTILITY_WORLD)
@@ -251,6 +297,37 @@ class InjectedScript:
             if object_id:
                 ids.append(object_id)
         return ids
+
+    def scroll_into_view(self, frame_id: str, element: str) -> bool:
+        """Bring the element into the viewport, and say whether it moved.
+
+        ⛔ IT WAS MISSING, AND THAT IS WHY A CLICK BELOW THE FOLD FAILED. The
+        retry loop asked whether the element was visible, stable and enabled -
+        all true for something 3000 px down the page - then computed its point
+        from `getContentQuads`, which answers in main-frame coordinates. The
+        event was dispatched at a y outside the viewport, landed on nothing,
+        and the hit-target check reported `<html>` several hundred times before
+        the deadline. Playwright scrolls as part of actionability; we did not.
+
+        ⛔ `scrollIntoView`, called FROM THE UTILITY WORLD. Scrolling is
+        page-visible by construction - a real user scrolls - so there is
+        nothing to hide here; what the world buys is that the call goes to the
+        NATIVE method through the Xray rather than to whatever the site may
+        have replaced it with.
+
+        ⛔ `block: "center"` rather than the default `"start"`: an element
+        flush against the top edge is a point that a sticky header covers on a
+        great many pages, and the interceptor would then correctly report that
+        the event lands elsewhere.
+        """
+        return bool(self.call(
+            frame_id,
+            "(injected, el) => {"
+            " const before = el.getBoundingClientRect().top;"
+            " el.scrollIntoView({block: 'center', inline: 'center',"
+            "                    behavior: 'instant'});"
+            " return el.getBoundingClientRect().top !== before; }",
+            {"objectId": element}))
 
     def element_states(self, frame_id: str, element: str,
                        states: list) -> dict:
@@ -423,6 +500,63 @@ class InjectedScript:
         x2 = max(p["x"] for p in points)
         y2 = max(p["y"] for p in points)
         return {"x": x1, "y": y1, "width": x2 - x1, "height": y2 - y1}
+
+    def frame_of_context(self, context_id: str):
+        """Which frame owns this execution context, or None.
+
+        ⛔ The registry is keyed the other way round - (frame, world) to
+        context - because that is the direction every other caller needs. This
+        is the one caller that arrives holding a context id and nothing else:
+        `Page.fileChooserOpened` names the context the input lives in and never
+        names the frame, so without this inversion the element could only be
+        assumed to be in the main frame, which is wrong the moment a form sits
+        in an iframe.
+        """
+        for (frame_id, _world), value in list(self.contexts.items()):
+            if value == context_id:
+                return frame_id
+        return None
+
+    def json_value_in(self, frame_id: str, world: str, element: str):
+        """The value of an objectId, asked in the world it belongs to.
+
+        ⛔ An objectId is resolved inside the context it is given, so a handle
+        born in the page's own world cannot be read from the utility one. This
+        is the only reader that takes the world as an argument, because
+        `waitForFunction` is the only place that hands back a main-world
+        handle.
+        """
+        key = (frame_id, "" if world == "main" else UTILITY_WORLD)
+        context = self.contexts.get(key)
+        if context is None:
+            return None
+        r = self._result(self.c.send(
+            "Runtime.callFunction",
+            {"executionContextId": context,
+             "functionDeclaration": "(v) => v",
+             "args": [{"objectId": element}],
+             "returnByValue": True},
+            session=self.session, timeout=10))
+        return r.get("value")
+
+    def adopt(self, frame_id: str, context_id: str, element: str):
+        """Move an objectId from the page's own world into the utility world.
+
+        ⛔ AN objectId IS NOT PORTABLE BETWEEN WORLDS. Every other method here
+        talks to the utility world, so a handle that arrived from the MAIN
+        world - which is where `Page.fileChooserOpened` hands the input element
+        from - cannot simply be passed to them: Juggler resolves an objectId
+        inside the context it is given and answers that it does not exist.
+        `Page.adoptNode` is the crossing, and it is the same one Playwright's
+        own Firefox backend makes for this event.
+        """
+        answer = self.c.send(
+            "Page.adoptNode",
+            {"frameId": frame_id,
+             "executionContextId": self.context_id(frame_id),
+             "objectId": element},
+            session=self.session, timeout=10) or {}
+        return ((answer.get("remoteObject") or {}).get("objectId")) or None
 
     def dispose(self, frame_id: str, element: str) -> None:
         """A retained objectId keeps a page DOM node alive.

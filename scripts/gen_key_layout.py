@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import re
 import sys
@@ -274,11 +275,26 @@ def main() -> int:
     a = p.parse_args()
     if a.selftest:
         return selftest()
-    if not BUNDLE.exists():
-        print("the bundle is missing: %s" % BUNDLE)
+    bundle = BUNDLE
+    named = os.environ.get("INVPW_DRIVER_BUNDLE")
+    if named:
+        bundle = pathlib.Path(named)
+    if not bundle.exists():
+        # ⛔ TWO IS NOT ENOUGH HERE: "cannot compare" and "stale" are
+        # different answers, and collapsing them makes a missing bundle look
+        # like a broken tree. The generated file is COMMITTED and stays valid
+        # without a bundle; what is lost is the ability to re-derive it, and
+        # that is what this says.
+        print("NOT COMPARABLE: no driver bundle at %s." % bundle)
+        print("  The generated file is committed and still valid - what is "
+              "gone is the ability to re-derive it.")
+        print("  To get one back: git worktree add <dir> <the last commit "
+              "that carried _driver/>, then")
+        print("  INVPW_DRIVER_BUNDLE=<dir>/src/invisible_playwright/_driver/"
+              "package/lib/coreBundle.js")
         return 2
     try:
-        data = extract(BUNDLE.read_text(encoding="utf-8", errors="replace"))
+        data = extract(bundle.read_text(encoding="utf-8", errors="replace"))
     except ExtractionFailed as failure:
         print("extraction failed: %s" % failure)
         return 2

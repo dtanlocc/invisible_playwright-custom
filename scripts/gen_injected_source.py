@@ -26,6 +26,7 @@ emitted bundle **are not boundaries** (§3.3).
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import sys
 
@@ -70,7 +71,25 @@ def main() -> int:
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
 
-    bundle = pathlib.Path(a.bundle).read_bytes().decode("utf-8", "replace")
+    # ⛔ A MISSING BUNDLE IS A STATE, NOT A CRASH. Since the Node driver was
+    # removed there may be no bundle in the tree at all, and the extracted
+    # `injected.js` is COMMITTED - it stays valid without one. What is gone is
+    # the ability to RE-DERIVE it, and letting that arrive as
+    # `FileNotFoundError` from a path deep in an argparse default sends the
+    # reader looking for a broken script instead of a deleted folder.
+    named = os.environ.get("INVPW_DRIVER_BUNDLE")
+    path = pathlib.Path(named) if named else pathlib.Path(a.bundle)
+    if not path.exists():
+        print("NOT COMPARABLE: no driver bundle at %s." % path)
+        print("  `injected.js` is committed and still valid - what is gone is "
+              "the ability to re-derive it.")
+        print("  To get one back: git worktree add <dir> <the last commit that "
+              "carried _driver/>, then")
+        print("  INVPW_DRIVER_BUNDLE=<dir>/src/invisible_playwright/_driver/"
+              "package/lib/coreBundle.js")
+        return 2
+
+    bundle = path.read_bytes().decode("utf-8", "replace")
     source = extract(bundle)
 
     # Proof that what we extracted is REALLY the injected script, not some

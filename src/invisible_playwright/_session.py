@@ -210,6 +210,7 @@ def build_prefs(
     virtual_display: bool,
     cursor_engine: str,
     humanize: Any,
+    show_cursor: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Fingerprint prefs plus the humanize toggle, which is always set explicitly.
 
@@ -238,6 +239,12 @@ def build_prefs(
     #              than passing `humanize` through, because a falsy-but-numeric
     #              cap with the binary engine selected has to mean the default,
     #              not "off".
+    #   show_cursor  Passed through UNTRANSLATED, and that is the difference
+    #              from the line above: `humanize` needs a decision here
+    #              because two engines compete for it, while the visible dot
+    #              has exactly one meaning and the core owns it. Anything this
+    #              function computed about it would be a second place that
+    #              knows, which is the defect the paragraph above is about.
     #
     # The namespace MUST be stealthfox.* - that is what the binary's Juggler
     # reads. An earlier `invisible_playwright.*` spelling was a dead no-op, so
@@ -256,6 +263,7 @@ def build_prefs(
         cloak=bool(headless and sys.platform in ("win32", "darwin")),
         humanize=(_cursor_max_seconds(humanize)
                   if cursor_engine == ENGINE_BINARY else False),
+        show_cursor=show_cursor,
     ).prefs
 
 

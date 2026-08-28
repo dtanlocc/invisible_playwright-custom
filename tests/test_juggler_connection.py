@@ -92,7 +92,7 @@ def test_python_talks_to_juggler_without_node(firefox_binary):
     from invisible_core.launch import build_launch_plan
 
     profile_dir = tempfile.mkdtemp(prefix="juggler_pipe_")
-    plan = build_launch_plan(42, profile_dir=profile_dir,
+    plan = build_launch_plan(42, profile_dir=profile_dir, binary_path=firefox_binary,
                               timezone="UTC", locale="en-US")
 
     c = conn.launch(firefox_binary, profile_dir, headless=True,
@@ -104,7 +104,7 @@ def test_python_talks_to_juggler_without_node(firefox_binary):
     # could never pass. It went unnoticed because it is marked e2e, so the
     # default selection deselects it, and because `_deliver` used to
     # swallow the exception without a trace.
-    c.on_event = lambda method, params, session: events.append(method)
+    c.add_listener(lambda method, params, session: events.append(method))
     try:
         assert c.ready_seen, (
             "the 'Juggler listening to the pipe' line never arrived. "
@@ -149,7 +149,7 @@ def test_an_invented_command_is_REJECTED_not_ignored(firefox_binary):
     from invisible_core.launch import build_launch_plan
 
     profile_dir = tempfile.mkdtemp(prefix="juggler_male_")
-    plan = build_launch_plan(7, profile_dir=profile_dir,
+    plan = build_launch_plan(7, profile_dir=profile_dir, binary_path=firefox_binary,
                               timezone="UTC", locale="en-US")
     c = conn.launch(firefox_binary, profile_dir, headless=True,
                      env=plan.env, ready_timeout=60.0)

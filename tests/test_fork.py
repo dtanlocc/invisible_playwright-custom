@@ -58,49 +58,88 @@ def test_the_vendored_client_is_the_one_imported():
         "the imported client is not the one inside our package")
 
 
-def test_the_driver_points_inside_us():
-    from invisible_playwright._pw._impl._driver import driver_root
-    r = driver_root()
-    assert r.name == "_driver"
-    assert "invisible_playwright" in str(r)
-    assert (r / "package" / "cli.js").is_file(), (
-        "missing %s: without cli.js the browser does not start" % (r / "package" / "cli.js"))
+#: Everything the Node driver used to bring, named so its return is loud.
+#: ⛔ These are PATHS AND MODULE NAMES, not prose: the point of the test below
+#: is that a future change cannot quietly reintroduce any of them.
+GONE = [
+    "src/invisible_playwright/_driver",
+    "src/invisible_playwright/_node.py",
+    "src/invisible_playwright/_pw/_impl/_driver.py",
+]
 
 
-def test_the_bundle_we_want_to_modify_exists():
-    """The fork exists so this file can be changed. If it disappears, the fork doesn't exist."""
-    from invisible_playwright._pw._impl._driver import driver_root
-    core = driver_root() / "package" / "lib" / "coreBundle.js"
-    assert core.is_file(), "missing coreBundle.js, which is the whole reason for the fork"
-    assert core.stat().st_size > 1_000_000
+def test_the_node_driver_is_gone():
+    """⛔ THE TESTS THAT USED TO STAND HERE ASSERTED THE OPPOSITE.
 
+    Three of them checked that `_driver/package/cli.js`, `coreBundle.js` and
+    `utilsBundle.js` existed - the fork's whole point was being able to change
+    that bundle. The driver was removed on 2026-08-28, so the assertion turns
+    over: what has to hold now is that none of it comes back by accident.
 
-def test_utils_bundle_exists():
-    """Measured: removed, the driver dies with 'Connection closed while reading'."""
-    from invisible_playwright._pw._impl._driver import driver_root
-    u = driver_root() / "package" / "lib" / "utilsBundle.js"
-    assert u.is_file(), "utilsBundle.js is genuinely needed, it is not dead weight"
-
-
-@pytest.mark.parametrize("name", ["LICENSE", "NOTICE", "ThirdPartyNotices.txt"])
-def test_the_forks_license_files_exist(name):
-    """Apache-2.0 is not a formality: it is the condition for redistributing.
-
-    The pyproject declares ``MIT AND Apache-2.0`` precisely for this folder.
+    It came out on evidence, not on the code looking finished: 188 e2e passed
+    on BOTH transports, protocol parity on methods, parameter names, object
+    types, initializer fields, events and parentage, and the realness gates
+    green on the Python path for the first time.
     """
-    from invisible_playwright._pw._impl._driver import driver_root
-    assert (driver_root() / "package" / name).is_file()
+    root = pathlib.Path(__file__).resolve().parent.parent
+    back = [name for name in GONE if (root / name).exists()]
+    assert not back, (
+        "the Node driver is back in the tree: %s. If that is deliberate, this "
+        "test is the place to say so - and `THIRD_PARTY_FORK.md` has to regain "
+        "the redistribution notices that went with it." % back)
 
 
-def test_the_node_version_is_declared_exactly_once():
-    from invisible_playwright import _node
-    assert _node.NODE_VERSION.startswith("v")
-    elsewhere = [f.name for f in _files_to_check()
-                 if f.name != "_node.py" and f.name != "test_fork.py"
-                 and _node.NODE_VERSION in f.read_text(encoding="utf-8")]
-    assert not elsewhere, (
-        "the Node version also appears in %s: a number written twice "
-        "drifts" % elsewhere)
+def test_no_module_imports_the_removed_driver():
+    """A dangling import does not fail at import time if it sits inside a
+    function, which is exactly where these lived."""
+    offenders = []
+    for f in _files_to_check():
+        # ⛔ This file names those modules on purpose - it is the one saying
+        # they must not come back - so scanning itself would make the check
+        # permanently red, which is the fastest way to get a gate switched off.
+        if f.name == "test_fork.py":
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if "_impl._driver" in text or "invisible_playwright._node" in text:
+            offenders.append(f.name)
+    assert not offenders, (
+        "these still import something the deletion removed: %s" % offenders)
+
+
+def test_the_apache_licence_the_fork_still_owes_is_shipped():
+    """⛔ Apache-2.0 is not a formality: it is the condition for redistributing.
+
+    It used to be checked on `_driver/package/{LICENSE,NOTICE,
+    ThirdPartyNotices.txt}`. Those went with the code they covered, and the
+    obligation did NOT go with them: `_pw/` is still Playwright's Python
+    client, still carries Microsoft's copyright headers, and is still
+    redistributed - which is why `pyproject.toml` still says
+    `MIT AND Apache-2.0`.
+    """
+    root = pathlib.Path(__file__).resolve().parent.parent
+    licence = root / "src" / "invisible_playwright" / "_pw" / "LICENSE"
+    assert licence.is_file(), (
+        "the Apache-2.0 licence for the vendored client is missing: the "
+        "package redistributes that code and may not do so without it")
+    assert "Apache License" in licence.read_text(encoding="utf-8",
+                                                 errors="replace")
+
+
+def test_nothing_declares_a_node_version_any_more():
+    """The version used to be declared exactly once, in `_node.py`. Now it is
+    declared nowhere, and a number that reappears means a downloader did."""
+    import re as _re
+
+    offenders = []
+    for f in _files_to_check():
+        if f.name == "test_fork.py":
+            continue
+        if _re.search(r"NODE_VERSION|nodejs\.org", f.read_text(
+                encoding="utf-8", errors="replace")):
+            offenders.append(f.name)
+    assert not offenders, (
+        "something is naming a Node version or nodejs.org again: %s. Nothing "
+        "in this package downloads or runs node since 2026-08-28." % offenders)
 
 
 def _injected_sources():
@@ -109,9 +148,25 @@ def _injected_sources():
     They are declared as ``sourceN = '...'`` with SINGLE quotes and with newlines
     written as two characters, so each one occupies a single line of the file.
     """
-    from invisible_playwright._pw._impl._driver import driver_root
-    text = (driver_root() / "package" / "lib" / "coreBundle.js").read_text(
-        encoding="utf-8", errors="replace")
+    # ⛔ THE BUNDLE MAY NOT BE HERE ANY MORE, and that is not a broken tree:
+    # the driver was removed on 2026-08-28. The defect this scans for lives in
+    # a SINGLE-QUOTED JavaScript string inside that bundle, so with the bundle
+    # gone the class is gone with it - our `injected.js` is a plain file, where
+    # an apostrophe in a comment is just an apostrophe.
+    #
+    # It is kept reachable rather than deleted because the check still applies
+    # to any bundle somebody points at: `INVPW_DRIVER_TREE` from a git worktree,
+    # or a fresh upstream one being considered for extraction.
+    import os
+
+    tree = os.environ.get("INVPW_DRIVER_TREE")
+    root = (pathlib.Path(tree) if tree
+            else pathlib.Path(__file__).resolve().parent.parent)
+    bundle = (root / "src" / "invisible_playwright" / "_driver" / "package"
+              / "lib" / "coreBundle.js")
+    if not bundle.is_file():
+        return
+    text = bundle.read_text(encoding="utf-8", errors="replace")
     for number, line in enumerate(text.splitlines(), 1):
         m = re.match(r"^\s*(source\d*) = '", line)
         if m:
@@ -153,7 +208,14 @@ def test_the_injected_sources_have_balanced_quotes():
     been downloaded yet.
     """
     found = list(_injected_sources())
-    assert found, "no injected source found: the check would go silent"
+    if not found:
+        # ⛔ NOT AN ASSERTION FAILURE. With no bundle reachable there is
+        # nothing of this shape to check, and the defect class went with it -
+        # see `_injected_sources`. Saying "no injected source found" as a
+        # failure would turn a deliberate deletion into a permanent red.
+        pytest.skip("no driver bundle reachable: nothing of this shape exists "
+                    "to check. Point INVPW_DRIVER_TREE at a worktree to run "
+                    "it against one.")
     for number, name, line in found:
         rest = _unprotected_quote(line)
         assert rest is None, (

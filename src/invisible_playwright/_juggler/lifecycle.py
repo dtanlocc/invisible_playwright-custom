@@ -72,17 +72,23 @@ class Lifecycle:
         self._inflight = 0
         self._last_activity = time.monotonic()
         self._cv = threading.Condition()
-        previous = connection.on_event
+        # ⛔ REGISTERED, NOT CHAINED, and the difference is not style: this
+        # used to capture the previous `on_event` and install a closure over
+        # it, so every page added a nested call to the delivery of every
+        # event. The registry delivers to each subscriber in turn, which is
+        # also why nothing here has to remember to pass the event on - the
+        # observer that a chain could silence by forgetting one line cannot
+        # be silenced by a list.
+        connection.add_listener(self._route)
 
-        def route(method, params, event_session):
-            if event_session == self.session:
-                self._on_event(method, params)
-            # ⛔ The event is NOT SWALLOWED: whoever was hooked in before
-            # stays hooked in. A lifecycle that steals events silences any
-            # other observer, and the failure would be silent.
-            previous(method, params, event_session)
+    def _route(self, method: str, params: dict,
+               event_session: Optional[str]) -> None:
+        if event_session == self.session:
+            self._on_event(method, params)
 
-        connection.on_event = route
+    def detach(self) -> None:
+        """Stop listening. Called when the page this follows goes away."""
+        self.c.remove_listener(self._route)
 
     # ── event intake ────────────────────────────────────────────────────────
     def _on_event(self, method: str, p: dict) -> None:

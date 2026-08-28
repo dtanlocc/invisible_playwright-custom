@@ -21,7 +21,6 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, Optional, Union
 
-from invisible_playwright._pw._impl._driver import compute_driver_executable, get_driver_env
 from invisible_playwright._pw._impl._helper import ParsedMessagePayload
 
 
@@ -88,97 +87,20 @@ class Transport(ABC):
         return obj
 
 
-class PipeTransport(Transport):
-    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
-        super().__init__(loop)
-        self._stopped = False
 
-    def request_stop(self) -> None:
-        assert self._output
-        self._stopped = True
-        self._output.close()
-
-    async def wait_until_stopped(self) -> None:
-        await self._stopped_future
-
-    async def connect(self) -> None:
-        self._stopped_future: asyncio.Future = asyncio.Future()
-
-        try:
-            # For pyinstaller and Nuitka
-            env = get_driver_env()
-            if getattr(sys, "frozen", False) or globals().get("__compiled__"):
-                env.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
-
-            startupinfo = None
-            if sys.platform == "win32":
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-
-            executable_path, entrypoint_path = compute_driver_executable()
-            self._proc = await asyncio.create_subprocess_exec(
-                executable_path,
-                entrypoint_path,
-                "run-driver",
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=_get_stderr_fileno(),
-                limit=32768,
-                env=env,
-                startupinfo=startupinfo,
-            )
-        except Exception as exc:
-            self.on_error_future.set_exception(exc)
-            raise exc
-
-        self._output = self._proc.stdin
-
-    async def run(self) -> None:
-        assert self._proc.stdout
-        assert self._proc.stdin
-        try:
-            while not self._stopped:
-                try:
-                    buffer = await self._proc.stdout.readexactly(4)
-                    if self._stopped:
-                        break
-                    length = int.from_bytes(buffer, byteorder="little", signed=False)
-                    buffer = bytes(0)
-                    while length:
-                        to_read = min(length, 32768)
-                        data = await self._proc.stdout.readexactly(to_read)
-                        if self._stopped:
-                            break
-                        length -= to_read
-                        if len(buffer):
-                            buffer = buffer + data
-                        else:
-                            buffer = data
-                    if self._stopped:
-                        break
-
-                    obj = self.deserialize_message(buffer)
-                    self.on_message(obj)
-                except asyncio.IncompleteReadError:
-                    if not self._stopped:
-                        self.on_error_future.set_exception(
-                            Exception("Connection closed while reading from the driver")
-                        )
-                    break
-                await asyncio.sleep(0)
-
-            await self._proc.communicate()
-        finally:
-            # Release waiters on wait_until_stopped() even if this task was
-            # cancelled before reaching the end (e.g. by asyncio.run()'s
-            # task-cancellation phase that runs before asyncio-atexit hooks).
-            if not self._stopped_future.done():
-                self._stopped_future.set_result(None)
-
-    def send(self, message: Dict) -> None:
-        assert self._output
-        data = self.serialize_message(message)
-        self._output.write(
-            len(data).to_bytes(4, byteorder="little", signed=False) + data
-        )
+# ⛔ `PipeTransport` LIVED HERE AND IS GONE, with the Node driver, on
+# 2026-08-28. It spawned `node` on the forked `cli.js` and spoke the same
+# protocol the in-process server now answers; what removed it was not that
+# it was unused but that it was measured redundant - 188 e2e passed on both
+# transports, protocol parity on methods, parameter names, object types,
+# initializer fields, events and parentage, and the realness gates green on
+# the Python path.
+#
+# ⛔ The `Transport` ABC above STAYS, and it is not vestigial: it is the
+# seam the in-process transport implements, and the reason the swap was one
+# class rather than a rewrite of the client.
+#
+# ⛔ To get the old arm back for a comparison - which is the only thing it
+# was still for - check out the last commit that carried it into a git
+# worktree and point `INVPW_DRIVER_TREE` at it. `judge_both_transports.py`
+# and `diff_protocol.py` both read that variable.

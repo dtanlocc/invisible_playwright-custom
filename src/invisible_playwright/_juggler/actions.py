@@ -94,12 +94,50 @@ class Actions:
         self.position = (0.0, 0.0)
 
     # ── geometry ────────────────────────────────────────────────────────────
-    def _center_point(self, frame_id: str, element: str):
-        """The center of the first quad, or None if the element has none.
+    def _in_viewport(self, point) -> bool:
+        """Is this main-frame point somewhere an event can actually land?
+
+        ⛔ Asked of the PAGE, not of a stored viewport size. The window can be
+        resized, and a value cached at launch is a second source for a fact the
+        page already knows.
+        """
+        try:
+            size = self.inj.evaluate(
+                self.lifecycle.main_frame,
+                "({w: window.innerWidth, h: window.innerHeight})")
+        except Exception:
+            # ⛔ Unknown is not "outside": answering False here would scroll
+            # on every action the moment this probe broke.
+            return True
+        if not isinstance(size, dict):
+            return True
+        return (0 <= point[0] <= size.get("w", 0)
+                and 0 <= point[1] <= size.get("h", 0))
+
+    def _center_point(self, frame_id: str, element: str, position=None):
+        """Where the event lands: the quad's centre, or the caller's offset.
 
         ⛔ No quad is NOT an error to propagate: it means "not visible
         right now", i.e. a RETRYABLE condition. Raising here would turn an
         element that's about to appear into a failure.
+
+        ⛔ `position` IS PART OF THE CONTRACT AND WAS NOT IMPLEMENTED. Every
+        pointer action in Playwright takes `position={x, y}` - an offset from
+        the element's top-left - and this server ignored it, so a caller who
+        pinned a point got the centre and no error. Two consequences, and the
+        second is the one that matters here:
+
+          * a documented option did nothing, silently;
+          * the humanised cursor aims OFF-CENTRE on purpose and passes the
+            point back through exactly this option. With it dropped, the last
+            event of every element-targeted action landed on the exact
+            geometric centre - one number, identical in every install,
+            readable from a single event. The landing feature was inert on
+            this transport and nothing failed.
+
+        ⛔ Measured from the TOP-LEFT of the quad, not from the centre. The
+        quad is in main-frame coordinates like everything else on this path,
+        so the offset is added to its minimum x and y rather than to the mean.
         """
         r = self.c.send("Page.getContentQuads",
                         {"frameId": frame_id, "objectId": element},
@@ -109,13 +147,23 @@ class Actions:
             return None
         q = quads[0]
         points = [q["p1"], q["p2"], q["p3"], q["p4"]]
+        if isinstance(position, dict) and "x" in position and "y" in position:
+            return (min(p["x"] for p in points) + float(position["x"]),
+                    min(p["y"] for p in points) + float(position["y"]))
         return (sum(p["x"] for p in points) / 4.0,
                 sum(p["y"] for p in points) / 4.0)
 
     # ── the loop ────────────────────────────────────────────────────────────
     def _retry(self, selector: str, run, *, states=None,
-               timeout: float = 30.0, frame_id: Optional[str] = None):
-        """Resolve, check, act, and if something doesn't match, START OVER."""
+               timeout: float = 30.0, frame_id: Optional[str] = None,
+               position=None):
+        """Resolve, check, act, and if something doesn't match, START OVER.
+
+        ⛔ `position` travels HERE and not through each action, because the
+        point is recomputed on every turn of this loop: an offset applied by
+        the caller once would be stale the moment the page moved, which is
+        precisely the case this loop exists to absorb.
+        """
         f = frame_id or self.lifecycle.main_frame
         if f is None:
             raise RuntimeError("no main frame: the page isn't ready")
@@ -144,7 +192,22 @@ class Actions:
                     element_ok = True
 
                 if element and element_ok:
-                    point = self._center_point(f, element)
+                    # ⛔ SCROLL FIRST, and only when the point is not usable.
+                    # Actionability says "visible", which is true of an element
+                    # three thousand pixels down; the POINT is what has to be
+                    # inside the viewport, and `getContentQuads` answers in
+                    # main-frame coordinates. Scrolling unconditionally would
+                    # move the page under every ordinary click for nothing, so
+                    # the quad is measured first and the scroll happens only if
+                    # it lands outside - then the loop recomputes, because the
+                    # geometry has just changed underneath.
+                    point = self._center_point(f, element, position)
+                    if point is not None and not self._in_viewport(point):
+                        if self.inj.scroll_into_view(f, element):
+                            reason = ("the element was outside the viewport; "
+                                      "scrolled it in and starting over")
+                            continue
+                        point = self._center_point(f, element, position)
                     if point is None:
                         reason = "the element has no quad (it isn't visible)"
                     else:
@@ -282,45 +345,65 @@ class Actions:
             time.sleep(0.05)
 
     # ── the actions ─────────────────────────────────────────────────────────
-    def hover(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
+    def hover(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
+              position=None):
         def run(f, element, point):
             return self._with_hit_target(
                 f, element, point, "hover",
                 lambda: self._mouse_event("mousemove", point) or point)
-        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
+        return self._retry(selector, run, timeout=timeout,
+                           frame_id=frame_id, position=position)
 
     def click(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None, button: int = 0,
-              clicks: int = 1):
+              clicks: int = 1, position=None, modifiers: int = 0):
         def run(f, element, point):
             def act():
                 # The order is that of a user: approach, press, release.
                 # Skipping the mousemove leaves the page without the
                 # hover, and there are sites that open the menu right
                 # there.
-                self._mouse_event("mousemove", point)
-                self._click_at_point(point, button=button, clicks=clicks)
+                # ⛔ The move carries the modifiers too. A page that reads
+                # `event.shiftKey` on `mouseover` - menus do - would otherwise
+                # see an unmodified approach followed by a modified click,
+                # which no real input device produces.
+                self._mouse_event("mousemove", point, modifiers=modifiers)
+                self._click_at_point(point, button=button, clicks=clicks,
+                                     modifiers=modifiers)
                 return point
             return self._with_hit_target(f, element, point, "mouse", act)
-        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
+        return self._retry(selector, run, timeout=timeout, frame_id=frame_id,
+                           position=position)
 
     def dblclick(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
-                 button: int = 0):
+                 button: int = 0, position=None, modifiers: int = 0):
         """⛔ These are NOT two `click`s in a row: the second one must carry
         `clickCount: 2`, and it's that field - not the interval between the
         two - that gives birth to the `dblclick` event. Two clicks with
         `clickCount: 1` produce two `click` events and no `dblclick`, which
         is a silent failure: the action succeeds and the site's handler
-        never fires."""
+        never fires.
+
+        ⛔ AND IT FORWARDS `frame_id`, which it used to accept and drop. A
+        double click on an element inside an iframe resolved the selector in
+        the MAIN frame instead, so it either found nothing or found a
+        same-named element in the wrong document. The signature said the
+        argument was honoured; nothing else did."""
         return self.click(selector, timeout=timeout, button=button,
-                          clicks=2)
+                          clicks=2, frame_id=frame_id, position=position,
+                          modifiers=modifiers)
 
-    def check(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
-        return self._set_checked(selector, True, timeout=timeout)
+    def check(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
+              position=None):
+        return self._set_checked(selector, True, timeout=timeout,
+                                 frame_id=frame_id, position=position)
 
-    def uncheck(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
-        return self._set_checked(selector, False, timeout=timeout)
+    def uncheck(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
+                position=None):
+        return self._set_checked(selector, False, timeout=timeout,
+                                 frame_id=frame_id, position=position)
 
-    def _set_checked(self, selector: str, wanted: bool, *, timeout: float):
+    def _set_checked(self, selector: str, wanted: bool, *, timeout: float,
+                     frame_id: Optional[str] = None, position=None):
         """`check` / `uncheck`.
 
         ⛔ It CHECKS FIRST, and rechecks after. Clicking without looking
@@ -350,7 +433,8 @@ class Actions:
                     "the click or put the value back"
                     % ("unchecked" if wanted else "checked"))
             return state
-        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
+        return self._retry(selector, run, timeout=timeout,
+                           frame_id=frame_id, position=position)
 
     def focus(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """⛔ Does NOT require `visible`: `focus()` works on an off-screen
@@ -466,7 +550,8 @@ class Actions:
             return list(files)
         return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id)
 
-    def tap(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
+    def tap(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
+            position=None):
         """`tap`. ⛔ Requires the context to have touch TURNED ON: without
         it, the event fires and the page has no `ontouchstart`, so it
         doesn't listen for it - it succeeds and does nothing. Touch is
@@ -478,10 +563,12 @@ class Actions:
                          "modifiers": self.keyboard.modifier_mask()},
                         session=self.session, timeout=10)
             return point
-        return self._retry(selector, run, timeout=timeout, frame_id=frame_id)
+        return self._retry(selector, run, timeout=timeout,
+                           frame_id=frame_id, position=position)
 
     def drag_and_drop(self, source: str, target: str, *,
-                      timeout: float = 30.0):
+                      timeout: float = 30.0,
+                      frame_id: Optional[str] = None):
         """`drag_and_drop`, in four beats.
 
         ⛔ THE FIRST `mousemove` AFTER THE `mousedown` IS NOT SKIPPED.
@@ -544,16 +631,24 @@ class Actions:
                     session=self.session, timeout=10)
 
     def _click_at_point(self, point, *, button: int = 0,
-                        clicks: int = 1) -> None:
+                        clicks: int = 1, modifiers: int = 0) -> None:
         """⛔ `clickCount` GROWS between hits: 1, then 2. It's that field
         that gives birth to `dblclick`, not the interval. And the
         release's `buttons` is zero, because it describes what stays
-        pressed AFTERWARD."""
+        pressed AFTERWARD.
+
+        ⛔ `modifiers` is what the CALLER asked for, and it is ORed with what
+        the keyboard is really holding rather than replacing it - a click made
+        inside `keyboard.down("Shift")` and one made with
+        `modifiers=["Shift"]` have to reach the page identically. It used to be
+        dropped entirely: `event.shiftKey` came back false on a click the
+        caller had explicitly modified, with no error anywhere."""
         for n in range(1, clicks + 1):
             self._mouse_event("mousedown", point, button=button,
-                              buttons=BUTTON_MASK[button], click_count=n)
+                              buttons=BUTTON_MASK[button], click_count=n,
+                              modifiers=modifiers)
             self._mouse_event("mouseup", point, button=button, buttons=0,
-                              click_count=n)
+                              click_count=n, modifiers=modifiers)
 
     def fill(self, selector: str, text: str, *, timeout: float = 30.0, frame_id: Optional[str] = None):
         """Writes into a field.

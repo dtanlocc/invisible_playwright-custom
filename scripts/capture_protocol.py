@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import http.server
 import json
+import os
 import pathlib
 import socketserver
 import sys
@@ -30,6 +31,19 @@ import threading
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+
+# ⛔ THE DRIVER ARM IMPORTS AN OLDER TREE, and the line above would otherwise
+# beat it. `INVPW_DRIVER_TREE` names a git worktree at the last commit that
+# carried the Node driver, and on the driver arm that tree's package has to WIN
+# the import - a `PYTHONPATH` from the caller does not, because the insert
+# above runs afterwards and goes in front of it.
+#
+# ⛔ Only the PACKAGE comes from there. This recorder stays this tree's: two
+# traces produced by two different instruments measure the instruments, which
+# is the mistake the comparison exists to avoid.
+if (os.environ.get("INVPW_TRANSPORT") == "driver"
+        and os.environ.get("INVPW_DRIVER_TREE")):
+    sys.path.insert(0, str(pathlib.Path(os.environ["INVPW_DRIVER_TREE"]) / "src"))
 
 PAGE = b"""<!doctype html><html><head><title>capture</title></head><body>
 <button id=b onclick="this.textContent='clicked'">press</button>
@@ -59,13 +73,42 @@ def capture(binary: str, out: pathlib.Path) -> int:
     # ⛔ The recording wraps the TRANSPORT, not the Connection: at this seam the
     # messages are still exactly what crosses the pipe. One level up they have
     # already been turned into ChannelOwners, which is the thing being rebuilt.
-    real_send = T.PipeTransport.send
+    # ⛔ BOTH TRANSPORTS, not just the driver's. The whole point of a
+    # capture is to compare the two arms, and hooking only `PipeTransport`
+    # produces an empty trace on the Python arm - which reads as "the session
+    # sent nothing" rather than as "the recorder was pointed at the wrong
+    # class". The Python one is imported lazily so this script still runs in a
+    # tree where it does not exist.
+    hooked = []
+    classes = []
+    # ⛔ BOTH ARE OPTIONAL NOW. `PipeTransport` went with the Node driver on
+    # 2026-08-28, so naming it unconditionally turned this recorder into an
+    # `AttributeError` in a tree that no longer has it - on the very script
+    # whose job is to compare that tree against one that does.
+    if hasattr(T, "PipeTransport"):
+        classes.append(T.PipeTransport)
+    try:
+        from invisible_playwright._juggler.transport import InProcessTransport
+        classes.append(InProcessTransport)
+    except Exception:
+        pass
+    if not classes:
+        raise SystemExit(
+            "no transport class to hook: neither PipeTransport nor "
+            "InProcessTransport is importable, so a trace would be empty and "
+            "read as a session that sent nothing")
 
-    def send(self, message):
-        trace.append({"dir": "send", "msg": message})
-        return real_send(self, message)
+    for cls in classes:
+        real_send = cls.send
 
-    T.PipeTransport.send = send
+        def make(real):
+            def send(self, message):
+                trace.append({"dir": "send", "msg": message})
+                return real(self, message)
+            return send
+
+        cls.send = make(real_send)
+        hooked.append(cls.__name__)
 
     real_init = T.Transport.__init__
 
@@ -123,8 +166,13 @@ def capture(binary: str, out: pathlib.Path) -> int:
     out.write_bytes(json.dumps(trace, indent=1).encode("utf-8"))
     inviati = sum(1 for x in trace if x["dir"] == "send")
     ricevuti = len(trace) - inviati
-    print("wrote %s: %d messages (%d sent, %d received)"
-          % (out, len(trace), inviati, ricevuti))
+    print("wrote %s: %d messages (%d sent, %d received) [hooked: %s]"
+          % (out, len(trace), inviati, ricevuti, ", ".join(hooked)))
+    if not inviati:
+        raise SystemExit(
+            "the trace has no OUTGOING message, which no real session can "
+            "produce: the recorder is hooked to a transport this run did not "
+            "use. Hooked: %s" % ", ".join(hooked))
 
     metodi = sorted({x["msg"].get("method", "?") for x in trace
                      if x["dir"] == "send"})

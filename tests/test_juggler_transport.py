@@ -18,6 +18,7 @@ import threading
 import pytest
 
 from invisible_playwright._juggler import factory
+from invisible_playwright._juggler.connection import EventListeners
 
 PAGE = b"""<!doctype html><html><head><title>seam</title></head><body>
 <button id=b onclick="this.dataset.n=(+(this.dataset.n||0)+1)">press</button>
@@ -70,11 +71,34 @@ def test_an_unknown_transport_is_REFUSED_not_silently_the_default(monkeypatch):
         "the refusal does not say what the valid names are")
 
 
-def test_the_default_is_the_DRIVER_while_the_server_matures(monkeypatch):
-    """⛔ A half-finished server that silently became the default would turn
-    every user session into an experiment. It flips when the judgement says it
-    can, not when the code looks done."""
+def test_the_default_is_the_PYTHON_SERVER(monkeypatch):
+    """⛔ IT FLIPPED ON 2026-08-28, AND ONLY ON EVIDENCE.
+
+    While the server matured the default was the driver, on the reasoning that
+    a half-finished server which silently became the default would turn every
+    user session into an experiment. What flipped it is four measurements taken
+    on one code state, not the code looking done: `run_e2e.py` 188 passed on
+    BOTH transports; the transport judge 50 green on both with 0 red only on
+    ours; `diff_protocol.py` at parity on methods, parameters, object types,
+    initializer fields, events and parentage; and the realness gates green on
+    this path for the first time.
+
+    ⛔ The assertion is on the DEFAULT, not on the driver being gone. The
+    driver stays reachable by name: it is the only second arm this project has,
+    and two of its gates exist only while there are two.
+    """
     monkeypatch.delenv(factory.CHOICE_ENV, raising=False)
+    assert factory.chosen() == factory.JUGGLER
+
+
+def test_the_driver_is_still_reachable_by_name(monkeypatch):
+    """⛔ The way back has to keep working, or the flip above is one-way.
+
+    A user whose session behaves differently on the new path must be able to
+    say so and get the old one, and `judge_both_transports.py` needs it to have
+    a second arm at all.
+    """
+    monkeypatch.setenv(factory.CHOICE_ENV, "driver")
     assert factory.chosen() == factory.DRIVER
 
 
@@ -816,15 +840,14 @@ def test_a_profile_WE_made_is_removed_and_the_caller_s_is_not():
     server.attach(type("R", (), {"emit_message": lambda self, m: None})())
     launched: list = []
 
-    class FakeConnection:
+    class FakeConnection(EventListeners):
         """⛔ It has to look enough like the real one for BrowserDispatcher to
-        build: that constructor chains `on_event` and sends `Browser.enable`.
-        The first version of this fake had neither and failed with an
+        build: that constructor SUBSCRIBES and sends `Browser.enable`. The
+        first version of this fake had neither and failed with an
         AttributeError that read like a defect in the server."""
 
         def __init__(self):
-            self.on_event = lambda method, params, session: None
-            self.handler_errors = []
+            EventListeners.__init__(self)
 
         def send(self, method, params=None, session=None, timeout=30):
             return {"browserContextId": "ctx-1", "targetId": "t-1"}

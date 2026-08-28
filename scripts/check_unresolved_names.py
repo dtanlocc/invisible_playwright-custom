@@ -1,0 +1,197 @@
+"""A method that uses a name it never has: the NameError nobody ran into yet.
+
+⛔ IT CAUGHT TWO REAL DEFECTS THE MOMENT IT WAS WRITTEN, both of the same shape
+and both invisible to every other check in this repo:
+
+* `Actions._set_checked` passed `frame_id` to its retry loop without ever
+  taking it as a parameter, while `check()` and `uncheck()` accepted the
+  argument and dropped it. Every `page.check()` on the Python transport died
+  with `Page.check: name 'frame_id' is not defined` - and the transport judge
+  reported it as an ENGINE defect, because the test that exercises it pins the
+  transport itself and therefore fails identically on both arms.
+* `Actions.drag_and_drop` did the same thing twice in one function.
+
+⛔ WHY THE SUITE DID NOT SEE IT. A `NameError` inside a method is not a syntax
+error and not an import error: the module loads, the class builds, the name
+resolves at CALL time. So the whole file is green until somebody calls that one
+method, and the two above sat in a package with 500 passing tests.
+
+**What it does NOT do.** It does not type-check, it does not follow
+`globals()`, `exec`, or a name injected by a decorator, and it deliberately
+treats every module-level assignment and import as available. The question it
+asks is the narrowest one that catches this: *does this function use a bare
+name that is neither its parameter, nor assigned in it, nor defined at module
+level?*
+
+    python scripts/check_unresolved_names.py
+    python scripts/check_unresolved_names.py --selftest
+"""
+from __future__ import annotations
+
+import argparse
+import ast
+import builtins
+import pathlib
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SCANNED = ROOT / "src" / "invisible_playwright"
+sys.stdout.reconfigure(encoding="utf-8")
+
+_FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def _module_names(tree: ast.AST) -> set:
+    known = {n.name for n in ast.walk(tree)
+             if isinstance(n, _FUNCTIONS + (ast.ClassDef,))}
+    known |= {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
+              for t in n.targets if isinstance(t, ast.Name)}
+    known |= {n.target.id for n in ast.walk(tree)
+              if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)}
+    known |= {a.asname or a.name.split(".")[0]
+              for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
+              for a in n.names}
+    return known | set(dir(builtins))
+
+
+def _bound_in(fn: ast.AST) -> set:
+    """Every name that exists inside this function by the time it runs.
+
+    ⛔ Nested functions and lambdas contribute their PARAMETERS, because the
+    outer body legitimately refers to them; comprehension targets and `except
+    ... as` names too. Leaving any of those out turns ordinary code into a
+    fault, and a check that cries wolf is switched off after the third time.
+    """
+    args = fn.args
+    bound = {a.arg for a in list(args.args) + list(args.kwonlyargs)
+             + list(getattr(args, "posonlyargs", []))}
+    if args.vararg:
+        bound.add(args.vararg.arg)
+    if args.kwarg:
+        bound.add(args.kwarg.arg)
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store):
+            bound.add(n.id)
+        elif isinstance(n, _FUNCTIONS + (ast.Lambda,)) and n is not fn:
+            inner = n.args
+            for a in (list(inner.args) + list(inner.kwonlyargs)
+                      + list(getattr(inner, "posonlyargs", []))):
+                bound.add(a.arg)
+            # ⛔ `*args` and `**kw` OF THE NESTED FUNCTION TOO. Leaving these
+            # out is not a small gap: the first run of this checker over the
+            # real package reported 10 faults and every one of them was this -
+            # `def patched(**kw)` inside a wrapper, which is the single most
+            # common shape in the file it was scanning. A checker that is
+            # wrong ten times out of ten teaches people to ignore it, and the
+            # two REAL defects it had just found would have been ignored with
+            # the rest.
+            if inner.vararg:
+                bound.add(inner.vararg.arg)
+            if inner.kwarg:
+                bound.add(inner.kwarg.arg)
+            if not isinstance(n, ast.Lambda):
+                bound.add(n.name)
+        elif isinstance(n, ast.comprehension):
+            for t in ast.walk(n.target):
+                if isinstance(t, ast.Name):
+                    bound.add(t.id)
+        elif isinstance(n, ast.ExceptHandler) and n.name:
+            bound.add(n.name)
+        elif isinstance(n, ast.Global):
+            bound.update(n.names)
+        elif isinstance(n, ast.Nonlocal):
+            bound.update(n.names)
+    return bound
+
+
+def unresolved(source: str, where: str = "<source>") -> list:
+    tree = ast.parse(source)
+    known = _module_names(tree)
+    out = []
+    for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+        for fn in [n for n in cls.body if isinstance(n, _FUNCTIONS)]:
+            bound = _bound_in(fn)
+            for n in ast.walk(fn):
+                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
+                    if n.id not in bound and n.id not in known:
+                        out.append((where, cls.name, fn.name, n.id, n.lineno))
+    return out
+
+
+SELFTEST = [
+    ("the defect itself: used, never taken",
+     "class A:\n    def op(self, x):\n        return self.go(frame_id)\n", 1),
+    ("a parameter is not a fault",
+     "class A:\n    def op(self, frame_id):\n        return frame_id\n", 0),
+    ("a keyword-only parameter is not a fault",
+     "class A:\n    def op(self, *, frame_id=None):\n        return frame_id\n", 0),
+    ("something assigned in the body is not a fault",
+     "class A:\n    def op(self):\n        v = 1\n        return v\n", 0),
+    ("a module-level name is not a fault",
+     "H = 1\nclass A:\n    def op(self):\n        return H\n", 0),
+    ("an import is not a fault",
+     "import json\nclass A:\n    def op(self):\n        return json\n", 0),
+    ("a builtin is not a fault",
+     "class A:\n    def op(self):\n        return len([])\n", 0),
+    ("a nested function's parameter is not a fault",
+     "class A:\n    def op(self):\n        def run(p):\n            return p\n"
+     "        return run\n", 0),
+    ("a comprehension target is not a fault",
+     "class A:\n    def op(self):\n        return [i for i in range(3)]\n", 0),
+    ("an except-as name is not a fault",
+     "class A:\n    def op(self):\n        try:\n            pass\n"
+     "        except ValueError as e:\n            return e\n", 0),
+    ("two in one function are both reported",
+     "class A:\n    def op(self):\n        return (a_missing, b_missing)\n", 2),
+    # ⛔ The two below are the shape that produced 10 false alarms on the first
+    # real run. They are here so the next person who tightens `_bound_in` finds
+    # out immediately instead of from a wall of noise.
+    ("a nested function's **kwargs is not a fault",
+     "class A:\n    def op(self):\n        def patched(**kw):\n"
+     "            return kw\n        return patched\n", 0),
+    ("a lambda's *args is not a fault",
+     "class A:\n    def op(self):\n        return lambda *args: args\n", 0),
+]
+
+
+def selftest() -> int:
+    bad = 0
+    for name, source, expected in SELFTEST:
+        got = len(unresolved(source))
+        ok = got == expected
+        bad += 0 if ok else 1
+        print("  %-48s %s (%d, expected %d)"
+              % (name, "ok" if ok else "BROKEN", got, expected))
+    print("selftest: %d cases, %d broken" % (len(SELFTEST), bad))
+    return 1 if bad else 0
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--selftest", action="store_true")
+    p.add_argument("paths", nargs="*", help="default: the package's own source")
+    a = p.parse_args()
+    if a.selftest:
+        return selftest()
+
+    files = [pathlib.Path(x) for x in a.paths] or sorted(SCANNED.rglob("*.py"))
+    faults = []
+    for f in files:
+        try:
+            faults += unresolved(f.read_text(encoding="utf-8"), str(f))
+        except SyntaxError as bad:
+            print("  %s: cannot be parsed (%s)" % (f, bad))
+            return 2
+    for where, cls, fn, name, line in faults:
+        print("  %s :: %s.%s uses %r at line %d and never has it"
+              % (pathlib.Path(where).name, cls, fn, name, line))
+    if faults:
+        print("UNRESOLVED NAMES: %d. Each one is a NameError waiting for the "
+              "first caller of that method." % len(faults))
+        return 1
+    print("UNRESOLVED NAMES: none in %d file(s)." % len(files))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

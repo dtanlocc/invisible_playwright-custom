@@ -38,6 +38,26 @@ from typing import Any, Callable, Dict, Optional
 from . import perimeter
 
 
+class TargetClosedError(Exception):
+    """A call that arrived after its object was disposed.
+
+    ⛔ THE CLASS NAME IS THE CONTRACT, not decoration. `reply_error` puts
+    `type(failure).__name__` in the error payload, and `_helper.parse_error`
+    turns that exact string into `TargetClosedError` on the client - which is
+    the ONLY thing `_page.py`'s `close()` swallows:
+
+        except Exception as e:
+            if is_target_closed_error(e): return
+
+    Anything else propagates. So closing a page whose context was closed first
+    - `context.close()` cascades, then a fixture teardown calls `page.close()`,
+    which is an ordinary shape and not a misuse - raised a hard error here on
+    2026-08-28, the day closed pages started being disposed at all. Two of
+    Playwright's own tests caught it; nothing of ours did, because nothing of
+    ours closes a page twice.
+    """
+
+
 class ProtocolException(Exception):
     """A failure the client should see as a protocol error, with its reason.
 
@@ -87,6 +107,23 @@ class Dispatcher:
                              "params": params or {}})
 
     def dispose(self, reason: Optional[str] = None) -> None:
+        """Tell the client this object is gone, and forget its whole subtree.
+
+        ⛔ ONE MESSAGE, MANY OBJECTS, AND THAT ASYMMETRY IS THE PROTOCOL. The
+        client drops the children of a disposed object by itself - a
+        `__dispose__` per child would be traffic saying what the guid tree
+        already says, and the driver does not send it either: measured
+        2026-08-28, it disposes Page, BrowserContext, Browser, ElementHandle
+        and APIRequestContext, and never a Frame. So the children are dropped
+        HERE, silently, and the wire stays identical.
+
+        ⛔ FORGETTING THEM IS NOT OPTIONAL. Without the cascade this server's
+        guid registry kept every frame of every closed page: measured at one
+        `FrameDispatcher` per page, for the life of the browser. Nothing
+        crashed, which is why it outlived the subscriber leak it was found
+        beside - and why `test_a_long_session_does_not_accumulate_subscribers`
+        now asserts on both registries rather than the noisy one.
+        """
         if self.disposed:
             return
         self.disposed = True
@@ -94,6 +131,9 @@ class Dispatcher:
         self.server.send_up({"guid": self.guid, "method": "__dispose__",
                              "params": params})
         self.server.unregister(self)
+        for child in self.server.descendants_of(self):
+            child.disposed = True
+            self.server.unregister(child)
 
     # ── routing ─────────────────────────────────────────────────────────────
     def call(self, method: str, params: Dict) -> Any:
@@ -119,6 +159,19 @@ class Server:
 
     def __init__(self) -> None:
         self._objects: Dict[str, Dispatcher] = {}
+        #: The guids this server has disposed, newest last.
+        #:
+        #: ⛔ REMEMBERED, BECAUSE FORGETTING THEM LOSES THE DIFFERENCE BETWEEN
+        #: TWO ERRORS THAT ARE NOT THE SAME. A call naming a guid that was
+        #: disposed is a race the client is built to swallow; a call naming a
+        #: guid that never existed is a defect here, and answering both with
+        #: the same message either hides the second or breaks the first.
+        #:
+        #: Bounded: past the cap the oldest are dropped and a very old guid
+        #: reads as "never created" again. That is the right way round - the
+        #: window that matters is the one between a dispose and the calls
+        #: already in flight behind it.
+        self._disposed: Dict[str, None] = {}
         self._counters: Dict[str, itertools.count] = {}
         self._lock = threading.Lock()
         self._transport: Any = None
@@ -144,9 +197,39 @@ class Server:
         with self._lock:
             self._objects[obj.guid] = obj
 
+    #: How many disposed guids are remembered. Large enough for any burst of
+    #: in-flight calls, small enough to be free.
+    DISPOSED_MEMORY = 4096
+
     def unregister(self, obj: Dispatcher) -> None:
         with self._lock:
             self._objects.pop(obj.guid, None)
+            self._disposed[obj.guid] = None
+            while len(self._disposed) > self.DISPOSED_MEMORY:
+                self._disposed.pop(next(iter(self._disposed)))
+
+    def descendants_of(self, obj: Dispatcher) -> list:
+        """Everything registered whose parent chain reaches `obj`.
+
+        ⛔ WALKED RATHER THAN INDEXED, on purpose. A children list on every
+        dispatcher is a second place that knows the tree, and the tree already
+        lives in `parent`; keeping the two in step is precisely the kind of
+        duplication that lets one of them go stale. The walk is over the live
+        registry, which this cascade is what keeps small.
+        """
+        with self._lock:
+            everything = list(self._objects.values())
+        out = []
+        for candidate in everything:
+            walker = candidate.parent
+            seen = set()
+            while walker is not None and id(walker) not in seen:
+                if walker is obj:
+                    out.append(candidate)
+                    break
+                seen.add(id(walker))
+                walker = walker.parent
+        return out
 
     def announce(self, obj: Dispatcher) -> None:
         """Emit `__create__` for a new object, parented where the client can
@@ -189,10 +272,16 @@ class Server:
             # object 'artifact@3' to answer 'read'` - true, unreadable, and
             # indistinguishable from a bug here.
             outside = perimeter.refusal(method)
+            if outside:
+                raise ProtocolException(outside)
+            with self._lock:
+                gone = guid in self._disposed
+            if gone:
+                raise TargetClosedError(
+                    "Target page, context or browser has been closed")
             raise ProtocolException(
-                outside or
-                ("no object %r to answer %r: it was either never created or "
-                 "already disposed" % (guid, method)))
+                "no object %r to answer %r: it was never created"
+                % (guid, method))
         return obj.call(method, params)
 
     def handle_root(self, method: str, params: Dict) -> Any:

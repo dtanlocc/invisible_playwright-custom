@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import re
 import sys
@@ -50,14 +51,55 @@ class DriverRulesMissing(RuntimeError):
     pass
 
 
-def driver_rules() -> dict:
-    """The driver's literal rules, READ from the bundle rather than copied.
+#: The frozen copy, with its provenance. See the file itself for why.
+FROZEN = pathlib.Path(__file__).resolve().parent / "driver_prefs_rules.json"
 
-    ⛔ If this cannot find them it RAISES instead of assuming: a gate that
-    silently falls back to a transcription is comparing our writer against our
-    own idea of the driver, which always agrees.
+#: Where to find a bundle after the deletion: a git worktree at the last commit
+#: that carried `_driver/`. Named here so the gate can say it out loud instead
+#: of leaving the reader to work it out.
+BUNDLE_ENV = "INVPW_DRIVER_BUNDLE"
+
+
+def _bundle():
+    """A reachable bundle, or None. Never raises: absence is a state."""
+    named = os.environ.get(BUNDLE_ENV)
+    if named:
+        candidate = pathlib.Path(named)
+        return candidate if candidate.exists() else None
+    return BUNDLE if BUNDLE.exists() else None
+
+
+def driver_rules() -> dict:
+    """The driver's literal rules: frozen, and re-checked whenever possible.
+
+    ⛔ IT USED TO READ THE BUNDLE ON EVERY RUN, deliberately, so an upstream
+    change moved this gate with it instead of leaving it comparing against a
+    stale transcription. The bundle goes with the Node driver, so the rules are
+    now RECORDED - in `driver_prefs_rules.json`, with the sha of the bundle and
+    of the exact 1200-byte window they came from.
+
+    ⛔ AND THE RE-CHECK IS THE WHOLE POINT OF FREEZING THEM THIS WAY. Whenever a
+    bundle IS reachable - still in the tree, or named by `INVPW_DRIVER_BUNDLE`
+    from a git worktree - the rules are extracted again and compared against the
+    frozen copy, and a mismatch FAILS. A recorded fact nobody can re-derive is a
+    transcription, and a transcription this gate cannot check is exactly what
+    the original design refused to have.
     """
-    text = BUNDLE.read_text(encoding="utf-8", errors="replace")
+    frozen = json.loads(FROZEN.read_text(encoding="utf-8"))["rules"]
+    bundle = _bundle()
+    if bundle is None:
+        return frozen
+    live = _extract(bundle.read_text(encoding="utf-8", errors="replace"))
+    if live != frozen:
+        raise DriverRulesMissing(
+            "the frozen driver rules disagree with the bundle at %s.\n"
+            "  frozen: %s\n  bundle: %s\n"
+            "The frozen copy is stale: re-freeze it with the new provenance, "
+            "rather than loosening this comparison." % (bundle, frozen, live))
+    return frozen
+
+
+def _extract(text: str) -> dict:
     start = text.find("__ipwLit")
     if start < 0:
         raise DriverRulesMissing(
@@ -176,8 +218,17 @@ def main() -> int:
     except DriverRulesMissing as failure:
         print("NOT COMPARABLE: %s" % failure)
         return 2
-    print("driver rules read from the bundle: %s"
-          % ", ".join("%s=%s" % kv for kv in sorted(rules.items())))
+    # ⛔ IT SAYS WHICH SOURCE IT USED. The line used to read "driver rules read
+    # from the bundle" unconditionally, and after the freeze that sentence was
+    # simply false half the time - a gate that misreports where its own
+    # reference came from is worse than one with no message, because the reader
+    # stops looking.
+    bundle = _bundle()
+    print("driver rules %s: %s"
+          % ("re-checked against %s" % bundle if bundle
+             else "from the FROZEN copy (%s) - no bundle reachable, so nothing "
+                  "re-derived them this run" % FROZEN.name,
+             ", ".join("%s=%s" % kv for kv in sorted(rules.items()))))
     faults = compare(SAMPLE)
     if not faults:
         print("PREFS BYTE PARITY: identical (%d prefs)" % len(SAMPLE))

@@ -76,15 +76,15 @@ def _open(binary, body):
     from invisible_playwright._juggler.lifecycle import Lifecycle
 
     profile_dir = tempfile.mkdtemp(prefix="act_test_")
-    plan = build_launch_plan(9, profile_dir=profile_dir, timezone="UTC",
+    plan = build_launch_plan(9, profile_dir=profile_dir, binary_path=binary, timezone="UTC",
                               locale="en-US")
     srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(body))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     c = conn.launch(binary, profile_dir, headless=True, env=plan.env)
     sessions: dict = {}
-    c.on_event = lambda m, p, s: (
+    c.add_listener(lambda m, p, s: (
         sessions.__setitem__(p["targetInfo"]["targetId"], p["sessionId"])
-        if m == "Browser.attachedToTarget" else None)
+        if m == "Browser.attachedToTarget" else None))
     c.send("Browser.enable", {"attachToDefaultContext": True})
     ctx = c.send("Browser.createBrowserContext", {"removeOnDetach": True})
     page = c.send("Browser.newPage",

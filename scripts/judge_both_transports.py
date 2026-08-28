@@ -59,11 +59,35 @@ def quiet_machine() -> int:
         return -1
 
 
+#: A checkout that still carries the Node driver, for the day this one does not.
+#:
+#: ⛔ THIS GATE EXISTS ONLY WHILE THERE ARE TWO ARMS, and the driver is on its
+#: way out of the tree. When it goes, the second arm comes from a git worktree
+#: at the last commit that carried it:
+#:
+#:     git worktree add /tmp/judge <that commit>
+#:     INVPW_DRIVER_TREE=/tmp/judge python scripts/judge_both_transports.py <bin>
+#:
+#: A worktree rather than an installed release, because a published wrapper
+#: pins a published core and a sealed engine and therefore cannot drive a
+#: locally built binary - which is the only kind worth judging.
+DRIVER_TREE_ENV = "INVPW_DRIVER_TREE"
+
+
 def run_one(transport: str, binary: str, path: str, extra: list) -> dict:
     import os
     env = dict(os.environ)
     env["INVPW_TRANSPORT"] = transport
     env["INVPW_BINARY_PATH"] = binary
+    tree = os.environ.get(DRIVER_TREE_ENV)
+    if transport == "driver" and tree:
+        # ⛔ PREPENDED, so the older tree's package wins the import. The TESTS
+        # still come from this checkout: what is being borrowed is the driver,
+        # not the suite, and running the old suite would compare two different
+        # sets of assertions and call it a transport difference.
+        src = str(pathlib.Path(tree) / "src")
+        env["PYTHONPATH"] = os.pathsep.join(
+            [src] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
     r = subprocess.run(
         [sys.executable, "-m", "pytest", path, "-o", "addopts=", "-v",
          "-p", "no:cacheprovider"] + extra,

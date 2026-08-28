@@ -118,6 +118,7 @@ class InvisiblePlaywright:
         binary_path: Optional[str] = None,
         profile_dir: Optional[Union[str, Path]] = None,
         prep_recaptcha: bool = False,
+        show_cursor: Optional[bool] = None,
     ) -> None:
         """
         Args:
@@ -171,6 +172,21 @@ class InvisiblePlaywright:
                 page = ctx.new_page()``. First run creates the dir;
                 subsequent runs reuse it. Pair with a stable ``seed=`` to
                 also pin the fingerprint identity across runs.
+            show_cursor: Draw the pointer where the automation is, so a
+                person watching the screen can follow the session - the
+                Windows arrow, with the package logo's green halo around it.
+                Default ``None``, meaning "not specified": the value is
+                decided once, by ``invisible_core.prefs.DEFAULT_SHOW_CURSOR``,
+                and today that is on. Pass ``False`` to draw nothing. What
+                makes it safe either way is that it is drawn in the BROWSER'S
+                OWN chrome window, which the page
+                cannot reach - it is absent from ``page.screenshot()``,
+                invisible to ``document.elementFromPoint``, and not a DOM
+                node any site can enumerate. So it changes nothing a
+                detector sees, and everything a PERSON sees: a dot gliding
+                across a window with nobody touching the mouse reads as
+                "this is a bot" to anyone glancing at the monitor. It is a
+                demo and debugging switch, not a stealth one.
         """
         # Constrain to int31 - Firefox's `zoom.stealth.fpp.hw_seed` and
         # related stealth prefs are declared as ``int32_t`` in
@@ -189,6 +205,19 @@ class InvisiblePlaywright:
         # the old behaviour), or nobody (``humanize=False``). Resolved once,
         # here, because the prefs handed to the browser depend on the answer.
         self._cursor_engine = resolve_cursor_engine(humanize)
+        # ⛔ Stored raw and NOT folded into `_cursor_engine`. The two are
+        # unrelated: `humanize` decides WHO draws the path, `show_cursor`
+        # decides whether the chrome window draws a dot on top of it. A session
+        # with humanize off and the dot on is a legitimate combination - it is
+        # how you watch a teleporting cursor - and any code that derived one
+        # from the other would forbid it.
+        # ⛔ NOT `bool(...)`: that would collapse None - "the caller did not
+        # say" - into False and pin the switch off, silently undoing the one
+        # place that decides the default. None is carried all the way to
+        # `invisible_core.prefs`, which is the only thing allowed to resolve
+        # it.
+        self._show_cursor = (None if show_cursor is None
+                             else bool(show_cursor))
         self._locale = locale
         self._timezone = timezone
         self._extra_prefs = extra_prefs
@@ -641,6 +670,7 @@ class InvisiblePlaywright:
             virtual_display=self._virtual_display is not None,
             cursor_engine=self._cursor_engine,
             humanize=self._humanize,
+            show_cursor=self._show_cursor,
         )
 
     def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:

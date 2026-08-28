@@ -52,10 +52,88 @@ class ProtocolError(RuntimeError):
     """
 
 
-class Connection:
+class EventListeners:
+    """Who is subscribed to a connection's events, and how one is delivered.
+
+    ⛔ ONE IMPLEMENTATION, USED BY THE REAL CONNECTION AND BY THE FAKES. The
+    tests stand a stub connection in front of `Lifecycle` and `InjectedScript`,
+    and if that stub carried its own idea of what subscribing means, the tests
+    would be measuring the stub. Inheriting it is what makes a green test say
+    something about the code that ships.
+    """
+
+    def __init__(self) -> None:
+        #: The subscribers, in the order they registered.
+        #:
+        #: ⛔ A LIST, BECAUSE THE CHAIN OF CLOSURES IT REPLACES WAS RECURSIVE
+        #: AND UNBOUNDED. Every subscriber used to capture the previous
+        #: `on_event` and install itself, so delivering one event called the
+        #: whole chain nested: the Python stack depth WAS the number of
+        #: subscribers. Nothing ever unsubscribed either, and a page registers
+        #: three (Lifecycle, InjectedScript, PageDispatcher), so the chain grew
+        #: by 3 per page for the life of the browser. Measured 2026-08-28: page
+        #: 0 sat at 4 links, page 325 at 979, and just past there the default
+        #: recursion limit of 1000 was crossed and EVERY event began raising
+        #: RecursionError. The read loop correctly refuses to die on a raising
+        #: handler, so the failure was silent: commands still got their
+        #: replies, `Browser.attachedToTarget` was never recorded, and
+        #: `new_page` timed out after 20s waiting for a session, forever after.
+        #: Playwright's own suite hit it at 63% and every one of the ~150 tests
+        #: past that point failed identically.
+        self._listeners: list = []
+        self._listeners_lock = threading.Lock()
+        #: Every exception a listener raised, as "method: message". Bounded at
+        #: 32 so a handler that raises on every event cannot eat memory.
+        #: ⛔ READ THIS IN A TEST. An empty event list plus an empty
+        #: `handler_errors` means the browser sent nothing; an empty event list
+        #: with entries HERE means your handler is broken, and those are two
+        #: completely different bugs that used to look identical.
+        self.handler_errors: list = []
+
+    def add_listener(self, fn) -> None:
+        """Subscribe to every event. Registering twice is a no-op, not two
+        deliveries: a handler called twice for one event announces a frame
+        twice, and that reads as the browser having sent it twice."""
+        with self._listeners_lock:
+            if fn not in self._listeners:
+                self._listeners.append(fn)
+
+    def remove_listener(self, fn) -> None:
+        """Unsubscribe. ⛔ CALLING THIS IS NOT OPTIONAL HOUSEKEEPING: it is
+        the half of the fix that keeps the list from growing without bound,
+        and a subscriber that forgets it leaks for the life of the browser -
+        which is the defect this registry exists to close, reintroduced."""
+        with self._listeners_lock:
+            try:
+                self._listeners.remove(fn)
+            except ValueError:
+                pass
+
+    def dispatch_event(self, method: str, params: dict,
+                       session: Optional[str]) -> None:
+        """Deliver one event to every subscriber, iteratively.
+
+        ⛔ ONE LISTENER'S FAILURE MUST NOT COST THE OTHERS THEIR EVENT. In the
+        chain this replaces, a subscriber that raised took every subscriber
+        BELOW it down with the same event, because the delivery to the rest
+        was the last statement of the one that raised. Here each call is
+        isolated: the failure is recorded and the loop carries on.
+        """
+        with self._listeners_lock:
+            subscribers = list(self._listeners)
+        for fn in subscribers:
+            try:
+                fn(method, params, session)
+            except Exception as failure:
+                if len(self.handler_errors) < 32:
+                    self.handler_errors.append("%s: %s" % (method, failure))
+
+
+class Connection(EventListeners):
     """A pipe to an already-launched Firefox."""
 
     def __init__(self, to_browser, from_browser, process=None):
+        super().__init__()
         self._to_browser = to_browser      # where WE write
         self._from_browser = from_browser  # where WE read
         self._process = process
@@ -64,17 +142,6 @@ class Connection:
         self._lock = threading.Lock()
         self._closed = False
         self._error: Optional[BaseException] = None
-        #: (method, params, sessionId|None). The third argument is what
-        #: distinguishes two pages open at the same time.
-        self.on_event: Callable[[str, dict, Optional[str]], None] = (
-            lambda method, params, session: None)
-        #: Every exception `on_event` raised, as "method: message". Bounded at
-        #: 32 so a handler that raises on every event cannot eat memory.
-        #: ⛔ READ THIS IN A TEST. An empty event list plus an empty
-        #: `handler_errors` means the browser sent nothing; an empty event list
-        #: with entries HERE means your handler is broken, and those are two
-        #: completely different bugs that used to look identical.
-        self.handler_errors: list = []
         self._reader = threading.Thread(target=self._read_loop, daemon=True)
         self._reader.start()
 
@@ -120,24 +187,20 @@ class Connection:
                 # waiting for a `load` gets the other tab's. It is not a
                 # rare case: it is what happens on the second
                 # `new_page()`.
-                try:
-                    self.on_event(method, msg.get("params") or {},
-                                  msg.get("sessionId"))
-                except Exception as failure:
-                    # ⛔ SWALLOWING IT IS RIGHT, LOSING IT IS NOT. A handler
-                    # that raises must not kill the read loop, or one bad
-                    # callback takes the whole connection down. But a bare
-                    # `pass` here makes the failure INVISIBLE, and that is not
-                    # a theory: `test_python_talks_to_juggler_without_node`
-                    # installed a two-argument lambda where this call passes
-                    # three, so every delivery raised TypeError, the event list
-                    # stayed empty and the test could never pass. Nobody saw it
-                    # because the test is marked e2e and the default selection
-                    # deselects it - the exception had nowhere to be seen even
-                    # when it did run.
-                    if len(self.handler_errors) < 32:
-                        self.handler_errors.append(
-                            "%s: %s" % (method, failure))
+                # ⛔ SWALLOWING A HANDLER'S FAILURE IS RIGHT, LOSING IT IS
+                # NOT. `dispatch_event` isolates each subscriber and records
+                # what it raised in `handler_errors`, because a handler that
+                # raises must not kill the read loop - one bad callback would
+                # take the whole connection down - while a bare `pass` makes
+                # the failure INVISIBLE. That is not a theory twice over:
+                # `test_python_talks_to_juggler_without_node` installed a
+                # two-argument lambda where this call passes three, so every
+                # delivery raised TypeError and the event list stayed empty;
+                # and the recursion the listener registry replaced was found
+                # only by running Playwright's suite, because it too landed
+                # here and was recorded into a list nobody read.
+                self.dispatch_event(method, msg.get("params") or {},
+                                    msg.get("sessionId"))
             return
         with self._lock:
             entry = self._pending.pop(msg_id, None)
@@ -271,12 +334,30 @@ def _spawn_windows(executable, argv, env):
 
 
 def _spawn_posix(executable, argv, env):
-    """⛔ NEVER RUN. This leg has no measurement behind it - see below.
+    """⛔ IT WAS BROKEN, AND THE DOCSTRING HAD GUESSED WHICH HALF.
 
-    The Windows leg is exercised by every test in this suite; this one has
-    only ever been read. What follows is written so that whoever runs it first
-    knows exactly which two things to suspect, instead of starting from
-    `the browser did not start`.
+    This leg was written from `nsRemoteDebuggingPipe.cpp` and never executed
+    until 2026-08-28. The symptom on the first run: the browser starts, prints
+    `Juggler listening to the pipe`, stays alive - and the very first write
+    raises `BrokenPipeError`. A live process with no reader on the other end.
+
+    ⛔ THE CAUSE, MEASURED RATHER THAN REASONED. CPython's close-all-fds
+    sweep runs AFTER `preexec_fn`, so the two descriptors this function creates
+    with `dup2` are closed again before `exec` unless they are in the keep
+    list. A four-line experiment reported it exactly:
+
+        with preexec_fn + pass_fds(its_read, its_write) ->  alive=[3]
+        with 3 and 4 also kept                          ->  alive=[3, 4]
+
+    Fd 3 survived only by accident: the first `os.pipe()` in the parent
+    happened to return 3, so it was already in the keep list and the `dup2`
+    onto it was a no-op. Fd 4 was created by `dup2` and swept away - which is
+    why the browser could ANNOUNCE itself (it had a read end on 3) and never
+    receive anything (nothing owned the read end of OUR pipe once 4 died).
+
+    ⛔ The remedy is to name 3 and 4 in `pass_fds` as well. They are not open
+    in the parent and do not have to be: that list is a set of NUMBERS the
+    child's sweep spares, not a set of parent handles.
     """
     its_read, our_write = os.pipe()
     our_read, its_write = os.pipe()
@@ -285,12 +366,13 @@ def _spawn_posix(executable, argv, env):
         # On POSIX the numbers are HARDWIRED in the C++: 3 for reading,
         # 4 for writing. `nsRemoteDebuggingPipe.cpp` does not look them up.
         #
-        # ⛔ THE FD NUMBERS 3 AND 4 ARE NOT IN `pass_fds`, AND CANNOT BE. That
-        # list names the fds the parent hands down; these two are created HERE,
-        # after the fork, by dup2. Whether they survive depends on the order
-        # CPython does things in `child_exec()` - if it closes unlisted
-        # descriptors after `preexec_fn`, they are closed again before exec and
-        # the browser starts with nothing on 3 and 4.
+        # ⛔ AND 3 AND 4 *ARE* IN `pass_fds`. This comment used to say they
+        # could not be, on the reasoning that the list names fds the parent
+        # hands down. That reasoning was wrong: the list is a set of NUMBERS
+        # the child spares during its close sweep, and the sweep runs AFTER
+        # `preexec_fn` - measured, not assumed. Without them the browser starts
+        # with nothing on 4 and the first write gets EPIPE from a live
+        # process.
         #
         # `dup2` clears CLOEXEC on the NEW descriptor, which is what saves this
         # in the ordinary case - but only when the source and target differ.
@@ -305,7 +387,11 @@ def _spawn_posix(executable, argv, env):
 
     p = subprocess.Popen([executable] + argv, env=env,
                          preexec_fn=fix_descriptors,
-                         pass_fds=(its_read, its_write),
+                         # ⛔ 3 and 4 ARE IN THIS LIST, see the docstring.
+                         # Without them the sweep that runs after `preexec_fn`
+                         # closes exactly the two descriptors this whole
+                         # function exists to create.
+                         pass_fds=(its_read, its_write, 3, 4),
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     os.close(its_read)
     os.close(its_write)

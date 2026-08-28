@@ -16,13 +16,17 @@ import pytest
 
 from invisible_playwright._juggler.lifecycle import (
     Lifecycle, NavigationError, IDLE_QUIET)
+from invisible_playwright._juggler.connection import EventListeners
 
 
-class FakeConnection:
-    """The minimum that `Lifecycle` uses: a hook and a `send`."""
+class FakeConnection(EventListeners):
+    """The minimum that `Lifecycle` uses: the subscriber registry and a `send`.
+
+    It INHERITS the registry rather than imitating it, so what these tests
+    exercise is the same `add_listener`/`dispatch_event` the browser runs."""
 
     def __init__(self, responses=None):
-        self.on_event = lambda m, p, s: None
+        super().__init__()
         self.sent = []
         self._responses = responses or {}
 
@@ -38,7 +42,7 @@ def lifecycle(responses=None):
 
 def events(v, *pairs):
     for method, params in pairs:
-        v.c.on_event(method, params, "S1")
+        v.c.dispatch_event(method, params, "S1")
 
 
 # ── the tree ────────────────────────────────────────────────────────────────
@@ -66,18 +70,35 @@ def test_the_events_of_ANOTHER_session_do_not_get_in():
     """Two pages open together: without the sessionId, whoever waits for
     a load gets the other tab's."""
     c, v = lifecycle()
-    c.on_event("Page.frameAttached", {"frameId": "OTHER"}, "S2")
+    c.dispatch_event("Page.frameAttached", {"frameId": "OTHER"}, "S2")
     assert v.frames == {}
 
 
-def test_does_not_steal_events_from_whoever_was_already_hooked():
+def test_does_not_steal_events_from_whoever_was_already_subscribed():
+    """Two subscribers, one event, both served.
+
+    The chain this replaced could silence an observer by forgetting to call
+    the next link; a list cannot. What it CAN do is stop calling the rest
+    when one of them raises, so the second half of this asserts on that.
+    """
     c = FakeConnection()
     seen = []
-    c.on_event = lambda m, p, s: seen.append(m)
+    c.add_listener(lambda m, p, s: seen.append(m))
     v = Lifecycle(c, "S1")
-    c.on_event("Page.frameAttached", {"frameId": "F1"}, "S1")
-    assert seen == ["Page.frameAttached"], "the previous observer went silent"
+    c.dispatch_event("Page.frameAttached", {"frameId": "F1"}, "S1")
+    assert seen == ["Page.frameAttached"], "the other subscriber went silent"
     assert "F1" in v.frames
+
+
+def test_a_subscriber_that_raises_does_not_cost_the_others_their_event():
+    c = FakeConnection()
+    def explodes(m, p, s):
+        raise RuntimeError("boom")
+    c.add_listener(explodes)
+    v = Lifecycle(c, "S1")
+    c.dispatch_event("Page.frameAttached", {"frameId": "F1"}, "S1")
+    assert "F1" in v.frames, "the raising subscriber took the event with it"
+    assert any("boom" in e for e in c.handler_errors),         "the failure was swallowed without a trace"
 
 
 # ── the states, and the defect that matters ─────────────────────────────────
@@ -255,7 +276,7 @@ def test_the_four_states_are_reached_on_a_real_page(firefox_binary):
             pass
 
     profile_dir = tempfile.mkdtemp(prefix="lifecycle_e2e_")
-    plan = build_launch_plan(11, profile_dir=profile_dir, timezone="UTC",
+    plan = build_launch_plan(11, profile_dir=profile_dir, binary_path=firefox_binary, timezone="UTC",
                               locale="en-US")
 
     with socketserver.TCPServer(("127.0.0.1", 0), H) as srv:
@@ -265,10 +286,10 @@ def test_the_four_states_are_reached_on_a_real_page(firefox_binary):
                          env=plan.env)
         try:
             sessions: dict = {}
-            c.on_event = lambda m, p, s: (
+            c.add_listener(lambda m, p, s: (
                 sessions.__setitem__(
                     p["targetInfo"]["targetId"], p["sessionId"])
-                if m == "Browser.attachedToTarget" else None)
+                if m == "Browser.attachedToTarget" else None))
             c.send("Browser.enable", {"attachToDefaultContext": True})
             ctx = c.send("Browser.createBrowserContext",
                          {"removeOnDetach": True})

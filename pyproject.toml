@@ -8,18 +8,25 @@ version = "0.7.4"
 description = "Playwright wrapper for a patched Firefox with deterministic stealth profile."
 readme = "README.md"
 requires-python = ">=3.11"
-# ⛔ TWO LICENSES, not one, since src/invisible_playwright/_driver/ is a fork
-# of Playwright's Node driver (Apache-2.0). Our own code stays MIT; that
+# ⛔ TWO LICENSES, not one, since src/invisible_playwright/_pw/ is a fork of
+# Playwright's Python client (Apache-2.0). Our own code stays MIT; that
 # directory does not, and redistributing it under an MIT declaration would
 # misstate what the user is receiving.
 #
+# ⛔ THE NODE DRIVER WENT ON 2026-08-28 AND THIS LINE DID NOT MOVE, which is the
+# part worth writing down. `_driver/` was the other Apache-2.0 folder and is
+# gone, together with its LICENSE, NOTICE and ThirdPartyNotices.txt - but `_pw/`
+# is still here, still carries Microsoft's copyright headers, and is still
+# redistributed. Dropping the declaration because "the driver is gone" would
+# have been the wrong deduction, and `tests/test_fork.py` asserts the surviving
+# obligation by name so that nobody makes it later.
+#
 # This is not a theoretical precaution: this same file, a few lines below,
 # already excludes tests/playwright-upstream from the sdist for the identical
-# reason, written there in 2026. That time the choice was not to ship; here
-# the choice is to ship, so it must be declared.
+# reason. That time the choice was not to ship; here the choice is to ship, so
+# it must be declared.
 #
-# The files that make the redistribution lawful - LICENSE, NOTICE,
-# ThirdPartyNotices.txt - live inside _driver/package/ and are not touched.
+# The file that makes the redistribution lawful is `_pw/LICENSE`, untouched.
 license = "MIT AND Apache-2.0"
 authors = [{ name = "feder-cr", email = "85809106+feder-cr@users.noreply.github.com" }]
 keywords = ["playwright", "firefox", "stealth", "anti-detect", "automation"]

@@ -223,6 +223,37 @@ def test_escape_hatch_off_disables_motion_without_touching_the_constructor(stub_
 
 
 @pytest.mark.unit
+def test_the_show_cursor_kwarg_reaches_the_prefs(stub_motion):
+    """A kwarg that reaches nothing is inert, and this project has shipped
+    seven inert levers by reading the code instead of the value.
+
+    So the assertion is on what the browser will be HANDED, not on the
+    attribute we stored: `_show_cursor` being True proves only that `__init__`
+    ran.
+    """
+    on = InvisiblePlaywright(seed=42, show_cursor=True)._build_prefs()
+    off = InvisiblePlaywright(seed=42, show_cursor=False)._build_prefs()
+    silent = InvisiblePlaywright(seed=42)._build_prefs()
+    assert on["stealthfox.showcursor"] is True
+    assert off["stealthfox.showcursor"] is False
+    # ⛔ SAYING NOTHING IS NOT SAYING FALSE. The overlay ships ON since
+    # 2026-08-28, and the third arm is the one that catches a layer collapsing
+    # None into False on the way down - which is exactly what `bool(...)` in
+    # the constructor used to do.
+    assert silent["stealthfox.showcursor"] is True
+
+
+@pytest.mark.unit
+def test_the_dot_and_the_motion_are_two_switches(stub_motion):
+    """Watching a TELEPORTING cursor is a legitimate thing to want, and it is
+    the combination a derivation would quietly forbid."""
+    prefs = InvisiblePlaywright(seed=42, humanize=False,
+                                show_cursor=True)._build_prefs()
+    assert prefs["stealthfox.humanize"] is False
+    assert prefs["stealthfox.showcursor"] is True
+
+
+@pytest.mark.unit
 def test_missing_generator_falls_back_to_the_browser(no_motion):
     """A session must always be able to move. With no generator installed we
     hand the job back to the browser rather than shipping a teleporting
@@ -985,16 +1016,51 @@ _EXPECTED_SIGNATURE = [
     ("binary_path", inspect.Parameter.KEYWORD_ONLY),
     ("profile_dir", inspect.Parameter.KEYWORD_ONLY),
     ("prep_recaptcha", inspect.Parameter.KEYWORD_ONLY),
+    # Added 2026-08-28, and it is the FIRST entry on this list that the motion
+    # work did not already justify. `humanize` needed no new argument because
+    # the motion arrives through methods people already call; the visible dot
+    # has nothing to arrive through - it is a property of the session, decided
+    # before the first window is built, so it has to be said at construction.
+    ("show_cursor", inspect.Parameter.KEYWORD_ONLY),
 ]
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize("cls", [InvisiblePlaywright, AsyncInvisiblePlaywright])
 def test_public_constructor_signature_unchanged(cls):
-    """No new argument. The motion arrives through the methods people already
-    call, so there is nothing to add here and nothing to remember."""
+    """The two constructors have the SAME shape, and it changes only on purpose.
+
+    ⛔ What this guards is not "never add an argument" - it is that adding one
+    is a decision somebody wrote down, and that both entry points get it. The
+    sync and async classes have drifted before: a knob honoured in one and not
+    the other is a documented feature that works depending on which import the
+    caller happened to use.
+    """
     params = list(inspect.signature(cls.__init__).parameters.values())
     assert [(p.name, p.kind) for p in params] == _EXPECTED_SIGNATURE
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("cls", [InvisiblePlaywright, AsyncInvisiblePlaywright])
+def test_neither_entry_point_decides_the_cursor_default(cls):
+    """⛔ THE ASSERTION IS None, NOT True, and that is the whole point.
+
+    The default used to be written into six signatures plus the engine's own
+    fallback, so flipping it meant finding all seven and a missed one would
+    give the sync API a different answer from the async one with every test
+    still green. Now the signatures say None - "the caller did not say" - and
+    `invisible_core.prefs.DEFAULT_SHOW_CURSOR` is the only thing that decides.
+    A True here would be the old defect written the other way round.
+
+    What the value IS gets asserted where it lives, in the core's own suite,
+    and end to end by `test_the_show_cursor_kwarg_reaches_the_prefs`.
+
+    (Owner decision 2026-08-28: on. Camoufox ships it on too. The argument for
+    off has not gone away and is recorded next to the constant: a pointer
+    gliding across a window with nobody touching the mouse reads as "this is a
+    bot" to any person glancing at the monitor.)
+    """
+    assert inspect.signature(cls.__init__).parameters["show_cursor"].default is None
 
 
 @pytest.mark.unit
@@ -1135,3 +1201,29 @@ def test_the_page_seed_is_a_different_derivation_and_stays_one():
         assert 0 <= _cursor.page_motion_seed(seed, 0) < 2**31
         # ...and it is genuinely its own function, not the mix under a name.
         assert _cursor.page_motion_seed(seed, 0) != authoritative(seed, "0") & 0x7FFFFFFF
+
+
+@pytest.mark.unit
+def test_the_core_we_resolve_against_decides_the_cursor_default():
+    """⛔ A BEHAVIOUR THIS PACKAGE DEPENDS ON, MADE INTO A NAME IT IMPORTS.
+
+    The launcher forwards `show_cursor=None` and lets `invisible_core` resolve
+    what "the caller did not say" means. Every core released before
+    2026-08-28 reads None as "do not emit the pref at all", so the engine falls
+    back to its compiled default and the cursor is OFF - no exception, no
+    missing attribute, nothing for a CI runner to go red on, and a released
+    wrapper whose documented default silently does not happen.
+
+    The import floor cannot see that class: nothing fails to import. So the
+    dependency is turned into one it CAN see. This test goes red on any
+    environment resolving a core older than the one that owns
+    `DEFAULT_SHOW_CURSOR`, which is exactly the ordering the release runbook
+    requires - publish the core, then move the pin, then release the wrapper.
+    """
+    from invisible_core.prefs import DEFAULT_SHOW_CURSOR
+
+    assert isinstance(DEFAULT_SHOW_CURSOR, bool)
+    ip = InvisiblePlaywright(seed=42)
+    assert ip._build_prefs()["stealthfox.showcursor"] is DEFAULT_SHOW_CURSOR, (
+        "the wrapper's silent default disagrees with the core's declaration; "
+        "one of the two has grown a second opinion")

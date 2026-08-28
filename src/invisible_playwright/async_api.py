@@ -44,6 +44,7 @@ class InvisiblePlaywright:
         binary_path: Optional[str] = None,
         profile_dir: Optional[Union[str, Path]] = None,
         prep_recaptcha: bool = False,
+        show_cursor: Optional[bool] = None,
     ) -> None:
         # See sync launcher: `zoom.stealth.fpp.hw_seed` is int32_t - clamp.
         self.seed: int = int(seed) if seed is not None else secrets.randbits(31)
@@ -56,6 +57,14 @@ class InvisiblePlaywright:
         # default, the browser under INVPW_CURSOR_ENGINE=binary, nobody when
         # humanize is falsy). Decided here because the prefs depend on it.
         self._cursor_engine = resolve_cursor_engine(humanize)
+        # See the sync launcher: independent of `humanize`, deliberately.
+        # ⛔ NOT `bool(...)`: that would collapse None - "the caller did not
+        # say" - into False and pin the switch off, silently undoing the one
+        # place that decides the default. None is carried all the way to
+        # `invisible_core.prefs`, which is the only thing allowed to resolve
+        # it.
+        self._show_cursor = (None if show_cursor is None
+                             else bool(show_cursor))
         self._locale = locale
         self._timezone = timezone
         self._extra_prefs = extra_prefs
@@ -410,6 +419,7 @@ class InvisiblePlaywright:
             virtual_display=self._virtual_display is not None,
             cursor_engine=self._cursor_engine,
             humanize=self._humanize,
+            show_cursor=self._show_cursor,
         )
 
     def _resolve_headless(self) -> bool:
