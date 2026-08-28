@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- The Node driver. `invisible_playwright._driver` (6 MB of vendored JavaScript)
+  and the `node.exe` downloader are gone, and the browser is now driven from
+  Python over the Juggler protocol directly. The wheel goes from about 13 MB to
+  7 MB, and a first install no longer downloads a 92 MB Node runtime - it
+  fetches the browser and nothing else.
+- `invisible-playwright show-trace`. The trace viewer is a Node application and
+  left with the runtime that ran it. Traces themselves are unaffected: they are
+  still recorded, and `playwright show-trace` from an ordinary Playwright
+  install opens them.
+
+### Changed
+
+- The visible pointer overlay is ON by default. It draws the Windows arrow,
+  with the package logo's green halo around it, in the browser's own chrome
+  window - which the page cannot reach, so no site sees a difference either
+  way. What it changes is what a person watching the screen sees. Pass
+  `show_cursor=False` for the previous behaviour.
+
+### Fixed
+
+- A browser that had opened a few hundred pages stopped delivering events
+  entirely while still answering commands, so the next `new_page()` timed out
+  waiting for a session that had already been announced. Event delivery was a
+  chain of nested calls that grew by three per page and never shrank; past
+  roughly 330 pages it crossed Python's recursion limit, and the failure was
+  swallowed by the handler that keeps a bad callback from killing the
+  connection. Delivery is now flat and subscribers are removed when their page
+  closes.
+- A closed page is now disposed, so neither the client's nor the server's
+  object registry grows for the life of the browser.
+
 ## [0.7.4] - 2026-08-27
 
 ### Changed
