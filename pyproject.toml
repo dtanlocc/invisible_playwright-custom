@@ -153,6 +153,24 @@ markers = [
 # the release wiring, and it is the selection a push most needs.
 addopts = "-m 'not slow and not e2e' --strict-markers"
 
+# ⛔ THE SUITE TESTS *THIS* CHECKOUT, not whatever the shared environment's
+# editable install happens to point at. Without this line the package comes
+# from whichever directory last ran `pip install -e`, and on 2026-08-29 that
+# was a DIFFERENT working copy of this same repository, in C:/tmp, sitting on
+# an older branch with no `_juggler/` package at all: a plain `pytest -q`
+# reported 7 collection errors and ran zero tests, in a tree whose own suite
+# is green.
+#
+# It failed loudly that time, which was luck rather than design - the two
+# trees happened to differ by a whole subpackage. Had they differed by one
+# function's behaviour instead, the suite would have gone green while testing
+# code nobody had written here, which is the false green this project keeps
+# finding in its own instruments.
+#
+# `src` is relative to this file, so each checkout points at itself and two
+# working copies of this repo stop fighting over one interpreter.
+pythonpath = ["src"]
+
 # tests/playwright-upstream/ is a vendored Microsoft Playwright test suite
 # used for compatibility verification on demand. It has its own deps
 # (pixelmatch with API not matching our version) and a conftest that fails
