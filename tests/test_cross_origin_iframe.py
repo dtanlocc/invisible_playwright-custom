@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
@@ -179,9 +180,38 @@ def test_cross_origin_iframe_url_appears_in_page_frames(firefox_binary, cross_or
         page = ctx.new_page()
         page.goto(cross_origin_harness["parent_url"], wait_until="domcontentloaded", timeout=30_000)
         page.wait_for_selector("iframe#ifr_plain", timeout=10_000)
-        page.wait_for_timeout(500)
 
-        urls = [f.url for f in page.frames]
+        # ⛔ WAIT FOR THE CONDITION, NOT FOR A DURATION. This was
+        # `wait_for_timeout(500)`, and that measured the machine rather than
+        # the product: by then the child frame is ATTACHED but on a loaded box
+        # it has not NAVIGATED, so `page.frames` answers with empty URLs and
+        # the assertion below reads them as the very defect it guards.
+        #
+        # Measured 2026-08-29: red inside the full e2e run, with
+        # `urls = ['http://127.0.0.1:.../', '', '', '']`, and green 5 times out
+        # of 5 on its own. That gap between loaded and idle is the signature of
+        # a timing assumption, not of a regression.
+        #
+        # It was never retried either: `run_e2e.py` reruns on a fixed list of
+        # load-flake messages, and this assertion's text is domain-specific so
+        # it can never match. Adding it to that list would have been the wrong
+        # fix - it hides the failure instead of removing the race.
+        #
+        # ⛔ THE FAILURE MODE IS DELIBERATELY UNCHANGED. If no frame EVER
+        # reports the child origin - the pref regression this file exists for -
+        # the loop runs out of time and the same assertion fires with the same
+        # message. Verified by mutation: with the origin replaced by one that
+        # never appears, this still goes red.
+        deadline = time.monotonic() + 10.0
+        urls: list = []
+        while True:
+            urls = [f.url for f in page.frames]
+            if any(cross_origin_harness["child_origin"] in (u or "") for u in urls):
+                break
+            if time.monotonic() >= deadline:
+                break
+            page.wait_for_timeout(100)
+
         assert any(cross_origin_harness["child_origin"] in (u or "") for u in urls), (
             f"no frame had the child origin in its URL; page.frames urls = {urls!r}"
         )
