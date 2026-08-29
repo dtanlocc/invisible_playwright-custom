@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-29
+
 ### Removed
 
 - The Node driver. `invisible_playwright._driver` (6 MB of vendored JavaScript)
@@ -20,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Pins `invisible-core` 22.16.0, which seals the `firefox-22` engine.
 - The visible pointer overlay is ON by default. It draws the Windows arrow,
   with the package logo's green halo around it, in the browser's own chrome
   window - which the page cannot reach, so no site sees a difference either
@@ -28,6 +31,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A teardown that was cancelled left the browser running. `asyncio.CancelledError`
+  inherits from `BaseException`, not from `Exception`, so the guard around each
+  close step never caught it: cancel the task and teardown stopped wherever it
+  had reached, skipping every later step including the one that reaps whatever
+  the close did not. A cancellation is now caught, kept, and re-raised once every
+  step has run, so it still propagates and nothing is left behind. Reported by
+  DatGuy1 in #104.
 - A browser that had opened a few hundred pages stopped delivering events
   entirely while still answering commands, so the next `new_page()` timed out
   waiting for a session that had already been announced. Event delivery was a

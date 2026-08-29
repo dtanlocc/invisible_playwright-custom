@@ -26,6 +26,9 @@ instead of the widget, click each tab to trigger its request, keep live and hist
 formats apart, and hold the session open long enough to capture a whole match without
 becoming a rate tell.
 
+This page is the transport layer: the socket, the tab clicks, the session. What the score actually means once it arrives, match state, added time, a VAR reversal, is in [scraping live sports scores](how-to-scrape-live-sports-scores-playwright.md).
+
+
 ## Why a sports page is a moving target
 
 Three properties make these pages different from a normal scrape, and each one breaks a

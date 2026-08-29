@@ -130,7 +130,7 @@ with InvisiblePlaywright(seed=42) as browser:
     print(len(items), "items across", n, "pages")
 ```
 
-This is the more robust pattern when the URL exposes the page number, because there is no
+This is the more reliable pattern when the URL exposes the page number, because there is no
 "next" button to find, no disabled state to detect, and no way to hold a handle across a
 boundary because the boundary is a full `goto`. Guard the end with a real signal, an
 empty result set or a "no more results" element, not a fixed page count you guessed. And
@@ -204,6 +204,9 @@ to finish before you read the next page. When the page number is in the URL, pre
 browser, pass a fixed seed so a forty-page crawl is one visitor reading forty pages rather
 than forty visitors reading one each.
 
+A catalog is the same pagination problem with a tree under it: see
+[how to scrape course catalogs with Playwright](how-to-scrape-course-catalogs-playwright.md).
+
 ## Short answers to the questions that lead here
 
 **Why does my Playwright pagination loop crash with "Execution context was destroyed"?**
@@ -217,7 +220,7 @@ and find the next control at the top of each iteration, click inside
 no handle across the click.
 
 **Should I click "next" or change the URL?** If the page number is in the URL, use
-`page.goto` per page. It is more robust, because each navigation is a clean document and
+`page.goto` per page. It is more reliable, because each navigation is a clean document and
 there is no handle to hold across a boundary and no button state to detect.
 
 **How do I know when to stop paginating?** On a real end signal, an empty item set or a
@@ -240,6 +243,8 @@ you carried across a page turn, which is the actual bug here.
 - The project quickstart for the real API surface used above: `InvisiblePlaywright`
   returns a stock Playwright `Browser`, and a passed seed makes the fingerprint
   reproducible across runs and processes.
+- Playwright documentation, [Navigations](https://playwright.dev/python/docs/navigations), retrieved 2026-08-28
+- Playwright documentation, [Locators](https://playwright.dev/python/docs/locators), retrieved 2026-08-28
 
 **See also:** [when "Execution context was destroyed" means detection](execution-context-destroyed.md),
 [scraping infinite scroll pages](how-to-scrape-infinite-scroll-playwright.md), and
