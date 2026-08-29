@@ -164,6 +164,9 @@ def main() -> int:
                    help="the sync arm first: it is the one our own API mirrors")
     p.add_argument("-k", dest="selection", default=None)
     p.add_argument("--timeout", default="60")
+    p.add_argument("--per-file", action="store_true",
+                   help="one pytest process per file: obbligatorio sul braccio "
+                        "async, vedi sotto")
     a = p.parse_args()
 
     plugin = write_plugin()
@@ -184,9 +187,89 @@ def main() -> int:
     env = dict(os.environ)
     env["INVPW_BINARY_PATH"] = a.binary
     env["PYTHONPATH"] = str(ROOT)
-    print("running: %s" % " ".join(argv[3:]))
-    r = subprocess.run(argv, cwd=SUITE, env=env)
-    return r.returncode
+
+    if not a.per_file:
+        print("running: %s" % " ".join(argv[3:]))
+        r = subprocess.run(argv, cwd=SUITE, env=env)
+        return r.returncode
+
+    return _per_file(argv, target, env)
+
+
+def _per_file(argv: list, target: str, env: dict) -> int:
+    """Un processo pytest per FILE, e la ragione e' strutturale.
+
+    Il braccio async non si puo' misurare in un processo solo. `pytest-asyncio`
+    fa girare tutta la sessione su UN event loop, e un test che lo blocca non
+    lo lascia piu' andare avanti: `--timeout-method thread` stampa gli stack e
+    poi la sessione MUORE, senza riepilogo. Su Windows non ci sono le due vie
+    d'uscita che altrove basterebbero - `--timeout-method signal` e `--forked`.
+
+    Misurato il 2026-08-29: la corsa intera si e' fermata al **13%**, e
+    riprodotta in isolamento bastano due test dello stesso file - il primo passa,
+    il secondo appende, la corsa muore. Contati, i test che non hanno mai avuto
+    la parola erano piu' di milleduecento.
+
+    Con un processo per file un appeso costa QUEL file e non la corsa. Il
+    prezzo e' un browser riavviato per file, quindi il braccio async e' piu'
+    lento del sync per costruzione: e' il costo di poterlo misurare affatto.
+    """
+    files = sorted((SUITE / target).glob("test_*.py"))
+    print("per-file: %d file, un processo ciascuno" % len(files),
+          flush=True)
+    totali = {"passed": 0, "failed": 0, "error": 0, "skipped": 0}
+    morti = []
+    for i, f in enumerate(files, 1):
+        rel = str(f.relative_to(SUITE)).replace("\\", "/")
+        argv_f = [x if x != target else rel for x in argv]
+        r = subprocess.run(argv_f, cwd=SUITE, env=env,
+                           capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        coda = (r.stdout or "") + (r.stderr or "")
+        conto = _conta(coda)
+        for k in totali:
+            totali[k] += conto.get(k, 0)
+        # ⛔ Un file senza riepilogo NON e' un file con zero guasti: e' un file
+        # che e' morto. Contarlo come zero e' il falso verde piu' facile da
+        # scrivere in un aggregatore.
+        if not conto:
+            morti.append(rel)
+        # ⛔ `flush=True`: rediretto su file, Python bufferizza stdout, e un
+        # ciclo che dura un'ora senza scrivere niente e' indistinguibile da uno
+        # piantato. La prima corsa vera di questa modalita' e' stata seguita
+        # contando i processi e il tempo di CPU, che e' il rimedio a un difetto
+        # che non doveva esserci.
+        print("  %3d/%d  %-58s %s" % (i, len(files), rel,
+                                      _riassumi(conto) if conto
+                                      else "MORTO (nessun riepilogo)"),
+              flush=True)
+    print()
+    print("TOTALE  passed=%(passed)d failed=%(failed)d error=%(error)d "
+          "skipped=%(skipped)d" % totali)
+    if morti:
+        print("file MORTI (niente riepilogo, quindi non contati): %d" % len(morti))
+        for m in morti:
+            print("   " + m)
+    return 1 if morti else 0
+
+
+def _conta(testo: str) -> dict:
+    """I numeri della riga di riepilogo di pytest, o {} se non c'e'."""
+    ultima = None
+    for riga in testo.splitlines():
+        if re.search(r"\d+ (passed|failed|error|skipped)", riga):
+            ultima = riga
+    if not ultima:
+        return {}
+    out = {}
+    for numero, parola in re.findall(r"(\d+) (passed|failed|errors?|skipped)",
+                                     ultima):
+        out["error" if parola.startswith("error") else parola] = int(numero)
+    return out
+
+
+def _riassumi(c: dict) -> str:
+    return " ".join("%s=%d" % (k, v) for k, v in sorted(c.items()) if v)
 
 
 if __name__ == "__main__":
