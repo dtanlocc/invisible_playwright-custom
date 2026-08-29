@@ -26,6 +26,11 @@ endpoint the same question on a tight schedule. Tight repeat polling of one endp
 the exact pattern naive scrapers get caught on, so the second half of this page is about
 making the poll look like a returning shopper rather than a burst of new machines.
 
+This page is about watching an availability flag flip. Recording comparable integer
+quantities over time, where absent, null and zero are three different observations,
+is [scraping stock levels](how-to-scrape-stock-levels-playwright.md).
+
+
 ## The shell HTML does not tell you what is in stock
 
 The in-stock flag is almost never in the shell HTML; it arrives in a later XHR, so
