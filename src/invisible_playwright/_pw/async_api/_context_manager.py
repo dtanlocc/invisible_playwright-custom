@@ -28,19 +28,24 @@ class PlaywrightContextManager:
 
     async def __aenter__(self) -> AsyncPlaywright:
         loop = asyncio.get_running_loop()
+        # MODIFIED by invisible_playwright: the transport is chosen, not hardcoded.
+        # The Node driver stays reachable BY NAME - `INVPW_TRANSPORT=driver` -
+        # as the only second arm this project has to judge the Python server
+        # against; the Python server has been the default since 2026-08-28.
+        # See `_juggler/transport.py` for the switch.
+        transport = make_transport(loop)
         self._connection = Connection(
             None,
             create_remote_object,
-            # MODIFIED by invisible_playwright: the transport is chosen, not hardcoded.
-            # The Node driver stays reachable while the Python server in
-            # `_juggler` is being built, because it is the JUDGE of that
-            # server: both answer the same protocol, so the only honest
-            # check is the same session through both. See
-            # `_juggler/transport.py` for the switch and why the default is
-            # still the driver.
-            make_transport(loop),
+            transport,
             loop,
         )
+        # MODIFIED by invisible_playwright: the one bridge between the two
+        # object graphs. See the sync entry point's `_context_manager.py` for
+        # why - this is the same line, needed for the same reason, on the
+        # other facade.
+        transport.bind_impl_objects(self._connection._objects,
+                                   self._connection.deliver_event)
         loop.create_task(self._connection.run())
         playwright_future = self._connection.playwright_future
 

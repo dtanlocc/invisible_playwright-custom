@@ -48,6 +48,7 @@ if (os.environ.get("INVPW_TRANSPORT") == "driver"
 PAGE = b"""<!doctype html><html><head><title>capture</title></head><body>
 <button id=b onclick="this.textContent='clicked'">press</button>
 <input id=f>
+<button id=d onclick="alert('capture-dialog')">dialog</button>
 </body></html>"""
 
 
@@ -159,6 +160,14 @@ def capture(binary: str, out: pathlib.Path) -> int:
             page.fill("#f", "hello")
             page.title()
             page.content()
+            # ⛔ ADDED 2026-08-29, WITH THE Dialog FUSION: without this the
+            # capture never opens a dialog at all, and a diff against the
+            # driver arm reads "PARITY" for a type it never exercised on
+            # either side - true and empty at once. `accept()` is exercised
+            # here on purpose, not `dismiss()`: it is the branch that crosses
+            # back into `_juggler` with a `promptText`-shaped payload.
+            page.on("dialog", lambda d: d.accept())
+            page.click("#d")
             page.close()
     finally:
         srv.shutdown()

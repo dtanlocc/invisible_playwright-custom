@@ -1000,45 +1000,14 @@ class FrameDispatcher(Dispatcher):
         return {"handle": handle.channel}
 
 
-class DialogDispatcher(Dispatcher):
-    """A dialog the page opened, and the two ways it can end.
-
-    ⛔ A DIALOG BLOCKS THE PAGE UNTIL IT IS ANSWERED, which makes this the one
-    object where forgetting to reply is not a leak but a hang: the content
-    process sits inside `window.alert` and every later command times out with
-    no hint about why. Playwright's client answers automatically when nobody is
-    listening, and that safety net only works if the event actually arrives -
-    which is why this is created and emitted from the event handler rather than
-    on demand.
-    """
-
-    TYPE = "Dialog"
-    METHODS = {"accept": "op_accept", "dismiss": "op_dismiss"}
-
-    def __init__(self, server, page: "PageDispatcher", dialog_id: str,
-                 kind: str, message: str, default_value: str) -> None:
-        self.page_dispatcher = page
-        self.dialog_id = dialog_id
-        super().__init__(server, page, {
-            "type": kind, "message": message,
-            "defaultValue": default_value or "",
-            "page": page.channel,
-        })
-
-    def _answer(self, accept: bool, prompt_text: Optional[str] = None) -> Any:
-        params: Dict[str, Any] = {"dialogId": self.dialog_id,
-                                  "accept": accept}
-        if prompt_text is not None:
-            params["promptText"] = prompt_text
-        self.page_dispatcher.send("Page.handleDialog", params)
-        self.dispose()
-        return None
-
-    def op_accept(self, params: Dict) -> Any:
-        return self._answer(True, params.get("promptText"))
-
-    def op_dismiss(self, params: Dict) -> Any:
-        return self._answer(False)
+# ⛔ `DialogDispatcher` LIVED HERE AND IS GONE, fused into `_pw._impl._dialog`
+# on 2026-08-29 - the first type fused into its impl class rather than merely
+# simplified in place. There is no `__create__` for a dialog any more: see
+# `PageDispatcher._on_juggler_event`'s `Page.dialogOpened` branch below, which
+# constructs the fused object directly and hands it across the thread boundary
+# with `call_soon_threadsafe`, and `_pw/_impl/_dialog.py` for the object
+# itself, including the auto-answer safety net this docstring used to
+# describe.
 
 
 
@@ -1456,19 +1425,10 @@ class PageDispatcher(Dispatcher):
                 "location": _location(params.get("location")),
             })
         elif method == "Page.dialogOpened":
-            dialog = DialogDispatcher(self.server, self, params["dialogId"],
-                                      params.get("type") or "alert",
-                                      params.get("message") or "",
-                                      params.get("defaultValue") or "")
-            # ⛔ CREATING THE OBJECT IS NOT EMITTING THE EVENT, and the
-            # difference is a hang rather than an error. `__create__` only
-            # tells the client the object exists; `_browser_context.py`
-            # listens for a `dialog` EVENT carrying its channel, and without
-            # that the dialog sits unanswered, the content process stays
-            # blocked inside `window.alert`, and the next command times out
-            # naming a completely unrelated call - measured on 2026-08-28 as
-            # `Runtime.callFunction: no response in 30s`.
-            self.context.emit("dialog", {"dialog": dialog.channel})
+            self._emit_fused_dialog(params["dialogId"],
+                                    params.get("type") or "alert",
+                                    params.get("message") or "",
+                                    params.get("defaultValue") or "")
         elif method == "Page.fileChooserOpened":
             # ⛔ OFF THIS THREAD, and it is a deadlock rather than a slowdown.
             # `_on_juggler_event` runs INSIDE the connection's read loop, and
@@ -1648,6 +1608,63 @@ class PageDispatcher(Dispatcher):
         """
         return self.conn.send(command, params,
                                               session=self.session, timeout=30)
+
+    async def send_async(self, command: str, params: Dict) -> Any:
+        """`send`, off the loop and awaitable.
+
+        ⛔ THE PRIMITIVE A FUSED TYPE NEEDS. A fused object's own methods are
+        `async def` - the public API promises that - but the Juggler call
+        underneath still BLOCKS. This hands it to the transport's worker pool
+        via `Server.run_blocking` and awaits the result, instead of a fused
+        type reaching for the pool on its own and reinventing the translation
+        `run_blocking` already does. Dialog is the first caller, 2026-08-29.
+        """
+        return await self.server.run_blocking(self.send, command, params)
+
+    def _emit_fused_dialog(self, dialog_id: str, kind: str, message: str,
+                           default_value: str) -> None:
+        """A dialog just opened: build the fused object and hand it to the
+        impl-side `BrowserContext` directly, no `__create__`, no guid, no
+        channel.
+
+        ⛔ THIS RUNS ON THE CONNECTION'S READ LOOP, not the asyncio loop -
+        `_on_juggler_event` always does, see the comment on `_history` /
+        `Page.fileChooserOpened` above for the same fact stated once already.
+        `_on_dialog` and the auto-answer path it may take
+        (`asyncio.create_task(...)`) both require the ASYNCIO loop, so the
+        hand-off is `Server.call_soon`, the exact mechanism every other event
+        already crosses this same boundary with - just carrying a real object
+        instead of a wire message this time.
+
+        ⛔ AND CREATING THE OBJECT IS NOT NOTIFYING ANYONE, same as when this
+        was two objects: forgetting the hand-off is a HANG, not a leak - the
+        content process sits inside `window.alert` and the next command times
+        out naming something unrelated. Measured on 2026-08-28, before the
+        fusion, as `Runtime.callFunction: no response in 30s`.
+        """
+        from invisible_playwright._pw._impl._dialog import Dialog as ImplDialog
+
+        impl_page = self.server.twin(self.guid)
+        if impl_page is None:
+            # The client never learned about this page - can happen only if
+            # a dialog fires in the gap between the engine creating the page
+            # and `__create__` reaching the client, which today's ordering
+            # guarantee is not supposed to allow. Refusing to guess who to
+            # notify is safer than guessing wrong.
+            return
+        dialog = ImplDialog(self, impl_page, dialog_id, kind, message,
+                           default_value)
+        browser_context = impl_page._browser_context
+        # ⛔ TWO HOPS, NOT ONE: `call_soon` gets to the loop thread from here
+        # (the connection's read loop); `server.deliver` then runs the target
+        # under the client's own event-delivery rules once there (the
+        # `EventGreenlet` wrapping `dispatch` gives every wire event, see
+        # `Connection.deliver_event`). Calling `_on_dialog` bare through
+        # `call_soon` skips that wrapping entirely, and a sync-mode
+        # `dialog.accept()` called from the "dialog" handler hangs with no
+        # exception - found live, 2026-08-29, not by the unit suite.
+        self.server.call_soon(
+            lambda: self.server.deliver(browser_context._on_dialog, dialog))
 
     # ── history ─────────────────────────────────────────────────────────────
     def _history(self, command: str, params: Dict) -> Any:

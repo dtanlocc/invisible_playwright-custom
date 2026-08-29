@@ -57,19 +57,27 @@ Please use the Async API instead."""
 
         dispatcher_fiber = MainGreenlet(greenlet_main)
 
+        # MODIFIED by invisible_playwright: the transport is chosen, not hardcoded.
+        # The Node driver stays reachable BY NAME - `INVPW_TRANSPORT=driver` -
+        # as the only second arm this project has to judge the Python server
+        # against; the Python server has been the default since 2026-08-28.
+        # See `_juggler/transport.py` for the switch.
+        transport = make_transport(self._loop)
         self._connection = Connection(
             dispatcher_fiber,
             create_remote_object,
-            # MODIFIED by invisible_playwright: the transport is chosen, not hardcoded.
-            # The Node driver stays reachable while the Python server in
-            # `_juggler` is being built, because it is the JUDGE of that
-            # server: both answer the same protocol, so the only honest
-            # check is the same session through both. See
-            # `_juggler/transport.py` for the switch and why the default is
-            # still the driver.
-            make_transport(self._loop),
+            transport,
             self._loop,
         )
+        # MODIFIED by invisible_playwright: the one bridge between the two
+        # object graphs. A FUSED type (Dialog, 2026-08-29) has no guid and no
+        # `__create__` of its own, and still needs to reach the live impl-side
+        # object a sibling guid corresponds to - see
+        # `InProcessTransport.bind_impl_objects` for why. `_connection._objects`
+        # is a reference, not a snapshot: it always reflects what has been
+        # created so far, including everything created after this line runs.
+        transport.bind_impl_objects(self._connection._objects,
+                                   self._connection.deliver_event)
 
         g_self = greenlet.getcurrent()
 
