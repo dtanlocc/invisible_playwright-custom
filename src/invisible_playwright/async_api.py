@@ -296,40 +296,66 @@ class InvisiblePlaywright(_session.CommonLaunch):
         await self._teardown()
 
     async def _teardown(self) -> None:
-        if self._persistent_context is not None:
+        """Shut everything down, and finish doing it even while being cancelled.
+
+        ⛔ `except Exception` DOES NOT CATCH A CANCELLATION, and that is the
+        whole reason this is not four plain try/excepts any more. When the
+        task running this is cancelled, the `await` below raises
+        `asyncio.CancelledError`, which inherits from `BaseException` and not
+        from `Exception` - so it escapes, teardown stops at whichever step it
+        had reached, and everything after it is skipped. What survives is a
+        browser nobody closes: the exact orphan this project has already
+        measured twice, once as 88 stray firefox processes and once as 7,308
+        leftover profile directories.
+
+        So a cancellation is CAUGHT, kept, and re-raised at the end - the
+        cancellation still propagates, as asyncio requires, but only after
+        every step has had its turn. Reported by DatGuy1 as #104 against the
+        published `main` and fixed here in the same shape.
+
+        ⛔ AND THE REAPING IS IN A `finally`, not last in the body: it is the
+        one step that must run even if the loop above dies in a way this does
+        not model. Nothing carrying this session's token may outlive it.
+        """
+        cancelled: Optional[BaseException] = None
+
+        async def close(step: Any) -> None:
+            nonlocal cancelled
             try:
-                await self._persistent_context.close()
+                await step
+            except asyncio.CancelledError as stop:
+                cancelled = stop
             except Exception:
                 pass
-            self._persistent_context = None
-        if self._browser is not None:
-            try:
-                await self._browser.close()
-            except Exception:
-                pass
-            self._browser = None
-        if self._pw is not None:
-            try:
-                await self._pw.stop()
-            except Exception:
-                pass
-            self._pw = None
-        if self._virtual_display is not None:
-            try:
-                self._virtual_display.stop()
-            except Exception:
-                pass
-            self._virtual_display = None
-        # Last, and unconditionally: whatever Playwright's close() managed or
-        # did not, nothing carrying this session's token may outlive it. Each
-        # step above is wrapped in `except: pass`, so before this existed a
-        # browser that refused to close was swallowed and leaked in silence.
-        if self._session_token:
-            try:
-                self._lifetime_guard.reap(self._session_token)
-            except Exception:
-                pass
-            self._session_token = SessionToken()
+
+        try:
+            if self._persistent_context is not None:
+                await close(self._persistent_context.close())
+                self._persistent_context = None
+            if self._browser is not None:
+                await close(self._browser.close())
+                self._browser = None
+            if self._pw is not None:
+                await close(self._pw.stop())
+                self._pw = None
+            if self._virtual_display is not None:
+                # Synchronous, so it cannot be cancelled mid-call the way the
+                # three awaits above can.
+                try:
+                    self._virtual_display.stop()
+                except Exception:
+                    pass
+                self._virtual_display = None
+        finally:
+            if self._session_token:
+                try:
+                    self._lifetime_guard.reap(self._session_token)
+                except Exception:
+                    pass
+                self._session_token = SessionToken()
+
+        if cancelled is not None:
+            raise cancelled
 
 
 
