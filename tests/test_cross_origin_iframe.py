@@ -30,7 +30,6 @@ random free ports.
 """
 from __future__ import annotations
 
-import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -99,12 +98,25 @@ def test_extra_prefs_override_can_break_isolation_only_explicitly():
 # ────────────────────────────────────────────────────────────────────
 
 
-def _free_port() -> int:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+# ⛔ THERE IS NO `_free_port()` HERE ANY MORE, AND ITS ABSENCE IS THE POINT.
+#
+# It used to bind port 0, read the number the kernel assigned, CLOSE the
+# socket, and hand the number back for someone to bind again later. Between the
+# close and the second bind the port belongs to nobody, so a second process
+# asking the same question in that window is told the same number, and whichever
+# of the two binds second dies with EADDRINUSE.
+#
+# Sequentially that window is never contended and the pattern was fine for as
+# long as the suite ran one test at a time. `run_e2e.py` now opens four workers
+# by default, so it IS contended, and the failure it produces would be an
+# address-in-use traceback in a browser test - which reads as the product being
+# broken rather than the harness racing itself.
+#
+# The fix is to never let go of the port: `_serve` below binds 0 itself and the
+# caller reads the number back off the listening socket, so there is no window
+# at all. `test_proxy_socks_auth_e2e.py` and `test_webrtc_realness.py` were
+# already written this way; this file and `test_long_session_e2e.py` were the
+# two that were not.
 
 
 class _SilentHandler(BaseHTTPRequestHandler):
@@ -122,15 +134,19 @@ class _SilentHandler(BaseHTTPRequestHandler):
         self.wfile.write(self.PAYLOAD)
 
 
-def _serve(payload: bytes, port: int) -> HTTPServer:
-    """Start an HTTP server on 127.0.0.1:port serving ``payload`` on every GET."""
+def _serve(payload: bytes) -> tuple[HTTPServer, int]:
+    """Serve ``payload`` on every GET from a kernel-chosen port on 127.0.0.1.
+
+    Returns the server and the port it is ALREADY listening on, so the number
+    is never valid-but-unbound in between. See the note above.
+    """
     handler_cls = type(
         "_H", (_SilentHandler,), {"PAYLOAD": payload}
     )
-    srv = HTTPServer(("127.0.0.1", port), handler_cls)
+    srv = HTTPServer(("127.0.0.1", 0), handler_cls)
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
-    return srv
+    return srv, srv.server_address[1]
 
 
 @pytest.fixture
@@ -142,7 +158,15 @@ def cross_origin_harness():
     src pointing at port B. Same cross-origin browsing-context shape as
     a parent-page-plus-third-party-iframe layout, fully offline.
     """
-    pa, pb = _free_port(), _free_port()
+    # The CHILD goes up first, because the parent's markup has to name the
+    # child's port and there is no longer a way to learn that number without
+    # binding it. That ordering is the whole cost of closing the race.
+    child_html = b"""<!doctype html><html><body>
+<button id="ok">confirm</button>
+<button class="btn-primary">primary</button>
+<script>document.getElementById('ok').addEventListener('click', () => document.title = 'clicked')</script>
+</body></html>"""
+    sb, pb = _serve(child_html)
     parent_html = f"""<!doctype html><html><head><title>parent</title></head><body>
 <h1>parent</h1>
 <iframe id="ifr_plain"   src="http://127.0.0.1:{pb}/child"            width="300" height="120"></iframe>
@@ -151,13 +175,7 @@ def cross_origin_harness():
 <iframe id="ifr_titled"  src="http://127.0.0.1:{pb}/child"            width="300" height="120"
         title="cross-origin titled iframe"></iframe>
 </body></html>""".encode("utf-8")
-    child_html = b"""<!doctype html><html><body>
-<button id="ok">confirm</button>
-<button class="btn-primary">primary</button>
-<script>document.getElementById('ok').addEventListener('click', () => document.title = 'clicked')</script>
-</body></html>"""
-    sa = _serve(parent_html, pa)
-    sb = _serve(child_html, pb)
+    sa, pa = _serve(parent_html)
     try:
         yield {"parent_url": f"http://127.0.0.1:{pa}/", "child_origin": f"http://127.0.0.1:{pb}"}
     finally:
@@ -369,8 +387,6 @@ def test_the_geometry_invariant_holds_inside_a_nested_frame(firefox_binary):
                    .replace(b"@LEFT", str(left).encode())
                    .replace(b"@TOP", str(top).encode())
                    .replace(b"@SRC", b"/child"))
-    port = _free_port()
-
     class _H(_SilentHandler):
         def do_GET(self):
             body = _CHILD_GEOM if self.path.startswith("/child") else parent_html
@@ -381,7 +397,8 @@ def test_the_geometry_invariant_holds_inside_a_nested_frame(firefox_binary):
             self.end_headers()
             self.wfile.write(body)
 
-    srv = HTTPServer(("127.0.0.1", port), _H)
+    srv = HTTPServer(("127.0.0.1", 0), _H)
+    port = srv.server_address[1]
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     from invisible_playwright import InvisiblePlaywright
     try:

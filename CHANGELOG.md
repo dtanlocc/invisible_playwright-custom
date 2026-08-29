@@ -48,6 +48,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   closes.
 - A closed page is now disposed, so neither the client's nor the server's
   object registry grows for the life of the browser.
+- A CSS query on a page returned the browser's own form widgets. Firefox builds
+  the controls inside `<input type=date|time>` in a shadow root it marks closed,
+  and the engine handed those to automation along with the closed roots a page
+  had authored, so the selector engine collected them as if the page had written
+  them: `page.locator("button")` answered 2 on a document with one button, and
+  the extra match was invisible. The damage was not the count. A click on the
+  invisible match reported success and sent nothing, so a site that had not
+  blocked anything looked like it had. Needs the matching engine release; the
+  guard is `Element::GetShadowRootForBindings` refusing UA widgets, which is
+  what the sibling API has done upstream since bug 2035665. Reported from
+  outside, with a 24-site case study behind it.
+- `Response.text()` and `Response.body()` read the body again. The command they
+  rest on had been removed from Juggler while trimming it, and two more callers
+  used it without saying so: traces and HARs recorded with embedded content were
+  being written with every response body empty, and nothing raised. Bodies cost
+  memory again, bounded as upstream bounds them: 100 MB per tab, 10 MB per
+  response, oldest evicted first. Reading one from inside a `page.on("response")`
+  handler now waits for the request to finish instead of racing it, which is why
+  the main document used to fail where subresources did not.
 
 ## [0.7.4] - 2026-08-27
 

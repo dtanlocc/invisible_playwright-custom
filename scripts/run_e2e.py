@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the FULL e2e suite (every test that opens the browser) against a binary.
 
-The 127 ``@pytest.mark.e2e`` tests are excluded from the default `pytest` run
+Every ``@pytest.mark.e2e`` test is excluded from the default `pytest` run
 (`addopts = -m 'not slow and not e2e'`) because they need a real Firefox binary
 and a display, and they skip themselves when no binary is available. That makes
 them easy to forget - and "we can't afford for something to not work". This is
@@ -19,9 +19,16 @@ are reran up to twice on the known transient signatures. A genuinely broken
 binary fails all attempts. The webrtc e2e fake a TCP-only SOCKS locally (no
 proxy/secrets), so the whole suite is offline.
 
+The run opens FOUR browsers at once by default. `--dist loadfile` is not
+negotiable and the reason is on the line that sets it: two properties of this
+suite depend on a file staying whole on one worker, and both were measured
+failing when it did not.
+
 Usage:
     python scripts/run_e2e.py <firefox-binary>
     python scripts/run_e2e.py            # uses $INVPW_BINARY_PATH
+    python scripts/run_e2e.py <binary> -n 8    # eight browsers at once
+    python scripts/run_e2e.py <binary> -n 1    # the old serial path, unchanged
 """
 from __future__ import annotations
 
@@ -32,9 +39,46 @@ from pathlib import Path
 
 _RERUN_SIGNATURES = "Timeout|context was destroyed|was detached|not visible|because of a navigation|TargetClosed"
 
+#: Browsers opened at once. Four was asked for and four is what the default is;
+#: it is not a measured optimum and there is no reason to believe one number
+#: fits every machine, so `-n` moves it and `-n 1` puts the run back exactly on
+#: the serial path this script had before parallelism existed.
+_DEFAULT_PROCS = "4"
+
+
+def _take_procs(argv: list[str]) -> tuple[str, list[str]]:
+    """Pull `-n/--procs` out of the arguments, leaving the rest for pytest.
+
+    Hand-parsed rather than argparse because everything this script does not
+    recognise is forwarded to pytest verbatim, and argparse would have to be
+    taught every pytest flag in order to not eat one.
+
+    The value is kept as a STRING and handed to xdist unread, so `auto` and any
+    future spelling xdist accepts keep working without this function learning
+    about them. Only `0` and `1` are interpreted here, and they mean the same
+    thing: do not load xdist at all. That is not the same as `-n 1`, which
+    still runs the tests inside a worker subprocess - a difference that matters
+    the day this script is used to compare a parallel run against a serial one,
+    because then the serial arm must be the ORIGINAL path and not a
+    one-worker variant of the new one.
+    """
+    procs, rest, i = _DEFAULT_PROCS, [], 0
+    while i < len(argv):
+        if argv[i] in ("-n", "--procs"):
+            if i + 1 >= len(argv):
+                print("run_e2e.py: -n needs a value (1 = serial)", file=sys.stderr)
+                raise SystemExit(2)
+            procs, i = argv[i + 1], i + 2
+            continue
+        rest.append(argv[i])
+        i += 1
+    return procs, rest
+
 
 def main() -> int:
-    binary = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("INVPW_BINARY_PATH")
+    procs, extra = _take_procs(sys.argv[1:])
+    binary = extra[0] if extra else os.environ.get("INVPW_BINARY_PATH")
+    extra = extra[1:] if extra else []
     if not binary:
         print("usage: run_e2e.py <firefox-binary>  (or set INVPW_BINARY_PATH)", file=sys.stderr)
         return 2
@@ -75,6 +119,32 @@ def main() -> int:
     env["STEALTHFOX_E2E_BINARY"] = binary
 
     repo = Path(__file__).resolve().parent.parent
+
+    # ⛔ `--dist loadfile` IS NOT A TUNING CHOICE, IT IS A CORRECTNESS ONE, and
+    # xdist's default (`--dist load`, which hands out one test at a time) breaks
+    # this suite in two measured ways.
+    #
+    # 1. MODULE-SCOPED BROWSERS. `test_fingerprint_consistency.py` is 65 of the
+    #    193 e2e tests and opens ONE browser for all of them, from a
+    #    module-scoped fixture. Scattered test-by-test across four workers, each
+    #    worker that receives any of those tests builds its own copy of that
+    #    fixture: four browsers where the file wants one, and the identity those
+    #    65 tests exist to prove is no longer being read off a single session.
+    #
+    # 2. TESTS THAT DEPEND ON AN EARLIER TEST IN THEIR OWN FILE.
+    #    `test_binary_executes_after_fetch` fails 2 out of 2 in isolation and
+    #    passes 9 out of 9 when its module runs whole, because a prior test in
+    #    that file populates the venv it uses. Measured 2026-08-29, and it very
+    #    nearly got recorded as a deterministic failure of the product.
+    #
+    # `loadfile` keeps every file whole on one worker, so both properties
+    # survive. The price is the ceiling: the longest single FILE is now the
+    # floor of the whole run, and with 65 of 193 tests in one file this run
+    # cannot go faster than that file no matter how many workers are asked for.
+    # That is why raising `-n` past a certain point buys nothing here, and the
+    # fix for it would be splitting that file, not adding workers.
+    parallel = [] if procs in ("0", "1") else ["-n", procs, "--dist", "loadfile"]
+
     cmd = [
         sys.executable, "-m", "pytest",
         "-m", "e2e",
@@ -120,8 +190,9 @@ def main() -> int:
         # missing piece: the output does stream, the GRANULARITY was wrong.
         # One line per test costs 141 lines and names the last one that ran.
         "-v", "--tb=short",
-    ] + sys.argv[2:]
+    ] + parallel + extra
     print(f"[run_e2e] binary={binary}")
+    print(f"[run_e2e] browsers at once: {procs if parallel else '1 (serial)'}")
     print(f"[run_e2e] {' '.join(cmd)}")
     return subprocess.run(cmd, cwd=repo, env=env).returncode
 

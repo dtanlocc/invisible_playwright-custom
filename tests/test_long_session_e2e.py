@@ -31,7 +31,6 @@ site, so a red result is the browser and never the network.
 """
 from __future__ import annotations
 
-import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -130,12 +129,11 @@ document.title = 'shaped:' + shaped;
     return html.encode("utf-8")
 
 
-def _free_port() -> int:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+# ⛔ NO `_free_port()`: it handed back a port number it had already released,
+# and `run_e2e.py` now runs four workers at once, so two of them can be told
+# the same number and the second bind dies with EADDRINUSE inside a browser
+# test. `_serve` binds 0 itself and reports the port it is listening on, so the
+# number is never unowned. Same change as in `test_cross_origin_iframe.py`.
 
 
 class _SilentHandler(BaseHTTPRequestHandler):
@@ -152,7 +150,7 @@ class _SilentHandler(BaseHTTPRequestHandler):
         self.wfile.write(self.PAYLOAD)
 
 
-def _serve(payload: bytes, port: int) -> ThreadingHTTPServer:
+def _serve(payload: bytes) -> tuple[ThreadingHTTPServer, int]:
     """Threading, deliberately.
 
     A single-threaded HTTPServer serves round 0 and then blocks: the
@@ -163,9 +161,9 @@ def _serve(payload: bytes, port: int) -> ThreadingHTTPServer:
     confusion this test exists to avoid.
     """
     cls = type("_H", (_SilentHandler,), {"PAYLOAD": payload})
-    srv = ThreadingHTTPServer(("127.0.0.1", port), cls)
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), cls)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    return srv
+    return srv, srv.server_address[1]
 
 
 # The per-test deadline in `run_e2e.py` is 420s and this test brushes against
@@ -194,8 +192,7 @@ def test_a_long_session_survives_heavy_text_shaping(firefox_binary):
     "died immediately" from "died deep into a session".
     """
     families = _declared_families()
-    port = _free_port()
-    srv = _serve(_page_html(families), port)
+    srv, port = _serve(_page_html(families))
     base = "http://127.0.0.1:" + str(port) + "/"
 
     rounds_done = 0

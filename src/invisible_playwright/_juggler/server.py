@@ -1111,10 +1111,63 @@ class ResponseDispatcher(Dispatcher):
         })
 
     def op_body(self, params: Dict) -> Any:
-        raise ProtocolException(
-            "response.body() is not available: this Juggler has no command to "
-            "read a response body back, and returning an empty one would look "
-            "like an empty page instead of a missing feature")
+        """The response body, base64, straight from the engine.
+
+        This raised unconditionally between 2026-08-24 and 2026-08-30, because
+        `Network.getResponseBody` had been removed from Juggler while trimming
+        it. The command is back, and so is this. Reported from outside by
+        someone identifying protection vendors from three signals - URL,
+        headers, and the body of the scripts - who was left with two.
+
+        ⛔ ONE KEY, and it has to be one. `_connection.py` asserts
+        `len(result) == 1` and returns that value unwrapped, so the engine's
+        second field cannot be forwarded even though it is the more
+        interesting of the two.
+        """
+        page = self.request.page
+
+        # ⛔ THE ENGINE ONLY HAS THE BODY ONCE THE REQUEST HAS FINISHED, and
+        # `response.body()` upstream does not wait, so calling it from a
+        # `page.on("response")` handler is a race that the caller cannot see
+        # and cannot fix. It bites the MAIN DOCUMENT almost every time and
+        # subresources almost never, because the document is still streaming
+        # when its response event fires: measured on a three-request page,
+        # the JSON and the script came back and the document answered
+        # `Request "17" is not found`.
+        #
+        # `_requests` holds exactly the requests still in flight - the page's
+        # own handler pops them on `requestFinished` and on `requestFailed` -
+        # so waiting on it asks the question this method actually means. The
+        # deadline is short and its expiry is not fatal: the send below runs
+        # anyway, and a genuine absence still surfaces as the engine's error
+        # rather than as a hang.
+        deadline = time.monotonic() + 10.0
+        rid = self.request.request_id
+        while rid in getattr(page, "_requests", {}) and time.monotonic() < deadline:
+            time.sleep(0.02)
+
+        # ⛔ `page.send`, NOT `page.conn.send`: the command lives on
+        # PageHandler, so it is scoped to a SESSION. Sent without one the
+        # engine answers `Handler for does not implement method
+        # "Network.getResponseBody"` - with a blank where the session should
+        # be, which reads like a missing handler and is really a missing
+        # address. The route commands next door get away with `conn.send`
+        # because interception is answered on the browser handler.
+        answer = page.send(
+            "Network.getResponseBody", {"requestId": rid}) or {}
+        if answer.get("evicted"):
+            # ⛔ The reason the old refusal existed, kept for the one case
+            # where it is still true: this body really is gone. The engine
+            # caps storage at 100 MB per tab and a tenth of that per response,
+            # and evicts oldest-first past the cap. Handing back an empty
+            # string would read as an empty page rather than a dropped body,
+            # which is the same lie the removal note warned about.
+            raise ProtocolException(
+                "response.body() is not available: the engine evicted this "
+                "body to stay under its response-storage cap (100 MB per tab, "
+                "10 MB per response). Read the body sooner, or fetch the URL "
+                "again if it is still there")
+        return {"binary": answer.get("base64body") or ""}
 
     def op_raw_response_headers(self, params: Dict) -> Any:
         return {"headers": self.raw_headers}
