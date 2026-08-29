@@ -1390,6 +1390,15 @@ class PageDispatcher(Dispatcher):
             # filled on request can only ever hold what arrived AFTER the
             # request, which is nothing: `page.console_messages()` would always
             # answer an empty list and look like a page that prints nothing.
+            # ⛔ ONE DICT, TWO CONSUMERS, and it used to be two identical
+            # literals. The log and the live listener have to agree by
+            # CONSTRUCTION: with two copies, populating `args` for real in one
+            # of them - the obvious next change to this line - silently makes
+            # `page.console_messages()` disagree with `page.on("console")`,
+            # and nothing would fail. Sharing the object is safe because
+            # `_remember` only appends and the client-side transform
+            # (`_replace_guids_with_channels`) builds a new dict rather than
+            # mutating this one.
             entry = {
                 "page": self.channel,
                 "type": params.get("type") or "log",
@@ -1398,15 +1407,10 @@ class PageDispatcher(Dispatcher):
                 "location": _location(params.get("location")),
             }
             self._remember(self._console_log, entry)
-            self.context.emit("console", {
-                "page": self.channel,
-                "type": params.get("type") or "log",
-                "text": _console_text(params.get("args") or []),
-                "args": [],
-                "location": _location(params.get("location")),
-            })
+            self.context.emit("console", entry)
         elif method == "Page.uncaughtError":
-            self._remember(self._error_log, {
+            # Same single-dict rule as the console branch above.
+            failure = {
                 "page": self.channel,
                 "error": {"error": {
                     "name": "Error",
@@ -1414,16 +1418,9 @@ class PageDispatcher(Dispatcher):
                     "stack": params.get("stack") or "",
                 }},
                 "location": _location(params.get("location")),
-            })
-            self.context.emit("pageError", {
-                "page": self.channel,
-                "error": {"error": {
-                    "name": "Error",
-                    "message": params.get("message") or "",
-                    "stack": params.get("stack") or "",
-                }},
-                "location": _location(params.get("location")),
-            })
+            }
+            self._remember(self._error_log, failure)
+            self.context.emit("pageError", failure)
         elif method == "Page.dialogOpened":
             self._emit_fused_dialog(params["dialogId"],
                                     params.get("type") or "alert",

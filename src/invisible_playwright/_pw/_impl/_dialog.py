@@ -28,12 +28,14 @@ Python TYPE, not by `ChannelOwner`-ness - `mapping.register(Dialog,
 sync_api.Dialog)` keeps working unchanged as long as this stays importable
 from here under the same name.
 
-⛔ AND THE TWO WAYS THIS GETS CONSTRUCTED ARE NOT SYMMETRIC ANY MORE.
+⛔ THERE IS NOW EXACTLY ONE WAY THIS GETS CONSTRUCTED.
 `_juggler/server.py`'s `PageDispatcher._emit_fused_dialog` builds one on the
-connection's read-loop thread - never via `_object_factory.py`, whose `if
-type == "Dialog":` branch is dead code kept only because deleting it would
-make this file's constructor signature and that branch silently disagree if
-anything ever revived it.
+connection's read-loop thread. `_object_factory.py` has no `Dialog` case in
+its if/elif chain at all any more - the branch was deleted outright, and a
+comment marking its absence is the only trace, kept so nobody re-adds the old
+four-argument `(parent, type, guid, initializer)` call out of habit. That
+signature no longer matches this class's constructor, so a revived branch
+would fail in a way that points nowhere near the real cause.
 
 ⛔ AND DELIVERING IT IS TWO HOPS, NOT ONE, found by an actual dialog hanging
 with no exception. `Server.call_soon` gets to the asyncio loop thread from

@@ -92,8 +92,21 @@ def _classes(tree: ast.AST) -> dict:
     return {n.name: n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)}
 
 
+#: ⛔ BOTH KINDS, and `AsyncFunctionDef` is not hypothetical here. Until
+#: 2026-08-29 this gate collected `ast.FunctionDef` only, which was harmless
+#: while the dispatcher had no async methods at all - and that stopped being
+#: true the same day, when the Dialog fusion added `PageDispatcher.send_async`
+#: as "the primitive a fused type needs", with more fused types stated as the
+#: next step. The failure it would cause is silent and backwards: an `async
+#: def` operation is absent from `_methods`, so `reachable` returns an EMPTY
+#: known-set for it, and every field that operation legitimately reads gets
+#: reported as ignored. Same tuple as `check_unresolved_names.py`'s
+#: `_FUNCTIONS`, for the same reason.
+_FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
 def _methods(cls: ast.ClassDef) -> dict:
-    return {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}
+    return {n.name: n for n in cls.body if isinstance(n, _FUNCTIONS)}
 
 
 def _attributes(cls: ast.ClassDef) -> dict:
@@ -219,7 +232,7 @@ def audit(trace: list, source: str) -> list:
     return faults
 
 
-def _cls(op_body: str, methods='{"newContext": "op"}', extra=""):
+def _cls(op_body: str, methods='{"newContext": "op"}', extra="", asynchronous=False):
     """A one-class module for the selftest, assembled line by line.
 
     ⛔ Built from a list rather than a literal with escapes in it. This project
@@ -227,12 +240,17 @@ def _cls(op_body: str, methods='{"newContext": "op"}', extra=""):
     this same session, and a test fixture whose newlines are wrong fails as a
     SyntaxError in the thing under test - which reads as the checker being
     broken rather than the fixture.
+
+    `asynchronous=True` emits `async def` instead of `def`, so the case below
+    can pin the blind spot fixed on 2026-08-29: before that, an async
+    operation was invisible to `_methods` and every field it read was
+    misreported as ignored.
     """
     return chr(10).join([
         "class D:",
         "    METHODS = %s" % methods,
         extra,
-        "    def op(self, params):",
+        "    %sdef op(self, params):" % ("async " if asynchronous else ""),
         op_body,
         "",
     ])
@@ -246,6 +264,24 @@ SELFTEST = [
                               "params": {"locale": "en-US"}}}], 0),
     ("a field the operation does NOT read is reported",
      _cls('        return params.get("locale")'),
+     [{"dir": "send", "msg": {"method": "newContext",
+                              "params": {"locale": "en", "timezoneId": "X"}}}],
+     1),
+    # ⛔ The two cases below are the same pair as above with `async def`
+    # instead of `def`. Only the FIRST one guards the 2026-08-29 fix: with the
+    # blind spot restored it reports BROKEN (1, expected 0), because an async
+    # operation was absent from `_methods`, its known-set came back empty, and
+    # the field it plainly reads was called ignored.
+    # The second SURVIVES that mutation, and it is kept knowing this: it
+    # answers 1 either way, for two different reasons - with the fix because
+    # the field really is unread, without it because the method is invisible
+    # entirely. It pins the other half of the behaviour, not the fix.
+    ("a field an ASYNC operation reads is not reported",
+     _cls('        return params.get("locale")', asynchronous=True),
+     [{"dir": "send", "msg": {"method": "newContext",
+                              "params": {"locale": "en-US"}}}], 0),
+    ("a field an ASYNC operation does NOT read is still reported",
+     _cls('        return params.get("locale")', asynchronous=True),
      [{"dir": "send", "msg": {"method": "newContext",
                               "params": {"locale": "en", "timezoneId": "X"}}}],
      1),

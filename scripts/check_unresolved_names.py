@@ -35,7 +35,24 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCANNED = ROOT / "src" / "invisible_playwright"
+#: ⛔ `scripts/` IS IN THE PERIMETER SINCE 2026-08-29, and leaving it out was
+#: not a scoping decision - it was a hole this gate exists to close. On that
+#: date `upstream_baseline.py:_per_file` was found returning `1 if morti else
+#: 0` with `morti` assigned nowhere: a guaranteed NameError, sitting in the
+#: repository, while this gate reported "none in 102 file(s)". Pointed at that
+#: one file by hand it named the fault correctly, so the LOGIC was never
+#: wrong; only the perimeter was.
+#:
+#: And the argument for scanning `scripts/` is STRONGER than for the package,
+#: not weaker. The reason this class of defect survives is that a NameError
+#: inside a function is invisible until someone calls it - and the package has
+#: 529 unit tests calling into it, while these scripts have none. `_per_file`
+#: is reached only by `--per-file`, on the async arm, forty minutes into a run
+#: nobody makes twice.
+#:
+#: Measured before widening: 22 files, zero findings besides the real one - so
+#: this costs no false positives to keep.
+SCANNED = [ROOT / "src" / "invisible_playwright", ROOT / "scripts"]
 sys.stdout.reconfigure(encoding="utf-8")
 
 _FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
@@ -196,12 +213,14 @@ def selftest() -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--selftest", action="store_true")
-    p.add_argument("paths", nargs="*", help="default: the package's own source")
+    p.add_argument("paths", nargs="*",
+                   help="default: the package's own source, plus scripts/")
     a = p.parse_args()
     if a.selftest:
         return selftest()
 
-    files = [pathlib.Path(x) for x in a.paths] or sorted(SCANNED.rglob("*.py"))
+    files = ([pathlib.Path(x) for x in a.paths]
+             or sorted(f for root in SCANNED for f in root.rglob("*.py")))
     faults = []
     for f in files:
         try:

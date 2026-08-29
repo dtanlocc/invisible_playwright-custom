@@ -252,27 +252,27 @@ def _per_file(argv: list, target: str, env: dict) -> int:
                                       else "DIED (no summary)"),
               flush=True)
     print()
-    print("TOTALE  passed=%(passed)d failed=%(failed)d error=%(error)d "
+    print("TOTAL  passed=%(passed)d failed=%(failed)d error=%(error)d "
           "skipped=%(skipped)d" % totals)
     if died:
         print("files that DIED (no summary, so not counted): %d" % len(died))
         for m in died:
             print("   " + m)
-    return 1 if morti else 0
+    return 1 if died else 0
 
 
-def _count(testo: str) -> dict:
+def _count(text: str) -> dict:
     """The numbers on pytest's summary line, or {} when there is none."""
     last = None
-    for riga in testo.splitlines():
-        if re.search(r"\d+ (passed|failed|error|skipped)", riga):
-            last = riga
+    for line in text.splitlines():
+        if re.search(r"\d+ (passed|failed|error|skipped)", line):
+            last = line
     if not last:
         return {}
     out = {}
-    for numero, parola in re.findall(r"(\d+) (passed|failed|errors?|skipped)",
-                                     last):
-        out["error" if parola.startswith("error") else parola] = int(numero)
+    for number, word in re.findall(r"(\d+) (passed|failed|errors?|skipped)",
+                                   last):
+        out["error" if word.startswith("error") else word] = int(number)
     return out
 
 
