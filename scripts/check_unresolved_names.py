@@ -51,6 +51,13 @@ def _module_names(tree: ast.AST) -> set:
     known |= {a.asname or a.name.split(".")[0]
               for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
               for a in n.names}
+    # ⛔ THE MODULE DUNDERS, which are not builtins and are not imports:
+    # Python puts them in the module namespace itself. They only became
+    # reachable when this gate started walking module-level functions, and
+    # `__file__` in a plain function is the commonest of them by far - it was
+    # the first false positive the widening produced.
+    known |= {"__file__", "__name__", "__doc__", "__package__", "__spec__",
+              "__loader__", "__builtins__", "__path__"}
     return known | set(dir(builtins))
 
 
@@ -108,13 +115,27 @@ def unresolved(source: str, where: str = "<source>") -> list:
     tree = ast.parse(source)
     known = _module_names(tree)
     out = []
+
+    def scan(fn, owner):
+        bound = _bound_in(fn)
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
+                if n.id not in bound and n.id not in known:
+                    out.append((where, owner, fn.name, n.id, n.lineno))
+
     for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
         for fn in [n for n in cls.body if isinstance(n, _FUNCTIONS)]:
-            bound = _bound_in(fn)
-            for n in ast.walk(fn):
-                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
-                    if n.id not in bound and n.id not in known:
-                        out.append((where, cls.name, fn.name, n.id, n.lineno))
+            scan(fn, cls.name)
+    # ⛔ MODULE-LEVEL FUNCTIONS TOO, and they were invisible until
+    # 2026-08-29. This gate was written against a file of dispatcher classes,
+    # so it walked classes and nothing else; a plain function was never looked
+    # at. It cost a real defect the day a refactor moved seventeen leaf helpers
+    # into two new modules with no classes at all: one of them used `json`
+    # without importing it, this gate reported "none in 103 files", and the
+    # failure surfaced as a NameError out of one test - which is the exact
+    # shape it exists to catch before a caller does.
+    for fn in [n for n in tree.body if isinstance(n, _FUNCTIONS)]:
+        scan(fn, "<module>")
     return out
 
 
@@ -129,6 +150,12 @@ SELFTEST = [
      "class A:\n    def op(self):\n        v = 1\n        return v\n", 0),
     ("a module-level name is not a fault",
      "H = 1\nclass A:\n    def op(self):\n        return H\n", 0),
+    ("a MODULE-LEVEL FUNCTION using a name nobody imported",
+     "def helper(x):\n    return json.dumps(x)\n", 1),
+    ("the same module-level function with the import present",
+     "import json\ndef helper(x):\n    return json.dumps(x)\n", 0),
+    ("__file__ in a module-level function is not a fault",
+     "def where():\n    return __file__\n", 0),
     ("an import is not a fault",
      "import json\nclass A:\n    def op(self):\n        return json\n", 0),
     ("a builtin is not a fault",

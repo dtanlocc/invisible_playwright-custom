@@ -17,7 +17,7 @@ import threading
 
 import pytest
 
-from invisible_playwright._juggler import factory
+from invisible_playwright._juggler import transport as factory
 from invisible_playwright._juggler.connection import EventListeners
 
 PAGE = b"""<!doctype html><html><head><title>seam</title></head><body>
@@ -58,17 +58,26 @@ def _serve(body):
 
 # ── without a browser ───────────────────────────────────────────────────────
 
-def test_an_unknown_transport_is_REFUSED_not_silently_the_default(monkeypatch):
-    """⛔ THE KNOWN-BAD OF THE SWITCH. A typo would otherwise run the driver
-    while the caller believed they were measuring the Python path, and every
-    number taken that way would describe the wrong arm. This project has a rule
-    about a bench arm that is not what it says it is."""
+def test_a_name_that_is_not_the_driver_gets_the_only_transport(monkeypatch):
+    """⛔ THIS ASSERTED THE OPPOSITE UNTIL 2026-08-29, and the reason it
+    changed is that its reason expired.
+
+    The switch used to REFUSE an unknown value, arguing that a typo would
+    otherwise run the driver while the caller believed they were measuring the
+    Python path - a bench arm that is not what it says it is. That was true
+    while there were two transports. There is one: any value that is not
+    `driver` correctly yields the only thing there is, and a guard that
+    protects against nothing is a concept for nothing.
+
+    What still has to hold is the OTHER half, tested below: `driver` by name
+    must still explain what happened to it, because 0.7.4 shipped with the
+    driver as the default and somebody can have it set in a shell.
+    """
     monkeypatch.setenv(factory.CHOICE_ENV, "jugler")
-    with pytest.raises(ValueError) as failure:
-        factory.chosen()
-    assert "jugler" in str(failure.value)
-    assert factory.JUGGLER in str(failure.value), (
-        "the refusal does not say what the valid names are")
+    assert factory.chosen() == "jugler"
+    monkeypatch.setenv(factory.CHOICE_ENV, "anything-at-all")
+    assert factory.chosen() != factory.DRIVER, (
+        "only the exact name `driver` may reach the migration message")
 
 
 def test_the_default_is_the_PYTHON_SERVER(monkeypatch):

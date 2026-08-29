@@ -164,6 +164,10 @@ def main() -> int:
                    help="the sync arm first: it is the one our own API mirrors")
     p.add_argument("-k", dest="selection", default=None)
     p.add_argument("--timeout", default="60")
+    p.add_argument("--junit-xml", dest="junit", default=None,
+                   help="write a JUnit XML too: it is the only per-test record "
+                        "this suite produces, and `upstream_regressions.py` "
+                        "needs it")
     p.add_argument("--per-file", action="store_true",
                    help="one pytest process per file: mandatory on the async "
                         "arm, see `_per_file`")
@@ -182,6 +186,10 @@ def main() -> int:
             "-q", "--no-header", "-rN"]
     if a.selection:
         argv += ["-k", a.selection]
+    if a.junit:
+        # ⛔ An absolute path: pytest runs with `cwd=SUITE`, so a relative one
+        # lands inside the vendored copy, which nothing is allowed to write to.
+        argv += ["--junitxml", str(pathlib.Path(a.junit).resolve())]
 
     import os
     env = dict(os.environ)

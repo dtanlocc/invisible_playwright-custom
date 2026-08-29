@@ -22,7 +22,7 @@ from invisible_playwright._pw._impl._errors import Error
 from invisible_playwright._pw._impl._greenlets import MainGreenlet
 from invisible_playwright._pw._impl._object_factory import create_remote_object
 from invisible_playwright._pw._impl._playwright import Playwright
-from invisible_playwright._juggler.factory import make_transport
+from invisible_playwright._juggler.transport import make_transport
 from invisible_playwright._pw.sync_api._generated import Playwright as SyncPlaywright
 
 if TYPE_CHECKING:
@@ -65,7 +65,7 @@ Please use the Async API instead."""
             # `_juggler` is being built, because it is the JUDGE of that
             # server: both answer the same protocol, so the only honest
             # check is the same session through both. See
-            # `_juggler/factory.py` for the switch and why the default is
+            # `_juggler/transport.py` for the switch and why the default is
             # still the driver.
             make_transport(self._loop),
             self._loop,

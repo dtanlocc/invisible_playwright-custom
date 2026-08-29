@@ -310,7 +310,7 @@ def test_the_launcher_hands_over_its_own_seed(stub_motion, monkeypatch):
         seen["max_seconds"] = max_seconds
         return True
 
-    monkeypatch.setattr("invisible_playwright.launcher._enable_cursor_engine", spy)
+    monkeypatch.setattr("invisible_playwright._session._enable_cursor_engine", spy)
     ip = InvisiblePlaywright(seed=777, humanize=2.0)
     ip._arm_cursor_engine(_FakeBrowser())
     assert seen == {"seed": 777, "max_seconds": 2.0}
@@ -322,7 +322,7 @@ def test_binary_engine_arms_nothing(stub_motion, monkeypatch):
     """Under the escape hatch our side must stay completely out of the way."""
     called = []
     monkeypatch.setattr(
-        "invisible_playwright.launcher._enable_cursor_engine",
+        "invisible_playwright._session._enable_cursor_engine",
         lambda *a, **k: called.append(a),
     )
     monkeypatch.setenv(_cursor.ENGINE_ENV, "binary")

@@ -17,7 +17,7 @@ from typing import Any
 
 from invisible_playwright._pw._impl._connection import Connection
 from invisible_playwright._pw._impl._object_factory import create_remote_object
-from invisible_playwright._juggler.factory import make_transport
+from invisible_playwright._juggler.transport import make_transport
 from invisible_playwright._pw.async_api._generated import Playwright as AsyncPlaywright
 
 
@@ -36,7 +36,7 @@ class PlaywrightContextManager:
             # `_juggler` is being built, because it is the JUDGE of that
             # server: both answer the same protocol, so the only honest
             # check is the same session through both. See
-            # `_juggler/factory.py` for the switch and why the default is
+            # `_juggler/transport.py` for the switch and why the default is
             # still the driver.
             make_transport(loop),
             loop,

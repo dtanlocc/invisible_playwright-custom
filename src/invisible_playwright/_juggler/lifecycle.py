@@ -90,6 +90,19 @@ class Lifecycle:
         """Stop listening. Called when the page this follows goes away."""
         self.c.remove_listener(self._route)
 
+    def frame(self, frame_id: str):
+        """The frame with this id, or None.
+
+        ⛔ HERE AND NOT AT THE CALLER, because how frames are kept is this
+        object's business. Callers used to reach in with
+        `self.lifecycle.frames.get(id)` - two of them - and each one of those
+        also asserted that `frames` is a dict keyed by id. `_frame()` below
+        CREATES one when it is missing, which is right for an event arriving
+        for a frame we never saw attach and wrong for a caller that only wants
+        to look: the two readings need two names.
+        """
+        return self.frames.get(frame_id)
+
     # ── event intake ────────────────────────────────────────────────────────
     def _on_event(self, method: str, p: dict) -> None:
         with self._cv:

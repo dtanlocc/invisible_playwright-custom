@@ -10,23 +10,16 @@ from typing import Any, Dict, Optional, Union
 from invisible_playwright._pw.async_api import Browser, BrowserContext, Playwright, async_playwright
 
 from . import _session
-from ._cursor import (
-    ENGINE_PYTHON,
-    enable_for as _enable_cursor_engine,
-    max_seconds_for as _cursor_max_seconds,
-    resolve_cursor_engine,
-)
+from ._cursor import resolve_cursor_engine
 from invisible_core._fpforge import Profile, generate_profile
 from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
-from invisible_core import make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
-from .launcher import _CHROME_H, _CHROME_W, _TASKBAR_H
 
 
-class InvisiblePlaywright:
+class InvisiblePlaywright(_session.CommonLaunch):
     """Async context manager - see invisible_playwright.InvisiblePlaywright for the sync variant."""
 
     def __init__(
@@ -184,35 +177,7 @@ class InvisiblePlaywright:
         self._arm_cursor_engine(self._browser)
         return self._browser
 
-    def _bind_process_tree(self) -> None:
-        """Tie the browser tree to this process's lifetime, at the OS level.
 
-        The same call the sync launcher makes. Its absence here is why the
-        Windows leak survived 0.4.0 on this API: an exception out of the async
-        block runs __aexit__ and Playwright cleans up, but a KILLED runner never
-        reaches either, and only the kernel can act then.
-
-        Best-effort: a failure leaves the pre-existing behaviour rather than
-        breaking a launch that is otherwise fine.
-        """
-        try:
-            self._lifetime_guard.bind(self._session_token)
-        except Exception:
-            pass
-
-    def _arm_cursor_engine(self, owner: Any) -> None:
-        """Register this session so its pages move through the Python generator.
-
-        Same wiring as the sync launcher, and the same single hook point: the
-        wrappers live on the shared implementation objects, so arming a session
-        here covers ``await page.click(...)``, ``await locator.hover(...)`` and
-        ``await page.mouse.move(...)`` without a second implementation.
-        """
-        if self._cursor_engine != ENGINE_PYTHON:
-            return
-        _enable_cursor_engine(
-            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
-        )
 
     #: Twin of `launcher._INTERVALLO_CONTROLLO_USCITA_S`. The two classes
     #: must stay equal: that is the defect `_session.py` exists to stop
@@ -326,31 +291,6 @@ class InvisiblePlaywright:
 
         browser.new_page = patched_page  # type: ignore[assignment]
 
-    def _default_context_kwargs(self) -> Dict[str, Any]:
-        p = self._profile
-        kwargs: Dict[str, Any] = {
-            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
-                                     "height": (p.screen.height
-                                                - p.screen.taskbar_px
-                                                - p.screen.chrome_h)},
-            "screen":              {"width": p.screen.width, "height": p.screen.height},
-            # ⛔ device_scale_factor and color_scheme are NO LONGER passed.
-            # They were a second source for two facts invisible_core already
-            # declares (layout.css.devPixelsPerPx and
-            # layout.css.prefers-color-scheme.content-override), and this one
-            # won: measured, setting the pref to a different value did not
-            # move the browser. Kept identical to the sync branch, which
-            # test_async_default_context_kwargs_match_sync demands - and it is
-            # the test that caught this line having fallen behind.
-        }
-        # Pass timezone via Playwright per-realm override (works for every
-        # IANA name, including no-DST zones that Windows ICU silently drops
-        # on the global pref path).
-        if self._timezone:
-            kwargs["timezone_id"] = self._timezone
-        if self._locale:
-            kwargs["locale"] = self._locale
-        return kwargs
 
     async def __aexit__(self, *exc: Any) -> None:
         await self._teardown()
@@ -391,59 +331,8 @@ class InvisiblePlaywright:
                 pass
             self._session_token = SessionToken()
 
-    def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
-        """Same body as the sync class - it always was, character for character.
 
-        The token stamp stays here: it is the one per-session part, and losing
-        it is what made the reaper unable to find this API's browser tree.
-        """
-        return self._session_token.stamp(
-            _session.build_env(timezone=self._timezone,
-                               srflx_dichiarato=self._srflx_dichiarato,
-                               profile=self._profile,
-                               executable=resolve_executable(self._binary_path)))
 
-    def _build_prefs(self) -> Dict[str, Any]:
-        """Same body as the sync class, because it is the same body.
-
-        These were twenty identical lines here and twenty in
-        `launcher._build_prefs` - same calls, same order, differing only in
-        their comments. Both delegate to `_session.build_prefs` now.
-        """
-        return _session.build_prefs(
-            profile=self._profile,
-            locale=self._locale,
-            timezone=self._timezone,
-            extra_prefs=self._extra_prefs,
-            headless=self._headless,
-            virtual_display=self._virtual_display is not None,
-            cursor_engine=self._cursor_engine,
-            humanize=self._humanize,
-            show_cursor=self._show_cursor,
-        )
-
-    def _resolve_headless(self) -> bool:
-        if not self._headless:
-            return False
-        # Opt-in TRUE headless. The default headful+cloak path intermittently
-        # hangs launch_persistent_context ~40% on Windows (window/compositor
-        # race with a persistent profile). True headless applies the IDENTICAL
-        # fingerprint prefs (screen/viewport/canvas/webgl spoofed the same) and
-        # is reliable (~2.3s). Read through `_session` so the sync class gets
-        # it too: until 2026-07-27 this env var was honoured HERE ONLY, so a
-        # documented knob worked or not depending on which entry point the
-        # caller had picked.
-        if _session.true_headless_requested():
-            return True
-        vd = make_virtual_display()
-        # Linux: Xvfb to start. Windows/macOS: make_virtual_display() returns
-        # None (the binary self-cloaks via cloak_prefs injected in __aenter__),
-        # so there is nothing to start - guarding the None was the missing piece
-        # that made async headless=True crash with AttributeError on Windows.
-        if vd is not None:
-            vd.start()
-            self._virtual_display = vd
-        return False
 
 
 __all__ = ["InvisiblePlaywright"]

@@ -1,7 +1,6 @@
 """Sync Playwright launcher for invisible_playwright."""
 from __future__ import annotations
 
-import json
 import secrets
 import time
 from pathlib import Path
@@ -10,16 +9,10 @@ from typing import Any, Dict, Optional, Union
 from invisible_playwright._pw.sync_api import Browser, BrowserContext, Playwright, sync_playwright
 
 from . import _session
-from ._cursor import (
-    ENGINE_PYTHON,
-    enable_for as _enable_cursor_engine,
-    max_seconds_for as _cursor_max_seconds,
-    resolve_cursor_engine,
-)
+from ._cursor import resolve_cursor_engine
 from invisible_core._fpforge import Profile, generate_profile
 from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
-from invisible_core import make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
@@ -52,8 +45,6 @@ from ._reaper import SessionToken, guard_for
 # with itself forever and no cross-check can see it. The declaration lives in
 # the core as Profile.screen.chrome_w / chrome_h, pinnable like every other
 # surface. These names survive only because async_api imports them.
-from invisible_core.constants import CHROME_H as _CHROME_H  # noqa: E402
-from invisible_core.constants import CHROME_W as _CHROME_W  # noqa: E402
 
 # The taskbar is NOT a wrapper constant. It was one, at 40, while the core
 # declared 48 and the engine's compiled floor was 48 - so the viewport was
@@ -62,7 +53,6 @@ from invisible_core.constants import CHROME_W as _CHROME_W  # noqa: E402
 # field of the profile now (ScreenProfile.taskbar_px), pinnable like any other,
 # and the use sites below read it from there. This name survives only because
 # async_api imports it, and it resolves to the same declaration.
-from invisible_core.constants import TASKBAR_PX as _TASKBAR_H  # noqa: E402
 
 # The IANA -> POSIX TZ table moved to `_session` on 2026-07-27, so the async
 # class no longer has to import it FROM the sync module. Re-exported under the
@@ -71,7 +61,7 @@ _IANA_TO_POSIX_TZ = _session._IANA_TO_POSIX_TZ
 _tz_env = _session.tz_env
 
 
-class InvisiblePlaywright:
+class InvisiblePlaywright(_session.CommonLaunch):
     """Context manager launching a patched Firefox with a deterministic profile.
 
     Usage:
@@ -388,43 +378,7 @@ class InvisiblePlaywright:
         self._arm_cursor_engine(self._browser)
         return self._browser
 
-    def _bind_process_tree(self) -> None:
-        """Tie the browser tree to this process's lifetime, at the OS level.
 
-        MEASURED before being written, because the first attempt at this fixed
-        a path that was not broken: an exception out of the `with` block does
-        NOT leak - __exit__ runs and Playwright cleans up, zero survivors over
-        an interleaved A/B. The leak is the killed-runner path, where __exit__
-        never executes at all: launch, kill the runner, and eight processes
-        were still alive; twelve on the second attempt. Nothing written inside
-        _teardown can reach that, so the guarantee comes from a Windows job
-        object that the kernel empties when this process's handle closes,
-        however this process ends.
-
-        Best-effort by construction: a failure here leaves the pre-existing
-        behaviour rather than breaking a launch that is otherwise fine.
-        """
-        try:
-            self._lifetime_guard.bind(self._session_token)
-        except Exception:
-            pass
-
-    def _arm_cursor_engine(self, owner: Any) -> None:
-        """Register this session so its pages move through the Python generator.
-
-        Registered on the browser (or on the persistent context, which is all
-        there is in that mode) rather than on each page: pages appear by
-        several routes we do not control - ``browser.new_page()`` builds its
-        context inside the driver, and a site can open a popup on its own - and
-        every one of them can find its way back to this owner. The seed is the
-        session seed, so a replayed seed replays the cursor exactly as it
-        replays the fingerprint.
-        """
-        if self._cursor_engine != ENGINE_PYTHON:
-            return
-        _enable_cursor_engine(
-            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
-        )
 
     def _persistent_context_kwargs(self) -> Dict[str, Any]:
         """Context-level kwargs accepted by launch_persistent_context.
@@ -585,31 +539,6 @@ class InvisiblePlaywright:
 
         browser.new_page = patched_page  # type: ignore[assignment]
 
-    def _default_context_kwargs(self) -> Dict[str, Any]:
-        p = self._profile
-        kwargs: Dict[str, Any] = {
-            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
-                                     "height": (p.screen.height
-                                                - p.screen.taskbar_px
-                                                - p.screen.chrome_h)},
-            "screen":              {"width": p.screen.width, "height": p.screen.height},
-            # ⛔ device_scale_factor and color_scheme are NO LONGER passed.
-            # They were a second source for two facts invisible_core already
-            # declares (layout.css.devPixelsPerPx and, since 2026-08-24,
-            # layout.css.prefers-color-scheme.content-override), and this one
-            # won: measured, setting the pref to a different value the
-            # browser did not move. Now there is only one path.
-        }
-        # Pass timezone via Playwright's per-realm override (docShell.overrideTimezone
-        # → JS::SetRealmTimezoneOverride). The juggler.timezone.override pref path
-        # uses JS::SetTimeZoneOverride globally, which is broken on Windows ICU for
-        # no-DST IANA names (America/Phoenix, Pacific/Honolulu, ...) - those silently
-        # fall back to the host system TZ. The per-realm path works for every zone.
-        if self._timezone:
-            kwargs["timezone_id"] = self._timezone
-        if self._locale:
-            kwargs["locale"] = self._locale
-        return kwargs
 
     def __exit__(self, *exc: Any) -> None:
         self._teardown()
@@ -653,63 +582,6 @@ class InvisiblePlaywright:
 
     # ── helpers ─────────────────────────────────────────────────────────
 
-    def _build_prefs(self) -> Dict[str, Any]:
-        """Fingerprint prefs plus humanize toggle (always set explicitly).
 
-        The body lives in `_session.build_prefs`, which the async class calls
-        too. It used to be twenty lines here and the SAME twenty inlined into
-        `async_api.__aenter__` - identical calls in identical order, differing
-        only in their comments, which is how the two entry points drift.
-        """
-        return _session.build_prefs(
-            profile=self._profile,
-            locale=self._locale,
-            timezone=self._timezone,
-            extra_prefs=self._extra_prefs,
-            headless=self._headless,
-            virtual_display=self._virtual_display is not None,
-            cursor_engine=self._cursor_engine,
-            humanize=self._humanize,
-            show_cursor=self._show_cursor,
-        )
 
-    def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
-        """Env for the Firefox subprocess, then stamped with this session's token.
-
-        The body is `_session.build_env`, shared with the async class - it was
-        written twice, identically, and the WebRTC pair is a contract with the
-        binary, so two landing sites meant two chances to miss a change.
-
-        The token stamp stays here because it is the only genuinely per-session
-        part: children inherit the environment, so every process in the tree
-        carries it and teardown can find its own tree and only its own.
-        """
-        return self._session_token.stamp(
-            _session.build_env(timezone=self._timezone,
-                               srflx_dichiarato=self._srflx_dichiarato,
-                               profile=self._profile,
-                               executable=resolve_executable(self._binary_path)))
-
-    def _resolve_headless(self) -> bool:
-        """Translate the user's ``headless`` flag.
-
-        When ``True``, Firefox stays in headed mode (real rendering pipeline →
-        coherent fingerprint) and the window is hidden: on Linux via a fresh
-        Xvfb spawned here; on Windows/macOS via the binary's own window cloak
-        (the ``zoom.stealth.cloak_windows`` pref added in ``_build_prefs``), so
-        ``make_virtual_display()`` returns ``None`` and nothing is spawned.
-        """
-        if not self._headless:
-            return False
-        # Opt-in TRUE headless, shared with the async class. It existed on the
-        # async API ONLY until 2026-07-27: a documented env var that worked
-        # depending on which entry point the caller happened to pick, which is
-        # the same drift that shipped the process-leak fix to half the users.
-        if _session.true_headless_requested():
-            return True
-        vd = make_virtual_display()
-        if vd is not None:
-            vd.start()
-            self._virtual_display = vd
-        return False
 

@@ -12,11 +12,17 @@ import pytest
 
 from invisible_core import get_default_stealth_prefs
 from invisible_playwright import InvisiblePlaywright, _cursor
+# ⛔ FROM THE CORE, not through `launcher`. Until 2026-08-29 these three
+# arrived here because the launcher IMPORTED them, not because they were its
+# own: an accidental re-export, which only became visible when those imports
+# turned unused in there and were removed. An import is not unused merely
+# because the file holding it does not use it - another module can be reaching
+# a name THROUGH it, and no single-file analysis can see that.
+from invisible_core.constants import (CHROME_H as _CHROME_H,
+                                      CHROME_W as _CHROME_W,
+                                      TASKBAR_PX as _TASKBAR_H)
 from invisible_playwright.launcher import (
-    _CHROME_H,
-    _CHROME_W,
     _IANA_TO_POSIX_TZ,
-    _TASKBAR_H,
     _tz_env,
 )
 

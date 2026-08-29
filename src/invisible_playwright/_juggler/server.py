@@ -41,72 +41,27 @@ from .injected import InjectedScript
 from .keyboard import MODIFIER_MASK
 from .lifecycle import Lifecycle
 
-
-def _as_callable(expression: str) -> str:
-    """Wrap an expression so it can always be CALLED with the argument.
-
-    <M> PLAYWRIGHT SENDS BOTH FORMS DOWN THE SAME FIELD. `page.evaluate("1+1")`
-    and `page.evaluate("() => document.title")` arrive as the same
-    `expression` string, and the client does not say which is which. Evaluating
-    the raw string works for the first and, for the second, produces a FUNCTION
-    OBJECT: no error, no exception, and the caller gets None back for a call
-    that looked fine.
-
-    Measured on 2026-08-27: `page.evaluate("() => !!x")` answered None, and the
-    assertion that caught it read like the browser had changed behaviour.
-
-    So the string is wrapped and the result called if it turned out to be a
-    function. Deciding by shape - does it start with `(` or `function` or
-    `async` - is the version that gets it wrong: `(1+2)` starts with a
-    parenthesis and is not a function.
-    """
-    return ("(() => { const r = (%s);"
-            "  return typeof r === 'function' ? r(ARG) : r; })()" % expression)
+# ⛔ RE-EXPORTED ON PURPOSE, not merely imported. These leaf helpers moved out
+# of this file so that the classes below read as one story instead of being
+# interleaved with functions - but `tests/gates/prefs_byte_parity.py` and the
+# transport tests import `_write_user_js`, `_serialize`, `_host_of` and
+# `_domain_matches` from HERE, and a move that breaks its callers to tidy a
+# file is not a tidy-up. One definition, two names to reach it.
+from ._marshal import (_as_callable, _button, _console_text, _deserialize,
+                       _guid_of, _headers_array, _js_string, _location,
+                       _resource_type, _serialize, _with_argument)
+from ._profile import (_domain_matches, _host_of, _only_set, _read_version,
+                       _remove_profile, _write_user_js)
 
 
-def _deserialize(value: Any) -> Any:
-    """The tagged union Playwright sends for an ARGUMENT, back to a value."""
-    if not isinstance(value, dict):
-        return value
-    if "value" in value and "handles" in value:
-        return _deserialize(value["value"])
-    for tag, convert in (("n", lambda v: v), ("s", lambda v: v),
-                         ("b", lambda v: v)):
-        if tag in value:
-            return convert(value[tag])
-    if "v" in value:
-        return {"null": None, "undefined": None, "NaN": float("nan"),
-                "Infinity": float("inf"),
-                "-Infinity": float("-inf")}.get(value["v"])
-    if "a" in value:
-        return [_deserialize(x) for x in value["a"]]
-    if "o" in value:
-        return {e["k"]: _deserialize(e["v"]) for e in value["o"]}
-    return None
 
 
-def _with_argument(params: Dict) -> str:
-    """The expression, callable, with the caller's argument substituted in."""
-    argument = _deserialize(params.get("arg"))
-    return _as_callable(params["expression"]).replace(
-        "ARG", json.dumps(argument, default=str))
 
 
-def _js_string(value: str) -> str:
-    """A Python string as a JavaScript literal.
-
-    ⛔ `json.dumps` and never manual quoting: the html handed to `set_content`
-    is arbitrary, and a single quote, a backslash or a line separator inside it
-    would close the literal early. That exact defect - an apostrophe closing a
-    single-quoted JavaScript string - broke the driver bundle on 2026-08-24.
-    """
-    return json.dumps(value)
 
 
-def _guid_of(value: Any) -> Optional[str]:
-    if isinstance(value, dict) and "guid" in value:
-        return value["guid"]
-    return None
+
+
 
 
 # ── the leaves we do not implement, and say so ──────────────────────────────
@@ -242,13 +197,21 @@ class ElementHandleDispatcher(Dispatcher):
         super().__init__(server, frame,
                          {"preview": preview or "JSHandle@node"})
 
+    # ⛔ Same reason as `page` just above, one level further: an element handle
+    # reaches the injected script through the frame and the page, and thirteen
+    # call sites used to spell that path out.
+    @property
+    def injected(self) -> "InjectedScript":
+        return self.page.injected
+
+
     @property
     def page(self) -> "PageDispatcher":
         return self.frame.page
 
     def op_dispose(self, params: Dict) -> Any:
         try:
-            self.page.injected.dispose(self.frame.frame_id, self.object_id)
+            self.injected.dispose(self.frame.frame_id, self.object_id)
         except Exception:
             # ⛔ A handle whose context is already gone is not an error worth
             # raising: the caller is tidying up, and the node it pointed at
@@ -258,7 +221,7 @@ class ElementHandleDispatcher(Dispatcher):
         return None
 
     def op_bounding_box(self, params: Dict) -> Any:
-        return {"value": self.page.injected.bounding_box(
+        return {"value": self.injected.bounding_box(
             self.frame.frame_id, self.object_id)}
 
     def op_evaluate(self, params: Dict) -> Any:
@@ -285,7 +248,7 @@ class ElementHandleDispatcher(Dispatcher):
         It was found by diffing the protocol against the Node driver: the
         driver's `click` carried a `position` and ours did not.
         """
-        return {"value": _serialize(self.page.injected.call(
+        return {"value": _serialize(self.injected.call(
             self.frame.frame_id,
             "(injected, el) => { const r = (%s);"
             "  return typeof r === 'function' ? r(el, %s) : r; }"
@@ -294,27 +257,27 @@ class ElementHandleDispatcher(Dispatcher):
             {"objectId": self.object_id}))}
 
     def op_text_content(self, params: Dict) -> Any:
-        return {"value": self.page.injected.text_content(
+        return {"value": self.injected.text_content(
             self.frame.frame_id, self.object_id)}
 
     def op_inner_text(self, params: Dict) -> Any:
-        return {"value": self.page.injected.inner_text(
+        return {"value": self.injected.inner_text(
             self.frame.frame_id, self.object_id)}
 
     def op_inner_html(self, params: Dict) -> Any:
-        return {"value": self.page.injected.inner_html(
+        return {"value": self.injected.inner_html(
             self.frame.frame_id, self.object_id)}
 
     def op_input_value(self, params: Dict) -> Any:
-        return {"value": self.page.injected.input_value(
+        return {"value": self.injected.input_value(
             self.frame.frame_id, self.object_id)}
 
     def op_get_attribute(self, params: Dict) -> Any:
-        return {"value": self.page.injected.get_attribute(
+        return {"value": self.injected.get_attribute(
             self.frame.frame_id, self.object_id, params["name"])}
 
     def op_get_property(self, params: Dict) -> Any:
-        object_id = self.page.injected.call(
+        object_id = self.injected.call(
             self.frame.frame_id,
             "(injected, o, n) => o[n]",
             {"objectId": self.object_id}, params["name"], by_value=False)
@@ -326,13 +289,13 @@ class ElementHandleDispatcher(Dispatcher):
         large object this is the most expensive call in the file, which is why
         `json_value` exists and should be preferred when the values are
         serialisable."""
-        names = self.page.injected.call(
+        names = self.injected.call(
             self.frame.frame_id,
             "(injected, o) => o === Object(o) ? Object.keys(o) : []",
             {"objectId": self.object_id}) or []
         out = []
         for name in names:
-            object_id = self.page.injected.call(
+            object_id = self.injected.call(
                 self.frame.frame_id, "(injected, o, n) => o[n]",
                 {"objectId": self.object_id}, name, by_value=False)
             handle = ElementHandleDispatcher(self.server, self.frame, object_id)
@@ -351,9 +314,9 @@ class ElementHandleDispatcher(Dispatcher):
         just given.
         """
         if getattr(self, "world", "utility") == "main":
-            return {"value": _serialize(self.page.injected.json_value_in(
+            return {"value": _serialize(self.injected.json_value_in(
                 self.frame.frame_id, "main", self.object_id))}
-        return {"value": _serialize(self.page.injected.call(
+        return {"value": _serialize(self.injected.call(
             self.frame.frame_id, "(injected, o) => o",
             {"objectId": self.object_id}))}
 
@@ -388,39 +351,6 @@ class ElementHandleDispatcher(Dispatcher):
         return {"frame": frame.channel}
 
 
-def _serialize(value: Any, counter: Optional[Dict] = None) -> Any:
-    """A Python value in the shape `parse_result` expects.
-
-    ⛔ Playwright does not send bare JSON: it sends a tagged union, and
-    `_connection.parse_value` reads the TAG. A bare `True` where `{"b": true}`
-    is expected does not raise - it falls through to the object branch and comes
-    back as something else entirely.
-    """
-    if counter is None:
-        counter = {"n": 0}
-    if value is None:
-        return {"v": "null"}
-    if isinstance(value, bool):
-        return {"b": value}
-    if isinstance(value, (int, float)):
-        return {"n": value}
-    if isinstance(value, str):
-        return {"s": value}
-    if isinstance(value, (list, tuple)):
-        # <M> `id` IS MANDATORY on a list and on an object, and its absence is
-        # a KeyError deep inside `parse_value`, not a message. Playwright uses
-        # it to rebuild cyclic references: every container is registered under
-        # its id so a later `{"ref": id}` can point back at it. We never emit a
-        # `ref` - the values crossing here come from JSON and cannot be cyclic
-        # - but the id has to be there anyway, because the reader indexes on it
-        # unconditionally.
-        counter["n"] += 1
-        return {"a": [_serialize(x, counter) for x in value], "id": counter["n"]}
-    if isinstance(value, dict):
-        counter["n"] += 1
-        return {"o": [{"k": k, "v": _serialize(v, counter)}
-                      for k, v in value.items()], "id": counter["n"]}
-    return {"s": str(value)}
 
 
 # ── frame ───────────────────────────────────────────────────────────────────
@@ -492,9 +422,30 @@ class FrameDispatcher(Dispatcher):
                          {"url": url, "name": name,
                           "loadStates": load_states or ["commit"]})
 
+    # ── the engines, which belong to the page ───────────────────────────────
+    #
+    # ⛔ PROPERTIES, AND THE POINT IS HOW MANY PLACES KNOW. A frame does its
+    # work through three engines it does not own - the actionability loop, the
+    # injected script and the lifecycle - and each one used to be reached by
+    # climbing: `self.page.actions`, thirty-eight times across this class.
+    # Thirty-eight places knew that the actions engine lives on the page. Now
+    # one does, and thirty-eight read as what they mean.
+    @property
+    def actions(self) -> "Actions":
+        return self.page.actions
+
+    @property
+    def injected(self) -> "InjectedScript":
+        return self.page.injected
+
+    @property
+    def lifecycle(self) -> "Lifecycle":
+        return self.page.lifecycle
+
+
     # ── navigation ──────────────────────────────────────────────────────────
     def op_goto(self, params: Dict) -> Any:
-        result = self.page.lifecycle.goto(
+        result = self.lifecycle.goto(
             params["url"], frame_id=self.frame_id,
             until=params.get("waitUntil") or "load",
             timeout=(params.get("timeout") or 30000) / 1000.0)
@@ -506,14 +457,14 @@ class FrameDispatcher(Dispatcher):
 
     # ── reading ─────────────────────────────────────────────────────────────
     def op_title(self, params: Dict) -> Any:
-        return {"value": self.page.injected.title(self.frame_id)}
+        return {"value": self.injected.title(self.frame_id)}
 
     def op_content(self, params: Dict) -> Any:
-        return {"value": self.page.injected.content(self.frame_id)}
+        return {"value": self.injected.content(self.frame_id)}
 
     def op_query_selector(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        object_id = self.page.injected.query_selector(frame_id, selector)
+        object_id = self.injected.query_selector(frame_id, selector)
         if not object_id:
             return {"element": None}
         handle = ElementHandleDispatcher(
@@ -522,37 +473,37 @@ class FrameDispatcher(Dispatcher):
 
     def _with_element(self, params: Dict, read):
         frame_id, selector = self.enter_frames(params["selector"])
-        object_id = self.page.injected.query_selector(frame_id, selector)
+        object_id = self.injected.query_selector(frame_id, selector)
         if not object_id:
             raise ProtocolException("no element matches %r" % selector)
         try:
             return {"value": read(object_id)}
         finally:
-            self.page.injected.dispose(frame_id, object_id)
+            self.injected.dispose(frame_id, object_id)
 
     def op_text_content(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.page.injected
+        return self._with_element(params, lambda o: self.injected
                                   .text_content(self.frame_id, o))
 
     def op_inner_text(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.page.injected
+        return self._with_element(params, lambda o: self.injected
                                   .inner_text(self.frame_id, o))
 
     def op_inner_html(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.page.injected
+        return self._with_element(params, lambda o: self.injected
                                   .inner_html(self.frame_id, o))
 
     def op_input_value(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.page.injected
+        return self._with_element(params, lambda o: self.injected
                                   .input_value(self.frame_id, o))
 
     def op_get_attribute(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.page.injected
+        return self._with_element(params, lambda o: self.injected
                                   .get_attribute(self.frame_id, o,
                                                  params["name"]))
 
     def _state(self, params: Dict, state: str) -> Any:
-        return self._with_element(params, lambda o: self.page.injected
+        return self._with_element(params, lambda o: self.injected
                                   .element_state(self.frame_id, o, state))
 
     def op_is_visible(self, params: Dict) -> Any:
@@ -590,7 +541,7 @@ class FrameDispatcher(Dispatcher):
         Everything else in this file stays in utility on purpose. This one
         method leaves, because the caller asked for it.
         """
-        return {"value": _serialize(self.page.injected.evaluate_in_main(
+        return {"value": _serialize(self.injected.evaluate_in_main(
             self.frame_id, _with_argument(params)))}
 
     # ── acting ──────────────────────────────────────────────────────────────
@@ -692,7 +643,7 @@ class FrameDispatcher(Dispatcher):
 
     def op_click(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.click(selector, timeout=self._timeout(params),
+        self.actions.click(selector, timeout=self._timeout(params),
                                 frame_id=frame_id,
                                 position=self._position(params),
                                 **self._pointer(params))
@@ -703,65 +654,65 @@ class FrameDispatcher(Dispatcher):
         pointer = self._pointer(params)
         # dblclick sets its own clickCount; the caller's is not a second one.
         pointer.pop("clicks", None)
-        self.page.actions.dblclick(selector, timeout=self._timeout(params),
+        self.actions.dblclick(selector, timeout=self._timeout(params),
                                    frame_id=frame_id,
                                    position=self._position(params), **pointer)
         return None
 
     def op_hover(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.hover(selector, timeout=self._timeout(params),
+        self.actions.hover(selector, timeout=self._timeout(params),
                                 frame_id=frame_id,
                                 position=self._position(params))
         return None
 
     def op_fill(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.fill(selector, params["value"],
+        self.actions.fill(selector, params["value"],
                                timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_check(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.check(selector, timeout=self._timeout(params),
+        self.actions.check(selector, timeout=self._timeout(params),
                                 frame_id=frame_id,
                                 position=self._position(params))
         return None
 
     def op_uncheck(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.uncheck(selector, timeout=self._timeout(params),
+        self.actions.uncheck(selector, timeout=self._timeout(params),
                                   frame_id=frame_id,
                                   position=self._position(params))
         return None
 
     def op_focus(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.focus(selector,
+        self.actions.focus(selector,
                                 timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_blur(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.blur(selector,
+        self.actions.blur(selector,
                                timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_select_text(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.select_text(selector,
+        self.actions.select_text(selector,
                                       timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_press(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.press(selector, params["key"],
+        self.actions.press(selector, params["key"],
                                 timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_type(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.type_text(selector, params["text"],
+        self.actions.type_text(selector, params["text"],
                                     timeout=self._timeout(params), frame_id=frame_id)
         return None
 
@@ -770,7 +721,7 @@ class FrameDispatcher(Dispatcher):
         # `matches = true` and narrows only on valueOrLabel / value / label /
         # index, so a plain string matches everything and picks the FIRST
         # option. Measured: ["b"] answered ['a'].
-        chosen = self.page.actions.select_option(
+        chosen = self.actions.select_option(
             params["selector"], params.get("options") or [],
             timeout=self._timeout(params))
         return {"values": chosen or []}
@@ -779,13 +730,13 @@ class FrameDispatcher(Dispatcher):
         frame_id, selector = self.enter_frames(params["selector"])
         paths = [f.get("name") if isinstance(f, dict) else f
                  for f in (params.get("localPaths") or params.get("files") or [])]
-        self.page.actions.set_input_files(selector, paths,
+        self.actions.set_input_files(selector, paths,
                                           timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_tap(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.tap(selector, timeout=self._timeout(params),
+        self.actions.tap(selector, timeout=self._timeout(params),
                               frame_id=frame_id,
                               position=self._position(params))
         return None
@@ -799,14 +750,14 @@ class FrameDispatcher(Dispatcher):
         # and the message names a field the caller never wrote. Nothing to do
         # with frames: it failed on the main frame too, and only an iframe test
         # happened to exercise it.
-        self.page.actions.dispatch_event(
+        self.actions.dispatch_event(
             selector, params["type"],
             _deserialize(params.get("eventInit")) or {},
             timeout=self._timeout(params), frame_id=frame_id)
         return None
 
     def op_drag_and_drop(self, params: Dict) -> Any:
-        self.page.actions.drag_and_drop(params["source"], params["target"],
+        self.actions.drag_and_drop(params["source"], params["target"],
                                         timeout=self._timeout(params))
         return None
 
@@ -818,14 +769,14 @@ class FrameDispatcher(Dispatcher):
         from there it answers `The operation is insecure` every single time -
         the same defect the fork already fixed inside the driver.
         """
-        self.page.injected.evaluate_in_main(
+        self.injected.evaluate_in_main(
             self.frame_id,
             "(() => { document.open(); document.write(%s); document.close(); })()"
             % _js_string(params["html"]), by_value=True)
         # ⛔ The load states of the OLD document do not count for the new one,
         # and `document.open()` starts a new one without a navigation event to
         # reset them. Waiting here would wait on states that are already set.
-        self.page.lifecycle.wait_for_state(
+        self.lifecycle.wait_for_state(
             self.frame_id, params.get("waitUntil") or "load",
             timeout=self._timeout(params))
         return None
@@ -835,14 +786,14 @@ class FrameDispatcher(Dispatcher):
         return None
 
     def op_wait_for_load_state(self, params: Dict) -> Any:
-        self.page.lifecycle.wait_for_state(
+        self.lifecycle.wait_for_state(
             self.frame_id, params.get("state") or "load",
             timeout=self._timeout(params))
         return None
 
     def op_wait_for_selector(self, params: Dict) -> Any:
         state = params.get("state") or "visible"
-        object_id = self.page.actions.wait_for_selector(
+        object_id = self.actions.wait_for_selector(
             params["selector"], state=state, timeout=self._timeout(params))
         if object_id is None:
             return {"element": None}
@@ -875,7 +826,7 @@ class FrameDispatcher(Dispatcher):
         expression = _as_callable(params["expression"]).replace(
             "ARG", json.dumps(_deserialize(params.get("arg")), default=str))
         while True:
-            value = self.page.injected.evaluate_in_main(self.frame_id,
+            value = self.injected.evaluate_in_main(self.frame_id,
                                                         expression)
             if value:
                 # ⛔ A HANDLE, NEVER None. `_frame.py` wraps this reply in
@@ -883,7 +834,7 @@ class FrameDispatcher(Dispatcher):
                 # it is `AttributeError: 'NoneType' object has no attribute
                 # '_object'` raised inside the client on a call that had just
                 # succeeded. It stayed hidden while the poll timed out first.
-                object_id = self.page.injected.evaluate_in_main(
+                object_id = self.injected.evaluate_in_main(
                     self.frame_id, expression, by_value=False)
                 handle = ElementHandleDispatcher(
                     self.server, self, object_id or "", world="main")
@@ -902,7 +853,7 @@ class FrameDispatcher(Dispatcher):
         selector = params.get("selector")
         try:
             if expression.startswith("to.have.count"):
-                count = self.page.injected.count(self.frame_id, selector)
+                count = self.injected.count(self.frame_id, selector)
                 expected = int((params.get("expectedNumber") or 0))
                 return {"matches": count == expected,
                         "received": _serialize(count)}
@@ -929,11 +880,11 @@ class FrameDispatcher(Dispatcher):
         if selector:
             return self._with_element(
                 params,
-                lambda o: self.page.injected.call(
+                lambda o: self.injected.call(
                     self.frame_id,
                     "(injected, el, o) => injected.ariaSnapshot(el, o)",
                     {"objectId": o}, {"mode": params.get("mode") or "raw"}))
-        return {"snapshot": self.page.injected.call(
+        return {"snapshot": self.injected.call(
             self.frame_id,
             "(injected, o) => injected.ariaSnapshot(document.documentElement, o)",
             {"mode": params.get("mode") or "raw"})}
@@ -991,7 +942,7 @@ class FrameDispatcher(Dispatcher):
 
     def op_wait_for_element_state(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        self.page.actions.wait_for_selector(
+        self.actions.wait_for_selector(
             selector, state=params["state"],
             timeout=self._timeout(params), frame_id=frame_id)
         return None
@@ -1012,12 +963,12 @@ class FrameDispatcher(Dispatcher):
     # ── selectors that answer many ──────────────────────────────────────────
     def op_query_count(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        return {"value": self.page.injected.count(frame_id, selector)}
+        return {"value": self.injected.count(frame_id, selector)}
 
     def op_query_selector_all(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         target = self.page.frame_for(frame_id)
-        ids = self.page.injected.query_selector_all(frame_id, selector)
+        ids = self.injected.query_selector_all(frame_id, selector)
         handles = [ElementHandleDispatcher(self.server, target, oid)
                    for oid in ids]
         return {"elements": [h.channel for h in handles]}
@@ -1025,7 +976,7 @@ class FrameDispatcher(Dispatcher):
     def op_eval_on_selector(self, params: Dict) -> Any:
         return self._with_element(
             params,
-            lambda o: _serialize(self.page.injected.call(
+            lambda o: _serialize(self.injected.call(
                 self.frame_id,
                 "(injected, el) => { const r = (%s);"
                 "  return typeof r === 'function' ? r(el) : r; }"
@@ -1033,7 +984,7 @@ class FrameDispatcher(Dispatcher):
                 {"objectId": o})))
 
     def op_eval_on_selector_all(self, params: Dict) -> Any:
-        value = self.page.injected.call(
+        value = self.injected.call(
             self.frame_id,
             "(injected, sel) => { const els = injected.querySelectorAll("
             "  injected.parseSelector(sel), document);"
@@ -1043,7 +994,7 @@ class FrameDispatcher(Dispatcher):
         return {"value": _serialize(value)}
 
     def op_evaluate_handle(self, params: Dict) -> Any:
-        object_id = self.page.injected.evaluate_in_main(
+        object_id = self.injected.evaluate_in_main(
             self.frame_id, _with_argument(params), by_value=False)
         handle = ElementHandleDispatcher(self.server, self, object_id)
         return {"handle": handle.channel}
@@ -1090,24 +1041,6 @@ class DialogDispatcher(Dispatcher):
         return self._answer(False)
 
 
-# ── network ─────────────────────────────────────────────────────────────────
-def _headers_array(raw) -> List[Dict[str, str]]:
-    """Headers as the ARRAY of pairs the client expects, never a dict.
-
-    ⛔ `RawHeaders` iterates over `[{"name": ..., "value": ...}]` and a dict
-    iterates over its KEYS, so handing one over does not raise: it produces a
-    header list whose every value is missing, and `response.headers` comes back
-    full of empty strings. Juggler already sends the array form; this exists so
-    a caller-built dict cannot slip through.
-    """
-    if isinstance(raw, dict):
-        return [{"name": k, "value": str(v)} for k, v in raw.items()]
-    out = []
-    for entry in raw or []:
-        if isinstance(entry, dict) and "name" in entry:
-            out.append({"name": entry["name"],
-                        "value": str(entry.get("value", ""))})
-    return out
 
 
 class RequestDispatcher(Dispatcher):
@@ -1260,6 +1193,15 @@ class RouteDispatcher(Dispatcher):
         self.answered = False
         super().__init__(server, request.page, {"request": request.channel})
 
+    # ⛔ FIVE LEVELS ON ONE LINE was what this replaced:
+    # `self.request.page.context.browser.conn.send(...)`. A route answering a
+    # request needs the connection; it does not need to know that a request has
+    # a page, a page a context, a context a browser and a browser a `conn`.
+    @property
+    def conn(self) -> "Connection":
+        return self.request.page.conn
+
+
     def _send(self, command: str, params: Dict) -> Any:
         if self.answered:
             raise ProtocolException(
@@ -1268,7 +1210,7 @@ class RouteDispatcher(Dispatcher):
         self.answered = True
         params = dict(params)
         params["requestId"] = self.request.request_id
-        result = self.request.page.context.browser.conn.send(
+        result = self.conn.send(
             command, params, timeout=30)
         self.dispose()
         return result
@@ -1313,20 +1255,6 @@ class RouteDispatcher(Dispatcher):
                           {"url": params["url"]})
 
 
-def _resource_type(params: Dict) -> str:
-    """⛔ Juggler says `cause`, Playwright says `resourceType`, and the two
-    vocabularies only partly overlap. An unmapped cause becomes `other`, which
-    is what upstream does too - guessing a nicer name would make
-    `request.resource_type` disagree with itself between the two transports."""
-    cause = (params.get("cause") or params.get("internalCause") or "").lower()
-    return {
-        "document": "document", "subdocument": "document",
-        "stylesheet": "stylesheet", "script": "script",
-        "image": "image", "imageset": "image",
-        "font": "font", "media": "media",
-        "xmlhttprequest": "xhr", "fetch": "fetch",
-        "websocket": "websocket", "beacon": "other",
-    }.get(cause, "other")
 
 
 # ── page ────────────────────────────────────────────────────────────────────
@@ -1424,6 +1352,28 @@ class PageDispatcher(Dispatcher):
         # would name a guid the client has not been told about yet.
         self._install_events()
 
+    @property
+    def browser(self) -> "BrowserDispatcher":
+        return self.context.browser
+
+    # ⛔ Six call sites used to reach `self.actions.keyboard`. The actions
+    # engine owns the keyboard; a page pressing a key does not need to know
+    # that, and now does not say it.
+    @property
+    def keyboard(self):
+        return self.actions.keyboard
+
+
+    # ⛔ THREE LEVELS, WRITTEN OUT EIGHT TIMES: `self.context.browser.conn`.
+    # A page talks to the browser connection constantly, and every one of those
+    # eight lines also asserted that a context has a browser and a browser has
+    # a `conn`. One property, and the shape of the tree stops being everybody's
+    # business.
+    @property
+    def conn(self) -> "Connection":
+        return self.context.browser.conn
+
+
 
     def _install_events(self) -> None:
         """Turn Juggler events into protocol events.
@@ -1443,7 +1393,7 @@ class PageDispatcher(Dispatcher):
         # ⛔ Registered on the connection's list, never chained. The isolation
         # that used to live in this closure is now `dispatch_event`'s job and
         # covers every subscriber instead of just this one.
-        self.context.browser.conn.add_listener(self._route_juggler_event)
+        self.conn.add_listener(self._route_juggler_event)
 
     def _route_juggler_event(self, method: str, params: Dict,
                              session) -> None:
@@ -1460,7 +1410,7 @@ class PageDispatcher(Dispatcher):
         stopped delivering events altogether. Adding a listener without a
         matching removal is the same defect written in a new shape.
         """
-        conn = self.context.browser.conn
+        conn = self.conn
         conn.remove_listener(self._route_juggler_event)
         self.lifecycle.detach()
         self.injected.detach()
@@ -1663,7 +1613,7 @@ class PageDispatcher(Dispatcher):
             self.emit("fileChooser", {"element": handle.channel,
                                       "isMultiple": multiple})
         except Exception as failure:
-            conn = self.context.browser.conn
+            conn = self.conn
             if len(conn.handler_errors) < 32:
                 conn.handler_errors.append("fileChooser: %s" % failure)
 
@@ -1681,7 +1631,7 @@ class PageDispatcher(Dispatcher):
         existing = self._frames.get(frame_id)
         if existing is not None:
             return existing
-        frame = self.lifecycle.frames.get(frame_id)
+        frame = self.lifecycle.frame(frame_id)
         made = FrameDispatcher(
             self.server, self, frame_id,
             url=getattr(frame, "url", "") or "",
@@ -1696,7 +1646,7 @@ class PageDispatcher(Dispatcher):
         command lands on whichever page the browser feels like, and with two
         pages open the events of one are indistinguishable from the other.
         """
-        return self.context.browser.conn.send(command, params,
+        return self.conn.send(command, params,
                                               session=self.session, timeout=30)
 
     # ── history ─────────────────────────────────────────────────────────────
@@ -1713,7 +1663,7 @@ class PageDispatcher(Dispatcher):
         # navigationId, so the only thing to anchor the wait on is that this
         # one has changed - and reading it after the command would sometimes
         # read the new one.
-        frame = self.lifecycle.frames.get(frame_id)
+        frame = self.lifecycle.frame(frame_id)
         previous = frame.navigation if frame is not None else None
         result = self.send(command, {"frameId": frame_id}
                            if command != "Page.reload" else {}) or {}
@@ -1763,23 +1713,23 @@ class PageDispatcher(Dispatcher):
         return None
 
     def op_key_down(self, params: Dict) -> Any:
-        self.actions.keyboard.down(params["key"])
+        self.keyboard.down(params["key"])
         return None
 
     def op_key_up(self, params: Dict) -> Any:
-        self.actions.keyboard.up(params["key"])
+        self.keyboard.up(params["key"])
         return None
 
     def op_key_press(self, params: Dict) -> Any:
-        self.actions.keyboard.press(params["key"])
+        self.keyboard.press(params["key"])
         return None
 
     def op_key_type(self, params: Dict) -> Any:
-        self.actions.keyboard.type(params["text"])
+        self.keyboard.type(params["text"])
         return None
 
     def op_key_insert(self, params: Dict) -> Any:
-        self.actions.keyboard.insert_text(params["text"])
+        self.keyboard.insert_text(params["text"])
         return None
 
     # ── viewport, media, capture ────────────────────────────────────────────
@@ -1842,7 +1792,7 @@ class PageDispatcher(Dispatcher):
         once used as a "bare command" to measure transport latency and reported
         26,8 ms of browser work as if it were ours. It is the right command
         here, and the wrong one to benchmark with."""
-        self.context.browser.conn.send("Heap.collectGarbage", {}, timeout=30)
+        self.conn.send("Heap.collectGarbage", {}, timeout=30)
         return None
 
     def _add_tag(self, params: Dict, tag: str) -> Any:
@@ -2007,7 +1957,7 @@ class PageDispatcher(Dispatcher):
         nothing in the log saying why.
         """
         if params.get("event") == "fileChooser":
-            self.context.browser.conn.send(
+            self.conn.send(
                 "Page.setInterceptFileChooserDialog",
                 {"enabled": bool(params.get("enabled"))},
                 session=self.session, timeout=10)
@@ -2028,7 +1978,7 @@ class PageDispatcher(Dispatcher):
         Touch is turned on at context creation with `hasTouch`."""
         self.send("Page.dispatchTapEvent",
                   {"x": params["x"], "y": params["y"],
-                   "modifiers": self.actions.keyboard.modifier_mask()})
+                   "modifiers": self.keyboard.modifier_mask()})
         return None
 
     def op_requests(self, params: Dict) -> Any:
@@ -2087,7 +2037,7 @@ class PageDispatcher(Dispatcher):
         because the tests open one page per context.
         """
         try:
-            self.context.browser.conn.send(
+            self.conn.send(
                 "Page.close", {"runBeforeUnload": False},
                 session=self.session, timeout=10)
         except Exception:
@@ -2096,7 +2046,7 @@ class PageDispatcher(Dispatcher):
         # browser accumulates one entry per page it ever opened. Small, but it
         # is the kind of small that a scraper turns into a day-long leak.
         try:
-            self.context.browser.forget(self.session)
+            self.browser.forget(self.session)
         except Exception:
             pass
         self.announce_closed()
@@ -2143,8 +2093,6 @@ class PageDispatcher(Dispatcher):
         self.dispose()
 
 
-def _button(name: Optional[str]) -> int:
-    return {"left": 0, "middle": 1, "right": 2}.get(name or "left", 0)
 
 
 # ── context, browser, browser type ──────────────────────────────────────────
@@ -2201,6 +2149,11 @@ class BrowserContextDispatcher(Dispatcher):
         #: The caller's context-level init scripts, in order. The engine's
         #: command replaces the list, so the accumulation lives here.
         self._init_scripts: List[str] = []
+
+    @property
+    def conn(self) -> "Connection":
+        return self.browser.conn
+
 
     def op_context_init_script(self, params: Dict) -> Any:
         """The same, for every page of this context - present and future.
@@ -2291,7 +2244,7 @@ class BrowserContextDispatcher(Dispatcher):
         return None
 
     def op_new_page(self, params: Dict) -> Any:
-        conn = self.browser.conn
+        conn = self.conn
         result = conn.send("Browser.newPage",
                            {"browserContextId": self.context_id}, timeout=30)
         target_id = result["targetId"]
@@ -2305,7 +2258,7 @@ class BrowserContextDispatcher(Dispatcher):
     def _browser_send(self, command: str, params: Dict) -> Any:
         params = dict(params)
         params["browserContextId"] = self.context_id
-        return self.browser.conn.send(command, params, timeout=30)
+        return self.conn.send(command, params, timeout=30)
 
     def op_add_cookies(self, params: Dict) -> Any:
         """⛔ `expires` IS SECONDS AND -1 MEANS SESSION, not zero and not
@@ -2379,7 +2332,7 @@ class BrowserContextDispatcher(Dispatcher):
 
     def op_close(self, params: Dict) -> Any:
         try:
-            self.browser.conn.send("Browser.removeBrowserContext",
+            self.conn.send("Browser.removeBrowserContext",
                                    {"browserContextId": self.context_id},
                                    timeout=10)
         except Exception:
@@ -2786,96 +2739,10 @@ class BrowserTypeDispatcher(Dispatcher):
         return {"browser": browser.channel}
 
 
-def _remove_profile(directory: str) -> None:
-    """Take away a profile WE created. Never one the caller named.
-
-    ⛔ IT MUST NOT RAISE. This runs while the session is already going away,
-    and on Windows a file can still be held for a moment after the process that
-    owned it exits. A profile left behind is a few dozen megabytes; an
-    exception here would be a shutdown that fails for a reason nobody cares
-    about, on a path the caller has already stopped watching.
-    """
-    import shutil
-    shutil.rmtree(directory, ignore_errors=True)
 
 
-def _write_user_js(profile_dir: str, prefs: Dict) -> int:
-    """The prefs, into the profile, BEFORE the browser starts.
-
-    ⛔ WITHOUT THIS THE PYTHON PATH LAUNCHES A BROWSER THAT IS NOT THE PRODUCT,
-    and it does so silently. Two hundred prefs arrive in `firefoxUserPrefs` on
-    every `launch`, and the first draft of this server threw them away and
-    started Firefox on an empty temporary profile. Everything worked - pages
-    loaded, clicks landed, the tests were green - and every stealth declaration
-    the package exists to make was simply absent.
-
-    It was caught by a closed shadow root, of all things: the engine patch that
-    lets a locator reach inside one is gated on `StealthEngineActive()`, which
-    is a pref. The same probe found the root through `_juggler` directly and
-    lost it through the public API, and the only difference between those two
-    arms was who wrote the profile. A gate for a completely different feature
-    is what made the absence visible; nothing was checking for it directly.
-
-    ⛔ AND THEY ARE WRITTEN, NOT SENT. Our fork already removed prefs from the
-    protocol - `Browser.enable` does not accept them any more - because a
-    browser configured on the second launch is a browser that was wrong on the
-    first. This mirrors what the driver's `defaultArgs` does, in Python.
-
-    ⛔ Gecko HAS NO FLOAT PREF TYPE: a fraction must be written as a STRING, or
-    the parser fails on that line and IGNORES EVERY LINE AFTER IT. That is not
-    a hypothetical - `ui.textScaleFactor` written as a number once killed the
-    browser on the second context, and the failure looked nothing like a prefs
-    problem.
-    """
-    import os
-    lines = []
-    # ⛔ INSERTION ORDER, NOT SORTED. The driver uses `Object.keys()`, and the
-    # two writers have to agree BYTE FOR BYTE - sorting produces a file that is
-    # equally correct and not identical. Caught by
-    # `tests/gates/prefs_byte_parity.py` on its very first real run, which is
-    # the whole argument for keeping a judge around.
-    for name in prefs:
-        value = prefs[name]
-        if isinstance(value, bool):
-            rendered = "true" if value else "false"
-        elif isinstance(value, int):
-            rendered = str(value)
-        elif isinstance(value, float):
-            # ⛔ A string, deliberately. See the docstring.
-            rendered = json.dumps(str(value))
-        else:
-            rendered = json.dumps(str(value))
-        lines.append('user_pref(%s, %s);' % (json.dumps(name), rendered))
-    os.makedirs(profile_dir, exist_ok=True)
-    # ⛔ NO HEADER COMMENT, and no sorting either. The driver writes neither,
-    # and this file has to match the driver's BYTE FOR BYTE - that is the
-    # criterion item 1 was written with. A header is one line of difference in
-    # a comparison whose whole value is that it finds differences.
-    body = "\n".join(lines) + "\n"
-    # ⛔ `write_bytes`: on Windows a text-mode write translates every newline,
-    # and a prefs file is read by the browser, not by git.
-    with open(os.path.join(profile_dir, "user.js"), "wb") as handle:
-        handle.write(body.encode("utf-8"))
-    return len(lines)
 
 
-def _read_version(executable: str) -> str:
-    """The base version, from `application.ini` next to the binary.
-
-    ⛔ Read, never assumed: this project has three separate incidents where a
-    folder name or a guess about the version sent a whole evening of
-    measurements against the wrong build.
-    """
-    import pathlib
-    ini = pathlib.Path(executable).parent / "application.ini"
-    try:
-        for line in ini.read_text(encoding="utf-8",
-                                  errors="replace").splitlines():
-            if line.startswith("Version="):
-                return line.split("=", 1)[1].strip()
-    except OSError:
-        pass
-    return "0.0"
 
 
 # ── the root ────────────────────────────────────────────────────────────────
@@ -2935,64 +2802,11 @@ class JugglerServer(Server):
         return {"playwright": playwright.channel}
 
 
-def _console_text(args: list) -> str:
-    """⛔ The console arguments arrive as remote objects, not as text. Reading
-    `value` works for a primitive and gives nothing for an object, so the
-    preview is used when there is one - which is what the driver shows too."""
-    pieces = []
-    for a in args:
-        if not isinstance(a, dict):
-            pieces.append(str(a))
-        elif "value" in a:
-            pieces.append(str(a["value"]))
-        elif a.get("preview"):
-            pieces.append(str(a["preview"]))
-        elif a.get("unserializableValue"):
-            pieces.append(str(a["unserializableValue"]))
-        else:
-            pieces.append(str(a.get("type") or "object"))
-    return " ".join(pieces)
 
 
-def _location(raw) -> Dict:
-    """⛔ ALWAYS a location, never None: `_browser_context.py` casts it and
-    falls back only on a missing KEY, so a null here becomes an AttributeError
-    somewhere else entirely."""
-    raw = raw or {}
-    return {"url": raw.get("url") or "",
-            "lineNumber": raw.get("lineNumber") or raw.get("line") or 0,
-            "columnNumber": raw.get("columnNumber") or raw.get("column") or 0}
 
 
-def _only_set(params: Dict) -> Dict:
-    """The parameters that were actually given, with the absent ones REMOVED.
-
-    ⛔ IN A CLOSED-WORLD SCHEMA, `null` AND ABSENT ARE DIFFERENT ANSWERS.
-    Juggler validates every field it is handed: an Optional that arrives as
-    `null` is not "not provided", it is a value of the wrong type, and the
-    command is REJECTED at runtime with `Object "<root>.clip" is undefined,
-    but has some scheme`. Measured on 2026-08-28 on `Page.screenshot`, whose
-    clip and quality are both optional and were both being sent as null.
-
-    ⛔ AND THIS IS NOT DONE INSIDE `Connection.send`, tempting as that is:
-    some commands mean something BY sending null. `Browser.setGeolocationOverride`
-    with `geolocation: null` CLEARS the override, and stripping it there would
-    turn "stop pretending to be somewhere" into "do nothing".
-    """
-    return {k: v for k, v in params.items() if v is not None}
 
 
-def _host_of(url: str) -> str:
-    """The host of a url, without importing a parser for three characters."""
-    without_scheme = url.split("://", 1)[-1]
-    return without_scheme.split("/", 1)[0].split(":", 1)[0].lower()
 
 
-def _domain_matches(cookie_domain: str, host: str) -> bool:
-    """⛔ A LEADING DOT MEANS "AND EVERY SUBDOMAIN", and dropping it turns a
-    site-wide cookie into one that matches nothing. Comparing the two strings
-    directly is the version that looks right and returns an empty list."""
-    domain = (cookie_domain or "").lstrip(".").lower()
-    if not domain or not host:
-        return False
-    return host == domain or host.endswith("." + domain)

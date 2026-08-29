@@ -22,9 +22,13 @@ from __future__ import annotations
 
 import os
 import sys
+from ._cursor import (ENGINE_PYTHON,
+                      enable_for as _enable_cursor_engine,
+                      max_seconds_for as _cursor_max_seconds)
+from ._engine import resolve_executable
 from typing import Any, Dict, Optional
 
-from invisible_core import compose_session_prefs
+from invisible_core import compose_session_prefs, make_virtual_display
 from invisible_core.launch import (FontManifestMismatch,
                                    cached_font_manifest_path,
                                    verify_font_manifest)
@@ -349,3 +353,158 @@ def egress_ancora_valido(proxy: Optional[Dict[str, str]],
     except Exception:
         return USCITA_NON_MISURABILE, None
     return (USCITA_REGGE if attuale == atteso else USCITA_DERIVATA), attuale
+
+
+class CommonLaunch:
+    """The six methods both entry points had, written once.
+
+    ⛔ THE DUPLICATION THIS CLOSES IS THE ONE THIS FILE WAS CREATED FOR, and it
+    survived the file's own creation. `_session` was written on 2026-07-27 to
+    hold what the sync and async classes share, and it did extract the
+    functions - `build_env`, `build_prefs`, `true_headless_requested`. What it
+    left behind were the METHODS that call them: six of them, in both classes,
+    with bodies that are identical byte for byte once the docstrings are
+    removed. 222 lines saying the same thing twice.
+
+    The measurement that says it is the same thing: the two classes use the
+    SAME FOURTEEN attributes of `self` across those six methods, and the ASTs
+    of the bodies compare equal. What made them look different - similarity
+    ratios between 32% and 69% - was entirely comments worded differently.
+
+    ⛔ AND THE COST OF THE SPLIT IS NOT HYPOTHETICAL. The three defects listed
+    at the top of this file all have the same shape, and one of them is in the
+    code that moved here: `INVPW_TRUE_HEADLESS` was honoured by the async class
+    alone, so a documented environment variable worked or not depending on
+    which entry point the caller had picked.
+
+    ⛔ WHAT THIS CLASS EXPECTS, said out loud because a mixin's contract is
+    otherwise invisible: both subclasses set `seed`, `_binary_path`,
+    `_cursor_engine`, `_extra_prefs`, `_headless`, `_humanize`,
+    `_lifetime_guard`, `_locale`, `_profile`, `_session_token`, `_show_cursor`,
+    `_srflx_dichiarato`, `_timezone` and `_virtual_display` in their own
+    `__init__`. They already did, identically, which is why this works at all.
+    """
+
+    def _resolve_headless(self) -> bool:
+        """Translate the user's ``headless`` flag.
+
+        When ``True``, Firefox stays in headed mode (real rendering pipeline →
+        coherent fingerprint) and the window is hidden: on Linux via a fresh
+        Xvfb spawned here; on Windows/macOS via the binary's own window cloak
+        (the ``zoom.stealth.cloak_windows`` pref added in ``_build_prefs``), so
+        ``make_virtual_display()`` returns ``None`` and nothing is spawned.
+        """
+        if not self._headless:
+            return False
+        # Opt-in TRUE headless, shared with the async class. It existed on the
+        # async API ONLY until 2026-07-27: a documented env var that worked
+        # depending on which entry point the caller happened to pick, which is
+        # the same drift that shipped the process-leak fix to half the users.
+        if true_headless_requested():
+            return True
+        vd = make_virtual_display()
+        if vd is not None:
+            vd.start()
+            self._virtual_display = vd
+        return False
+
+    def _default_context_kwargs(self) -> Dict[str, Any]:
+        p = self._profile
+        kwargs: Dict[str, Any] = {
+            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
+                                     "height": (p.screen.height
+                                                - p.screen.taskbar_px
+                                                - p.screen.chrome_h)},
+            "screen":              {"width": p.screen.width, "height": p.screen.height},
+            # ⛔ device_scale_factor and color_scheme are NO LONGER passed.
+            # They were a second source for two facts invisible_core already
+            # declares (layout.css.devPixelsPerPx and, since 2026-08-24,
+            # layout.css.prefers-color-scheme.content-override), and this one
+            # won: measured, setting the pref to a different value the
+            # browser did not move. Now there is only one path.
+        }
+        # Pass timezone via Playwright's per-realm override (docShell.overrideTimezone
+        # → JS::SetRealmTimezoneOverride). The juggler.timezone.override pref path
+        # uses JS::SetTimeZoneOverride globally, which is broken on Windows ICU for
+        # no-DST IANA names (America/Phoenix, Pacific/Honolulu, ...) - those silently
+        # fall back to the host system TZ. The per-realm path works for every zone.
+        if self._timezone:
+            kwargs["timezone_id"] = self._timezone
+        if self._locale:
+            kwargs["locale"] = self._locale
+        return kwargs
+
+    def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
+        """Env for the Firefox subprocess, then stamped with this session's token.
+
+        The body is `build_env`, shared with the async class - it was
+        written twice, identically, and the WebRTC pair is a contract with the
+        binary, so two landing sites meant two chances to miss a change.
+
+        The token stamp stays here because it is the only genuinely per-session
+        part: children inherit the environment, so every process in the tree
+        carries it and teardown can find its own tree and only its own.
+        """
+        return self._session_token.stamp(
+            build_env(timezone=self._timezone,
+                               srflx_dichiarato=self._srflx_dichiarato,
+                               profile=self._profile,
+                               executable=resolve_executable(self._binary_path)))
+
+    def _build_prefs(self) -> Dict[str, Any]:
+        """Fingerprint prefs plus humanize toggle (always set explicitly).
+
+        The body lives in `build_prefs`, which the async class calls
+        too. It used to be twenty lines here and the SAME twenty inlined into
+        `async_api.__aenter__` - identical calls in identical order, differing
+        only in their comments, which is how the two entry points drift.
+        """
+        return build_prefs(
+            profile=self._profile,
+            locale=self._locale,
+            timezone=self._timezone,
+            extra_prefs=self._extra_prefs,
+            headless=self._headless,
+            virtual_display=self._virtual_display is not None,
+            cursor_engine=self._cursor_engine,
+            humanize=self._humanize,
+            show_cursor=self._show_cursor,
+        )
+
+    def _arm_cursor_engine(self, owner: Any) -> None:
+        """Register this session so its pages move through the Python generator.
+
+        Registered on the browser (or on the persistent context, which is all
+        there is in that mode) rather than on each page: pages appear by
+        several routes we do not control - ``browser.new_page()`` builds its
+        context inside the driver, and a site can open a popup on its own - and
+        every one of them can find its way back to this owner. The seed is the
+        session seed, so a replayed seed replays the cursor exactly as it
+        replays the fingerprint.
+        """
+        if self._cursor_engine != ENGINE_PYTHON:
+            return
+        _enable_cursor_engine(
+            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
+        )
+
+    def _bind_process_tree(self) -> None:
+        """Tie the browser tree to this process's lifetime, at the OS level.
+
+        MEASURED before being written, because the first attempt at this fixed
+        a path that was not broken: an exception out of the `with` block does
+        NOT leak - __exit__ runs and Playwright cleans up, zero survivors over
+        an interleaved A/B. The leak is the killed-runner path, where __exit__
+        never executes at all: launch, kill the runner, and eight processes
+        were still alive; twelve on the second attempt. Nothing written inside
+        _teardown can reach that, so the guarantee comes from a Windows job
+        object that the kernel empties when this process's handle closes,
+        however this process ends.
+
+        Best-effort by construction: a failure here leaves the pre-existing
+        behaviour rather than breaking a launch that is otherwise fine.
+        """
+        try:
+            self._lifetime_guard.bind(self._session_token)
+        except Exception:
+            pass
