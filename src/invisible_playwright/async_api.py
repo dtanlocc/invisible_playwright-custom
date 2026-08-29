@@ -345,40 +345,48 @@ class InvisiblePlaywright:
         await self._teardown()
 
     async def _teardown(self) -> None:
-        if self._persistent_context is not None:
+        cancelled: BaseException | None = None
+
+        async def _try(coro: Any) -> None:
+            nonlocal cancelled
             try:
-                await self._persistent_context.close()
+                await coro
+            except asyncio.CancelledError as exc:
+                # Catch it and store the exception for later
+                cancelled = exc
             except Exception:
                 pass
-            self._persistent_context = None
-        if self._browser is not None:
-            try:
-                await self._browser.close()
-            except Exception:
-                pass
-            self._browser = None
-        if self._pw is not None:
-            try:
-                await self._pw.stop()
-            except Exception:
-                pass
-            self._pw = None
-        if self._virtual_display is not None:
-            try:
-                self._virtual_display.stop()
-            except Exception:
-                pass
-            self._virtual_display = None
-        # Last, and unconditionally: whatever Playwright's close() managed or
-        # did not, nothing carrying this session's token may outlive it. Each
-        # step above is wrapped in `except: pass`, so before this existed a
-        # browser that refused to close was swallowed and leaked in silence.
-        if self._session_token:
-            try:
-                self._lifetime_guard.reap(self._session_token)
-            except Exception:
-                pass
-            self._session_token = SessionToken()
+
+        try:
+            if self._persistent_context is not None:
+                await _try(self._persistent_context.close())
+                self._persistent_context = None
+            if self._browser is not None:
+                await _try(self._browser.close())
+                self._browser = None
+            if self._pw is not None:
+                await _try(self._pw.stop())
+                self._pw = None
+            if self._virtual_display is not None:
+                try:
+                    self._virtual_display.stop()
+                except Exception:
+                    pass
+                self._virtual_display = None
+        finally:
+            # Last, and unconditionally: whatever Playwright's close() managed or
+            # did not, nothing carrying this session's token may outlive it. Each
+            # step above is wrapped in `except: pass`, so before this existed a
+            # browser that refused to close was swallowed and leaked in silence.
+            if self._session_token:
+                try:
+                    self._lifetime_guard.reap(self._session_token)
+                except Exception:
+                    pass
+                self._session_token = SessionToken()
+
+        if cancelled is not None:
+            raise cancelled
 
     def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
         """Same body as the sync class - it always was, character for character.
