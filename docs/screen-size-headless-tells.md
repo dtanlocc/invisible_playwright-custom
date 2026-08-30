@@ -64,7 +64,7 @@ interface, which is what headless actually is.
 **`outerHeight` should not be zero.** Some headless configurations report zero here,
 which is a value no visible window has.
 
-**The device pixel ratio has to be plausible for the resolution.** Common values are
+**The [device pixel ratio](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) has to be plausible for the resolution.** Common values are
 1, 1.25, 1.5 and 2. A ratio of 1 on a very high resolution, or a fractional ratio no
 operating system offers, is a made-up number. See
 [how devicePixelRatio is set per profile in Firefox](devicepixelratio-firefox-pref.md)
@@ -163,9 +163,12 @@ resolution where 1 is implausible.
   below the full display height.
 - [MDN: `Window.outerHeight`](https://developer.mozilla.org/en-US/docs/Web/API/Window/outerHeight),
   retrieved 2026-08-28, for the browser chrome that should separate it from `innerHeight`.
-- This project's own `webgl-renderer-strings.md`, for the time a resolution and
-  device-pixel-ratio pool sampled from real-world data handed out a software GPU for
-  the same reason it can hand out an unlucky screen size.
+- [MDN: `Window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio),
+  retrieved 2026-08-30, for the standard display ratios a real operating system offers.
+- This project's own fingerprint-generation logs, for the time a GPU pool sampled from
+  real-world data over-represented a software rasterizer, including in the seed used in
+  the quickstart examples, the same failure mode a resolution or device-pixel-ratio pool
+  can produce for a screen size.
 
 **See also:** [why headless browsers render different fonts](headless-fonts-differ.md)
 and [Firefox WebGL renderer strings](webgl-renderer-strings.md), the other two members

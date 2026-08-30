@@ -185,11 +185,18 @@ stability pull against each other.
 
 ## Sources
 
+- FingerprintJS's open-source library, [`fingerprintjs/fingerprintjs`](https://github.com/fingerprintjs/fingerprintjs)
+  on GitHub, for the visitor ID as a hash of many collected components (the full
+  read of `hashComponents` and the component list is in [why a FingerprintJS
+  visitor ID changes](fingerprintjs-visitor-id.md)).
 - Fingerprint's own documentation, [Identification, accuracy, and confidence
   score](https://docs.fingerprint.com/docs/identification-accuracy-and-confidence),
-  retrieved 2026-08-28, for the visitor ID as a hash of many components reported
-  alongside a confidence score, read from its published description rather than
-  its rendered output.
+  retrieved 2026-08-28, which defines the confidence score as one minus the
+  false-positive probability of an identification, not as a measure of how
+  automated the browser looked.
+- [CreepJS](https://github.com/abrahamjuliot/creepjs) and
+  [BotD](https://github.com/fingerprintjs/BotD) on GitHub, retrieved 2026-08-28,
+  the two detection tools named above, for what each one checks.
 - This project's release gates, which assert that a value read twice in one session
   matches, and that the same seed reproduces the same identity across sessions.
 

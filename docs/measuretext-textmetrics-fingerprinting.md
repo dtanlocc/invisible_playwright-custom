@@ -45,6 +45,12 @@ list of probe fonts and you have a measurement surface with no image involved at
 which is why `TextMetrics` shows up inside general-purpose fingerprinting libraries
 alongside canvas image hashing rather than instead of it.
 
+The idea predates the field. A 2015 study by Fifield and Egelman measured the onscreen
+dimensions of font glyphs across more than a thousand browsers and found font metrics
+uniquely identified 34% of participants, more precisely than the User-Agent string did,
+using a probe set narrowed to 43 code points out of the 125,000-plus surveyed.
+`measureText()` did not invent this class of signal; it gave it a one-line API.
+
 ## Why the natural fix is per-glyph noise, and why the naive version of it fails
 
 The obvious defence, the one [canvas image fingerprinting](canvas-fingerprint-noise.md)
@@ -110,6 +116,18 @@ input; that is expected and not itself a signal. Across a fresh session with the
 identity, or the same identity reused on a different host, is where a growing-with-length
 drift or a host-dependent vertical value would show up first.
 
+## Conclusion
+
+`measureText()` and `TextMetrics` expose ten-plus numbers that track the exact font
+file, shaping engine and rendering backend behind them, with no permission prompt and no
+pixel readback to flag it. Defending the surface took two separate fixes because it has
+two separate failure modes. The horizontal advance needed an offset that stays bounded no
+matter how long the probe string runs, not one that grows with it. The vertical metrics
+needed the rendering backend removed from the path entirely, replaced by a direct read of
+the font file's own metrics table, because those fields never passed through the code the
+horizontal fix touched. Treat the two as one surface with two mechanisms, not one problem
+closed by one patch.
+
 ## Short answers to the questions that lead here
 
 **Is measureText a real fingerprinting signal?** Yes, and it needs no permission prompt
@@ -127,22 +145,29 @@ touches.
 **Does fixing measureText width also fix the baseline fields?** No. They are produced
 by different code, and a fix for one does not reach the other.
 
-**See also:** [why headless browsers render different fonts](headless-fonts-differ.md),
-for the enumeration side of the same font surface; [how to make Linux and macOS report
-real Windows fonts](bundled-fonts-cross-platform.md), for the architecture this metrics
-fix sits inside; and [canvas fingerprint noise](canvas-fingerprint-noise.md), for the
-same accumulation mistake made on pixels instead of text.
-
 ## Sources
 
 - [MDN: `CanvasRenderingContext2D.measureText()`](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/measureText)
   and [MDN: `TextMetrics`](https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics),
   retrieved 2026-08-28, for the full field list the returned object carries.
+- [WHATWG HTML: the `TextMetrics` interface](https://html.spec.whatwg.org/multipage/canvas.html#textmetrics),
+  retrieved 2026-08-30, the living standard MDN's field list is derived from, defining each
+  vertical field as a distance from the text baseline to the font's ascent, descent, em-box
+  and hanging baselines.
+- David Fifield and Serge Egelman, ["Fingerprinting Web Users Through Font Metrics"](https://fc15.ifca.ai/preproceedings/paper_83.pdf),
+  Financial Cryptography and Data Security 2015, retrieved 2026-08-30, the study that
+  measured this class of signal at scale, cited above for the 34% figure.
 - This project's own canvas and font-shaping patch catalogue, including the measured
   before/after on both the per-glyph accumulation fix and the vertical-metrics
   host-independence fix.
 - A commercial fingerprint scanner's tampering signal, used as the before/after
   measurement for the accumulation fix.
+
+**See also:** [why headless browsers render different fonts](headless-fonts-differ.md),
+for the enumeration side of the same font surface; [how to make Linux and macOS report
+real Windows fonts](bundled-fonts-cross-platform.md), for the architecture this metrics
+fix sits inside; and [canvas fingerprint noise](canvas-fingerprint-noise.md), for the
+same accumulation mistake made on pixels instead of text.
 
 ---
 

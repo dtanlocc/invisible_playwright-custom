@@ -1,6 +1,6 @@
 ---
 title: "How to run Playwright in Docker without getting detected"
-description: "A step-by-step tutorial for running Playwright in Docker with a real GPU, font set and screen, instead of the six machine tells a bare container gives away."
+description: "A step-by-step tutorial for running Playwright in Docker with a real GPU, font set, audio device and screen, instead of the four machine tells a bare container gives away."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 6
@@ -24,7 +24,7 @@ the one in this title.
 
 This is a tutorial for the container that starts fine, renders fine, and still gets a
 different page than your laptop does. Nothing crashes. The container is just
-describing a machine that is not a person's, and it says so in about six places at
+describing a machine that is not a person's, and it says so in about four places at
 once. We covered the theory of why in
 [Playwright in Docker: it runs, and still gets blocked](playwright-docker-detection.md).
 This page is the practice: a Dockerfile, the specific things a slim image is missing,
@@ -207,7 +207,7 @@ The engine bundles its own font stack and ignores the container's fontconfig
 entirely, so the font list a page measures is the same list on a bare `python:slim`
 image as on a desktop, and it is the list that belongs to the platform being claimed.
 The screen values, the audio defaults and the GPU fingerprint all come from the same
-seeded profile, so they describe one coherent machine instead of six unrelated
+seeded profile, so they describe one coherent machine instead of four unrelated
 container defaults.
 
 What it does not fix: an actual GPU. If the container has no graphics hardware, WebGL
@@ -222,10 +222,10 @@ where the container runs.
 ## Conclusion
 
 A container that starts and renders is not the same as a container that looks like
-somebody's desktop, and the gap between the two is six specific, checkable things:
-GPU, fonts, audio, voices, screen, and the core/memory pairing. `docker build` and
+somebody's desktop, and the gap between the two is four specific, checkable things:
+GPU, fonts, audio, and screen. `docker build` and
 `--shm-size` solve the startup and stability problems, which are real and worth
-solving first. They do nothing for the six above, because those come from the base
+solving first. They do nothing for the four above, because those come from the base
 image, not from a flag. Fixing them from the page - more fonts, an overridden
 `getParameter` - trades one tell for a worse one, a contradiction between what is
 claimed and what is rendered. Fixing them in the engine, so the container and a
@@ -259,13 +259,6 @@ on every deployment target.
 `docker run` never needs network access to fetch a browser, and the sha256 check
 against the seal happens once, at build time, instead of on every container start.
 
-**See also:** [Playwright in Docker: it runs, and still gets blocked](playwright-docker-detection.md)
-for the deeper explanation of why each of the six tells exists, [how to scrape without
-getting blocked](how-to-scrape-without-getting-blocked.md) for where this fits in the
-larger order of things to fix, and
-[how to test whether your browser is detected](how-to-test-bot-detection.md) for the
-comparison method used in the verification section above.
-
 ## Sources
 
 - Playwright's own documentation for [the official Docker image](https://playwright.dev/python/docs/docker),
@@ -283,6 +276,13 @@ comparison method used in the verification section above.
 - This project's own installation and configuration docs, for the exact download
   size, the sha256 verification, and the environment variables used to bake or
   relocate the cached engine.
+
+**See also:** [Playwright in Docker: it runs, and still gets blocked](playwright-docker-detection.md)
+for the deeper explanation of why each of the six tells exists, [how to scrape without
+getting blocked](how-to-scrape-without-getting-blocked.md) for where this fits in the
+larger order of things to fix, and
+[how to test whether your browser is detected](how-to-test-bot-detection.md) for the
+comparison method used in the verification section above.
 
 ---
 

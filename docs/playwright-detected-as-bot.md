@@ -162,6 +162,14 @@ It is the single biggest difference between debugging this and guessing at it, a
 it is why this project derives every surface from one seed: the same seed gives the
 same machine every time, so a bisect is a bisect.
 
+## Conclusion
+
+Getting blocked on one site while the same code works everywhere else is rarely a
+verdict about being a bot in the abstract. It is one specific, findable mismatch, and
+the order above exists because the cheap checks catch it far more often than the proxy
+ever does. Work from step zero down, pin the identity so a failing run stays the same
+failing run, and stop at the first step that actually changes the outcome.
+
 ## Short answers to the questions that lead here
 
 **Why does Playwright work on every site except one?** Because that site checks

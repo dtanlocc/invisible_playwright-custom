@@ -257,8 +257,8 @@ Crawl the frontier under one seed and control volume separately.
 ## Sources
 
 - Python documentation, [`urllib.parse`](https://docs.python.org/3/library/urllib.parse.html)
-  (`urljoin`, `urlsplit`, `parse_qsl`, `urlencode`), retrieved 2026-08-28, which does
-  all of the resolution and normalization above.
+  (`urljoin`, `urlsplit`, `urlunsplit`, `parse_qsl`, `urlencode`), retrieved 2026-08-28,
+  which does all of the resolution and normalization above.
 - MDN, [`HTMLAnchorElement.href`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement/href),
   retrieved 2026-08-28, for the pre-resolved property this page tells you to avoid in
   favor of the raw attribute.

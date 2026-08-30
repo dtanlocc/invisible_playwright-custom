@@ -58,8 +58,8 @@ The combinations that get caught most often:
   mechanisms in the browser, and one can be set while the other is not. Read both.
 - **`Accept-Language` disagreeing with `navigator.languages`.** Same list, two places,
   and the header is often set by a different layer than the browser property.
-- **The offset not matching the zone on that date.** `America/New_York` is -300 in
-  January and -240 in July. A hardcoded offset is right for half the year.
+- **The offset not matching the zone on that date.** `America/New_York` is 300 in
+  January and 240 in July. A hardcoded offset is right for half the year.
 
 ## Why the environment variable does not work
 
@@ -131,6 +131,16 @@ Through the proxy you actually deploy with, on a real page:
 5. Run the same page on a stock browser on a machine in that country, and diff.
 
 Step five is the one that catches what you did not think to check.
+
+## Conclusion
+
+A flagged timezone is rarely the one setting you already changed. It is usually one of
+the other surfaces still answering for your original machine: the locale, the
+`Accept-Language` header, the exit IP's country, or an offset that was right for one
+season and wrong for the other. The fix is structural, not another preference: derive
+the zone, the locale and the WebRTC address from the same proxy lookup, at launch, and
+refuse to fall back to the host when that lookup fails. Then check it the way a detector
+does, in a cross-origin iframe, against today's date.
 
 ## Short answers to the questions that lead here
 

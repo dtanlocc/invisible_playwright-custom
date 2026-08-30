@@ -90,16 +90,17 @@ Pick a specific machine and be it, completely and consistently.
 
 That means every surface derives from the same source rather than being set
 independently: the user agent, the platform, the screen, the GPU strings, the font
-set, the audio stack, the timezone, the language list. And it means the timezone and
-locale follow the IP you are actually leaving from, and not either your host's
-values or a fixed UTC.
+set, the audio stack, the timezone, the language list. And it means
+[the timezone and locale follow the IP you are actually leaving from](timezone-proxy-mismatch.md),
+and not either your host's values or a fixed UTC.
 
 It also means not layering. Turning RFP on *and* setting a user agent *and* running a
 stealth plugin gives three components independently answering the same questions.
 They will not agree, and the disagreement is louder than any single wrong value.
 
 Concretely, in this project: the five preferences above are all set to `false`, and
-the identity comes from a seeded profile instead. Same seed, same machine, every run.
+the identity comes from a seeded profile instead.
+[Same seed, same machine, every run](reproducible-agent-browser-identity-seed.md).
 Different seed, a different machine that is equally unremarkable.
 
 ## When RFP is right and this is not
@@ -111,6 +112,16 @@ automation library is a substitute for it.
 The advice here is narrow: it applies when the thing on the other side is asking
 whether you are a browser and a person, and where being unusual costs you more than
 being identifiable.
+
+## Conclusion
+
+`privacy.resistFingerprinting` is a real, well-engineered privacy feature that solves
+the wrong problem for automation. It optimises for anonymity within the RFP
+population, and almost nobody is in that population, so switching it on trades one
+identifier for a smaller, more recognisable one. An automated session needs
+plausibility as a single, internally consistent machine, not uniformity with a tiny
+group everyone can name. That is why this project leaves the five preferences off and
+builds the identity from a seeded profile instead.
 
 ## Short answers to the questions that lead here
 
