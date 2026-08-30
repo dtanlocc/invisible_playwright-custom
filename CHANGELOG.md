@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [0.8.0] - 2026-08-29
+## [0.8.0] - 2026-08-30
 
 ### Removed
 
@@ -22,7 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Pins `invisible-core` 22.16.0, which seals the `firefox-22` engine.
+- Pins `invisible-core` 23.16.0, which seals the `firefox-23` engine. That is the
+  engine carrying the two fixes below: both need it, and on an older binary the
+  Python half of each is inert.
 - The visible pointer overlay is ON by default. It draws the Windows arrow,
   with the package logo's green halo around it, in the browser's own chrome
   window - which the page cannot reach, so no site sees a difference either
