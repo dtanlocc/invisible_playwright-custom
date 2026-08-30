@@ -154,10 +154,10 @@ egress lookup takes that count to zero. The point of the auto-derivation is not 
 clever; it is that it reads every surface from a single answer, so there is no second
 answer to contradict the first.
 
-The offset is a second, subtler trap even when the zone is right. `America/New_York` is
--300 minutes in January and -240 in July, so a zone that resolves the offset live is
-correct year round while a hardcoded offset is right for half the year. Deriving the zone
-rather than the offset avoids that class of error entirely.
+The offset is a second, subtler trap even when the zone is right. `getTimezoneOffset()`
+returns 300 for `America/New_York` in January and 240 in July, so a zone that resolves
+the offset live is correct year round while a hardcoded offset is right for half the year.
+Deriving the zone rather than the offset avoids that class of error entirely.
 
 ## Rotating exits without contradicting yourself
 

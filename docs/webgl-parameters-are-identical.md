@@ -18,11 +18,9 @@ gets you caught.
 
 The most repeated advice about WebGL fingerprinting goes the other way: if you claim a
 high-end card, you must also raise `MAX_TEXTURE_SIZE` and the forty-odd other numeric
-limits to match, or you have reported an expensive GPU with a cheap card's ceiling.
-
-That advice is backwards, at least on Windows, which is the platform most people are
-claiming. Raising those numbers to "match" the card is how you leave the set of values
-real browsers produce.
+limits to match, or you have reported an expensive GPU with a cheap card's ceiling. That
+advice is backwards, at least on Windows, which is the platform most people are claiming
+it on.
 
 ## What ANGLE does to the numbers
 
@@ -175,9 +173,10 @@ the host platform rather than the card.
   retrieved 2026-08-28, for the extension-list behavior described above.
 - ANGLE's own [D3D11 renderer utilities](https://github.com/google/angle/blob/main/src/libANGLE/renderer/d3d/d3d11/renderer11_utils.cpp)
   (`renderer11_utils.cpp`), retrieved 2026-08-28, where the capability block is generated
-  from the D3D feature level rather than the physical card, and the public surveys of WebGL
-  parameter distributions mentioned above (no specific survey is named in these notes, so
-  none is linked here).
+  from the D3D feature level rather than the physical card.
+- [Web3D Survey's WebGL capabilities report](https://web3dsurvey.com/webgl), retrieved
+  2026-08-28, the public survey of real-world WebGL parameter and extension support
+  referenced above.
 - This project's own testing: an earlier version of this project randomised the numeric
   WebGL limits per session, and the CreepJS low-entropy classification described above is
   what drove the numbers back to the canonical block.

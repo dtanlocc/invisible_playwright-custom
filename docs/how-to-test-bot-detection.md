@@ -48,7 +48,7 @@ descriptors and prototypes, and records a blocked probe as a lie by name. A high
 means nothing here contradicts anything else here.
 
 **[BotD](botd-explained.md)** returns a verdict rather than a fingerprint, and most of its
-twenty detectors are really asking which engine you are, by testing behaviours that
+nineteen detectors are really asking which engine you are, by testing behaviours that
 differ between engines.
 
 **[FingerprintJS](fingerprintjs-visitor-id.md)** gives you a visitor ID, which is a hash

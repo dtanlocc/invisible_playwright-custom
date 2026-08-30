@@ -54,10 +54,10 @@ browser = p.chromium.launch(proxy={
 })
 ```
 
-That silent acceptance is the whole problem, and it is why the wrong advice spreads: the
-API accepts the arguments, the browser starts, and the failure shows up later as
-requests that do not arrive, or that arrive from the wrong address, depending on how
-the proxy reacts to an unauthenticated handshake.
+That silent acceptance is why the wrong advice spreads: nothing in the visible behavior
+hints that the credentials were dropped. Whether you get a request that never arrives or
+one that arrives from the wrong address depends on how the proxy reacts to an
+unauthenticated handshake.
 
 If you are debugging this, do not test with a page load. Test by checking the exit
 address the proxy reports, and compare it against your own. A silent fall-through to

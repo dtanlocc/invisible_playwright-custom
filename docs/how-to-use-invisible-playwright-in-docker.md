@@ -237,7 +237,7 @@ is a rendering-quality question, not a detection one.
   `INVPW_BINARY_PATH` and `STEALTHFOX_GITHUB_TOKEN`.
 - Playwright documentation, [Docker](https://playwright.dev/python/docs/docker), for the
   base image and its version tags, retrieved 2026-08-28.
-- Docker Engine reference, [`docker run`](https://docs.docker.com/engine/reference/run/),
+- Docker Engine reference, [`docker run`](https://docs.docker.com/engine/containers/run/),
   for the 64 MB default size of `/dev/shm` and the `--shm-size` flag, retrieved 2026-08-28.
 - [CreepJS](https://github.com/abrahamjuliot/creepjs) and
   [BrowserLeaks](https://browserleaks.com/), the fingerprinting test pages named above,

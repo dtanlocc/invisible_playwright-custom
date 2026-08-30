@@ -158,6 +158,20 @@ ClientHello arrives intact. Many HTTP proxies terminate and re-establish TLS, so
 server sees the proxy's handshake, and whether that is good or bad for you depends
 entirely on what the proxy is.
 
+## Conclusion
+
+A TLS fingerprint is decided before any page-level code runs, so nothing you write
+inside the page reaches it. The two things that do reach it are driving a real,
+unmodified browser build, or impersonating one at the protocol level when a full
+browser is not the job. JA4 is the signal worth tracking today, because it survives
+the extension-order randomisation that already made JA3 unstable.
+
+Being real is not a one-time property either. The closed example above is what it
+looks like when a forked browser's own preference default quietly drifts from the
+upstream release it claims to match - the fix was one line, but finding it required
+measuring the handshake against stock Firefox rather than trusting the claim that
+nothing had changed.
+
 ## Short answers to the questions that lead here
 
 **Can I change my JA3 fingerprint in Playwright?** Not from Playwright, and not from
@@ -166,7 +180,7 @@ JavaScript. The handshake belongs to the process that opens the socket.
 **Does playwright-stealth fix TLS fingerprinting?** No. It operates inside the page,
 which is several layers above where this happens.
 
-**Is JA3 or JA4 better?** JA4 is more robust, because it sorts the lists it hashes and
+**Is JA3 or JA4 better?** JA4 is more stable, because it sorts the lists it hashes and
 therefore survives the extension-order randomisation that modern browsers do. JA3 is
 still widely deployed, which is why both get checked.
 

@@ -213,6 +213,14 @@ separate and untouched by it.
   [RFC 9114 (HTTP/3)](https://datatracker.ietf.org/doc/html/rfc9114) and
   [RFC 9000 (QUIC)](https://datatracker.ietf.org/doc/html/rfc9000), read from the standards
   rather than from a single implementation, retrieved 2026-08-28.
+- [uquic](https://github.com/refraction-networking/uquic), an open-source hard fork of
+  quic-go built specifically to reproduce another client's QUIC Initial Packet, cited here
+  as evidence that matching a browser's transport-parameter profile by hand is a real,
+  actively maintained engineering problem rather than a hypothetical one, retrieved
+  2026-08-28.
+- [BrowserLeaks' QUIC client test](https://browserleaks.com/quic), a public page that reads
+  back a connecting client's QUIC transport parameters and HTTP/3 frames, the kind of
+  server-side read the "compact profile" described above refers to, retrieved 2026-08-28.
 - This project's network-layer parity checks, which compare a session's negotiated
   protocol and handshake against a stock build of the same Firefox version.
 - The Web Performance

@@ -81,7 +81,7 @@ values that cannot both be true.
 The canvas section is the most revealing test on the page, and it is not a
 fingerprint test at all: it checks whether your canvas gives the same answer in two
 different execution contexts. The element ids give this away: `canvas1`, `canvas2`,
-`canvas3`, `canvas4`, `canvas5`, and crucially **`canvas3-iframe`, `canvas4-iframe`,
+`canvas3`, `canvas4`, `canvas5`, and **`canvas3-iframe`, `canvas4-iframe`,
 `canvas5-iframe`**.
 
 Three of the canvas tests are run twice: once in the page, once inside an iframe, and

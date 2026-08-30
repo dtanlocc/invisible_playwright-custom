@@ -27,8 +27,9 @@ redefines the things that give automation away.
 [`navigator.webdriver`](navigator-webdriver-explained.md), the plugin array, the
 permissions API, the [WebGL vendor strings](webgl-renderer-strings.md).
 
-**Tools:** `playwright-stealth` and its forks on the Python side, the
-`puppeteer-extra-plugin-stealth` lineage on the Node side.
+**Tools:** [`playwright-stealth`](vs-playwright-stealth.md) and its forks on the Python
+side, the [`puppeteer-extra-plugin-stealth`](puppeteer-extra-stealth-unmaintained.md)
+lineage on the Node side.
 
 **What it fixes:** the obvious property checks, and it fixes them in about four
 lines of setup. If you are being blocked by something naive, this is often enough
@@ -145,6 +146,17 @@ published comparisons in this space are mostly written by companies selling a
 managed alternative, and the ones that are not are usually a single run on a single
 machine from a single IP. Your setup is not their setup.
 
+## Conclusion
+
+Three levels, three different walls. Level one costs about four lines of setup and
+clears naive checks. Level two removes the driver tells at the source instead of
+hiding them, but the machine underneath still looks like whatever it actually is.
+Level three reaches surfaces JavaScript cannot touch at all, and charges a browser
+fork for it. None of the three is universally right, because the right one depends
+on what your target actually checks and what you can afford to keep maintaining.
+Test against your own target before trusting any comparison table, this one
+included.
+
 ## Short answers to the questions that lead here
 
 **Does `playwright-stealth` support Firefox?** No. The evasion modules target Chromium
@@ -169,13 +181,22 @@ choosing, because the honest answer is usually lower than the marketing suggests
 
 - `playwright-stealth`'s own GitHub repository,
   [Granitosaurus/playwright-stealth](https://github.com/Granitosaurus/playwright-stealth),
-  read 2026-08-28, for its scope and its lineage from the Puppeteer stealth plugin.
+  read 2026-08-30, for its scope and its lineage from the Puppeteer stealth plugin.
 - `puppeteer-extra-plugin-stealth`'s own GitHub repository,
   [berstend/puppeteer-extra](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth),
-  read 2026-08-28, for its evasion module list.
-- Patchright, rebrowser-playwright, Camoufox, CreepJS, BotD and sannysoft, all named
-  above, are each sourced on their own linked comparison or explainer page in this
-  docs set rather than repeated here.
+  read 2026-08-30, for its evasion module list.
+- Patchright's own GitHub repository,
+  [Kaliiiiiiiiii-Vinyzu/patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright),
+  read 2026-08-30, for its Chromium-only scope and its `Runtime.enable` fix.
+- rebrowser-patches' own GitHub repository,
+  [rebrowser/rebrowser-patches](https://github.com/rebrowser/rebrowser-patches),
+  read 2026-08-30, for the same CDP fix, reached independently of Patchright.
+- Camoufox's own GitHub repository,
+  [daijro/camoufox](https://github.com/daijro/camoufox),
+  read 2026-08-30, for its own C++-level patching of a Firefox fork.
+- The three test suites named above: [CreepJS](https://github.com/abrahamjuliot/creepjs),
+  [BotD](https://github.com/fingerprintjs/BotD) and
+  [sannysoft](https://bot.sannysoft.com/), read 2026-08-30.
 - This project's own early fingerprint data, where the software-renderer GPU string
   mistake described above was found.
 

@@ -173,6 +173,11 @@ shader model plausible for its generation, and consistent with the platform you 
 - [ANGLE](https://github.com/google/angle), Google's own repository, read 2026-08-28,
   for the OpenGL-ES-to-Direct3D translation layer Firefox uses on Windows and the
   reason the renderer string begins `ANGLE (`.
+- Mozilla's own tracking bug, [Bugzilla 583838, "use ANGLE if available for WebGL
+  under D3D"](https://bugzilla.mozilla.org/show_bug.cgi?id=583838), retrieved
+  2026-08-30, for Firefox using ANGLE when native OpenGL is unavailable or when
+  rendering through Direct3D performs better, which is why the string appears at
+  all on Windows.
 - [MDN Web Docs: `WebGLRenderingContext.getSupportedExtensions()`](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/getSupportedExtensions),
   retrieved 2026-08-28, for the extension list used as a cross-check against a spoofed
   renderer string.

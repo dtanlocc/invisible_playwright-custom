@@ -56,8 +56,8 @@ iframe by hand, you may have collected a confusing set of failures that look unr
 - `frame.evaluate(...)` throws a permission error that names a cross-origin object.
 - `frame_locator(...).click()` times out, and `force=True` changes nothing.
 
-These are not three bugs. They are one cause with three faces. Firefox's site
-isolation can place a cross-origin iframe in a completely separate operating-system
+These are not three bugs. They are one cause with three faces. [Firefox's site
+isolation](https://wiki.mozilla.org/Project_Fission) can place a cross-origin iframe in a completely separate operating-system
 process from the page that embeds it, as a security boundary between the two origins.
 
 The automation driver builds its map of the page from the parent process, so when the
@@ -226,6 +226,9 @@ stays accepted, along with any device permission the flow also stored.
 - Playwright documentation, [Page class reference](https://playwright.dev/python/docs/api/class-page),
   which documents `frames` and `wait_for_selector`, used unchanged here because the
   driven object is a real Playwright `Browser`, retrieved 2026-08-28.
+- Mozilla, [Project Fission](https://wiki.mozilla.org/Project_Fission) wiki page,
+  which documents Firefox's site-isolation architecture and its assignment of
+  cross-origin frames to separate operating-system processes, retrieved 2026-08-29.
 - This project's notes on persistent profiles and the stored-permission trap, linked
   above.
 

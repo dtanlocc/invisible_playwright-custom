@@ -205,7 +205,7 @@ from outside the browser:
 - **Pacing.** Space the filter combinations out. The velocity of a request stream is
   measured independently of anything in the page, and hammering the search endpoint is a
   signal you create no matter how real each individual request looks. We have tripped this
-  on our own test harness.
+  on our own test bench.
 - **Proxy spread with a matching timezone.** Spread the exits so the volume is not all from
   one address, and keep each exit's location consistent with the browser it drives, because
   a mismatch between the two is its own tell. What has to agree, and how the browser
@@ -272,7 +272,7 @@ session instead of hoping a new random identity reproduces it.
   call both rely on.
 - The behaviour of trusted versus synthetic input events, from this project's notes on why
   a reveal click needs `isTrusted`.
-- The release gate that flagged our own harness for request velocity, which is where the
+- The release gate that flagged our own test bench for request velocity, which is where the
   pacing caveat comes from.
 
 **See also:** [walking paginated result sets](how-to-scrape-paginated-pages-playwright.md),

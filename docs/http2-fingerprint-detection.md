@@ -228,16 +228,16 @@ connection and re-opens HTTP/2 itself would replace the fingerprint with its own
 
 ## Sources
 
-- RFC 9113, the HTTP/2 specification, [retrieved 2026-08-28](https://datatracker.ietf.org/doc/html/rfc9113),
-  for the SETTINGS frame parameters (section 6.5.2), the WINDOW_UPDATE frame and the
-  request pseudo-headers (section 8.3.1) described above.
+- RFC 9113, [the HTTP/2 specification](https://datatracker.ietf.org/doc/html/rfc9113),
+  retrieved 2026-08-28, for the SETTINGS frame parameters (section 6.5.2), the
+  WINDOW_UPDATE frame and the request pseudo-headers (section 8.3.1) described above.
 - This project's own network-layer parity work, including the closed cipher-suite delta
   measured against a stock build of the same version and re-checked until the handshake
   fingerprints matched byte for byte.
-- pagpeter's TrackMe, the open-source server behind the public tls.peet.ws fingerprint
-  checker, [retrieved 2026-08-28](https://github.com/pagpeter/TrackMe), for how a public
-  endpoint reads back the SETTINGS values, window update and pseudo-header order a
-  connection actually sent.
+- pagpeter's [TrackMe](https://github.com/pagpeter/TrackMe), the open-source server
+  behind the public tls.peet.ws fingerprint checker, retrieved 2026-08-28, for how a
+  public endpoint reads back the SETTINGS values, window update and pseudo-header order
+  a connection actually sent.
 
 **See also:** [why a TLS fingerprint cannot be patched](ja3-ja4-tls-fingerprint.md) for
 the layer directly beneath this one, [why a plain requests scraper is blocked before it

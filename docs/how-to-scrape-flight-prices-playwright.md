@@ -261,6 +261,8 @@ hash, so the scan is one consistent Firefox rather than a new device each time.
 - The wait-strategy comparison behind the load-versus-networkidle distinction, drawn from
   the page-load notes in this set.
 - Playwright documentation, [Page](https://playwright.dev/python/docs/api/class-page#page-goto), retrieved 2026-08-28
+- Playwright documentation, [Response](https://playwright.dev/python/docs/api/class-response), retrieved 2026-08-30,
+  for the `response.json()` call the completion handler uses to read each poll body.
 
 **See also:** [how to wait for a page to actually finish loading](how-to-wait-for-page-load-playwright.md)
 for the general form of the streaming-results problem, and

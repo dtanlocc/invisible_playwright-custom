@@ -57,13 +57,15 @@ second looks like a week of normal use.
 A stale cookie is a stronger signal against you than a missing one, and it is the part
 that is genuinely easy to get wrong - we did.
 
-Google **deprecated one of its long-standing cookies in 2022**. If you seed a profile
-from an article written before that, or from a capture taken years ago, your browser
-carries a cookie that current browsers no longer receive.
+Cookies age out on their own schedule, and **Google's own cookies are not exempt**: one
+that was standard practice a few years back can be retired, renamed, or replaced by one
+carrying different attributes. If you seed a profile from an article written years ago,
+or from a capture taken long before that, your browser can end up carrying a cookie
+current browsers no longer receive.
 
 A missing cookie says "this browser has not been here". A cookie that stopped existing
-three years ago says something far more specific: this profile was assembled from an
-old template. It is the same failure as claiming a GPU that no longer ships, or a user
+years ago says something far more specific: this profile was assembled from an old
+template. It is the same failure as claiming a GPU that no longer ships, or a user
 agent for a browser version that was never released.
 
 The general rule, and it applies well beyond cookies:
@@ -163,6 +165,11 @@ care about.
 
 - Google's own reCAPTCHA v3 documentation, [reCAPTCHA v3](https://developers.google.com/recaptcha/docs/v3),
   retrieved 2026-08-28, for the 0.0-1.0 behavioral score model described above.
+- MDN, [Document.cookie](https://developer.mozilla.org/en-US/docs/Web/API/Document/cookie),
+  retrieved 2026-08-30, for what `document.cookie` exposes and what it does not.
+- This project's own cookie-seeding code, which derives a browsing history and its
+  cookies from the persona seed and deliberately excludes any cookie current browsers
+  no longer receive.
 
 **See also:** [the checklist for being detected on one site](playwright-detected-as-bot.md),
 where behaviour is step five and the address is step seven;
@@ -172,6 +179,7 @@ consistency argument in its clearest form; and
 
 ---
 
-*From the notes of [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
-a Firefox patched at the C++ level. The excluded deprecated cookie is a real line in our
-source, with a comment explaining why, because we did include it once.*
+*Written while maintaining [invisible_playwright](https://github.com/feder-cr/invisible_playwright),
+a Firefox patched at the C++ level driven by stock Playwright. The excluded deprecated
+cookie is a real line in our source, with a comment explaining why, because we did
+include it once.*

@@ -185,7 +185,8 @@ finding out whether it cares.
 
 - Playwright's own documentation on
   [the Chromium headless shell](https://playwright.dev/docs/browsers#chromium-headless-shell),
-  for headed runs defaulting to Chrome and headless runs defaulting to a separate binary.
+  retrieved 2026-08-29, for headed runs defaulting to Chrome and headless runs defaulting to
+  a separate binary.
 - Chrome for Developers' own documentation on
   [Chrome's Headless mode](https://developer.chrome.com/docs/chromium/headless), retrieved
   2026-08-28, for the unification of headless and headful on the same codebase and the
