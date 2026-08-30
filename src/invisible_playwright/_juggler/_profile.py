@@ -27,7 +27,6 @@ def _remove_profile(directory: str) -> None:
     exception here would be a shutdown that fails for a reason nobody cares
     about, on a path the caller has already stopped watching.
     """
-    import shutil
     shutil.rmtree(directory, ignore_errors=True)
 
 
@@ -98,7 +97,6 @@ def _read_version(executable: str) -> str:
     folder name or a guess about the version sent a whole evening of
     measurements against the wrong build.
     """
-    import pathlib
     ini = pathlib.Path(executable).parent / "application.ini"
     try:
         for line in ini.read_text(encoding="utf-8",

@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import os
 import sys
-from ._cursor import (ENGINE_PYTHON,
+from ._cursor import (ENGINE_BINARY,
+                      ENGINE_PYTHON,
                       enable_for as _enable_cursor_engine,
                       max_seconds_for as _cursor_max_seconds)
 from ._engine import resolve_executable
@@ -32,11 +33,6 @@ from invisible_core import compose_session_prefs, make_virtual_display
 from invisible_core.launch import (FontManifestMismatch,
                                    cached_font_manifest_path,
                                    verify_font_manifest)
-
-from ._cursor import (
-    ENGINE_BINARY,
-    max_seconds_for as _cursor_max_seconds,
-)
 
 __all__ = ["build_prefs", "true_headless_requested", "TRUE_HEADLESS_ENV",
            "ProxyEgressDrifted", "egress_ancora_valido"]

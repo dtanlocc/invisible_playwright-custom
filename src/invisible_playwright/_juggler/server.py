@@ -1220,7 +1220,7 @@ class RouteDispatcher(Dispatcher):
     # request needs the connection; it does not need to know that a request has
     # a page, a page a context, a context a browser and a browser a `conn`.
     @property
-    def conn(self) -> "Connection":
+    def conn(self) -> "juggler.Connection":
         return self.request.page.conn
 
 
@@ -1392,7 +1392,7 @@ class PageDispatcher(Dispatcher):
     # a `conn`. One property, and the shape of the tree stops being everybody's
     # business.
     @property
-    def conn(self) -> "Connection":
+    def conn(self) -> "juggler.Connection":
         return self.context.browser.conn
 
 
@@ -2218,7 +2218,7 @@ class BrowserContextDispatcher(Dispatcher):
         self._init_scripts: List[str] = []
 
     @property
-    def conn(self) -> "Connection":
+    def conn(self) -> "juggler.Connection":
         return self.browser.conn
 
 
