@@ -25,6 +25,11 @@ whether a browser is telling the truth about what it claims to be.
 - [Why a FingerprintJS visitor ID changes](fingerprintjs-visitor-id.md) - a visitor ID is a hash of 41 components; why it changes or stays.
 - [reCAPTCHA v3 score: why a fresh browser scores badly](recaptcha-v3-score.md) - a fresh automated browser scores low even with a clean fingerprint. The reason is history.
 - [Browser trust scores explained: what the number means](browser-trust-score-explained.md) - CreepJS trust, FingerprintJS confidence and reCAPTCHA v3 score measure different things; one green is not the rest.
+- [How Cloudflare Turnstile actually works](cloudflare-turnstile-explained.md) - a signal-gathering decision engine, not a puzzle: non-interactive JS checks, proof-of-work, and a risk-scored escalation to a checkbox.
+- [How DataDome's bot detection actually works](datadome-explained.md) - TLS/HTTP fingerprint, a JS device and behavior collector, and a cookie that remembers the verdict.
+- [How Kasada's bot detection actually works](kasada-explained.md) - an obfuscated bytecode VM and a proof-of-work token that keeps renewing through the session.
+- [PerimeterX (now HUMAN Bot Defender): what the sensor actually checks](perimeterx-explained.md) - the sensor script and `_px` cookie chain, from the vendor's own SDK source.
+- [How Akamai Bot Manager actually works](akamai-bot-manager-explained.md) - the `_abck` cookie and Bot Score, and a real case where a matching TLS/JA3/JA4 fingerprint was not enough.
 
 ## What a fingerprint is and how accurate it is
 

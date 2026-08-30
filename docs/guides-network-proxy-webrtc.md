@@ -33,6 +33,9 @@ which is exactly why it is worth understanding on its own.
 - [Does a proxy leak DNS? DoH and DNS leaks explained](does-a-proxy-leak-dns-doh-explained.md) - How a SOCKS5 proxy leaks DNS when the host resolves names locally, and how to verify.
 - [IPv6 vs IPv4: which does your proxy expose?](ipv6-vs-ipv4-which-does-your-proxy-use.md) - On a dual-stack host the browser can reach a site over IPv6 while the proxy carries only IPv4.
 - [How to check if a proxy leaks your real IP](how-to-check-proxy-ip-leak.md) - Confirm the actual WebRTC, IPv6, DNS and timezone values, not just that a leak is absent.
+- [ERR_HTTP2_PROTOCOL_ERROR in Playwright: causes and how to diagnose it](err-http2-protocol-error-playwright.md) - Chromium's catch-all for an HTTP/2 framing violation, often a proxy mangling the tunnel or a TLS/ALPN mismatch.
+- [ERR_TUNNEL_CONNECTION_FAILED in Playwright: what it means and how to fix it](err-tunnel-connection-failed-playwright.md) - The browser failing to open an HTTP CONNECT tunnel through your proxy, and the curl test that isolates why.
+- [ERR_SOCKS_CONNECTION_FAILED in Playwright: what it means and how to fix it](err-socks-connection-failed-playwright.md) - The browser's SOCKS5 handshake failing, a different failure mode from an HTTP CONNECT tunnel.
 
 ## WebRTC candidates and leaks
 
