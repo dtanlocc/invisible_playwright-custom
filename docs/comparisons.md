@@ -56,6 +56,9 @@ need rendering. Each page below states where the other tool covers more.
 - [Do I need an anti-detect browser or just Playwright?](do-i-need-an-antidetect-browser.md) - What a paid anti-detect GUI adds over stock Playwright driving a patched Firefox.
 - [Migrating from Puppeteer to Playwright for stealth](migrate-puppeteer-to-playwright-stealth.md) - The near one-to-one API mapping, and what changes for detection off the CDP stack.
 - [Migrating from Selenium to Playwright for stealth](migrate-selenium-to-playwright-stealth.md) - Map driver.get and find_element to page.goto and locators, dropping the WebDriver server.
+- [Why Playwright Locators Never Throw StaleElementReferenceException](playwright-vs-selenium-stale-element-reference.md) - Selenium's WebElement holds a live reference that goes stale; Playwright's Locator re-resolves on every action.
+- [How to Read a Stealth-Browser Benchmark Without Being Misled](how-to-read-a-stealth-browser-benchmark.md) - What to check before trusting a comparison, including this project's own, since almost every published one ranks itself first.
+- [Web Scraping Proxy Costs: Build vs. Buy Your Stealth Stack](web-scraping-proxy-costs-build-vs-buy.md) - Proxy spend, engineering maintenance time and vendor lock-in, without the invented totals most build-vs-buy pages lead with.
 
 ## Patched-engine, driver-patch and stealth-plugin tools
 

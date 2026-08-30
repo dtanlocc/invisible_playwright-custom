@@ -74,3 +74,8 @@ override from the page, because the page is not where the tell originates.
 - [Playwright set_input_files uploads and the tell](playwright-set-input-files-upload.md) - No native OS picker opens, plus the trusted change-event caveat most upload tutorials skip.
 - [Record a Playwright trace to debug a failed scrape](record-playwright-trace-debug-scraper.md) - Record a trace with screenshots and DOM snapshots, and keep the content-leaking artifact out of production.
 - [Record a video of a Playwright browser session](record-video-of-playwright-session.md) - Record a .webm with record_video_dir; it works headless and never changes what the site sees.
+
+## Recent Playwright engine changes
+
+- [Playwright 1.61's WebAuthn Virtual Authenticator](playwright-161-webauthn-passkey-virtual-authenticator.md) - `browserContext.credentials` adds a virtual passkey authenticator; whether it looks different depends on whether the site asks for attestation.
+- [Playwright 1.62: Headless No Longer Shares the OS Clipboard](playwright-162-clipboard-isolation-headless.md) - `navigator.clipboard` no longer reads or writes the real machine's clipboard in headless mode.

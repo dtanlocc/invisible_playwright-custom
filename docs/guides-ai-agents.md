@@ -37,6 +37,7 @@ Playwright, or not to touch Firefox, at all.
 - [browser-use gets detected: what you can and cannot change](browser-use-detection.md) - browser-use drives Chrome over CDP: what BrowserProfile changes, what stays out of reach.
 - [Why AI browser agents have their own timing signal](ai-agent-timing-signal.md) - a think-act loop emits machine-regular gaps and instant pointer jumps no fingerprint fixes.
 - [AI agent retry loops trip rate limits, not fingerprints](agent-retry-loops-rate-limits.md) - retry and re-plan loops multiply requests into a volume signal; throttle in the agent loop.
+- [Playwright 1.62 Ships MCP In the Box](playwright-162-built-in-mcp.md) - the MCP server and a new playwright-cli are now bundled into core, runnable via `npx playwright mcp` with no separate install.
 
 ## Running agents at scale and on servers
 

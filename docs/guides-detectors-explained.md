@@ -30,6 +30,19 @@ whether a browser is telling the truth about what it claims to be.
 - [How Kasada's bot detection actually works](kasada-explained.md) - an obfuscated bytecode VM and a proof-of-work token that keeps renewing through the session.
 - [PerimeterX (now HUMAN Bot Defender): what the sensor actually checks](perimeterx-explained.md) - the sensor script and `_px` cookie chain, from the vendor's own SDK source.
 - [How Akamai Bot Manager actually works](akamai-bot-manager-explained.md) - the `_abck` cookie and Bot Score, and a real case where a matching TLS/JA3/JA4 fingerprint was not enough.
+- [Imperva (Incapsula), Explained](imperva-incapsula-explained.md) - an obfuscated JS sensor and a three-step cookie/JS/CAPTCHA escalation, still known by its old Incapsula cookie names.
+- [F5 Distributed Cloud Bot Defense (Shape), Explained](f5-shape-distributed-cloud-bot-defense-explained.md) - JavaScript and mobile-SDK telemetry, with mitigation that only kicks in once server-side evaluation finishes.
+- [Fastly Bot Management, Explained](fastly-bot-management-explained.md) - server-side header analysis at the CDN edge plus an opt-in JS probe aimed at headless browsers.
+- [reCAPTCHA Enterprise vs reCAPTCHA v3](recaptcha-enterprise-vs-v3.md) - the same 0.0-1.0 score plus an explainable risk-analysis API, Account Defender, and paid-by-default access.
+- [Arkose Labs (FunCaptcha), Explained](arkose-labs-funcaptcha-explained.md) - a risk engine decides puzzle difficulty before you ever see the 3D puzzle.
+- [AWS WAF Bot Control, Explained](aws-waf-bot-control-explained.md) - Common tier static analysis, Targeted tier a token-backed challenge pipeline with ML rules.
+- [Anubis: The Proof-of-Work Firewall, Explained](anubis-proof-of-work-explained.md) - a real, open-source SHA-256 puzzle gate now in front of many git forges.
+- [Cloudflare's AI Labyrinth, Explained](cloudflare-ai-labyrinth-explained.md) - an endless maze of real but irrelevant pages instead of an outright block.
+- [Private Access Tokens (Privacy Pass), Explained](private-access-tokens-explained.md) - a device-attestation replacement for CAPTCHAs, built on the IETF's Privacy Pass protocol.
+- [Beyond robots.txt: How Sites Actually Block AI Crawlers Now](beyond-robots-txt-anti-crawler-mechanisms.md) - rate limiting, behavioral scoring, IP/ASN blocking and decoy mazes underneath the advisory-only file.
+- [Vercel Bot Protection (BotID), Explained](vercel-bot-protection-botid-explained.md) - a client-side challenge plus an optional Kasada-powered Deep Analysis tier, including real false-positive reports.
+- [GeeTest v4 (Slide/Click Captcha), Explained](geetest-v4-explained.md) - drag, tap-in-order or match-three, encrypted client-side and verified server-side.
+- [Honeypot Fields and Hidden Links: How Sites Trap Scrapers](honeypot-fields-explained.md) - a field or link a real visitor never sees, that a script reading raw DOM will trigger.
 
 ## What a fingerprint is and how accurate it is
 

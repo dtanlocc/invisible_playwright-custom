@@ -36,6 +36,15 @@ which is exactly why it is worth understanding on its own.
 - [ERR_HTTP2_PROTOCOL_ERROR in Playwright: causes and how to diagnose it](err-http2-protocol-error-playwright.md) - Chromium's catch-all for an HTTP/2 framing violation, often a proxy mangling the tunnel or a TLS/ALPN mismatch.
 - [ERR_TUNNEL_CONNECTION_FAILED in Playwright: what it means and how to fix it](err-tunnel-connection-failed-playwright.md) - The browser failing to open an HTTP CONNECT tunnel through your proxy, and the curl test that isolates why.
 - [ERR_SOCKS_CONNECTION_FAILED in Playwright: what it means and how to fix it](err-socks-connection-failed-playwright.md) - The browser's SOCKS5 handshake failing, a different failure mode from an HTTP CONNECT tunnel.
+- [net::ERR_CONNECTION_RESET in Playwright](err-connection-reset-playwright.md) - A TCP RST tore the connection down mid-request; proxy-side causes told apart from server-side ones.
+- [net::ERR_PROXY_CONNECTION_FAILED in Playwright](err-proxy-connection-failed-playwright.md) - The browser could not even open a socket to the proxy, before any CONNECT tunnel was attempted.
+- [net::ERR_ABORTED in Playwright](err-aborted-playwright.md) - Usually a cancelled navigation, not a failure: a redirect, a download, `route.abort()`, or a second `goto()`.
+- [net::ERR_NAME_NOT_RESOLVED in Playwright](err-name-not-resolved-playwright.md) - DNS failed before the proxy got a chance, or a SOCKS5 proxy is resolving hostnames on the wrong side.
+- [net::ERR_CERT_AUTHORITY_INVALID in Playwright](err-cert-authority-invalid-playwright.md) - The certificate chain does not trace to a trusted root, often a proxy intercepting TLS; what `ignoreHTTPSErrors` really disables.
+- [net::ERR_EMPTY_RESPONSE in Playwright](err-empty-response-playwright.md) - The server closed the connection without sending a single byte back, not even a status line.
+- [net::ERR_CONNECTION_REFUSED in Playwright](err-connection-refused-playwright.md) - Something actively rejected the connection; the Docker/CI variant where `localhost` isn't the host machine.
+- [net::ERR_INVALID_AUTH_CREDENTIALS in Playwright](err-invalid-auth-credentials-playwright.md) - An HTTP auth exchange failed to establish credentials, distinct from a 407 or a silently-dropped SOCKS5 credential.
+- [JA4H: The HTTP-Header-Order Fingerprint, Explained](ja4h-http-fingerprint-explained.md) - Method, header order, header count, cookies and Accept-Language folded into one string, JA4's HTTP-layer sibling.
 
 ## WebRTC candidates and leaks
 

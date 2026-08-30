@@ -21,6 +21,18 @@ telling the difference before you ship a fix, not after.
 - [Can You Run Playwright Without Being Detected?](can-you-run-playwright-without-being-detected.md) - what removing browser-level tells clears, and the three signals it does not fix.
 - [Is Playwright Headless Detectable?](is-playwright-headless-detectable.md) - classic headless leaks its user agent, WebGL, window metrics and fonts; why output parity beats per-tell patching.
 - [Does Playwright Trigger reCAPTCHA More Often?](does-playwright-trigger-recaptcha.md) - how reCAPTCHA scores fingerprint, IP, session age and behaviour, and which inputs an engine can move.
+- [net::ERR_SSL_PROTOCOL_ERROR in Playwright](err-ssl-protocol-error-playwright.md) - The TLS handshake itself broke, before any certificate was evaluated; why `ignoreHTTPSErrors` does not fix it.
+- [net::ERR_CONNECTION_TIMED_OUT in Playwright](err-connection-timed-out-playwright.md) - The browser's own network stack giving up, a separate mechanism from Playwright's configurable `TimeoutError`.
+- [net::ERR_NETWORK_CHANGED in Playwright](err-network-changed-playwright.md) - Fires when the OS reports a network interface change mid-request; common and usually transient in CI.
+- [TimeoutError: Timeout 30000ms Exceeded](playwright-timeout-30000ms-exceeded.md) - The client giving up on waiting for an action or navigation; why raising the number is usually the wrong first move.
+- [Playwright "Frame Was Detached" Error](playwright-frame-was-detached-error.md) - The iframe itself was removed from the page's frame tree, usually by a framework remounting a widget.
+- [Playwright "Protocol Error (Page.navigate)"](playwright-protocol-error-page-navigate.md) - An internal navigation command rejected on Chromium and Firefox alike, not the same failure as TargetClosedError.
+- [Playwright Strict Mode Violation: Resolved to N Elements](playwright-strict-mode-violation.md) - Playwright refuses to guess which matching element you meant; the fix is a more specific locator.
+- [Playwright "Element Is Not Attached to the DOM"](playwright-element-not-attached-to-dom.md) - A framework re-render swaps the element out in the gap between resolution and action.
+- [Playwright "Subtree Intercepts Pointer Events"](playwright-element-click-intercepted.md) - Something else sits on top of the target; `force:true` clicks through it instead of finding out what.
+- [Content-Security-Policy Blocks Playwright's Injected Scripts](content-security-policy-blocks-playwright-scripts.md) - A page's CSP can refuse `addInitScript`; what `bypassCSP` fixes and what it changes about the test.
+- [Playwright "Executable Doesn't Exist" After Install](playwright-executable-doesnt-exist.md) - The most common first-run error, and its Docker, CI and serverless variants.
+- [Playwright "Page Crashed" Error](playwright-page-crashed-error.md) - An OOM-killed content process versus an actual engine bug, and how to tell them apart.
 
 ## When you get blocked or detected
 
