@@ -17088,9 +17088,9 @@ class Playwright(AsyncBase):
         -------
         BrowserType
         """
-        # MODIFICATO da invisible_playwright: il modulo chromium e' stato tolto
-        # dal driver vendorizzato, quindi `_impl_obj.chromium` non esiste piu'.
-        # Rifiuta con una riga che lo spiega, invece di un AttributeError.
+        # MODIFIED by invisible_playwright: the chromium module has been removed
+        # from the vendored driver, so `_impl_obj.chromium` no longer exists.
+        # Refuses with a line that explains it, instead of an AttributeError.
         raise NotImplementedError(
             "invisible_playwright pilota SOLO Firefox: il supporto a chromium "
             "e' stato RIMOSSO dal driver, non e' disabilitato. Usa "
@@ -17119,9 +17119,9 @@ class Playwright(AsyncBase):
         -------
         BrowserType
         """
-        # MODIFICATO da invisible_playwright: il modulo webkit e' stato tolto
-        # dal driver vendorizzato, quindi `_impl_obj.webkit` non esiste piu'.
-        # Rifiuta con una riga che lo spiega, invece di un AttributeError.
+        # MODIFIED by invisible_playwright: the webkit module has been removed
+        # from the vendored driver, so `_impl_obj.webkit` no longer exists.
+        # Refuse with a line that explains it, instead of an AttributeError.
         raise NotImplementedError(
             "invisible_playwright pilota SOLO Firefox: il supporto a webkit "
             "e' stato RIMOSSO dal driver, non e' disabilitato. Usa "

@@ -154,7 +154,16 @@ def test_e9_linux_build_prefs_omits_windows_sandbox_key(monkeypatch):
         def stop(self) -> None:
             pass
 
-    from invisible_playwright import launcher as _l
+    # ⛔ PATCHED WHERE THE CODE LIVES, not where it used to be imported.
+    # `_resolve_headless` moved into `_session.CommonLaunch` on 2026-08-29,
+    # when six methods duplicated across the sync and async entry points
+    # became one, so it now resolves `make_virtual_display` from `_session`'s
+    # namespace. `launcher` had only ever IMPORTED the name, and once nothing
+    # in that file used it the import was removed as unused - which it was,
+    # for that file, and was not for these four tests. An import is not unused
+    # because the module holding it does not use it: something can be reaching
+    # a name THROUGH it, and here that something is a monkeypatch target.
+    from invisible_playwright import _session as _l
     monkeypatch.setattr(_l, "make_virtual_display", lambda: _FakeDisplay())
 
     ip = InvisiblePlaywright(seed=42, headless=True)
@@ -181,7 +190,7 @@ def test_e9b_windows_build_prefs_omits_sandbox_key_when_no_real_desktop(monkeypa
     import sys as _sys
     monkeypatch.setattr(_sys, "platform", "win32")
 
-    from invisible_playwright import launcher as _l
+    from invisible_playwright import _session as _l
     monkeypatch.setattr(_l, "make_virtual_display", lambda: None)
 
     ip = InvisiblePlaywright(seed=42, headless=True)
@@ -211,7 +220,7 @@ def test_e10_linux_resolve_headless_invokes_xvfb_dispatcher(monkeypatch):
         def stop(self) -> None:
             events.append("stop")
 
-    from invisible_playwright import launcher as _l
+    from invisible_playwright import _session as _l
     monkeypatch.setattr(_l, "make_virtual_display", lambda: _FakeDisplay())
 
     ip = InvisiblePlaywright(seed=42, headless=True)
@@ -238,7 +247,7 @@ def test_e11_linux_teardown_stops_virtual_display_and_is_idempotent(monkeypatch)
         def stop(self) -> None:
             stops.append(True)
 
-    from invisible_playwright import launcher as _l
+    from invisible_playwright import _session as _l
     monkeypatch.setattr(_l, "make_virtual_display", lambda: _FakeDisplay())
 
     ip = InvisiblePlaywright(seed=42, headless=True)

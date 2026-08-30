@@ -1,7 +1,6 @@
 """Sync Playwright launcher for invisible_playwright."""
 from __future__ import annotations
 
-import json
 import secrets
 import time
 from pathlib import Path
@@ -10,37 +9,32 @@ from typing import Any, Dict, Optional, Union
 from invisible_playwright._pw.sync_api import Browser, BrowserContext, Playwright, sync_playwright
 
 from . import _session
-from ._cursor import (
-    ENGINE_PYTHON,
-    enable_for as _enable_cursor_engine,
-    max_seconds_for as _cursor_max_seconds,
-    resolve_cursor_engine,
-)
+from ._cursor import resolve_cursor_engine
 from invisible_core._fpforge import Profile, generate_profile
 from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
-from invisible_core import make_virtual_display
 from ._engine import assert_wire_version, resolve_executable
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
 
 
-# ⛔ QUI STAVA `_NEWTAB_SETTLE = 0.4` E IL SUO INVOLUCRO SU `ctx.new_page`,
-# TOLTI IL 2026-08-23 PERCHE' LA CAUSA E' STATA CHIUSA NEL MOTORE.
+# ⛔ `_NEWTAB_SETTLE = 0.4` AND ITS WRAPPER AROUND `ctx.new_page` USED TO BE
+# HERE, REMOVED 2026-08-23 BECAUSE THE CAUSE WAS CLOSED IN THE ENGINE.
 #
-# Aspettavano 0,4 s dopo ogni scheda nuova per non farsi dirottare la prima
-# `goto()` da una navigazione interna ad `about:newtab`. Quella navigazione non
-# era del browser: era il browser PREALLOCATO della nuova scheda che si prendeva
-# il canale della pagina, perche' `JugglerFrameParent` riconosceva il target
-# confrontando `browserId` con l'`id` di un BrowsingContext - due contatori
-# diversi, che si sono scontrati. Il rimedio sta li' (`juggler/
-# JugglerFrameParent.sys.mjs`, la smentita con l'elemento `<browser>`), e
-# `70-known-bugs.md` [B166] porta i numeri.
+# They waited 0.4s after every new tab so the first `goto()` would not get
+# hijacked by an internal navigation to `about:newtab`. That navigation was
+# not the browser's: it was the PREALLOCATED browser of the new tab grabbing
+# the page's channel, because `JugglerFrameParent` identified the target by
+# comparing `browserId` against a BrowsingContext's `id` - two different
+# counters, which collided. The fix lives there (`juggler/
+# JugglerFrameParent.sys.mjs`, the rebuttal with the `<browser>` element), and
+# `70-known-bugs.md` [B166] carries the numbers.
 #
-# Tenere anche l'attesa qui sarebbe una seconda verita' sullo stesso fatto: il
-# ritardo non c'entrava con la causa e non la copriva - misurato lo stesso
-# giorno, con l'attesa e senza la correzione la `goto` moriva comunque 0 volte
-# su 9 riuscite. Con la correzione e senza nessuna attesa: 10 su 10.
+# Keeping the wait here too would have been a second truth about the same
+# fact: the delay had nothing to do with the cause and did not cover it -
+# measured the same day, with the wait and without the fix `goto` still died
+# anyway, 0 times out of 9 successful. With the fix and no wait at all: 10 out
+# of 10.
 
 
 # The window chrome is NOT a wrapper constant either, for the same reason the
@@ -51,8 +45,6 @@ from ._reaper import SessionToken, guard_for
 # with itself forever and no cross-check can see it. The declaration lives in
 # the core as Profile.screen.chrome_w / chrome_h, pinnable like every other
 # surface. These names survive only because async_api imports them.
-from invisible_core.constants import CHROME_H as _CHROME_H  # noqa: E402
-from invisible_core.constants import CHROME_W as _CHROME_W  # noqa: E402
 
 # The taskbar is NOT a wrapper constant. It was one, at 40, while the core
 # declared 48 and the engine's compiled floor was 48 - so the viewport was
@@ -61,7 +53,6 @@ from invisible_core.constants import CHROME_W as _CHROME_W  # noqa: E402
 # field of the profile now (ScreenProfile.taskbar_px), pinnable like any other,
 # and the use sites below read it from there. This name survives only because
 # async_api imports it, and it resolves to the same declaration.
-from invisible_core.constants import TASKBAR_PX as _TASKBAR_H  # noqa: E402
 
 # The IANA -> POSIX TZ table moved to `_session` on 2026-07-27, so the async
 # class no longer has to import it FROM the sync module. Re-exported under the
@@ -70,7 +61,7 @@ _IANA_TO_POSIX_TZ = _session._IANA_TO_POSIX_TZ
 _tz_env = _session.tz_env
 
 
-class InvisiblePlaywright:
+class InvisiblePlaywright(_session.CommonLaunch):
     """Context manager launching a patched Firefox with a deterministic profile.
 
     Usage:
@@ -117,6 +108,7 @@ class InvisiblePlaywright:
         binary_path: Optional[str] = None,
         profile_dir: Optional[Union[str, Path]] = None,
         prep_recaptcha: bool = False,
+        show_cursor: Optional[bool] = None,
     ) -> None:
         """
         Args:
@@ -170,6 +162,21 @@ class InvisiblePlaywright:
                 page = ctx.new_page()``. First run creates the dir;
                 subsequent runs reuse it. Pair with a stable ``seed=`` to
                 also pin the fingerprint identity across runs.
+            show_cursor: Draw the pointer where the automation is, so a
+                person watching the screen can follow the session - the
+                Windows arrow, with the package logo's green halo around it.
+                Default ``None``, meaning "not specified": the value is
+                decided once, by ``invisible_core.prefs.DEFAULT_SHOW_CURSOR``,
+                and today that is on. Pass ``False`` to draw nothing. What
+                makes it safe either way is that it is drawn in the BROWSER'S
+                OWN chrome window, which the page
+                cannot reach - it is absent from ``page.screenshot()``,
+                invisible to ``document.elementFromPoint``, and not a DOM
+                node any site can enumerate. So it changes nothing a
+                detector sees, and everything a PERSON sees: a dot gliding
+                across a window with nobody touching the mouse reads as
+                "this is a bot" to anyone glancing at the monitor. It is a
+                demo and debugging switch, not a stealth one.
         """
         # Constrain to int31 - Firefox's `zoom.stealth.fpp.hw_seed` and
         # related stealth prefs are declared as ``int32_t`` in
@@ -188,6 +195,19 @@ class InvisiblePlaywright:
         # the old behaviour), or nobody (``humanize=False``). Resolved once,
         # here, because the prefs handed to the browser depend on the answer.
         self._cursor_engine = resolve_cursor_engine(humanize)
+        # ⛔ Stored raw and NOT folded into `_cursor_engine`. The two are
+        # unrelated: `humanize` decides WHO draws the path, `show_cursor`
+        # decides whether the chrome window draws a dot on top of it. A session
+        # with humanize off and the dot on is a legitimate combination - it is
+        # how you watch a teleporting cursor - and any code that derived one
+        # from the other would forbid it.
+        # ⛔ NOT `bool(...)`: that would collapse None - "the caller did not
+        # say" - into False and pin the switch off, silently undoing the one
+        # place that decides the default. None is carried all the way to
+        # `invisible_core.prefs`, which is the only thing allowed to resolve
+        # it.
+        self._show_cursor = (None if show_cursor is None
+                             else bool(show_cursor))
         self._locale = locale
         self._timezone = timezone
         self._extra_prefs = extra_prefs
@@ -214,18 +234,17 @@ class InvisiblePlaywright:
         # WebRTC srflx override so the candidate matches the proxy IP, not the
         # real host IP. None when no proxy is set.
         self._webrtc_egress_ip: Optional[str] = None
-        #: La DECISIONE sul srflx, distinta dal fatto qui sopra.
-        #: Parte da None come lui: `_build_env` puo' essere chiamata
-        #: prima che il percorso geo abbia risolto, e in quel caso non
-        #: si dichiara niente.
+        #: The DECISION about the srflx, distinct from the fact above.
+        #: Starts at None like it: `_build_env` can be called before the
+        #: geo path has resolved, and in that case nothing is declared.
         self._srflx_dichiarato: Optional[str] = None
-        #: Quando l'uscita e' stata ricontrollata l'ultima volta. Parte a 0 e non
-        #: a `time.monotonic()`: il primo contesto deve poter controllare subito,
-        #: perche' fra il lancio e la prima pagina puo' gia' essere passato del
-        #: tempo (una scoperta dell'egress lenta, un binario da scaricare).
+        #: When the egress was last rechecked. Starts at 0 rather than at
+        #: `time.monotonic()`: the first context must be able to check
+        #: right away, because time may already have passed between launch
+        #: and the first page (a slow egress lookup, a binary to download).
         self._ultimo_controllo_uscita: float = 0.0
-        #: Sonde consecutive che non hanno risposto. Azzerato da ogni
-        #: controllo riuscito, cosi' conta le raffiche e non il totale.
+        #: Consecutive probes that did not respond. Reset by every
+        #: successful check, so it counts the bursts and not the total.
         self._uscite_non_misurabili: int = 0
 
     def __enter__(self) -> Union[Browser, BrowserContext]:
@@ -236,16 +255,16 @@ class InvisiblePlaywright:
         _geo = prepare_session_geo(self._timezone, self._proxy)
         self._timezone = _geo.timezone
         self._webrtc_egress_ip = _geo.egress_ip
-        # ⛔ DUE COSE DIVERSE, e prima erano un campo solo.
-        # `_webrtc_egress_ip` e' il FATTO: da dove usciamo. Serve alla
-        # guardia contro la deriva, che confronta l'uscita di adesso con
-        # quella del lancio.
-        # `_srflx_dichiarato` e' la DECISIONE: cosa il motore deve
-        # annunciare. Vale None quando l'uscita ha UDP dimostrato e
-        # coerente, perche' li' il srflx vero nasce gia' giusto e
-        # dichiararne uno aggiungerebbe un candidato senza allocazione
-        # corrispondente - il segnale che un rilevatore con un TURN
-        # proprio legge. Il core la prende in un punto solo.
+        # ⛔ TWO DIFFERENT THINGS, and before they were a single field.
+        # `_webrtc_egress_ip` is the FACT: where we exit from. It serves the
+        # guard against drift, which compares now's egress against the one
+        # at launch.
+        # `_srflx_dichiarato` is the DECISION: what the engine must
+        # announce. It is None when the egress has proven, consistent UDP,
+        # because there the real srflx is already born correct and
+        # declaring one would add a candidate with no matching
+        # allocation - the signal a detector running its own TURN reads.
+        # The core reads it in one place only.
         self._srflx_dichiarato = _geo.srflx_da_dichiarare()
         # Geo-aware locale: "auto" derives the language from the egress country (reusing
         # the egress IP already discovered above), like timezone="auto". Keeps the browser
@@ -256,9 +275,9 @@ class InvisiblePlaywright:
         # binary_path= never reaches ensure_binary(), so the engine check lives
         # on the resolved executable rather than inside the fetcher.
         executable = resolve_executable(self._binary_path)
-        # il risultato REALE di _resolve_headless (ha creato un desktop
-        # alternativo o no?) deve essere noto PRIMA di comporre le prefs,
-        # non dopo: B172, 2026-08-24.
+        # the REAL result of _resolve_headless (did it create an alternate
+        # desktop or not?) must be known BEFORE composing the prefs, not
+        # after: B172, 2026-08-24.
         pw_headless = self._resolve_headless()
         prefs = self._build_prefs()
         playwright_proxy = _configure_proxy_shared(self._proxy, prefs)
@@ -293,26 +312,29 @@ class InvisiblePlaywright:
                 # different code paths, and every gate in this project starts from
                 # a fresh profile - which is how the relaunch hang lived unseen.
                 #
-                # ⛔ TUTTO IL PARAGRAFO SOPRA E' AL PASSATO DA firefox-21, e va
-                # letto come storia. Il fork del driver ora SCRIVE le prefs in
-                # `user.js` dentro il profilo e passa `-profile`, e manda
-                # `Browser.enable` SENZA il campo userPrefs; il motore, dal canto
-                # suo, RIFIUTA quel campo invece di applicarlo tardi:
+                # ⛔ THE WHOLE PARAGRAPH ABOVE IS PAST TENSE AS OF firefox-21,
+                # and should be read as history. The driver's fork now WRITES
+                # the prefs into `user.js` inside the profile and passes
+                # `-profile`, and sends `Browser.enable` WITHOUT the userPrefs
+                # field; the engine, for its part, REFUSES that field instead
+                # of applying it late:
                 #
                 #     Browser.enable no longer applies preferences. They are
                 #     written into the profile before startup.
                 #
-                # Quindi l'asimmetria primo-lancio/secondo-lancio non esiste piu':
-                # le prefs ci sono gia' quando gfx e i font si inizializzano, un
-                # percorso solo. `firefox_user_prefs=` qui sotto resta il modo di
-                # consegnarle - cambia solo chi le scrive, e dove.
+                # So the first-launch/second-launch asymmetry no longer
+                # exists: the prefs are already there when gfx and the fonts
+                # initialise, a single path. `firefox_user_prefs=` below
+                # remains the way to deliver them - only who writes them, and
+                # where, has changed.
                 #
-                # E la conseguenza per CHI NON usa questo fork: uno script che
-                # lancia il binario con Playwright UPSTREAM e passa
-                # `firefox_user_prefs` ora si becca quel rifiuto. E' successo a
-                # `scripts/ci_font_gate.py` sul primo firefox-21, e li' il rimedio
-                # e' scrivere un `user.js` nel profilo e usare un contesto
-                # persistente - non rimettere il campo nella richiesta.
+                # And the consequence for WHOEVER does not use this fork: a
+                # script that launches the binary with UPSTREAM Playwright and
+                # passes `firefox_user_prefs` now gets that refusal. It
+                # happened to `scripts/ci_font_gate.py` on the first
+                # firefox-21, and there the fix is to write a `user.js` into
+                # the profile and use a persistent context - not to put the
+                # field back in the request.
                 # Cause and fix: `70-known-bugs.md` [B150]. The fix is a pref
                 # applied by invisible_core to every session, not code here: a
                 # geometry-scrubbing remedy lived in this file for a few hours and
@@ -356,43 +378,7 @@ class InvisiblePlaywright:
         self._arm_cursor_engine(self._browser)
         return self._browser
 
-    def _bind_process_tree(self) -> None:
-        """Tie the browser tree to this process's lifetime, at the OS level.
 
-        MEASURED before being written, because the first attempt at this fixed
-        a path that was not broken: an exception out of the `with` block does
-        NOT leak - __exit__ runs and Playwright cleans up, zero survivors over
-        an interleaved A/B. The leak is the killed-runner path, where __exit__
-        never executes at all: launch, kill the runner, and eight processes
-        were still alive; twelve on the second attempt. Nothing written inside
-        _teardown can reach that, so the guarantee comes from a Windows job
-        object that the kernel empties when this process's handle closes,
-        however this process ends.
-
-        Best-effort by construction: a failure here leaves the pre-existing
-        behaviour rather than breaking a launch that is otherwise fine.
-        """
-        try:
-            self._lifetime_guard.bind(self._session_token)
-        except Exception:
-            pass
-
-    def _arm_cursor_engine(self, owner: Any) -> None:
-        """Register this session so its pages move through the Python generator.
-
-        Registered on the browser (or on the persistent context, which is all
-        there is in that mode) rather than on each page: pages appear by
-        several routes we do not control - ``browser.new_page()`` builds its
-        context inside the driver, and a site can open a popup on its own - and
-        every one of them can find its way back to this owner. The seed is the
-        session seed, so a replayed seed replays the cursor exactly as it
-        replays the fingerprint.
-        """
-        if self._cursor_engine != ENGINE_PYTHON:
-            return
-        _enable_cursor_engine(
-            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
-        )
 
     def _persistent_context_kwargs(self) -> Dict[str, Any]:
         """Context-level kwargs accepted by launch_persistent_context.
@@ -410,62 +396,65 @@ class InvisiblePlaywright:
         """
         return self._default_context_kwargs()
 
-    #: Ogni quanto, al massimo, si ricontrolla l'uscita. Il controllo costa una
-    #: richiesta ATTRAVERSO il proxy, quindi banda dell'utente: farlo a ogni
-    #: pagina di uno scraper sarebbe piu' rumoroso del problema che sorveglia.
+    #: At most how often the egress is rechecked. The check costs one
+    #: request THROUGH the proxy, i.e. the user's bandwidth: doing it on
+    #: every page of a scraper would be noisier than the problem it guards.
     _INTERVALLO_CONTROLLO_USCITA_S = 120.0
 
-    #: Quante volte di fila la sonda puo' non rispondere prima che la sessione
-    #: venga rifiutata. Uno solo sarebbe troppo severo - un timeout capita - ma
-    #: illimitati sarebbero cecita' dichiarata: dopo tre controlli muti a 120 s
-    #: l'uno, sono sei minuti in cui nessuno sta confermando l'indirizzo che il
-    #: motore annuncia a ogni pagina.
+    #: How many times in a row the probe can fail to respond before the
+    #: session gets refused. Just one would be too strict - a timeout
+    #: happens - but unlimited would be declared blindness: after three
+    #: silent checks at 120s each, that is six minutes in which nobody is
+    #: confirming the address the engine announces on every page.
     _MAX_USCITE_NON_MISURABILI = 3
 
     def _assert_uscita_invariata(self) -> None:
-        """Rifiuta se l'IP di uscita e' cambiato dal lancio.
+        """Refuses if the egress IP has changed since launch.
 
-        Un cambio a meta' sessione non e' recuperabile: l'IP che dichiariamo al
-        motore per il srflx e' stato fotografato al lancio, quindi da quel
-        momento la pagina esce da un indirizzo e WebRTC ne annuncia un altro -
-        il disaccordo che i rilevatori cercano. Aggiornarlo al volo non
-        aiuterebbe: farebbe cambiare l'IP WebRTC sotto gli occhi del sito, che
-        e' altrettanto innaturale. Se l'uscita non regge per la durata della
-        sessione, quel proxy non e' sticky e non e' adatto a questo scopo.
+        A change mid-session cannot be recovered from: the IP we declare to
+        the engine for the srflx was photographed at launch, so from that
+        moment the page exits from one address and WebRTC announces
+        another - the disagreement detectors look for. Updating it on the
+        fly would not help: it would make the WebRTC IP change under the
+        site's eyes, which is just as unnatural. If the egress does not
+        hold for the session's duration, that proxy is not sticky and is
+        not fit for this purpose.
         """
         if not self._proxy or not self._webrtc_egress_ip:
             return
-        adesso = time.monotonic()
-        if adesso - self._ultimo_controllo_uscita < self._INTERVALLO_CONTROLLO_USCITA_S:
+        now = time.monotonic()
+        if now - self._ultimo_controllo_uscita < self._INTERVALLO_CONTROLLO_USCITA_S:
             return
-        self._ultimo_controllo_uscita = adesso
-        esito, attuale = _session.egress_ancora_valido(
+        self._ultimo_controllo_uscita = now
+        outcome, current = _session.egress_ancora_valido(
             self._proxy, self._webrtc_egress_ip)
-        if esito == _session.USCITA_DERIVATA:
+        if outcome == _session.USCITA_DERIVATA:
             raise _session.ProxyEgressDrifted(
-                "l'IP di uscita del proxy e' cambiato durante la sessione: "
-                "al lancio era %s, adesso e' %s. Il candidato WebRTC srflx "
-                "dichiara ancora il primo, quindi da questo momento la pagina "
-                "esce da un indirizzo e WebRTC ne annuncia un altro - e' il "
-                "disaccordo che i rilevatori cercano. Questo proxy non tiene "
-                "la sessione appiccicosa per la durata richiesta: usane uno "
-                "che la garantisca, o accorcia la sessione."
-                % (self._webrtc_egress_ip, attuale))
-        if esito == _session.USCITA_NON_MISURABILE:
-            # NON e' "regge", ed e' per questo che gli esiti sono tre. Una sonda
-            # che cade UNA volta e' la rete; una che cade sempre e' cecita': da
-            # quel momento il motore continua a dichiarare a ogni pagina un
-            # indirizzo che nessuno sta piu' confermando. Si conta, invece di
-            # ignorare, e si rifiuta solo se si ripete.
+                "the proxy's egress IP changed during the session: "
+                "it was %s at launch, now it is %s. The WebRTC srflx "
+                "candidate still declares the first one, so from this "
+                "moment the page exits from one address and WebRTC "
+                "announces another - the disagreement detectors look for. "
+                "This proxy does not hold the session sticky for the "
+                "required duration: use one that guarantees it, or "
+                "shorten the session."
+                % (self._webrtc_egress_ip, current))
+        if outcome == _session.USCITA_NON_MISURABILE:
+            # It is NOT "holding", and that is why there are three outcomes.
+            # A probe that fails ONCE is the network; one that always fails
+            # is blindness: from that moment the engine keeps declaring an
+            # address on every page that nobody is confirming anymore. It
+            # is counted, instead of ignored, and refused only if it
+            # repeats.
             self._uscite_non_misurabili += 1
             if self._uscite_non_misurabili >= self._MAX_USCITE_NON_MISURABILI:
                 raise _session.ProxyEgressNonVerificabile(
-                    "l'IP di uscita non e' stato verificabile per %d controlli "
-                    "di fila. Non e' una deriva - la sonda non ha risposto "
-                    "affatto - ma non e' nemmeno parita': da qui in avanti il "
-                    "motore dichiarerebbe a ogni pagina un indirizzo che "
-                    "nessuno conferma piu'. Controlla che il proxy sia "
-                    "raggiungibile, poi rilancia la sessione."
+                    "the egress IP was not verifiable for %d checks in a "
+                    "row. It is not drift - the probe did not respond at "
+                    "all - but it is not parity either: from here on the "
+                    "engine would keep declaring an address on every page "
+                    "that nobody confirms anymore. Check that the proxy is "
+                    "reachable, then relaunch the session."
                     % self._uscite_non_misurabili)
             return
         self._uscite_non_misurabili = 0
@@ -507,28 +496,30 @@ class InvisiblePlaywright:
             if prep:
                 from ._recaptcha_seed import seed_recaptcha_cookies_sync
                 seed_recaptcha_cookies_sync(ctx, profile, locale=loc)
-            # ⛔ ANCHE `context.new_page`, che e' il modo NORMALE di aprire una
-            # scheda ed era l'unico non sorvegliato. La guardia stava su
-            # `browser.new_context` e `browser.new_page`, quindi una sessione
-            # che apre un contesto e poi N pagine da li' faceva UN controllo
-            # solo, al primo istante, e da quel momento non guardava piu'.
+            # ⛔ ALSO `context.new_page`, which is the NORMAL way to open a
+            # tab and was the only one left unguarded. The guard sat on
+            # `browser.new_context` and `browser.new_page`, so a session
+            # that opens a context and then N pages from there did ONE
+            # check only, at the first instant, and stopped watching from
+            # then on.
             #
-            # Misurato il 2026-08-25 in una sessione manuale: al lancio
-            # l'uscita era `82.40.95.144` e finiva nel srflx; nove schede dopo
-            # la pagina usciva da `130.12.17.118`, e le due comparivano insieme
-            # sullo schermo - `PUBLIC IP` contro `WEBRTC CLIENT SIDE IP OFFER`.
-            # La guardia esisteva, era giusta, e non e' stata interrogata.
+            # Measured 2026-08-25 in a manual session: at launch the egress
+            # was `82.40.95.144` and that is what landed in the srflx; nine
+            # tabs later the page was exiting from `130.12.17.118`, and the
+            # two showed up together on screen - `PUBLIC IP` against
+            # `WEBRTC CLIENT SIDE IP OFFER`. The guard existed, it was
+            # correct, and it was never asked.
             #
-            # Il costo resta quello di prima: `_assert_uscita_invariata` si
-            # limita da sola a un controllo ogni `_INTERVALLO_CONTROLLO_USCITA_S`,
-            # quindi aprire dieci schede di fila non fa dieci richieste.
+            # The cost stays the same as before: `_assert_uscita_invariata`
+            # limits itself to one check every `_INTERVALLO_CONTROLLO_USCITA_S`,
+            # so opening ten tabs in a row does not make ten requests.
             _new_page_ctx = ctx.new_page
 
-            def _new_page_sorvegliata(**kw2):
+            def _new_page_guarded(**kw2):
                 self._assert_uscita_invariata()
                 return _new_page_ctx(**kw2)
 
-            ctx.new_page = _new_page_sorvegliata  # type: ignore[assignment]
+            ctx.new_page = _new_page_guarded  # type: ignore[assignment]
             return ctx
 
         browser.new_context = patched  # type: ignore[assignment]
@@ -548,31 +539,6 @@ class InvisiblePlaywright:
 
         browser.new_page = patched_page  # type: ignore[assignment]
 
-    def _default_context_kwargs(self) -> Dict[str, Any]:
-        p = self._profile
-        kwargs: Dict[str, Any] = {
-            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
-                                     "height": (p.screen.height
-                                                - p.screen.taskbar_px
-                                                - p.screen.chrome_h)},
-            "screen":              {"width": p.screen.width, "height": p.screen.height},
-            # ⛔ device_scale_factor e color_scheme NON si passano piu'.
-            # Erano una seconda fonte per due fatti che invisible_core gia'
-            # dichiara (layout.css.devPixelsPerPx e, dal 2026-08-24,
-            # layout.css.prefers-color-scheme.content-override), e vinceva
-            # questa: misurato, mettendo la pref a un valore diverso il
-            # browser non si muoveva. Adesso la strada e' una sola.
-        }
-        # Pass timezone via Playwright's per-realm override (docShell.overrideTimezone
-        # → JS::SetRealmTimezoneOverride). The juggler.timezone.override pref path
-        # uses JS::SetTimeZoneOverride globally, which is broken on Windows ICU for
-        # no-DST IANA names (America/Phoenix, Pacific/Honolulu, ...) - those silently
-        # fall back to the host system TZ. The per-realm path works for every zone.
-        if self._timezone:
-            kwargs["timezone_id"] = self._timezone
-        if self._locale:
-            kwargs["locale"] = self._locale
-        return kwargs
 
     def __exit__(self, *exc: Any) -> None:
         self._teardown()
@@ -616,62 +582,6 @@ class InvisiblePlaywright:
 
     # ── helpers ─────────────────────────────────────────────────────────
 
-    def _build_prefs(self) -> Dict[str, Any]:
-        """Fingerprint prefs plus humanize toggle (always set explicitly).
 
-        The body lives in `_session.build_prefs`, which the async class calls
-        too. It used to be twenty lines here and the SAME twenty inlined into
-        `async_api.__aenter__` - identical calls in identical order, differing
-        only in their comments, which is how the two entry points drift.
-        """
-        return _session.build_prefs(
-            profile=self._profile,
-            locale=self._locale,
-            timezone=self._timezone,
-            extra_prefs=self._extra_prefs,
-            headless=self._headless,
-            virtual_display=self._virtual_display is not None,
-            cursor_engine=self._cursor_engine,
-            humanize=self._humanize,
-        )
 
-    def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
-        """Env for the Firefox subprocess, then stamped with this session's token.
-
-        The body is `_session.build_env`, shared with the async class - it was
-        written twice, identically, and the WebRTC pair is a contract with the
-        binary, so two landing sites meant two chances to miss a change.
-
-        The token stamp stays here because it is the only genuinely per-session
-        part: children inherit the environment, so every process in the tree
-        carries it and teardown can find its own tree and only its own.
-        """
-        return self._session_token.stamp(
-            _session.build_env(timezone=self._timezone,
-                               srflx_dichiarato=self._srflx_dichiarato,
-                               profile=self._profile,
-                               executable=resolve_executable(self._binary_path)))
-
-    def _resolve_headless(self) -> bool:
-        """Translate the user's ``headless`` flag.
-
-        When ``True``, Firefox stays in headed mode (real rendering pipeline →
-        coherent fingerprint) and the window is hidden: on Linux via a fresh
-        Xvfb spawned here; on Windows/macOS via the binary's own window cloak
-        (the ``zoom.stealth.cloak_windows`` pref added in ``_build_prefs``), so
-        ``make_virtual_display()`` returns ``None`` and nothing is spawned.
-        """
-        if not self._headless:
-            return False
-        # Opt-in TRUE headless, shared with the async class. It existed on the
-        # async API ONLY until 2026-07-27: a documented env var that worked
-        # depending on which entry point the caller happened to pick, which is
-        # the same drift that shipped the process-leak fix to half the users.
-        if _session.true_headless_requested():
-            return True
-        vd = make_virtual_display()
-        if vd is not None:
-            vd.start()
-            self._virtual_display = vd
-        return False
 

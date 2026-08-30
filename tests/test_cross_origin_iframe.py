@@ -30,8 +30,8 @@ random free ports.
 """
 from __future__ import annotations
 
-import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
@@ -98,12 +98,25 @@ def test_extra_prefs_override_can_break_isolation_only_explicitly():
 # ────────────────────────────────────────────────────────────────────
 
 
-def _free_port() -> int:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+# ⛔ THERE IS NO `_free_port()` HERE ANY MORE, AND ITS ABSENCE IS THE POINT.
+#
+# It used to bind port 0, read the number the kernel assigned, CLOSE the
+# socket, and hand the number back for someone to bind again later. Between the
+# close and the second bind the port belongs to nobody, so a second process
+# asking the same question in that window is told the same number, and whichever
+# of the two binds second dies with EADDRINUSE.
+#
+# Sequentially that window is never contended and the pattern was fine for as
+# long as the suite ran one test at a time. `run_e2e.py` now opens four workers
+# by default, so it IS contended, and the failure it produces would be an
+# address-in-use traceback in a browser test - which reads as the product being
+# broken rather than the harness racing itself.
+#
+# The fix is to never let go of the port: `_serve` below binds 0 itself and the
+# caller reads the number back off the listening socket, so there is no window
+# at all. `test_proxy_socks_auth_e2e.py` and `test_webrtc_realness.py` were
+# already written this way; this file and `test_long_session_e2e.py` were the
+# two that were not.
 
 
 class _SilentHandler(BaseHTTPRequestHandler):
@@ -121,15 +134,19 @@ class _SilentHandler(BaseHTTPRequestHandler):
         self.wfile.write(self.PAYLOAD)
 
 
-def _serve(payload: bytes, port: int) -> HTTPServer:
-    """Start an HTTP server on 127.0.0.1:port serving ``payload`` on every GET."""
+def _serve(payload: bytes) -> tuple[HTTPServer, int]:
+    """Serve ``payload`` on every GET from a kernel-chosen port on 127.0.0.1.
+
+    Returns the server and the port it is ALREADY listening on, so the number
+    is never valid-but-unbound in between. See the note above.
+    """
     handler_cls = type(
         "_H", (_SilentHandler,), {"PAYLOAD": payload}
     )
-    srv = HTTPServer(("127.0.0.1", port), handler_cls)
+    srv = HTTPServer(("127.0.0.1", 0), handler_cls)
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
-    return srv
+    return srv, srv.server_address[1]
 
 
 @pytest.fixture
@@ -141,7 +158,15 @@ def cross_origin_harness():
     src pointing at port B. Same cross-origin browsing-context shape as
     a parent-page-plus-third-party-iframe layout, fully offline.
     """
-    pa, pb = _free_port(), _free_port()
+    # The CHILD goes up first, because the parent's markup has to name the
+    # child's port and there is no longer a way to learn that number without
+    # binding it. That ordering is the whole cost of closing the race.
+    child_html = b"""<!doctype html><html><body>
+<button id="ok">confirm</button>
+<button class="btn-primary">primary</button>
+<script>document.getElementById('ok').addEventListener('click', () => document.title = 'clicked')</script>
+</body></html>"""
+    sb, pb = _serve(child_html)
     parent_html = f"""<!doctype html><html><head><title>parent</title></head><body>
 <h1>parent</h1>
 <iframe id="ifr_plain"   src="http://127.0.0.1:{pb}/child"            width="300" height="120"></iframe>
@@ -150,13 +175,7 @@ def cross_origin_harness():
 <iframe id="ifr_titled"  src="http://127.0.0.1:{pb}/child"            width="300" height="120"
         title="cross-origin titled iframe"></iframe>
 </body></html>""".encode("utf-8")
-    child_html = b"""<!doctype html><html><body>
-<button id="ok">confirm</button>
-<button class="btn-primary">primary</button>
-<script>document.getElementById('ok').addEventListener('click', () => document.title = 'clicked')</script>
-</body></html>"""
-    sa = _serve(parent_html, pa)
-    sb = _serve(child_html, pb)
+    sa, pa = _serve(parent_html)
     try:
         yield {"parent_url": f"http://127.0.0.1:{pa}/", "child_origin": f"http://127.0.0.1:{pb}"}
     finally:
@@ -179,9 +198,38 @@ def test_cross_origin_iframe_url_appears_in_page_frames(firefox_binary, cross_or
         page = ctx.new_page()
         page.goto(cross_origin_harness["parent_url"], wait_until="domcontentloaded", timeout=30_000)
         page.wait_for_selector("iframe#ifr_plain", timeout=10_000)
-        page.wait_for_timeout(500)
 
-        urls = [f.url for f in page.frames]
+        # ⛔ WAIT FOR THE CONDITION, NOT FOR A DURATION. This was
+        # `wait_for_timeout(500)`, and that measured the machine rather than
+        # the product: by then the child frame is ATTACHED but on a loaded box
+        # it has not NAVIGATED, so `page.frames` answers with empty URLs and
+        # the assertion below reads them as the very defect it guards.
+        #
+        # Measured 2026-08-29: red inside the full e2e run, with
+        # `urls = ['http://127.0.0.1:.../', '', '', '']`, and green 5 times out
+        # of 5 on its own. That gap between loaded and idle is the signature of
+        # a timing assumption, not of a regression.
+        #
+        # It was never retried either: `run_e2e.py` reruns on a fixed list of
+        # load-flake messages, and this assertion's text is domain-specific so
+        # it can never match. Adding it to that list would have been the wrong
+        # fix - it hides the failure instead of removing the race.
+        #
+        # ⛔ THE FAILURE MODE IS DELIBERATELY UNCHANGED. If no frame EVER
+        # reports the child origin - the pref regression this file exists for -
+        # the loop runs out of time and the same assertion fires with the same
+        # message. Verified by mutation: with the origin replaced by one that
+        # never appears, this still goes red.
+        deadline = time.monotonic() + 10.0
+        urls: list = []
+        while True:
+            urls = [f.url for f in page.frames]
+            if any(cross_origin_harness["child_origin"] in (u or "") for u in urls):
+                break
+            if time.monotonic() >= deadline:
+                break
+            page.wait_for_timeout(100)
+
         assert any(cross_origin_harness["child_origin"] in (u or "") for u in urls), (
             f"no frame had the child origin in its URL; page.frames urls = {urls!r}"
         )
@@ -279,7 +327,7 @@ def test_cross_origin_iframe_dispatch_event_click_works(firefox_binary, cross_or
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  L'invariante della geometria DENTRO un frame annidato
+#  The geometry invariant INSIDE a nested frame
 # ──────────────────────────────────────────────────────────────────────
 _PARENT_GEOM = b"""<!doctype html><meta charset=utf-8><title>parent</title>
 <style>html,body{margin:0;padding:0;height:100%}
@@ -312,35 +360,33 @@ window.__inner = () => [window.mozInnerScreenX, window.mozInnerScreenY];
 
 @pytest.mark.e2e
 def test_the_geometry_invariant_holds_inside_a_nested_frame(firefox_binary):
-    """screenX - clientX == mozInnerScreenX, DENTRO un iframe e non solo al top.
+    """screenX - clientX == mozInnerScreenX, INSIDE an iframe and not just at the top.
 
-    Il difetto che questo test esiste per fermare, misurato il 2026-08-10:
-    `mozInnerScreenX/Y` rispondeva l'origine del contenuto di PRIMO LIVELLO a
-    qualunque finestra, quindi un iframe posizionato a (220, 150) nella pagina
-    riportava (0, 85) - la stessa origine del documento che lo contiene - e li'
-    dentro `screenX - clientX` valeva 220 contro un `mozInnerScreenX` di 0.
+    The defect this test exists to stop, measured on 2026-08-10:
+    `mozInnerScreenX/Y` answered the origin of the TOP-LEVEL content to
+    any window, so an iframe positioned at (220, 150) in the page
+    reported (0, 85) - the same origin as the document that contains it - and
+    in there `screenX - clientX` was 220 against a `mozInnerScreenX` of 0.
 
-    Era la contraddizione che la dichiarazione della geometria esiste per
-    togliere, ricreata identica un livello sotto. E il gate scritto il giorno
-    prima per difendere proprio quella relazione era VERDE, perche' guardava un
-    documento solo: una relazione che vale a un livello e non al successivo non
-    e' una relazione, e' una coincidenza al primo livello.
+    It was the contradiction that the geometry declaration exists to
+    remove, recreated identically one level down. And the gate written the day
+    before to defend exactly that relationship was GREEN, because it looked at
+    a single document: a relationship that holds at one level and not the next
+    is not a relationship, it is a coincidence at the first level.
 
-    Serve pagine vere da 127.0.0.1: i `data:` URL portano una CSP che cambia il
-    comportamento, e su una di quelle misure il browser rifiuta `set_content`
-    come operazione insicura.
+    Needs real pages from 127.0.0.1: `data:` URLs carry a CSP that changes the
+    behavior, and on one of those measurements the browser refuses `set_content`
+    as an unsafe operation.
     """
-    # STESSA ORIGINE, un server e due percorsi. Servendo genitore e figlio su
-    # porte diverse la politica di sicurezza vieta al genitore di leggere
-    # `mozInnerScreenX` del figlio - "Permission denied to access property on
-    # cross-origin object" - e il test non misurerebbe la geometria ma la SOP.
+    # SAME ORIGIN, one server and two paths. Serving parent and child on
+    # different ports, the security policy forbids the parent from reading
+    # `mozInnerScreenX` of the child - "Permission denied to access property on
+    # cross-origin object" - and the test would measure the SOP, not the geometry.
     left, top = 220, 150
     parent_html = (_PARENT_GEOM
                    .replace(b"@LEFT", str(left).encode())
                    .replace(b"@TOP", str(top).encode())
                    .replace(b"@SRC", b"/child"))
-    port = _free_port()
-
     class _H(_SilentHandler):
         def do_GET(self):
             body = _CHILD_GEOM if self.path.startswith("/child") else parent_html
@@ -351,7 +397,8 @@ def test_the_geometry_invariant_holds_inside_a_nested_frame(firefox_binary):
             self.end_headers()
             self.wfile.write(body)
 
-    srv = HTTPServer(("127.0.0.1", port), _H)
+    srv = HTTPServer(("127.0.0.1", 0), _H)
+    port = srv.server_address[1]
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     from invisible_playwright import InvisiblePlaywright
     try:
@@ -362,29 +409,29 @@ def test_the_geometry_invariant_holds_inside_a_nested_frame(firefox_binary):
                       wait_until="load", timeout=30000)
             g = page.evaluate("() => window.__geom()")
 
-            # 1. l'iframe riporta la PROPRIA origine, non quella del genitore
-            atteso = (g["top_x"] + g["rect_x"], g["top_y"] + g["rect_y"])
-            assert (g["ifr_x"], g["ifr_y"]) == atteso, (
-                f"l'iframe riporta mozInnerScreen ({g['ifr_x']}, {g['ifr_y']}) "
-                f"invece di {atteso}: e' l'origine del documento che lo "
-                f"contiene, quindi ogni frame contraddice i propri eventi"
+            # 1. the iframe reports its OWN origin, not the parent's
+            expected = (g["top_x"] + g["rect_x"], g["top_y"] + g["rect_y"])
+            assert (g["ifr_x"], g["ifr_y"]) == expected, (
+                f"the iframe reports mozInnerScreen ({g['ifr_x']}, {g['ifr_y']}) "
+                f"instead of {expected}: it is the origin of the document that "
+                f"contains it, so every frame contradicts its own events"
             )
 
-            # 2. e la relazione vale sugli eventi ricevuti LI' DENTRO
+            # 2. and the relationship holds on the events received IN THERE
             frame = page.frame_locator("#f")
             page.frames[1].evaluate("() => { window.__ev = []; }")
             frame.locator("#g").hover(timeout=10000)
             page.wait_for_timeout(400)
             ev = page.frames[1].evaluate("() => window.__ev")
             inner = page.frames[1].evaluate("() => window.__inner()")
-            assert ev, "nessun evento ricevuto nell'iframe: copertura assente, e questo NON e' un pass"
+            assert ev, "no event received in the iframe: coverage absent, and this is NOT a pass"
             for e in ev:
                 assert e["sx"] - e["cx"] == inner[0], (
-                    f"nell'iframe screenX-clientX = {e['sx'] - e['cx']} contro "
-                    f"mozInnerScreenX = {inner[0]}: una pagina lo legge con una sottrazione"
+                    f"in the iframe screenX-clientX = {e['sx'] - e['cx']} against "
+                    f"mozInnerScreenX = {inner[0]}: a page reads it with a subtraction"
                 )
                 assert e["sy"] - e["cy"] == inner[1], (
-                    f"nell'iframe screenY-clientY = {e['sy'] - e['cy']} contro "
+                    f"in the iframe screenY-clientY = {e['sy'] - e['cy']} against "
                     f"mozInnerScreenY = {inner[1]}"
                 )
             page.close()

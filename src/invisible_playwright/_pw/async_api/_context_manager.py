@@ -17,7 +17,7 @@ from typing import Any
 
 from invisible_playwright._pw._impl._connection import Connection
 from invisible_playwright._pw._impl._object_factory import create_remote_object
-from invisible_playwright._pw._impl._transport import PipeTransport
+from invisible_playwright._juggler.transport import make_transport
 from invisible_playwright._pw.async_api._generated import Playwright as AsyncPlaywright
 
 
@@ -28,12 +28,24 @@ class PlaywrightContextManager:
 
     async def __aenter__(self) -> AsyncPlaywright:
         loop = asyncio.get_running_loop()
+        # MODIFIED by invisible_playwright: the transport is chosen, not hardcoded.
+        # The Node driver stays reachable BY NAME - `INVPW_TRANSPORT=driver` -
+        # as the only second arm this project has to judge the Python server
+        # against; the Python server has been the default since 2026-08-28.
+        # See `_juggler/transport.py` for the switch.
+        transport = make_transport(loop)
         self._connection = Connection(
             None,
             create_remote_object,
-            PipeTransport(loop),
+            transport,
             loop,
         )
+        # MODIFIED by invisible_playwright: the one bridge between the two
+        # object graphs. See the sync entry point's `_context_manager.py` for
+        # why - this is the same line, needed for the same reason, on the
+        # other facade.
+        transport.bind_impl_objects(self._connection._objects,
+                                   self._connection.deliver_event)
         loop.create_task(self._connection.run())
         playwright_future = self._connection.playwright_future
 

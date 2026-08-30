@@ -4,6 +4,72 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.8.0] - 2026-08-30
+
+### Removed
+
+- The Node driver. `invisible_playwright._driver` (6 MB of vendored JavaScript)
+  and the `node.exe` downloader are gone, and the browser is now driven from
+  Python over the Juggler protocol directly. The wheel goes from about 13 MB to
+  7 MB, and a first install no longer downloads a 92 MB Node runtime - it
+  fetches the browser and nothing else.
+- `invisible-playwright show-trace`. The trace viewer is a Node application and
+  left with the runtime that ran it. Traces themselves are unaffected: they are
+  still recorded, and `playwright show-trace` from an ordinary Playwright
+  install opens them.
+
+### Changed
+
+- Pins `invisible-core` 23.16.0, which seals the `firefox-23` engine. That is the
+  engine carrying the two fixes below: both need it, and on an older binary the
+  Python half of each is inert.
+- The visible pointer overlay is ON by default. It draws the Windows arrow,
+  with the package logo's green halo around it, in the browser's own chrome
+  window - which the page cannot reach, so no site sees a difference either
+  way. What it changes is what a person watching the screen sees. Pass
+  `show_cursor=False` for the previous behaviour.
+
+### Fixed
+
+- A teardown that was cancelled left the browser running. `asyncio.CancelledError`
+  inherits from `BaseException`, not from `Exception`, so the guard around each
+  close step never caught it: cancel the task and teardown stopped wherever it
+  had reached, skipping every later step including the one that reaps whatever
+  the close did not. A cancellation is now caught, kept, and re-raised once every
+  step has run, so it still propagates and nothing is left behind. Reported by
+  DatGuy1 in #104.
+- A browser that had opened a few hundred pages stopped delivering events
+  entirely while still answering commands, so the next `new_page()` timed out
+  waiting for a session that had already been announced. Event delivery was a
+  chain of nested calls that grew by three per page and never shrank; past
+  roughly 330 pages it crossed Python's recursion limit, and the failure was
+  swallowed by the handler that keeps a bad callback from killing the
+  connection. Delivery is now flat and subscribers are removed when their page
+  closes.
+- A closed page is now disposed, so neither the client's nor the server's
+  object registry grows for the life of the browser.
+- A CSS query on a page returned the browser's own form widgets. Firefox builds
+  the controls inside `<input type=date|time>` in a shadow root it marks closed,
+  and the engine handed those to automation along with the closed roots a page
+  had authored, so the selector engine collected them as if the page had written
+  them: `page.locator("button")` answered 2 on a document with one button, and
+  the extra match was invisible. The damage was not the count. A click on the
+  invisible match reported success and sent nothing, so a site that had not
+  blocked anything looked like it had. Needs the matching engine release; the
+  guard is `Element::GetShadowRootForBindings` refusing UA widgets, which is
+  what the sibling API has done upstream since bug 2035665. Reported from
+  outside, with a 24-site case study behind it.
+- `Response.text()` and `Response.body()` read the body again. The command they
+  rest on had been removed from Juggler while trimming it, and two more callers
+  used it without saying so: traces and HARs recorded with embedded content were
+  being written with every response body empty, and nothing raised. Bodies cost
+  memory again, bounded as upstream bounds them: 100 MB per tab, 10 MB per
+  response, oldest evicted first. Reading one from inside a `page.on("response")`
+  handler now waits for the request to finish instead of racing it, which is why
+  the main document used to fail where subresources did not.
+
 ## [0.7.4] - 2026-08-27
 
 ### Changed
@@ -445,12 +511,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Linux x86_64 and Windows x86_64 binary support.
 
 [0.4.3]: https://github.com/feder-cr/invisible_playwright/releases/tag/v0.4.3
-> Le due voci piu' vecchie puntano a COMMIT e non a tag: 0.1.0 e 0.1.1
-> precedono l'arrivo su PyPI (l'indice parte da 0.3.5) e non hanno mai
-> avuto un tag. Crearne uno oggi non e' innocuo: `publish.yml` si innesca
-> su `v*`, e per una versione che l'indice non serve `already-published`
-> non corto-circuita, quindi un tag nuovo puo' far partire un tentativo di
-> pubblicazione. Il commit e' la stessa informazione senza quel rischio.
+> The two oldest entries point at a COMMIT, not a tag: 0.1.0 and 0.1.1
+> predate arriving on PyPI (the index starts at 0.3.5) and never had
+> a tag. Creating one today is not harmless: `publish.yml` triggers
+> on `v*`, and for a version the index does not serve, `already-published`
+> does not short-circuit, so a new tag could kick off a publish
+> attempt. The commit is the same information without that risk.
 
 [0.1.1]: https://github.com/feder-cr/invisible_playwright/compare/7a983e99c53fa1ec1a443651a4dd9de42258dc61...589c848e07a67c459969a2ddfb79851f48b10eff
 [0.1.0]: https://github.com/feder-cr/invisible_playwright/commit/7a983e99c53fa1ec1a443651a4dd9de42258dc61

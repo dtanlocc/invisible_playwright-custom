@@ -192,13 +192,13 @@ def _run_creepjs(firefox_binary, creep_url):
     }"""
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
-        # NetworkObserver e' stato portato all'osso il 2026-08-24: page.route()
-        # non esiste piu' (Network.setRequestInterception rifiuta), quindi il
-        # blocco della POST opzionale di CreepJS verso arh.antoinevastel.com non
-        # si puo' piu' fare cosi'. Verificato: senza blocco il test passa lo
-        # stesso, con lo stesso esito su headlessRating/stealth - quella POST
-        # era isolamento di igiene del test (velocita', niente dipendenza da un
-        # sito terzo), non una precondizione delle asserzioni.
+        # NetworkObserver was stripped to the bone on 2026-08-24: page.route()
+        # no longer exists (Network.setRequestInterception refuses), so
+        # blocking CreepJS's optional POST to arh.antoinevastel.com can no
+        # longer be done this way. Verified: without the block the test still
+        # passes, with the same outcome on headlessRating/stealth - that POST
+        # was test-hygiene isolation (speed, no dependency on a third-party
+        # site), not a precondition of the assertions.
         page.goto(creep_url, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_function(
             "() => !!(window.Fingerprint && window.Fingerprint.headless)",
@@ -299,103 +299,104 @@ def test_creepjs_headless_and_proxy_clean(firefox_binary, detector_site):
 
 @pytest.mark.e2e
 def test_enumerate_devices_resolves_promptly(firefox_binary, detector_site):
-    """navigator.mediaDevices.enumerateDevices() deve RISOLVERSI, e in fretta.
+    """navigator.mediaDevices.enumerateDevices() must RESOLVE, and quickly.
 
-    Nato da un difetto misurato il 2026-08-10, e il punto e' che nessun test lo
-    vedeva pur essendo la causa di quattro fallimenti diversi.
+    Born from a defect measured on 2026-08-10, and the point is that no test saw
+    it even though it was the cause of four different failures.
 
-    Il sintomo che si vedeva era `test_fingerprintjs_visitorid_stable_across_launches`
-    rosso circa una volta su tre - un nome che manda fuori strada, perche' non
-    c'entrava ne' l'identificativo ne' la sua stabilita'. La pagina dei
-    rilevatori restava a `state='loading'`: BotD finiva, FingerprintJS finiva,
-    fpscanner no. Dentro fpscanner:
+    The symptom that was visible was
+    `test_fingerprintjs_visitorid_stable_across_launches` going red roughly one
+    time in three - a name that sends you the wrong way, because it had nothing
+    to do with either the identifier or its stability. The detectors page stayed
+    at `state='loading'`: BotD finished, FingerprintJS finished, fpscanner did
+    not. Inside fpscanner:
 
         return new Promise(async function(t) {
           const a = await navigator.mediaDevices.enumerateDevices();
           ...
-          return t({...});                 // <- resolve DOPO l'await
+          return t({...});                 // <- resolves AFTER the await
         });
 
-    Se `enumerateDevices()` non si risolve, quella promessa non si chiude mai:
-    nessun errore, nessuna eccezione, la pagina viva che risponde a `evaluate`,
-    e il `wait_for_function` che scade dopo 45 secondi. Un browser che non
-    risponde e' facile da diagnosticare; uno che aspetta per sempre no.
+    If `enumerateDevices()` never resolves, that promise never closes: no
+    error, no exception, the page stays alive and responds to `evaluate`, and
+    `wait_for_function` times out after 45 seconds. A browser that does not
+    respond is easy to diagnose; one that waits forever is not.
 
-    Misurato: SOLO la prima chiamata costa - tre chiamate consecutive nella
-    stessa sessione danno [1383, 2, 0] ms - quindi e' l'inizializzazione dello
-    stack media, una volta per sessione. Attraverso questo wrapper la mediana e'
-    ~1440 ms e circa 1 sessione su 8 non si risolve affatto; con Playwright
-    liscio, STESSO binario, stesse prefs, stesso ambiente e stesse opzioni di
-    contesto, la mediana e' ~270 ms e 0 blocchi su 10. Escluse per misura: il
-    binario, `media.navigator.streams.fake`, tutte e 230 le prefs, le variabili
-    d'ambiente, le opzioni di contesto e il motore del cursore. Cosa resti nel
-    wrapper e' aperto - vedi 70-known-bugs.md.
+    Measured: ONLY the first call costs anything - three consecutive calls in
+    the same session give [1383, 2, 0] ms - so it is the media stack
+    initialization, once per session. Through this wrapper the median is
+    ~1440 ms and about 1 session in 8 never resolves at all; with plain
+    Playwright, the SAME binary, the same prefs, the same environment and the
+    same context options, the median is ~270 ms and 0 hangs out of 10. Ruled
+    out by measurement: the binary, `media.navigator.streams.fake`, all 230
+    prefs, the environment variables, the context options and the cursor
+    engine. What remains inside the wrapper is open - see 70-known-bugs.md.
 
-    ⛔ DUE LIMITI E NON UNO, dal 2026-08-17, perche' con uno solo questo test
-    riportava "MAI RISOLTA" per una risoluzione soltanto LENTA - cioe' scriveva
-    il verdetto del difetto sopra il verdetto della macchina carica. La prima
-    versione aveva 5 secondi e falliva 7 volte su 8 sotto carico con tempi fra
-    2.7 e 5 secondi; alzarli a 30 ha spostato la soglia senza togliere la
-    confusione, e il 2026-08-17 dieci e2e completi hanno dato 1 rosso su 10 con
-    quel rosso interamente dentro il giro che durava 35 minuti contro una
-    mediana di 11.8, cioe' l'unico anomalo su ogni colonna. Sui nove giri
-    rimanenti: 0 su 9.
+    ⛔ TWO LIMITS, NOT ONE, as of 2026-08-17, because with a single one this
+    test reported "NEVER RESOLVED" for a resolution that was merely SLOW -
+    that is, it wrote the defect's verdict over the loaded-machine's verdict.
+    The first version had 5 seconds and failed 7 times out of 8 under load
+    with times between 2.7 and 5 seconds; raising it to 30 moved the threshold
+    without removing the confusion, and on 2026-08-17 ten full e2e runs gave
+    1 red out of 10, with that red entirely inside the run that took 35
+    minutes against a median of 11.8, i.e. the only outlier on every column.
+    On the remaining nine runs: 0 out of 9.
 
-    **Il difetto e' il BLOCCO, e un blocco e' infinito.** `LIMITE_BLOCCO_MS` sta
-    a 120 secondi: 83 volte la mediana di ~1440 ms e 24 volte il peggior tempo
-    mai osservato quando la chiamata funziona (5 s). Oltre quel muro non e'
-    lentezza, e nessun carico su questa macchina ha mai prodotto niente di
-    simile. Questo e' l'unico limite assoluto, ed e' quello che protegge il
-    prodotto.
+    **The defect is the HANG, and a hang is infinite.** `BLOCK_LIMIT_MS` sits
+    at 120 seconds: 83 times the median of ~1440 ms and 24 times the worst
+    time ever observed when the call succeeds (5 s). Beyond that wall it is
+    not slowness, and no load on this machine has ever produced anything
+    like it. This is the only absolute limit, and it is the one that protects
+    the product.
 
-    **La LENTEZZA invece si misura contro la macchina, non contro l'orologio.**
-    La pagina cronometra 20000 MICROTASK, e il limite di lentezza e' un multiplo
-    di quel tempo, con un pavimento a 30 secondi e un tetto sotto il muro del
-    blocco.
+    **SLOWNESS, on the other hand, is measured against the machine, not
+    against the clock.** The page times 20000 MICROTASKS, and the slowness
+    limit is a multiple of that time, with a floor at 30 seconds and a
+    ceiling below the block wall.
 
-    ⛔ I microtask, e non `setTimeout(...,0)`, per una ragione misurata: la prima
-    versione di questo riferimento contava 50 giri di `setTimeout` e su una
-    macchina SCARICA riportava 2624 ms, cioe' ~52 ms per giro. Non era carico:
-    era il CLAMP dei timer, che Firefox applica comunque. Il limite che ne
-    derivava usciva a 393600 ms, **sopra** il muro del blocco a 120000, quindi
-    l'asserzione sulla lentezza era irraggiungibile - un'asserzione morta che
-    sembrava una protezione. Un riferimento va scelto per cio' che misura, e un
-    timer clampato misura il clamp. I microtask non sono clampati.
+    ⛔ Microtasks, and not `setTimeout(...,0)`, for a measured reason: the
+    first version of this reference counted 50 rounds of `setTimeout` and on
+    an IDLE machine reported 2624 ms, i.e. ~52 ms per round. That was not
+    load: it was the timer CLAMP, which Firefox applies regardless. The limit
+    that derived from it came out to 393600 ms, **above** the block wall at
+    120000, so the slowness assertion was unreachable - a dead assertion that
+    looked like a protection. A reference must be chosen for what it measures,
+    and a clamped timer measures the clamp. Microtasks are not clamped.
 
-    Il tetto (`muro - 1`) esiste per la stessa ragione: se il limite di lentezza
-    supera il muro del blocco, la prima asserzione scatta sempre prima e la
-    seconda non esiste piu'. Un limite che non puo' essere raggiunto non e' un
-    limite.
+    The ceiling (`wall - 1`) exists for the same reason: if the slowness limit
+    exceeds the block wall, the first assertion always fires first and the
+    second one no longer exists. A limit that can never be reached is not a
+    limit.
 
-    Il tempo e il riferimento vengono stampati sempre, quindi una regressione di
-    velocita' resta visibile anche quando non fa fallire niente.
+    The time and the reference are always printed, so a speed regression stays
+    visible even when it does not make anything fail.
     """
-    #: Oltre questo non si risolvera' mai: e' il difetto, ed e' assoluto.
-    LIMITE_BLOCCO_MS = 120_000
-    #: Pavimento della lentezza, piu' il multiplo del riferimento di carico. Il
-    #: multiplo e' tarato sul riferimento a microtask misurato a macchina scarica
-    #: (pochi ms), quindi da' un limite ben sotto il pavimento fino a un carico
-    #: di circa venti volte, e sopra oltre quello.
-    PAVIMENTO_LENTEZZA_MS = 30_000
-    MULTIPLO_SUL_RIFERIMENTO = 2_000
+    #: Beyond this it will never resolve: this is the defect, and it is absolute.
+    BLOCK_LIMIT_MS = 120_000
+    #: Slowness floor, plus the multiple of the load reference. The multiple
+    #: is tuned against the microtask reference measured on an idle machine
+    #: (a few ms), so it gives a limit well under the floor up to a load of
+    #: about twenty times, and above it beyond that.
+    SLOWNESS_FLOOR_MS = 30_000
+    REFERENCE_MULTIPLIER = 2_000
 
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
         page.goto(detector_site.url, wait_until="load", timeout=45000)
         r = page.evaluate(
-            """(limite) => {
-                // Riferimento di carico: 20000 microtask. NON setTimeout, che
-                // Firefox clampa comunque e che quindi misurerebbe il clamp
-                // invece della contesa. Si misura PRIMA, cosi' non include
-                // l'inizializzazione dello stack media che stiamo cronometrando.
-                const giroDiEventi = async () => {
+            """(limitMs) => {
+                // Load reference: 20000 microtasks. NOT setTimeout, which
+                // Firefox clamps regardless and would therefore measure the
+                // clamp instead of contention. Measured FIRST, so it does not
+                // include the media stack initialization we are timing.
+                const eventLoopRound = async () => {
                     const t = performance.now();
                     for (let i = 0; i < 20000; i++) {
                         await Promise.resolve();
                     }
                     return performance.now() - t;
                 };
-                return giroDiEventi().then(rif => {
+                return eventLoopRound().then(rif => {
                     const t0 = performance.now();
                     return Promise.race([
                         navigator.mediaDevices.enumerateDevices().then(
@@ -405,39 +406,39 @@ def test_enumerate_devices_resolves_promptly(firefox_binary, detector_site):
                                    err: String(e).slice(0, 120),
                                    ms: Math.round(performance.now() - t0)})),
                         new Promise(res => setTimeout(
-                            () => res({esito: 'MAI RISOLTA', ms: limite,
-                                       rif: rif}), limite)),
+                            () => res({esito: 'MAI RISOLTA', ms: limitMs,
+                                       rif: rif}), limitMs)),
                     ]);
                 });
             }""",
-            LIMITE_BLOCCO_MS,
+            BLOCK_LIMIT_MS,
         )
 
     rif = round(r.get("rif") or 0)
-    limite_lentezza = min(LIMITE_BLOCCO_MS - 1,
-                          max(PAVIMENTO_LENTEZZA_MS,
-                              MULTIPLO_SUL_RIFERIMENTO * rif))
-    print(f"[media] enumerateDevices: {r.get('n')} dispositivi in {r['ms']}ms "
-          f"(riferimento di carico {rif}ms -> limite di lentezza "
-          f"{limite_lentezza}ms, muro del blocco {LIMITE_BLOCCO_MS}ms)")
+    slowness_limit = min(BLOCK_LIMIT_MS - 1,
+                          max(SLOWNESS_FLOOR_MS,
+                              REFERENCE_MULTIPLIER * rif))
+    print(f"[media] enumerateDevices: {r.get('n')} devices in {r['ms']}ms "
+          f"(load reference {rif}ms -> slowness limit "
+          f"{slowness_limit}ms, block wall {BLOCK_LIMIT_MS}ms)")
 
     assert r["esito"] != "MAI RISOLTA", (
-        f"navigator.mediaDevices.enumerateDevices() non si e' risolta in "
-        f"{LIMITE_BLOCCO_MS}ms. Non e' lentezza: e' il BLOCCO. Ogni rilevatore "
-        f"che fa `await enumerateDevices()` prima di risolvere resta appeso per "
-        f"sempre e la pagina sembra viva - il difetto del 2026-08-10, che si "
-        f"presentava come un test dell'identificativo rosso una volta su tre. "
-        f"Riferimento di carico di questa corsa: {rif}ms."
+        f"navigator.mediaDevices.enumerateDevices() did not resolve within "
+        f"{BLOCK_LIMIT_MS}ms. This is not slowness: it is the HANG. Any "
+        f"detector doing `await enumerateDevices()` before resolving stays "
+        f"stuck forever and the page looks alive - the 2026-08-10 defect, "
+        f"which showed up as an identifier test going red one time in three. "
+        f"Load reference for this run: {rif}ms."
     )
     assert r["esito"] == "risolta", (
-        f"enumerateDevices ha rifiutato invece di risolvere: {r.get('err')!r}"
+        f"enumerateDevices rejected instead of resolving: {r.get('err')!r}"
     )
-    assert r["ms"] <= limite_lentezza, (
-        f"enumerateDevices si e' RISOLTA in {r['ms']}ms, oltre il limite di "
-        f"{limite_lentezza}ms. Questo non e' il blocco del 2026-08-10 - il "
-        f"segnale arriva - ed e' un limite che scala col carico: il riferimento "
-        f"del ciclo di eventi era {rif}ms, quindi la macchina era "
-        f"{'contesa' if rif > 200 else 'scarica'}. Se il riferimento e' basso e "
-        f"questo tempo e' alto, e' una regressione di velocita' del nostro "
-        f"stack media e non un artefatto della macchina."
+    assert r["ms"] <= slowness_limit, (
+        f"enumerateDevices RESOLVED in {r['ms']}ms, beyond the limit of "
+        f"{slowness_limit}ms. This is not the 2026-08-10 hang - the signal "
+        f"arrives - and it is a limit that scales with load: the event loop "
+        f"reference was {rif}ms, so the machine was "
+        f"{'busy' if rif > 200 else 'idle'}. If the reference is low and this "
+        f"time is high, it is a speed regression in our media stack and not "
+        f"an artifact of the machine."
     )

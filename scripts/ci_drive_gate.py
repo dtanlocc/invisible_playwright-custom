@@ -105,34 +105,34 @@ def _start_server():
     return srv, srv.server_address[1]
 
 
-# ⛔ QUI STAVA `_REALISTIC_PREFS`, SEI PREFS CHE SPEGNEVANO IL NEWTAB.
-# Tolte il 2026-08-20 col revert del newtab, e la ragione e' che la loro
-# giustificazione era diventata falsa: il commento diceva "the wrapper always
+# ⛔ `_REALISTIC_PREFS` USED TO BE HERE, SIX PREFS THAT DISABLED THE NEWTAB.
+# Removed 2026-08-20 with the newtab revert, and the reason is that their
+# justification had gone false: the comment said "the wrapper always
 # disables it (see prefs.py); raw Playwright does not, so the binary's realistic
-# config must set it here too". Il wrapper NON le disabilita piu' - il
-# proprietario ha ordinato il ripristino del codice originale di Mozilla - quindi
-# tenerle qui avrebbe fatto girare il gate in una configurazione che il prodotto
-# non spedisce. Un banco che misura una configurazione diversa da quella spedita
-# non e' un gate, e' un'altra misura con lo stesso nome.
+# config must set it here too". The wrapper no longer disables it - the
+# owner ordered the original Mozilla code restored - so
+# keeping them here would have run the gate against a configuration the product
+# does not ship. A bench that measures a configuration different from what ships
+# is not a gate, it's another measurement with the same name.
 #
-# ⛔ E IL PERICOLO CHE DESCRIVEVANO E' STATO CHIUSO ALLA RADICE IL 2026-08-23,
-# quindi qui non resta nessuna contromisura. Non era Fission che ricaricava la
-# pagina: era il browser PREALLOCATO della nuova scheda che si prendeva il canale
-# della pagina, perche' `JugglerFrameParent` riconosceva il target confrontando un
-# `browserId` con l'`id` di un BrowsingContext. Corretto nel motore
+# ⛔ AND THE DANGER THEY DESCRIBED WAS CLOSED AT THE ROOT ON 2026-08-23,
+# so no countermeasure remains here at all. It was not Fission reloading the
+# page: it was the new tab's PREALLOCATED browser grabbing the page's channel,
+# because `JugglerFrameParent` recognized the target by comparing a
+# `browserId` against a BrowsingContext's `id`. Fixed in the engine
 # (`20-our-patches.md` §5.2w, [B166] in `71-bug-archive.md`).
 #
-# Fra il 20 e il 23 agosto qui c'era un `time.sleep(_NEWTAB_SETTLE)` importato dal
-# wrapper. E' stato tolto insieme alla costante: misurato, l'attesa non copriva
-# niente - con l'attesa VERA, cioe' aspettando che `about:newtab` fosse arrivato e
-# caricato, la `goto` riusciva 0 volte su 9 - e dopo la correzione nel motore
-# Playwright nudo fa 10 su 10 senza aspettare niente.
+# Between the 20th and 23rd of August there was a `time.sleep(_NEWTAB_SETTLE)` here,
+# imported from the wrapper. It was removed along with the constant: measured, the
+# wait covered nothing - with the REAL wait, i.e. waiting for `about:newtab` to have
+# arrived and loaded, `goto` succeeded 0 times out of 9 - and after the fix in the
+# engine, raw Playwright does 10 out of 10 without waiting for anything.
 
 
-def _drive(exe: str, url: str, livello: str) -> str:
-    """Un giro. `livello` e' "smoke", "click" o "full". Torna la UA."""
-    interagisce = livello in ("click", "full")
-    full = livello == "full"
+def _drive(exe: str, url: str, level: str) -> str:
+    """One run. `level` is "smoke", "click" or "full". Returns the UA."""
+    interacts = level in ("click", "full")
+    full = level == "full"
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
@@ -146,7 +146,7 @@ def _drive(exe: str, url: str, livello: str) -> str:
             text = page.evaluate("() => document.getElementById('x').textContent")
 
             inter = {}
-            if interagisce:
+            if interacts:
                 # firefox-2 / issue-#9 catcher: real mouse over juggler.
                 page.wait_for_selector("#b")
                 page.mouse.move(20, 20)
@@ -170,7 +170,7 @@ def _drive(exe: str, url: str, livello: str) -> str:
     assert text == "hello-drive", f"DOM/JS roundtrip failed: {text!r}"
     assert not webdriver, f"navigator.webdriver leaked True (stealth regression): {webdriver!r}"
 
-    if interagisce:
+    if interacts:
         assert inter["clicked"] == 1, "page.click() did not fire the click listener - mouse-event synthesis broken (firefox-2 class), or a chrome overlay is swallowing input (terms-of-use modal: see browser/app/profile/firefox.js, termsofuse.acceptedDate)"
         assert inter["moves"] >= 1, "page.mouse.move() produced no mousemove - jugglerSendMouseEvent regression, or a chrome overlay is swallowing input"
     if full:
@@ -181,18 +181,17 @@ def _drive(exe: str, url: str, livello: str) -> str:
     return ua
 
 
-def main(exe: str, livello: str) -> int:
+def main(exe: str, level: str) -> int:
     srv, port = _start_server()
     url = f"http://127.0.0.1:{port}/"
-    level = livello
     extras = {"full": "http+click+mousemove+keyboard+canvas-determinism+navsurface",
               "click": "http+ua+webdriver+dom+click+mousemove",
-              "smoke": "http+ua+webdriver+dom"}[livello]
+              "smoke": "http+ua+webdriver+dom"}[level]
     last = None
     try:
         for attempt in (1, 2, 3):
             try:
-                ua = _drive(exe, url, livello)
+                ua = _drive(exe, url, level)
                 if attempt > 1:
                     print(f"(note: drive succeeded on attempt {attempt} after a transient error)")
                 print(f"DRIVE GATE OK [{level}] | UA={ua} | {extras}=ok")
@@ -212,9 +211,9 @@ def main(exe: str, livello: str) -> int:
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    livello = "full" if "--full" in args else ("click" if "--click" in args else "smoke")
+    level = "full" if "--full" in args else ("click" if "--click" in args else "smoke")
     positional = [a for a in args if not a.startswith("--")]
     if len(positional) != 1:
         print("usage: ci_drive_gate.py <path-to-firefox-binary> [--click | --full]", file=sys.stderr)
         sys.exit(2)
-    sys.exit(main(positional[0], livello))
+    sys.exit(main(positional[0], level))

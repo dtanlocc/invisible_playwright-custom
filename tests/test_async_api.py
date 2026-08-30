@@ -215,3 +215,75 @@ def test_the_async_teardown_reaps():
     asyncio.run(session._teardown())
     assert reaped == [expected], (
         "async teardown did not reap the session's tree")
+
+
+def test_a_cancelled_teardown_still_reaps_and_still_cancels():
+    """A cancellation must not be able to leave a browser behind.
+
+    ⛔ THE BUG THIS PINS IS A TYPE-HIERARCHY ONE, invisible by reading the
+    happy path: `asyncio.CancelledError` inherits from `BaseException`, NOT
+    from `Exception`, so the `except Exception` guarding each close step does
+    not catch it. Cancel the task running `_teardown` and it escapes at the
+    first `await` - every later step is skipped, including the reap, and what
+    survives is a browser nobody closes. This project has measured that orphan
+    twice already: 88 stray firefox processes in one session, and 7,308
+    leftover profile directories accumulated over seven months.
+
+    Reported from outside as #104 (DatGuy1) against the published `main`.
+
+    Two assertions, because half the fix would pass with one: the teardown
+    must FINISH (so the reap happens), and the cancellation must still
+    PROPAGATE afterwards - swallowing it would be its own bug, leaving the
+    caller believing a cancelled task completed normally.
+    """
+    import asyncio
+
+    from invisible_playwright import _reaper
+    from invisible_playwright.async_api import InvisiblePlaywright as Async
+
+    reaped = []
+
+    class Recording(_reaper.NullGuard):
+        def reap(self, token, *, timeout: float = 5.0) -> int:
+            reaped.append(token.value)
+            return 0
+
+    class CancellingContext:
+        """Stands in for a browser whose close() is cancelled mid-flight."""
+
+        async def close(self) -> None:
+            raise asyncio.CancelledError()
+
+    closed_after = []
+
+    class LaterBrowser:
+        """The step AFTER the cancelled one. It must still run."""
+
+        async def close(self) -> None:
+            closed_after.append(True)
+
+    session = Async(seed=7)
+    session._session_token = _reaper.SessionToken.mint()
+    session._lifetime_guard = Recording()
+    session._persistent_context = CancellingContext()
+    session._browser = LaterBrowser()
+    expected = session._session_token.value
+
+    async def run():
+        await session._teardown()
+
+    raised = None
+    try:
+        asyncio.run(run())
+    except asyncio.CancelledError as stop:
+        raised = stop
+
+    assert closed_after == [True], (
+        "the step after the cancelled one was skipped: a CancelledError "
+        "escaped the close loop, which is exactly the leak #104 reported")
+    assert reaped == [expected], (
+        "the reap did not run on a cancelled teardown, so a browser that "
+        "outlives the session has nothing left to kill it")
+    assert raised is not None, (
+        "the cancellation was swallowed: the caller would believe a cancelled "
+        "task finished normally")

@@ -41,10 +41,10 @@ class Playwright(ChannelOwner):
     def __getitem__(self, value: str) -> "BrowserType":
         if value == "firefox":
             return self.firefox
-        # MODIFICATO da invisible_playwright: chromium e webkit non esistono
-        # piu' in questo fork - i loro moduli sono stati tolti dal driver
-        # vendorizzato. Il messaggio lo dice, invece di lasciare un
-        # AttributeError su un campo che nessuno ha piu' impostato.
+        # MODIFIED by invisible_playwright: chromium and webkit no longer exist
+        # in this fork - their modules have been removed from the vendored
+        # driver. The message says so, instead of leaving an
+        # AttributeError on a field that nobody sets anymore.
         if value in ("chromium", "webkit"):
             raise ValueError(
                 "invisible_playwright pilota SOLO Firefox: il supporto a "

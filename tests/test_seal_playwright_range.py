@@ -36,10 +36,10 @@ def sealed_range(tmp_path, monkeypatch):
 
 
 def set_reported_version(monkeypatch, value: str) -> None:
-    # Dal fork la versione del client e' un fatto LOCALE: la porta
-    # invisible_playwright._pw._repo_version, non importlib.metadata.
-    # _engine la importa dentro la funzione, quindi basta spostare
-    # l'attributo del modulo prima della chiamata.
+    # Since the fork, the client version is a LOCAL fact: it is carried by
+    # invisible_playwright._pw._repo_version, not importlib.metadata.
+    # _engine imports it inside the function, so moving the module
+    # attribute before the call is enough.
     monkeypatch.setattr("invisible_playwright._pw._repo_version.version", value)
 
 

@@ -38,37 +38,37 @@ import subprocess
 
 import pytest
 
-# Le variabili che NON devono attraversare un venv costruito qui, e la copia di
-# `_clean_env` accanto a loro.
+# The variables that must NOT cross into a venv built here, and the copy of
+# `_clean_env` next to them.
 #
-# **La duplicazione con `test_release_e2e.py` e' voluta e c'e' un gate che la
-# pretende**: `test_no_install_e2e_file_imports_a_package_the_runner_does_not_have`
-# nel core parsa questi file e rifiuta ogni import di modulo che non sia stdlib,
-# pytest, packaging o pip, con il messaggio "Keep the helpers local in these
-# files - the duplication is the point". Un modulo condiviso qui sarebbe un
-# errore di RACCOLTA sul runner, cioe' un job rosso che non ha testato niente.
-# Fattorizzare e' la mossa giusta ovunque tranne che in questi due file.
+# **The duplication with `test_release_e2e.py` is deliberate and there is a gate
+# that requires it**: `test_no_install_e2e_file_imports_a_package_the_runner_does_not_have`
+# in the core parses these files and rejects any import of a module that is not
+# stdlib, pytest, packaging or pip, with the message "Keep the helpers local in
+# these files - the duplication is the point". A shared module here would be a
+# COLLECTION error on the runner, i.e. a red job that tested nothing.
+# Factoring it out is the right move everywhere except in these two files.
 #
-# Misurato 2026-08-11: `PYTHONPATH` verso i sorgenti del banco fa importare al
-# venv il core del banco invece di quello installato (2 fallimenti qui, 5
-# nell'altro file); `INVISIBLE_SEAL_FILE` verso un sigillo locale fa fallire i
-# test che scaricano la release pubblicata. Sedici rossi in un giorno, nessuno
-# del prodotto - e il verso pericoloso e' l'altro: un verde da un ambiente che
-# nessun utente ha.
+# Measured 2026-08-11: `PYTHONPATH` pointing at the bench's sources makes the
+# venv import the bench's core instead of the installed one (2 failures here, 5
+# in the other file); `INVISIBLE_SEAL_FILE` pointing at a local seal makes the
+# tests that download the published release fail. Sixteen reds in one day, none
+# of them the product's - and the dangerous direction is the other one: a green
+# from an environment no user has.
 _NON_ERMETICHE = ("PYTHONPATH", "INVISIBLE_SEAL_FILE", "PYTHONHOME")
 
 
 def _clean_env(base=None):
-    """L'ambiente per un sottoprocesso, senza le variabili che filtrano.
+    """The environment for a subprocess, without the variables that leak through.
 
-    Torna anche cosa ha tolto: una variabile rimossa in silenzio e' la stessa
-    classe di difetto di una ereditata in silenzio, col segno cambiato.
+    Also returns what it removed: a variable silently removed is the same
+    class of defect as one silently inherited, with the sign flipped.
     """
     env = dict(os.environ if base is None else base)
-    tolte = [k for k in _NON_ERMETICHE if k in env]
-    for k in tolte:
+    removed = [k for k in _NON_ERMETICHE if k in env]
+    for k in removed:
         env.pop(k, None)
-    return env, tolte
+    return env, removed
 
 
 # ── venv mechanics, LOCAL ON PURPOSE ────────────────────────────────────────
@@ -87,24 +87,24 @@ def _clean_env(base=None):
 # the path. The core's suite now parses these files and refuses the import, so
 # the rule does not depend on this comment being read.
 def _run(cmd, *, timeout: int = 600, check: bool = True, env=None, cwd=None):
-    # `env=None` significava EREDITA, che e' il difetto. Adesso il default e'
-    # l'ambiente ripulito, e anche un `env=` esplicito viene ripulito, perche'
-    # chi ne costruisce uno parte quasi sempre da `os.environ`.
-    env, tolte = _clean_env(env)
+    # `env=None` used to mean INHERIT, which is the defect. Now the default is
+    # the cleaned environment, and even an explicit `env=` gets cleaned, because
+    # whoever builds one almost always starts from `os.environ`.
+    env, removed = _clean_env(env)
     r = subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
                        timeout=timeout, env=env,
                        cwd=str(cwd) if cwd is not None else None)
     if check and r.returncode != 0:
-        nota = ""
-        if tolte:
-            nota = ("\n--- ambiente ---\nrimosse prima di lanciare: {}\n"
-                    "(sono le variabili che entrerebbero nel venv e gli farebbero "
-                    "misurare qualcosa che non e' cio' che riceve un utente)"
-                    .format(", ".join(tolte)))
+        note = ""
+        if removed:
+            note = ("\n--- environment ---\nremoved before launching: {}\n"
+                    "(these are the variables that would enter the venv and make it "
+                    "measure something that is not what a user gets)"
+                    .format(", ".join(removed)))
         raise AssertionError(
             "{} exited {}\n--- stdout ---\n{}\n--- stderr ---\n{}{}".format(
                 " ".join(str(c) for c in cmd), r.returncode,
-                r.stdout[-3000:], r.stderr[-3000:], nota))
+                r.stdout[-3000:], r.stderr[-3000:], note))
     return r
 
 
@@ -161,22 +161,22 @@ def _versions(py: Path) -> dict:
 
 
 def _pinned_core(py: Path) -> str:
-    """La versione del core che il wrapper INSTALLATO dichiara di volere.
+    """The core version that the INSTALLED wrapper declares it wants.
 
-    Si legge dal Requires-Dist della distribuzione installata, che e' la sola
-    fonte che non dipende da quante versioni ci siano sull'indice ne' dal loro
-    ordine. Il pin e' un `==` esatto per contratto, quindi qui c'e' una versione
-    e una sola.
+    Read from the Requires-Dist of the installed distribution, which is the only
+    source that does not depend on how many versions are on the index nor on
+    their order. The pin is an exact `==` by contract, so there is exactly one
+    version here.
     """
     out = _run([str(py), "-c",
                 "from importlib.metadata import metadata;"
                 "print([r for r in (metadata('invisible-playwright')"
                 ".get_all('Requires-Dist') or []) if 'invisible' in r and 'core' in r])"],
                timeout=180)
-    testo = out.stdout.strip()
-    m = re.search(r"invisible[-_]core\s*==\s*([0-9][^'\"\s,\]]*)", testo)
+    text = out.stdout.strip()
+    m = re.search(r"invisible[-_]core\s*==\s*([0-9][^'\"\s,\]]*)", text)
     if not m:
-        pytest.skip(f"nessun pin esatto del core nella metadata installata: {testo[:200]}")
+        pytest.skip(f"no exact core pin in the installed metadata: {text[:200]}")
     return m.group(1)
 
 
@@ -289,30 +289,31 @@ def test_a_hand_pinned_old_core_is_reported_by_pip_check(workspace: Path):
     if len(cores) < 2:
         pytest.skip("only one core release on the index")
 
-    # ⛔ LA VERSIONE SBAGLIATA SI SCEGLIE DA CIO' CHE IL WRAPPER INSTALLATO
-    # PRETENDE, NON DALLA POSIZIONE SULL'INDICE.
+    # ⛔ THE WRONG VERSION IS CHOSEN FROM WHAT THE INSTALLED WRAPPER CLAIMS,
+    # NOT FROM ITS POSITION ON THE INDEX.
     #
-    # Prima era `cores[-2]`, la penultima pubblicata, con l'assunzione implicita
-    # che la piu' recente fosse quella che il wrapper pinna. Quella assunzione
-    # CADE per tutta la durata di un rilascio fatto nell'ordine che il progetto
-    # impone: si pubblica il core PRIMA del consumatore, quindi fra i due
-    # momenti la piu' recente sull'indice e' una che nessun wrapper pubblicato
-    # pinna ancora, e `cores[-2]` diventa esattamente la versione GIUSTA.
+    # It used to be `cores[-2]`, the second-to-last published, with the implicit
+    # assumption that the most recent one was the one the wrapper pins. That
+    # assumption FAILS for the entire duration of a release done in the order
+    # the project mandates: the core is published BEFORE the consumer, so
+    # between those two moments the most recent one on the index is one no
+    # published wrapper pins yet, and `cores[-2]` becomes exactly the RIGHT
+    # version.
     #
-    # Misurato il 2026-08-18: pubblicato il core 20.15.0, il wrapper sull'indice
-    # era ancora 0.7.1 che pinna 20.14.0, e questo caso ha installato 20.14.0
-    # chiamandola "older". `pip check` ha risposto pulito perche' l'ambiente era
-    # corretto, e il test ha letto quel pulito come una cecita' del pin. Rosso su
-    # un prodotto sano, dentro la finestra in cui il rilascio e' a meta'.
-    # E dentro quella finestra la versione diversa dal pin e' piu' NUOVA, non
-    # piu' vecchia: il nome del caso dice "old" perche' quello e' lo scenario
-    # d'uso che descrive, ma cio' che il meccanismo deve vedere e' un
-    # DISACCORDO, e un disaccordo verso l'alto e' un disaccordo uguale. Il nome
-    # resta com'e' perche' i documenti lo citano e un gate lo verifica.
-    atteso = _pinned_core(py)
-    older = next((v for v in reversed(cores) if v != atteso), None)
+    # Measured on 2026-08-18: core 20.15.0 published, the wrapper on the index
+    # was still 0.7.1 which pins 20.14.0, and this case installed 20.14.0
+    # calling it "older". `pip check` answered clean because the environment was
+    # correct, and the test read that clean as a blindness of the pin. Red on
+    # a healthy product, inside the window where the release is half-done.
+    # And inside that window the version that differs from the pin is NEWER,
+    # not older: the case's name says "old" because that is the usage scenario
+    # it describes, but what the mechanism has to see is a MISMATCH, and a
+    # mismatch upward is an equal mismatch. The name stays as it is because the
+    # docs cite it and a gate verifies it.
+    expected = _pinned_core(py)
+    older = next((v for v in reversed(cores) if v != expected), None)
     if older is None:
-        pytest.skip(f"the index serves only {atteso}, which is the pinned one")
+        pytest.skip(f"the index serves only {expected}, which is the pinned one")
 
     _run([str(py), "-m", "pip", "install", "--no-cache-dir", "--no-deps",
           "--force-reinstall", f"{CORE}=={older}"], timeout=600)

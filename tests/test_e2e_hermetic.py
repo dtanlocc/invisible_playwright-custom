@@ -1,24 +1,27 @@
-"""I due file e2e della PUBBLICAZIONE non lasciano passare l'ambiente nel venv.
+"""The two RELEASE e2e files do not let the environment leak into the venv.
 
-**Perche' questo file esiste.** `test_release_e2e.py` e `test_upgrade_e2e.py`
-creano un venv e ci installano il pacchetto DALL'INDICE: sono l'unica cosa che
-verifica cosa riceve un utente. Ma un venv EREDITA l'ambiente, e fino al
-2026-08-14 `subprocess.run(env=None)` glielo passava intatto. Misurato il
-2026-08-11: `PYTHONPATH` verso i sorgenti del banco e `INVISIBLE_SEAL_FILE`
-verso un sigillo locale hanno prodotto **sedici fallimenti in un giorno, nessuno
-del prodotto**. E il verso pericoloso e' l'altro: un VERDE che arriva da un
-ambiente che nessun utente ha.
+**Why this file exists.** `test_release_e2e.py` and `test_upgrade_e2e.py`
+create a venv and install the package into it FROM THE INDEX: they are the
+only thing that verifies what a user actually receives. But a venv INHERITS
+the environment, and until 2026-08-14 `subprocess.run(env=None)` passed it
+through intact. Measured on 2026-08-11: `PYTHONPATH` pointing at the bench's
+sources and `INVISIBLE_SEAL_FILE` pointing at a local seal produced **sixteen
+failures in one day, none of them the product's**. And the dangerous
+direction is the other one: a GREEN that comes from an environment no user
+has.
 
-**Perche' e' un test e non un commento.** Il rimedio vive in DUE copie, una per
-file, e la duplicazione e' imposta da un gate del core
+**Why it's a test and not a comment.** The fix lives in TWO copies, one per
+file, and the duplication is enforced by a gate in the core
 (`test_no_install_e2e_file_imports_a_package_the_runner_does_not_have`, in
-`invisible_core/tests/test_marker_vocabulary.py`): quei file devono raccogliersi
-con solo stdlib e pytest sul runner, quindi un modulo condiviso sarebbe un
-errore di raccolta. Due copie divergono, a meno che qualcosa non le confronti.
+`invisible_core/tests/test_marker_vocabulary.py`): those files must be
+collectible with only stdlib and pytest on the runner, so a shared module
+would be a collection error. Two copies diverge unless something compares
+them.
 
-Il caso che conta e' l'ULTIMO: il controllo che dimostra che senza la correzione
-la variabile passerebbe davvero. Un test che verifica solo la versione corretta
-non distingue "il rimedio funziona" da "il problema non esisteva".
+The case that matters is the LAST one: the check that proves that without the
+fix the variable would really get through. A test that only checks the
+corrected version cannot distinguish "the fix works" from "the problem never
+existed".
 """
 from __future__ import annotations
 
@@ -30,76 +33,77 @@ from pathlib import Path
 
 import pytest
 
-QUI = Path(__file__).resolve().parent
-FILE_E2E = ("test_release_e2e.py", "test_upgrade_e2e.py")
+HERE = Path(__file__).resolve().parent
+E2E_FILES = ("test_release_e2e.py", "test_upgrade_e2e.py")
 
-#: Le variabili misurate, piu' quella aggiunta per costruzione. Se un file
-#: dimenticasse una di queste, il confronto fra le due copie qui sotto lo
-#: riporterebbe come divergenza.
-ATTESE = ("PYTHONPATH", "INVISIBLE_SEAL_FILE", "PYTHONHOME")
+#: The measured variables, plus the one added by construction. If a file
+#: forgot one of these, the comparison between the two copies below would
+#: report it as a divergence.
+EXPECTED = ("PYTHONPATH", "INVISIBLE_SEAL_FILE", "PYTHONHOME")
 
 
-def _carica(nome: str):
-    """Importa il modulo e2e dal PERCORSO, non dal nome.
+def _load(name: str):
+    """Import the e2e module by PATH, not by name.
 
-    Il nome dipenderebbe da come pytest ha popolato `sys.path`, e questo test
-    deve valere anche fuori da una corsa che raccoglie quei file.
+    The name would depend on how pytest populated `sys.path`, and this test
+    must hold even outside a run that collects those files.
     """
-    percorso = QUI / nome
-    spec = importlib.util.spec_from_file_location(nome[:-3] + "_letto", percorso)
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-    return modulo
+    path = HERE / name
+    spec = importlib.util.spec_from_file_location(name[:-3] + "_loaded", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture(scope="module")
-def moduli():
-    return {n: _carica(n) for n in FILE_E2E}
+def modules():
+    return {n: _load(n) for n in E2E_FILES}
 
 
-def test_entrambi_i_file_dichiarano_le_stesse_variabili(moduli):
-    """Due copie che divergono sono peggio di una copia sola."""
-    visto = {n: tuple(m._NON_ERMETICHE) for n, m in moduli.items()}
-    valori = set(visto.values())
-    assert len(valori) == 1, (
-        "i due file e2e ripuliscono ambienti DIVERSI, quindi uno dei due lascia "
-        "passare qualcosa che l'altro ferma:\n  "
-        + "\n  ".join("%s -> %s" % (n, v) for n, v in sorted(visto.items())))
-    assert valori.pop() == ATTESE, (
-        "l'elenco e' cambiato senza aggiornare questo test. Le tre attese sono "
-        "%s: le prime due sono misurate (sedici rossi il 2026-08-11), la terza "
-        "e' PYTHONHOME, che redirige la libreria standard e romperebbe il venv "
-        "prima che esegua una riga." % (ATTESE,))
+def test_both_files_declare_the_same_variables(modules):
+    """Two copies that diverge are worse than a single copy."""
+    seen = {n: tuple(m._NON_ERMETICHE) for n, m in modules.items()}
+    values = set(seen.values())
+    assert len(values) == 1, (
+        "the two e2e files clean up DIFFERENT environments, so one of them "
+        "lets through something the other one stops:\n  "
+        + "\n  ".join("%s -> %s" % (n, v) for n, v in sorted(seen.items())))
+    assert values.pop() == EXPECTED, (
+        "the list changed without updating this test. The three expected "
+        "values are %s: the first two are measured (sixteen reds on "
+        "2026-08-11), the third is PYTHONHOME, which redirects the standard "
+        "library and would break the venv before it ran a single line." % (EXPECTED,))
 
 
-@pytest.mark.parametrize("nome", FILE_E2E)
-def test_clean_env_toglie_le_variabili_e_lascia_le_altre(moduli, nome, monkeypatch):
-    m = moduli[nome]
+@pytest.mark.parametrize("name", E2E_FILES)
+def test_clean_env_removes_the_variables_and_leaves_the_rest(modules, name, monkeypatch):
+    m = modules[name]
     monkeypatch.setenv("PYTHONPATH", "/c/src/firefox-stealth/release/invisible_core/src")
     monkeypatch.setenv("INVISIBLE_SEAL_FILE", "C:/tmp/seal-locale.json")
     monkeypatch.setenv("PYTHONHOME", "/opt/altrove")
     monkeypatch.setenv("UNA_QUALSIASI", "resta")
 
-    env, tolte = m._clean_env()
+    env, removed = m._clean_env()
 
-    for k in ATTESE:
-        assert k not in env, "%s: %s e' ancora nell'ambiente del sottoprocesso" % (nome, k)
-    assert sorted(tolte) == sorted(ATTESE), (
-        "%s: dice di aver tolto %s" % (nome, tolte))
+    for k in EXPECTED:
+        assert k not in env, "%s: %s is still in the subprocess environment" % (name, k)
+    assert sorted(removed) == sorted(EXPECTED), (
+        "%s: claims to have removed %s" % (name, removed))
     assert env.get("UNA_QUALSIASI") == "resta", (
-        "%s: ha ripulito piu' del dovuto. Un ambiente svuotato rompe cose che "
-        "non c'entrano - PATH, TEMP, le variabili del proxy - e la correzione "
-        "diventa un difetto nuovo." % nome)
+        "%s: cleaned up more than it should have. An emptied environment "
+        "breaks things that are unrelated to it - PATH, TEMP, the proxy "
+        "variables - and the fix becomes a new defect." % name)
 
 
-@pytest.mark.parametrize("nome", FILE_E2E)
-def test_il_sottoprocesso_non_le_vede_davvero(moduli, nome, monkeypatch):
-    """Il percorso VERO: non `_clean_env` in isolamento, ma `_run`.
+@pytest.mark.parametrize("name", E2E_FILES)
+def test_the_subprocess_really_does_not_see_them(modules, name, monkeypatch):
+    """The REAL path: not `_clean_env` in isolation, but `_run`.
 
-    E' la differenza fra provare l'aiutante e provare cio' che il file fa. Il
-    difetto originale non era in un aiutante: era `env=None` nella chiamata.
+    This is the difference between testing the helper and testing what the
+    file actually does. The original defect was not in a helper: it was
+    `env=None` in the call.
     """
-    m = moduli[nome]
+    m = modules[name]
     monkeypatch.setenv("PYTHONPATH", "/percorso/del/banco")
     monkeypatch.setenv("INVISIBLE_SEAL_FILE", "C:/tmp/seal-locale.json")
 
@@ -107,23 +111,23 @@ def test_il_sottoprocesso_non_le_vede_davvero(moduli, nome, monkeypatch):
               "print(os.environ.get('PYTHONPATH'), os.environ.get('INVISIBLE_SEAL_FILE'))")
     out = m._run([sys.executable, "-c", script], timeout=60).stdout.strip()
     assert out == "None None", (
-        "%s: il sottoprocesso lanciato da _run vede ancora l'ambiente del "
-        "chiamante: %r" % (nome, out))
+        "%s: the subprocess launched by _run still sees the caller's "
+        "environment: %r" % (name, out))
 
 
-def test_controllo_senza_il_rimedio_la_variabile_PASSEREBBE(monkeypatch):
-    """L'input noto-cattivo, che qui e' il MONDO PRIMA della correzione.
+def test_check_without_the_fix_the_variable_WOULD_PASS_THROUGH(monkeypatch):
+    """The known-bad input, which here is the WORLD BEFORE the fix.
 
-    Senza questo, i tre test sopra non distinguono "il rimedio funziona" da "il
-    problema non esisteva". Riproduce la chiamata com'era - `env=None` - e
-    pretende che la variabile arrivi a destinazione.
+    Without this, the three tests above cannot distinguish "the fix works"
+    from "the problem never existed". It reproduces the call as it used to
+    be - `env=None` - and expects the variable to arrive at its destination.
     """
     monkeypatch.setenv("PYTHONPATH", "/percorso/del/banco")
     script = "import os; print(os.environ.get('PYTHONPATH'))"
     r = subprocess.run([sys.executable, "-c", script], capture_output=True,
                        text=True, timeout=60, env=None)
     assert r.stdout.strip() == "/percorso/del/banco", (
-        "il controllo non riproduce il difetto: con env=None la variabile "
-        "dovrebbe passare, e non e' passata. Allora i test qui sopra non stanno "
-        "dimostrando quello che sembrano dimostrare, ed e' il BANCO a essere "
-        "rotto - non il rimedio a funzionare. Ottenuto: %r" % r.stdout)
+        "the check does not reproduce the defect: with env=None the variable "
+        "should have passed through, and it did not. So the tests above are "
+        "not demonstrating what they appear to, and it is the BENCH that is "
+        "broken - not the fix that works. Got: %r" % r.stdout)

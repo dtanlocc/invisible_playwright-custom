@@ -12,11 +12,17 @@ import pytest
 
 from invisible_core import get_default_stealth_prefs
 from invisible_playwright import InvisiblePlaywright, _cursor
+# ⛔ FROM THE CORE, not through `launcher`. Until 2026-08-29 these three
+# arrived here because the launcher IMPORTED them, not because they were its
+# own: an accidental re-export, which only became visible when those imports
+# turned unused in there and were removed. An import is not unused merely
+# because the file holding it does not use it - another module can be reaching
+# a name THROUGH it, and no single-file analysis can see that.
+from invisible_core.constants import (CHROME_H as _CHROME_H,
+                                      CHROME_W as _CHROME_W,
+                                      TASKBAR_PX as _TASKBAR_H)
 from invisible_playwright.launcher import (
-    _CHROME_H,
-    _CHROME_W,
     _IANA_TO_POSIX_TZ,
-    _TASKBAR_H,
     _tz_env,
 )
 
@@ -168,12 +174,12 @@ def test_default_context_screen_matches_profile():
     kw = ip._default_context_kwargs()
     p = ip._profile
     assert kw["screen"] == {"width": p.screen.width, "height": p.screen.height}
-    # ⛔ Il rapporto di pixel NON si passa piu' a Playwright, e questa riga e' la
-    # meta' che conta del test. Passarlo faceva impostare overrideDPPX sul
-    # BrowsingContext, che in Gecko VINCE su layout.css.devPixelsPerPx: la
-    # dichiarazione di invisible_core era codice morto, e misurato (2026-08-24)
-    # mettendo la pref a "2.0" il browser continuava a rispondere 1.
-    # Una fonte sola, e questo test la pinna da entrambi i lati.
+    # ⛔ The pixel ratio is NO LONGER passed to Playwright, and this line is the
+    # half that matters in the test. Passing it made Gecko set overrideDPPX on
+    # the BrowsingContext, which WINS over layout.css.devPixelsPerPx: the
+    # invisible_core declaration was dead code, and measured (2026-08-24)
+    # setting the pref to "2.0" the browser kept answering 1.
+    # One source only, and this test pins it from both sides.
     assert "device_scale_factor" not in kw
     prefs = get_default_stealth_prefs(seed=42)
     assert float(prefs["layout.css.devPixelsPerPx"]) == float(p.screen.dpr)
@@ -181,24 +187,24 @@ def test_default_context_screen_matches_profile():
 
 @pytest.mark.unit
 def test_default_context_color_scheme_follows_dark_theme():
-    """Il tema segue ``dark_theme``, ma passando dalla DICHIARAZIONE.
+    """The theme follows ``dark_theme``, but through the DECLARATION.
 
-    Prima il wrapper passava ``color_scheme`` a Playwright, che lo traduceva in
-    un override del BrowsingContext. Quell'override in Gecko cortocircuita
-    ``layout.css.prefers-color-scheme.content-override``: misurato il
-    2026-08-24, mettendo la pref a 0 (Dark) il browser continuava a rispondere
-    light. Due fonti per un fatto, e vinceva quella che non e' la nostra.
+    Previously the wrapper passed ``color_scheme`` to Playwright, which translated it
+    into a BrowsingContext override. That override in Gecko short-circuits
+    ``layout.css.prefers-color-scheme.content-override``: measured on
+    2026-08-24, setting the pref to 0 (Dark) the browser kept answering
+    light. Two sources for one fact, and the one that is not ours won.
 
-    Adesso la strada e' una: invisible_core dichiara la pref, e Playwright non
-    manda piu' il comando. 0 = Dark, 1 = Light.
+    Now there is one path: invisible_core declares the pref, and Playwright no
+    longer sends the command. 0 = Dark, 1 = Light.
     """
-    for scuro, atteso in ((True, 0), (False, 1)):
-        ip = InvisiblePlaywright(seed=42, pin={"dark_theme": scuro})
+    for dark, expected in ((True, 0), (False, 1)):
+        ip = InvisiblePlaywright(seed=42, pin={"dark_theme": dark})
         assert "color_scheme" not in ip._default_context_kwargs()
-        prefs = get_default_stealth_prefs(seed=42, pin={"dark_theme": scuro})
-        assert prefs["layout.css.prefers-color-scheme.content-override"] == atteso
-        # e l'altro lettore dello stesso fatto resta in accordo
-        assert prefs["ui.systemUsesDarkTheme"] == int(scuro)
+        prefs = get_default_stealth_prefs(seed=42, pin={"dark_theme": dark})
+        assert prefs["layout.css.prefers-color-scheme.content-override"] == expected
+        # and the other reader of the same fact stays in agreement
+        assert prefs["ui.systemUsesDarkTheme"] == int(dark)
 
 
 @pytest.mark.unit
@@ -237,13 +243,13 @@ def test_default_context_omits_locale_when_empty():
 @pytest.mark.unit
 def test_build_env_injects_webrtc_egress_when_discovered():
     ip = InvisiblePlaywright(seed=42)
-    # ⛔ DUE CAMPI, e questo test ne provava uno solo. `_webrtc_egress_ip`
-    # e' il FATTO (da dove usciamo, lo legge la guardia contro la deriva);
-    # `_srflx_dichiarato` e' la DECISIONE che finisce nell'env. Dal
-    # 2026-08-25 non coincidono: quando l'uscita ha UDP dimostrato e
-    # coerente la decisione e' None e non si dichiara niente.
+    # ⛔ TWO FIELDS, and this test only exercised one. `_webrtc_egress_ip`
+    # is the FACT (where we exit from, read by the guard against drift);
+    # `_srflx_dichiarato` is the DECISION that ends up in the env. Since
+    # 2026-08-25 they do not coincide: when the exit has proven, consistent
+    # UDP the decision is None and nothing gets declared.
     ip._webrtc_egress_ip = "203.0.113.9"  # what __enter__ resolves behind a proxy
-    ip._srflx_dichiarato = "203.0.113.9"  # e qui la decisione coincide col fatto
+    ip._srflx_dichiarato = "203.0.113.9"  # and here the decision coincides with the fact
     env = ip._build_env({})
     assert env["STEALTHFOX_WEBRTC_PUBLIC_IP"] == "203.0.113.9"
     assert env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] == "1"

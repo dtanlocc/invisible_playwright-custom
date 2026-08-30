@@ -231,35 +231,36 @@ def test_shipped_webrtc_baseline_is_the_validated_config():
     # validated on BrowserLeaks/CreepJS through a residential proxy) - not a
     # raw LAN IP.
     assert prefs["media.peerconnection.ice.obfuscate_host_addresses"] is True
-    # IPv6 si toglie dall'ICE gathering, ma NON da una pref: dal 2026-08-25 il
-    # ponte nativo legge una fonte sola, l'ambiente. La pref omonima non si
-    # emette piu' - il ponte non la leggeva piu' e sarebbe diventata un'orfana,
-    # cioe' proprio cio' che test_no_orphan_prefs_in_baseline qui sotto vieta.
-    # Prima erano due fonti, e quale decidesse dipendeva dalla presenza del
-    # proxy: con proxy vinceva l'ambiente, senza proxy la pref.
+    # IPv6 is removed from ICE gathering, but NOT from a pref: since 2026-08-25
+    # the native bridge reads a single source, the environment. The same-named
+    # pref is no longer emitted - the bridge no longer read it and it would
+    # have become an orphan, which is exactly what test_no_orphan_prefs_in_baseline
+    # below forbids. Before there were two sources, and which one decided
+    # depended on the presence of the proxy: with a proxy the environment won,
+    # without a proxy the pref did.
     assert "zoom.stealth.webrtc.disable_ipv6" not in prefs
     assert "media.peerconnection.ice.disableIPv6" not in prefs
-    # La fonte unica e' l'ambiente, e si accende SOLO dietro un proxy.
+    # The single source is the environment, and it turns on ONLY behind a proxy.
     #
-    # Misurato il 2026-08-25 contro il Firefox retail installato, stessa
-    # connessione (dual-stack, senza VPN): il retail emette 6 candidati - host
-    # UDP x2 e host TCP x2 offuscati mDNS, piu' srflx v4 e **srflx v6 con
-    # l'indirizzo globale vero IN CHIARO** (l'mDNS copre solo gli host). Noi ne
-    # emettevamo 3, perche' filtravamo l'IPv6 sempre: sembravamo una macchina
-    # IPv4-only dove il riferimento e' dual-stack.
+    # Measured on 2026-08-25 against the installed retail Firefox, same
+    # connection (dual-stack, no VPN): retail emits 6 candidates - host UDP x2
+    # and host TCP x2 obfuscated mDNS, plus srflx v4 and **srflx v6 with the
+    # real global address IN THE CLEAR** (mDNS only covers the hosts). We
+    # emitted 3, because we always filtered IPv6: we looked like an IPv4-only
+    # machine where the reference is dual-stack.
     #
-    # Dietro un proxy IPv4 il filtro serve davvero (quell'IPv6 sarebbe un leak
-    # e un'incoerenza con l'IP HTTP); senza proxy non protegge niente e costa
-    # solo forma.
+    # Behind an IPv4 proxy the filter is genuinely useful (that IPv6 would be a
+    # leak and an inconsistency with the HTTP IP); without a proxy it protects
+    # nothing and only costs realism.
     from invisible_core.launch import build_launch_env
     from invisible_playwright._session import build_env
-    for costruisci in (lambda **k: build_launch_env({}, **k), build_env):
-        con = costruisci(timezone=None, srflx_dichiarato="203.0.113.77", base_env={})
-        assert con["STEALTHFOX_WEBRTC_DISABLE_IPV6"] == "1"
-        assert con["STEALTHFOX_WEBRTC_PUBLIC_IP"] == "203.0.113.77"
-        senza = costruisci(timezone=None, srflx_dichiarato=None, base_env={})
-        assert "STEALTHFOX_WEBRTC_DISABLE_IPV6" not in senza
-        assert "STEALTHFOX_WEBRTC_PUBLIC_IP" not in senza
+    for build_fn in (lambda **k: build_launch_env({}, **k), build_env):
+        env_with = build_fn(timezone=None, srflx_dichiarato="203.0.113.77", base_env={})
+        assert env_with["STEALTHFOX_WEBRTC_DISABLE_IPV6"] == "1"
+        assert env_with["STEALTHFOX_WEBRTC_PUBLIC_IP"] == "203.0.113.77"
+        env_without = build_fn(timezone=None, srflx_dichiarato=None, base_env={})
+        assert "STEALTHFOX_WEBRTC_DISABLE_IPV6" not in env_without
+        assert "STEALTHFOX_WEBRTC_PUBLIC_IP" not in env_without
     # peerconnection stays ON (a disabled WebRTC is itself a tell).
     assert prefs["media.peerconnection.enabled"] is True
 
@@ -516,173 +517,175 @@ def test_not_blocked_behind_tcp_only_socks(socks5_tcp_only):
 
 
 # ──────────────────────────────────────────────────────────────────────────
-#  L'IP di uscita non deve cambiare a META' SESSIONE.
+#  The egress IP must not change MID-SESSION.
 #
-#  Misurato il 2026-08-25 su browserleaks, dietro un proxy residenziale: la
-#  pagina usciva da 216.131.76.63 mentre il candidato WebRTC srflx annunciava
-#  216.131.76.64, e il sito lo dice in chiaro ("WebRTC IP doesn't match your
-#  Remote IP"). Non era una regressione del binario - A/B interleaved fra il
-#  binario di release e quello nuovo: 4 corse su 4 coerenti su entrambi.
+#  Measured on 2026-08-25 on browserleaks, behind a residential proxy: the
+#  page exited from 216.131.76.63 while the WebRTC srflx candidate announced
+#  216.131.76.64, and the site says so plainly ("WebRTC IP doesn't match your
+#  Remote IP"). It was not a regression in the binary - interleaved A/B between
+#  the release binary and the new one: 4 runs out of 4 consistent on both.
 #
-#  La causa e' che l'IP dichiarato al motore viene fotografato UNA volta, al
-#  lancio, e i proxy residenziali non promettono di tenerlo: le doc dei due
-#  provider provati dichiarano sessioni appiccicose a TEMPO (60 minuti al
-#  massimo per l'uno; timeout a scorrimento per l'altro, che decade anche prima
-#  se il peer si disconnette). Su una sessione lunga la deriva e' una certezza,
-#  non un rischio - ed e' per questo che le sonde brevi non la vedevano mai.
+#  The cause is that the IP declared to the engine is photographed ONCE, at
+#  launch, and residential proxies do not promise to keep it: the docs of the
+#  two providers tried declare TIME-based sticky sessions (60 minutes max for
+#  one; a sliding timeout for the other, which also expires early if the peer
+#  disconnects). On a long session the drift is a certainty, not a risk - which
+#  is why short probes never saw it.
 #
-#  Decisione del proprietario, 2026-08-25: non si aggiorna al volo. Un IP
-#  WebRTC che cambia sotto gli occhi del sito e' innaturale quanto il
-#  disaccordo. Un proxy che non tiene la sessione non e' adatto, e il prodotto
-#  deve DIRLO invece di continuare.
+#  Owner's decision, 2026-08-25: it is not updated on the fly. A WebRTC IP that
+#  changes in front of the site's own eyes is as unnatural as the mismatch
+#  itself. A proxy that does not hold the session is not fit for purpose, and
+#  the product must SAY SO instead of carrying on.
 # ──────────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.unit
-def test_una_uscita_che_non_cambia_non_fa_scattare_niente(monkeypatch):
-    """Il controllo deve TACERE quando il proxy si comporta bene."""
+def test_an_unchanged_egress_triggers_nothing(monkeypatch):
+    """The check must STAY SILENT when the proxy behaves well."""
     from invisible_playwright import _session
     monkeypatch.setattr("invisible_core._geo.discover_egress_ip",
                         lambda *a, **k: "203.0.113.5")
-    esito, attuale = _session.egress_ancora_valido(
+    outcome, current = _session.egress_ancora_valido(
         {"server": "http://p:1"}, "203.0.113.5")
-    assert esito == _session.USCITA_REGGE
-    assert attuale == "203.0.113.5"
+    assert outcome == _session.USCITA_REGGE
+    assert current == "203.0.113.5"
 
 
 @pytest.mark.unit
-def test_una_uscita_cambiata_viene_vista(monkeypatch):
-    """L'INPUT NOTO-CATTIVO. Senza questo, il controllo sopra non prova nulla."""
+def test_a_changed_egress_is_detected(monkeypatch):
+    """The KNOWN-BAD INPUT. Without this, the check above proves nothing."""
     from invisible_playwright import _session
     monkeypatch.setattr("invisible_core._geo.discover_egress_ip",
                         lambda *a, **k: "198.51.100.9")
-    esito, attuale = _session.egress_ancora_valido(
+    outcome, current = _session.egress_ancora_valido(
         {"server": "http://p:1"}, "203.0.113.5")
-    assert esito == _session.USCITA_DERIVATA
-    assert attuale == "198.51.100.9"
+    assert outcome == _session.USCITA_DERIVATA
+    assert current == "198.51.100.9"
 
 
 @pytest.mark.unit
-def test_una_scoperta_fallita_non_e_una_deriva(monkeypatch):
-    """Un problema di rete non si trasforma in un'accusa al proxy.
+def test_a_failed_discovery_is_not_a_drift(monkeypatch):
+    """A network problem does not turn into an accusation against the proxy.
 
-    Alzare `ProxyEgressDrifted` qui vorrebbe dire uccidere una sessione sana
-    ogni volta che un endpoint di echo e' irraggiungibile per un istante.
+    Raising `ProxyEgressDrifted` here would mean killing a healthy session
+    every time an echo endpoint is unreachable for an instant.
 
-    ⛔ MA IL NOME DI QUESTO TEST ERA GIUSTO E LA SUA ASSERZIONE NO. Fino al
-    2026-08-25 pretendeva `(True, None)`, cioe' chiedeva alla funzione di
-    rispondere **regge** dopo una misura che non era avvenuta. "Non e' una
-    deriva" e' vero; "quindi e' parita'" non segue, ed era il secondo mezzo
-    passo che nessuno aveva scritto. Adesso il test asserisce le due cose
-    separatamente: non e' deriva, E non e' conferma.
+    ⛔ BUT THIS TEST'S NAME WAS RIGHT AND ITS ASSERTION WAS NOT. Until
+    2026-08-25 it expected `(True, None)`, i.e. it asked the function to
+    answer **holds** after a measurement that had never happened. "It is not
+    a drift" is true; "therefore it is parity" does not follow, and that was
+    the second half-step nobody had written. The test now asserts the two
+    things separately: it is not a drift, AND it is not a confirmation.
     """
     from invisible_playwright import _session
 
-    def esplode(*a, **k):
-        raise RuntimeError("rete giu'")
+    def explode(*a, **k):
+        raise RuntimeError("network is down")
 
-    monkeypatch.setattr("invisible_core._geo.discover_egress_ip", esplode)
-    esito, attuale = _session.egress_ancora_valido(
+    monkeypatch.setattr("invisible_core._geo.discover_egress_ip", explode)
+    outcome, current = _session.egress_ancora_valido(
         {"server": "http://p:1"}, "203.0.113.5")
-    assert esito != _session.USCITA_DERIVATA, "un timeout non e' una deriva"
-    assert esito != _session.USCITA_REGGE, (
-        "e non e' nemmeno una conferma: nessuna misura e' avvenuta")
-    assert esito == _session.USCITA_NON_MISURABILE
-    assert attuale is None
+    assert outcome != _session.USCITA_DERIVATA, "a timeout is not a drift"
+    assert outcome != _session.USCITA_REGGE, (
+        "and it is not a confirmation either: no measurement took place")
+    assert outcome == _session.USCITA_NON_MISURABILE
+    assert current is None
 
 
 @pytest.mark.unit
-def test_le_due_classi_controllano_entrambe(monkeypatch):
-    """Il difetto che `_session.py` esiste per non ripetere.
+def test_both_classes_are_checked(monkeypatch):
+    """The defect that `_session.py` exists to not repeat.
 
-    Tre bug reali sono nati da una correzione arrivata a una sola delle due
-    classi. Questo test guarda che il controllo sia cablato in ENTRAMBE.
+    Three real bugs were born from a fix that reached only one of the two
+    classes. This test watches that the check is wired into BOTH.
 
-    ⛔ E SI LEGGE L'ALBERO SINTATTICO, non il testo del sorgente. La prima
-    stesura faceva `sorgente.count("_assert_uscita_invariata") == 2`, e quel
-    conteggio ha due difetti: pretende un numero ESATTO, quindi diventa rosso
-    quando si aggiunge un punto di controllo legittimo, e conta anche le
-    menzioni nei COMMENTI, quindi il numero non e' nemmeno quello delle
-    chiamate. Aggiungendo la sorveglianza su `context.new_page` sono diventate
-    4: tre chiamate e una menzione in un commento.
+    ⛔ AND IT READS THE SYNTAX TREE, not the source text. The first draft did
+    `sorgente.count("_assert_uscita_invariata") == 2`, and that count has two
+    defects: it expects an EXACT number, so it goes red the moment a legitimate
+    checkpoint is added, and it also counts mentions in COMMENTS, so the
+    number is not even the number of calls. Once surveillance on
+    `context.new_page` was added the count became 4: three calls and one
+    mention in a comment.
 
-    I punti sono TRE, e il terzo e' quello che mancava: `browser.new_context`,
-    `browser.new_page`, e **`context.new_page`**, che e' il modo NORMALE di
-    aprire una scheda. Senza il terzo, una sessione che apre un contesto e poi
-    N pagine faceva UN controllo solo, al primo istante. Misurato il
-    2026-08-25: al lancio l'uscita era una, nove schede dopo un'altra, e le due
-    comparivano insieme sulla stessa pagina di un rilevatore.
+    The checkpoints are THREE, and the third is the one that was missing:
+    `browser.new_context`, `browser.new_page`, and **`context.new_page`**,
+    which is the NORMAL way to open a tab. Without the third, a session that
+    opens one context and then N pages ran ONE check only, at the very first
+    instant. Measured on 2026-08-25: at launch the egress was one address,
+    nine tabs later another, and the two showed up together on the same
+    detector page.
     """
     import ast
     import inspect
     import textwrap
     from invisible_playwright import async_api, launcher
 
-    def _chiamate(fn):
-        albero = ast.parse(textwrap.dedent(inspect.getsource(fn)))
-        return [n for n in ast.walk(albero)
+    def _calls(fn):
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        return [n for n in ast.walk(tree)
                 if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", getattr(n.func, "id", None))
                 == "_assert_uscita_invariata"]
 
-    for modulo in (launcher, async_api):
-        fn = modulo.InvisiblePlaywright._patch_new_context_defaults
-        chiamate = _chiamate(fn)
-        assert len(chiamate) == 3, (
-            f"{modulo.__name__}: il controllo dell'uscita va cablato in TRE "
-            f"punti - browser.new_context, browser.new_page e "
-            f"context.new_page - e ne ho contati {len(chiamate)}. "
-            f"context.new_page e' il modo normale di aprire una scheda: senza, "
-            f"una sessione lunga smette di guardare dopo il primo istante")
+    for module in (launcher, async_api):
+        fn = module.InvisiblePlaywright._patch_new_context_defaults
+        calls = _calls(fn)
+        assert len(calls) == 3, (
+            f"{module.__name__}: the egress check must be wired into THREE "
+            f"places - browser.new_context, browser.new_page and "
+            f"context.new_page - and I counted {len(calls)}. "
+            f"context.new_page is the normal way to open a tab: without it, "
+            f"a long session stops watching after the very first instant")
 
 
 # ---------------------------------------------------------------------------
-# Il controllo dell'uscita ha TRE esiti, e il terzo e' quello che mancava.
+# The egress check has THREE outcomes, and the third is the one that was
+# missing.
 # ---------------------------------------------------------------------------
 
-def _con_sonda(monkeypatch, comportamento):
-    """Sostituisce la sonda di rete con `comportamento`, che puo' anche alzare."""
+def _with_probe(monkeypatch, behavior):
+    """Replaces the network probe with `behavior`, which may also raise."""
     from invisible_core import _geo
-    monkeypatch.setattr(_geo, "discover_egress_ip", comportamento)
+    monkeypatch.setattr(_geo, "discover_egress_ip", behavior)
 
 
-def test_una_sonda_caduta_non_e_una_conferma(monkeypatch):
-    """⛔ IL DIFETTO CHE QUESTO TEST ESISTE PER TENERE CHIUSO.
+def test_a_dropped_probe_is_not_a_confirmation(monkeypatch):
+    """⛔ THE DEFECT THIS TEST EXISTS TO KEEP CLOSED.
 
-    Fino al 2026-08-25 `egress_ancora_valido` tornava `(True, None)` quando la
-    sonda FALLIVA. Il commento accanto argomentava la meta' giusta - una
-    scoperta fallita non e' una deriva, ed e' vero - ma il valore restituito
-    diceva `regge`, cioe' affermava la parita' sulla base di una misura che non
-    era avvenuta. E' la stessa classe di `fppro_consistency.py`, che stampava
-    CONSISTENCY PASS quando `visitor_id` era muto in entrambi i giri.
+    Until 2026-08-25 `egress_ancora_valido` returned `(True, None)` when the
+    probe FAILED. The comment beside it argued the correct half - a failed
+    discovery is not a drift, and that is true - but the returned value said
+    `holds`, i.e. it asserted parity on the basis of a measurement that had
+    never happened. It is the same class as `fppro_consistency.py`, which
+    printed CONSISTENCY PASS when `visitor_id` was silent on both runs.
     """
     from invisible_playwright import _session
 
-    def esplode(*a, **k):
-        raise OSError("rete giu'")
+    def explode(*a, **k):
+        raise OSError("network is down")
 
-    _con_sonda(monkeypatch, esplode)
-    esito, ip = _session.egress_ancora_valido({"server": "socks5://x"}, "203.0.113.5")
-    assert esito == _session.USCITA_NON_MISURABILE, (
-        "una sonda caduta non puo' rispondere 'regge': non ha misurato niente")
-    assert esito != _session.USCITA_REGGE
+    _with_probe(monkeypatch, explode)
+    outcome, ip = _session.egress_ancora_valido({"server": "socks5://x"}, "203.0.113.5")
+    assert outcome == _session.USCITA_NON_MISURABILE, (
+        "a dropped probe cannot answer 'holds': it measured nothing")
+    assert outcome != _session.USCITA_REGGE
     assert ip is None
 
 
-def test_i_tre_esiti_sono_distinti_e_tutti_raggiungibili(monkeypatch):
+def test_the_three_outcomes_are_distinct_and_all_reachable(monkeypatch):
     from invisible_playwright import _session
 
-    _con_sonda(monkeypatch, lambda *a, **k: "203.0.113.5")
+    _with_probe(monkeypatch, lambda *a, **k: "203.0.113.5")
     assert _session.egress_ancora_valido({"server": "s"}, "203.0.113.5")[0] == _session.USCITA_REGGE
 
-    _con_sonda(monkeypatch, lambda *a, **k: "198.51.100.9")
-    derivata = _session.egress_ancora_valido({"server": "s"}, "203.0.113.5")
-    assert derivata[0] == _session.USCITA_DERIVATA
-    assert derivata[1] == "198.51.100.9", "l'IP attuale serve al messaggio di rifiuto"
+    _with_probe(monkeypatch, lambda *a, **k: "198.51.100.9")
+    drifted = _session.egress_ancora_valido({"server": "s"}, "203.0.113.5")
+    assert drifted[0] == _session.USCITA_DERIVATA
+    assert drifted[1] == "198.51.100.9", "the current IP feeds the rejection message"
 
-    def esplode(*a, **k):
+    def explode(*a, **k):
         raise RuntimeError("boom")
-    _con_sonda(monkeypatch, esplode)
+    _with_probe(monkeypatch, explode)
     assert (_session.egress_ancora_valido({"server": "s"}, "203.0.113.5")[0]
             == _session.USCITA_NON_MISURABILE)
 
@@ -690,21 +693,23 @@ def test_i_tre_esiti_sono_distinti_e_tutti_raggiungibili(monkeypatch):
                 _session.USCITA_NON_MISURABILE}) == 3
 
 
-def test_senza_proxy_non_c_e_niente_da_tradire():
-    """Diverso dagli altri due: qui non manca una misura, manca un obbligo."""
+def test_without_a_proxy_there_is_nothing_to_betray():
+    """Unlike the other two: here it is not a measurement that is missing, it
+    is an obligation."""
     from invisible_playwright import _session
     assert _session.egress_ancora_valido(None, None)[0] == _session.USCITA_REGGE
     assert _session.egress_ancora_valido({"server": "s"}, None)[0] == _session.USCITA_REGGE
 
 
-def test_una_raffica_di_sonde_mute_fa_rifiutare_la_sessione():
-    """Una cade: rete. Tre di fila: cecita', e la sessione non e' piu' difendibile."""
+def test_a_burst_of_silent_probes_rejects_the_session():
+    """One drop: network. Three in a row: blindness, and the session is no
+    longer defensible."""
     from invisible_playwright import _session
     from invisible_playwright.launcher import InvisiblePlaywright
 
     assert InvisiblePlaywright._MAX_USCITE_NON_MISURABILI >= 2, (
-        "rifiutare alla PRIMA sonda muta trasforma ogni timeout in un errore")
+        "rejecting on the FIRST silent probe turns every timeout into an error")
     assert issubclass(_session.ProxyEgressNonVerificabile, RuntimeError)
     assert _session.ProxyEgressNonVerificabile is not _session.ProxyEgressDrifted, (
-        "non misurabile e derivata sono due diagnosi diverse e vanno distinte "
-        "anche nel tipo, o chi cattura non puo' reagire diversamente")
+        "unmeasurable and drifted are two different diagnoses and must be "
+        "distinguished by type too, or a catch cannot react differently")

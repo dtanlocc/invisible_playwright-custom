@@ -22,17 +22,17 @@ from __future__ import annotations
 
 import os
 import sys
+from ._cursor import (ENGINE_BINARY,
+                      ENGINE_PYTHON,
+                      enable_for as _enable_cursor_engine,
+                      max_seconds_for as _cursor_max_seconds)
+from ._engine import resolve_executable
 from typing import Any, Dict, Optional
 
-from invisible_core import compose_session_prefs
+from invisible_core import compose_session_prefs, make_virtual_display
 from invisible_core.launch import (FontManifestMismatch,
                                    cached_font_manifest_path,
                                    verify_font_manifest)
-
-from ._cursor import (
-    ENGINE_BINARY,
-    max_seconds_for as _cursor_max_seconds,
-)
 
 __all__ = ["build_prefs", "true_headless_requested", "TRUE_HEADLESS_ENV",
            "ProxyEgressDrifted", "egress_ancora_valido"]
@@ -118,12 +118,12 @@ FONT_MANIFEST_ENV = "STEALTHFOX_FONT_MANIFEST"
 def build_env(
     *,
     timezone: Optional[str],
-    #: L'indirizzo da DICHIARARE come srflx, oppure None per non dichiarare
-    #: niente e lasciar passare quello vero. ⛔ NON e' l'IP di uscita: e' una
-    #: DECISIONE che il core prende in un punto solo, guardando le capacita'
-    #: dell'uscita (`SessionGeo.srflx_da_dichiarare`). Il nome vecchio,
-    #: `egress_ip`, diceva un'altra cosa e faceva sembrare la regola
-    #: "c'e' un proxy -> dichiara", che e' la domanda sbagliata.
+    #: The address to DECLARE as srflx, or None to declare nothing and let the
+    #: real one through. ⛔ This is NOT the egress IP: it is a DECISION the
+    #: core makes in a single place, looking at the capabilities of the egress
+    #: (`SessionGeo.srflx_da_dichiarare`). The old name, `egress_ip`, said
+    #: something else and made the rule look like "there's a proxy -> declare
+    #: it", which is the wrong question.
     srflx_dichiarato: Optional[str],
     profile: Any = None,
     executable: Optional[str] = None,
@@ -178,24 +178,24 @@ def build_env(
     webrtc_ip = env.get(WEBRTC_IP_ENV) or srflx_dichiarato
     if webrtc_ip:
         env[WEBRTC_IP_ENV] = webrtc_ip
-        # SOLO dietro un proxy, e la ragione e' una misura.
+        # ONLY behind a proxy, and the reason is a measurement.
         #
-        # Un Firefox retail su una connessione dual-stack emette un srflx IPv6
-        # con l'indirizzo globale VERO, in chiaro: l'offuscamento mDNS copre
-        # solo i candidati host. Dietro un proxy IPv4 quell'indirizzo sarebbe
-        # un leak e, peggio, un'incoerenza - HTTP esce dal proxy e WebRTC
-        # mostra casa. Quindi li' il filtro serve.
+        # A retail Firefox on a dual-stack connection emits an IPv6 srflx with
+        # the REAL global address, in the clear: mDNS obfuscation only covers
+        # host candidates. Behind an IPv4 proxy that address would be a leak
+        # and, worse, an inconsistency - HTTP goes out through the proxy and
+        # WebRTC shows home. So there the filter is needed.
         #
-        # Senza proxy non protegge da NIENTE e costa forma: misurato il
-        # 2026-08-25 contro il retail installato sulla stessa connessione, il
-        # retail emette 6 candidati (host UDP x2, host TCP x2, srflx v4, srflx
-        # v6) e noi ne emettevamo 3. Sembravamo una macchina IPv4-only dove il
-        # riferimento e' dual-stack.
+        # Without a proxy it protects against NOTHING and costs form: measured
+        # on 2026-08-25 against the retail install on the same connection, the
+        # retail emits 6 candidates (host UDP x2, host TCP x2, srflx v4, srflx
+        # v6) while we were emitting 3. We looked like an IPv4-only machine
+        # where the reference is dual-stack.
         #
-        # Prima di oggi questo `if` non c'entrava: il filtro era acceso sempre
-        # dalla pref `zoom.stealth.webrtc.disable_ipv6`, che l'ambiente si
-        # limitava a scavalcare. Tolta la seconda fonte, la condizione e'
-        # diventata esprimibile in una riga.
+        # Before today this `if` was not involved: the filter was always
+        # turned on by the pref `zoom.stealth.webrtc.disable_ipv6`, which the
+        # environment only overrode. With the second source removed, the
+        # condition became expressible in one line.
         env[WEBRTC_NO_IPV6_ENV] = "1"
     return env
 
@@ -210,6 +210,7 @@ def build_prefs(
     virtual_display: bool,
     cursor_engine: str,
     humanize: Any,
+    show_cursor: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Fingerprint prefs plus the humanize toggle, which is always set explicitly.
 
@@ -238,6 +239,12 @@ def build_prefs(
     #              than passing `humanize` through, because a falsy-but-numeric
     #              cap with the binary engine selected has to mean the default,
     #              not "off".
+    #   show_cursor  Passed through UNTRANSLATED, and that is the difference
+    #              from the line above: `humanize` needs a decision here
+    #              because two engines compete for it, while the visible dot
+    #              has exactly one meaning and the core owns it. Anything this
+    #              function computed about it would be a second place that
+    #              knows, which is the defect the paragraph above is about.
     #
     # The namespace MUST be stealthfox.* - that is what the binary's Juggler
     # reads. An earlier `invisible_playwright.*` spelling was a dead no-op, so
@@ -247,56 +254,56 @@ def build_prefs(
         locale=locale,
         timezone=timezone,
         extra_prefs=extra_prefs,
-        # Il valore VERO, non una congettura: B172, 2026-08-24. Chi
-        # chiama passa il risultato reale di make_virtual_display() - se
-        # non ha creato niente (sempre il caso su Windows, dove il cloak
-        # ha sostituito il desktop alternativo), qui e' False, e i
-        # workaround del sandbox pensati per quel desktop non si
-        # applicano.
+        # The REAL value, not a guess: B172, 2026-08-24. The caller
+        # passes the actual result of make_virtual_display() - if it
+        # created nothing (always the case on Windows, where the cloak
+        # has replaced the alternate desktop), this is False here, and
+        # the sandbox workarounds meant for that desktop do not apply.
         virtual_display=virtual_display,
         cloak=bool(headless and sys.platform in ("win32", "darwin")),
         humanize=(_cursor_max_seconds(humanize)
                   if cursor_engine == ENGINE_BINARY else False),
+        show_cursor=show_cursor,
     ).prefs
 
 
 class ProxyEgressDrifted(RuntimeError):
-    """L'IP di uscita e' cambiato a META' SESSIONE.
+    """The egress IP changed MID-SESSION.
 
-    Non e' una condizione da cui il prodotto possa riprendersi, ed e' voluto che
-    sia un errore invece di un aggiornamento silenzioso.
+    This is not a condition the product can recover from, and it is deliberate
+    that it is an error instead of a silent update.
 
-    L'IP che dichiariamo al motore per il candidato WebRTC srflx viene scoperto
-    UNA volta, al lancio. Se l'uscita cambia dopo, la pagina esce da un indirizzo
-    e WebRTC ne annuncia un altro: e' esattamente il confronto che i rilevatori
-    fanno ("WebRTC IP doesn't match your Remote IP"), e nessun Firefox su una
-    connessione vera lo produce.
+    The IP we declare to the engine for the WebRTC srflx candidate is
+    discovered ONCE, at launch. If the egress changes afterwards, the page
+    exits from one address and WebRTC announces another: it is exactly the
+    comparison detectors make ("WebRTC IP doesn't match your Remote IP"), and
+    no Firefox on a real connection produces it.
 
-    Aggiornare il valore al volo sarebbe peggio, non meglio: il sito vedrebbe
-    l'IP WebRTC cambiare sotto i propri occhi a meta' sessione, che e' un
-    segnale altrettanto innaturale. Se l'uscita non regge per la durata della
-    sessione, quel proxy non e' sticky e non e' utilizzabile per questo scopo.
+    Updating the value on the fly would be worse, not better: the site would
+    see the WebRTC IP change before its own eyes mid-session, which is just as
+    unnatural a signal. If the egress does not hold for the duration of the
+    session, that proxy is not sticky and is not usable for this purpose.
 
-    Misurato il 2026-08-25: i due provider provati dichiarano entrambi sessioni
-    appiccicose a TEMPO (60 minuti al massimo per l'uno, timeout a scorrimento
-    per l'altro, che decade anche prima se il peer residenziale si disconnette),
-    quindi su una sessione abbastanza lunga la deriva non e' un rischio: e' una
-    certezza.
+    Measured on 2026-08-25: the two providers tried both declare sessions
+    sticky by TIME (60 minutes at most for one, a sliding timeout for the
+    other, which decays even earlier if the residential peer disconnects), so
+    on a long enough session the drift is not a risk: it is a certainty.
     """
 
 
 class ProxyEgressNonVerificabile(RuntimeError):
-    """L'uscita non si e' potuta MISURARE, ripetutamente.
+    """The egress could not be MEASURED, repeatedly.
 
-    Non e' deriva e non e' parita': e' assenza di misura. Un proxy che non
-    risponde alla sonda per piu' controlli di fila non e' un proxy che regge,
-    e' un proxy su cui stiamo volando alla cieca mentre il motore continua a
-    dichiarare a ogni pagina un indirizzo che nessuno sta piu' confermando.
+    This is not drift and it is not parity: it is absence of measurement. A
+    proxy that does not answer the probe for several checks in a row is not a
+    proxy that holds, it is a proxy we are flying blind on while the engine
+    keeps declaring to every page an address that nobody is confirming any
+    more.
     """
 
 
-#: I tre esiti del controllo. Sono TRE e non due apposta: vedi il perche' nella
-#: docstring di `egress_ancora_valido`.
+#: The three outcomes of the check. There are THREE and not two on purpose:
+#: see why in the docstring of `egress_ancora_valido`.
 USCITA_REGGE = "regge"
 USCITA_DERIVATA = "derivata"
 USCITA_NON_MISURABILE = "non_misurabile"
@@ -305,32 +312,34 @@ USCITA_NON_MISURABILE = "non_misurabile"
 def egress_ancora_valido(proxy: Optional[Dict[str, str]],
                          atteso: Optional[str],
                          *, timeout: int = 20) -> "tuple[str, Optional[str]]":
-    """(esito, ip_attuale), con esito fra i tre `USCITA_*`.
+    """(outcome, current_ip), with outcome among the three `USCITA_*`.
 
-    ⛔ GLI ESITI SONO TRE PERCHE' DUE MENTONO. Fino al 2026-08-25 questa
-    funzione tornava `(True, None)` quando la sonda FALLIVA, con un commento che
-    argomentava bene la meta' giusta della cosa - "una scoperta fallita non e'
-    una deriva", ed e' vero, non si trasforma un problema di rete in un'accusa
-    al proxy. Ma il valore restituito diceva `regge`, cioe' **affermava la
-    parita' sulla base di una misura che non era avvenuta**.
+    ⛔ THERE ARE THREE OUTCOMES BECAUSE TWO LIE. Until 2026-08-25 this function
+    returned `(True, None)` when the probe FAILED, with a comment that argued
+    the right half of the thing well - "a failed discovery is not a drift",
+    and that is true, a network problem is not turned into an accusation
+    against the proxy. But the returned value said `regge` (holds), i.e. it
+    **asserted parity on the basis of a measurement that had not taken
+    place**.
 
-    E' la stessa classe di difetto che questo progetto ha gia' pagato due volte
-    e corretto due volte:
+    It is the same class of defect this project has already paid for twice
+    and fixed twice:
 
-    - `fppro_consistency.py` stampava CONSISTENCY PASS quando `visitor_id` era
-      muto in ENTRAMBI i giri, perche' due `None` risultano identici. Ha un
-      terzo esito dal 2026-08-15, uscita 2 = NON INTERPRETABILE.
-    - `repair_core` metteva `verdict = None` sotto un handler che diceva "a
-      broken probe is not a licence", sopra un test `verdict is not None` che
-      poi lasciava proseguire la reinstallazione.
+    - `fppro_consistency.py` printed CONSISTENCY PASS when `visitor_id` was
+      mute in BOTH runs, because two `None`s come out identical. It has had a
+      third outcome since 2026-08-15, exit code 2 = NOT INTERPRETABLE.
+    - `repair_core` set `verdict = None` under a handler that said "a broken
+      probe is not a licence", above a test `verdict is not None` that then
+      let the reinstall proceed.
 
-    Il chiamante ora distingue: su `USCITA_DERIVATA` rifiuta subito, su
-    `USCITA_NON_MISURABILE` conta e rifiuta solo se si ripete, perche' una
-    sonda che cade una volta e' rete e una che cade sempre e' cecita'.
+    The caller now distinguishes: on `USCITA_DERIVATA` it refuses right away,
+    on `USCITA_NON_MISURABILE` it counts and refuses only if it repeats,
+    because a probe that fails once is the network and one that always fails
+    is blindness.
 
-    Il caso senza proxy o senza valore atteso resta `USCITA_REGGE`, ed e'
-    diverso dagli altri due: li' non c'e' niente da tradire, non c'e' una misura
-    mancata.
+    The case with no proxy or no expected value stays `USCITA_REGGE`, and it
+    is different from the other two: there is nothing to betray there, no
+    measurement was missed.
     """
     if not proxy or not atteso:
         return USCITA_REGGE, None
@@ -340,3 +349,158 @@ def egress_ancora_valido(proxy: Optional[Dict[str, str]],
     except Exception:
         return USCITA_NON_MISURABILE, None
     return (USCITA_REGGE if attuale == atteso else USCITA_DERIVATA), attuale
+
+
+class CommonLaunch:
+    """The six methods both entry points had, written once.
+
+    ⛔ THE DUPLICATION THIS CLOSES IS THE ONE THIS FILE WAS CREATED FOR, and it
+    survived the file's own creation. `_session` was written on 2026-07-27 to
+    hold what the sync and async classes share, and it did extract the
+    functions - `build_env`, `build_prefs`, `true_headless_requested`. What it
+    left behind were the METHODS that call them: six of them, in both classes,
+    with bodies that are identical byte for byte once the docstrings are
+    removed. 222 lines saying the same thing twice.
+
+    The measurement that says it is the same thing: the two classes use the
+    SAME FOURTEEN attributes of `self` across those six methods, and the ASTs
+    of the bodies compare equal. What made them look different - similarity
+    ratios between 32% and 69% - was entirely comments worded differently.
+
+    ⛔ AND THE COST OF THE SPLIT IS NOT HYPOTHETICAL. The three defects listed
+    at the top of this file all have the same shape, and one of them is in the
+    code that moved here: `INVPW_TRUE_HEADLESS` was honoured by the async class
+    alone, so a documented environment variable worked or not depending on
+    which entry point the caller had picked.
+
+    ⛔ WHAT THIS CLASS EXPECTS, said out loud because a mixin's contract is
+    otherwise invisible: both subclasses set `seed`, `_binary_path`,
+    `_cursor_engine`, `_extra_prefs`, `_headless`, `_humanize`,
+    `_lifetime_guard`, `_locale`, `_profile`, `_session_token`, `_show_cursor`,
+    `_srflx_dichiarato`, `_timezone` and `_virtual_display` in their own
+    `__init__`. They already did, identically, which is why this works at all.
+    """
+
+    def _resolve_headless(self) -> bool:
+        """Translate the user's ``headless`` flag.
+
+        When ``True``, Firefox stays in headed mode (real rendering pipeline →
+        coherent fingerprint) and the window is hidden: on Linux via a fresh
+        Xvfb spawned here; on Windows/macOS via the binary's own window cloak
+        (the ``zoom.stealth.cloak_windows`` pref added in ``_build_prefs``), so
+        ``make_virtual_display()`` returns ``None`` and nothing is spawned.
+        """
+        if not self._headless:
+            return False
+        # Opt-in TRUE headless, shared with the async class. It existed on the
+        # async API ONLY until 2026-07-27: a documented env var that worked
+        # depending on which entry point the caller happened to pick, which is
+        # the same drift that shipped the process-leak fix to half the users.
+        if true_headless_requested():
+            return True
+        vd = make_virtual_display()
+        if vd is not None:
+            vd.start()
+            self._virtual_display = vd
+        return False
+
+    def _default_context_kwargs(self) -> Dict[str, Any]:
+        p = self._profile
+        kwargs: Dict[str, Any] = {
+            "viewport":            {"width":  p.screen.width  - p.screen.chrome_w,
+                                     "height": (p.screen.height
+                                                - p.screen.taskbar_px
+                                                - p.screen.chrome_h)},
+            "screen":              {"width": p.screen.width, "height": p.screen.height},
+            # ⛔ device_scale_factor and color_scheme are NO LONGER passed.
+            # They were a second source for two facts invisible_core already
+            # declares (layout.css.devPixelsPerPx and, since 2026-08-24,
+            # layout.css.prefers-color-scheme.content-override), and this one
+            # won: measured, setting the pref to a different value the
+            # browser did not move. Now there is only one path.
+        }
+        # Pass timezone via Playwright's per-realm override (docShell.overrideTimezone
+        # → JS::SetRealmTimezoneOverride). The juggler.timezone.override pref path
+        # uses JS::SetTimeZoneOverride globally, which is broken on Windows ICU for
+        # no-DST IANA names (America/Phoenix, Pacific/Honolulu, ...) - those silently
+        # fall back to the host system TZ. The per-realm path works for every zone.
+        if self._timezone:
+            kwargs["timezone_id"] = self._timezone
+        if self._locale:
+            kwargs["locale"] = self._locale
+        return kwargs
+
+    def _build_env(self, prefs: Dict[str, Any]) -> Dict[str, str]:
+        """Env for the Firefox subprocess, then stamped with this session's token.
+
+        The body is `build_env`, shared with the async class - it was
+        written twice, identically, and the WebRTC pair is a contract with the
+        binary, so two landing sites meant two chances to miss a change.
+
+        The token stamp stays here because it is the only genuinely per-session
+        part: children inherit the environment, so every process in the tree
+        carries it and teardown can find its own tree and only its own.
+        """
+        return self._session_token.stamp(
+            build_env(timezone=self._timezone,
+                               srflx_dichiarato=self._srflx_dichiarato,
+                               profile=self._profile,
+                               executable=resolve_executable(self._binary_path)))
+
+    def _build_prefs(self) -> Dict[str, Any]:
+        """Fingerprint prefs plus humanize toggle (always set explicitly).
+
+        The body lives in `build_prefs`, which the async class calls
+        too. It used to be twenty lines here and the SAME twenty inlined into
+        `async_api.__aenter__` - identical calls in identical order, differing
+        only in their comments, which is how the two entry points drift.
+        """
+        return build_prefs(
+            profile=self._profile,
+            locale=self._locale,
+            timezone=self._timezone,
+            extra_prefs=self._extra_prefs,
+            headless=self._headless,
+            virtual_display=self._virtual_display is not None,
+            cursor_engine=self._cursor_engine,
+            humanize=self._humanize,
+            show_cursor=self._show_cursor,
+        )
+
+    def _arm_cursor_engine(self, owner: Any) -> None:
+        """Register this session so its pages move through the Python generator.
+
+        Registered on the browser (or on the persistent context, which is all
+        there is in that mode) rather than on each page: pages appear by
+        several routes we do not control - ``browser.new_page()`` builds its
+        context inside the driver, and a site can open a popup on its own - and
+        every one of them can find its way back to this owner. The seed is the
+        session seed, so a replayed seed replays the cursor exactly as it
+        replays the fingerprint.
+        """
+        if self._cursor_engine != ENGINE_PYTHON:
+            return
+        _enable_cursor_engine(
+            owner, seed=self.seed, max_seconds=_cursor_max_seconds(self._humanize)
+        )
+
+    def _bind_process_tree(self) -> None:
+        """Tie the browser tree to this process's lifetime, at the OS level.
+
+        MEASURED before being written, because the first attempt at this fixed
+        a path that was not broken: an exception out of the `with` block does
+        NOT leak - __exit__ runs and Playwright cleans up, zero survivors over
+        an interleaved A/B. The leak is the killed-runner path, where __exit__
+        never executes at all: launch, kill the runner, and eight processes
+        were still alive; twelve on the second attempt. Nothing written inside
+        _teardown can reach that, so the guarantee comes from a Windows job
+        object that the kernel empties when this process's handle closes,
+        however this process ends.
+
+        Best-effort by construction: a failure here leaves the pre-existing
+        behaviour rather than breaking a launch that is otherwise fine.
+        """
+        try:
+            self._lifetime_guard.bind(self._session_token)
+        except Exception:
+            pass

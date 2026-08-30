@@ -36,34 +36,34 @@ from pathlib import Path
 
 # The canonical Windows-11 family set the bundle exposes. Verified byte-for-byte
 # identical on Windows/DWrite and Linux/fontconfig; macOS/CoreText must match it
-# too. Questi sono i record `F|` che `invisible_core` dichiara.
+# too. These are the `F|` records that `invisible_core` declares.
 #
-# ⛔ E' UN LETTERALE, e il motivo NON e' pigrizia: verificato il 2026-08-17
-# leggendo il workflow che lo esegue. Il font gate gira dentro `release.yml`
-# del repo SORGENTE, in un job che fa il checkout di QUESTO repo ma installa
-# soltanto `playwright==...` e niente altro. Farlo derivare da `invisible_core`
-# e' la forma che la regola 16 chiede, e' stata scritta e provata, funziona in
-# locale, e fa morire di ImportError OGNI rilascio.
+# ⛔ THIS IS A LITERAL, and the reason is NOT laziness: verified 2026-08-17 by
+# reading the workflow that runs it. The font gate runs inside `release.yml`
+# of the SOURCE repo, in a job that checks out THIS repo but installs only
+# `playwright==...` and nothing else. Deriving it from `invisible_core` is the
+# form rule 16 asks for, was written and tried, works locally, and kills EVERY
+# release with an ImportError.
 #
-# E c'e' una seconda ragione, che sopravvive anche se un giorno quel job
-# installasse il core: quando la pipeline gira, il core PUBBLICATO e' ancora
-# quello del rilascio precedente, perche' il core si pubblica DOPO che il
-# binario esiste (17-release-seal-spec.md §9). Derivare da li' misurerebbe il
-# binario nuovo contro la dichiarazione vecchia.
+# And there is a second reason, which survives even if that job someday
+# installed the core: when the pipeline runs, the PUBLISHED core is still the
+# one from the previous release, because the core is published AFTER the
+# binary exists (17-release-seal-spec.md §9). Deriving from there would
+# measure the new binary against the old declaration.
 #
-# Cio' che rende sicuro il letterale non e' l'attenzione di chi lo edita: e'
-# `test_the_family_list_in_the_gate_matches_the_core_manifest`, in
-# `tests/test_ci_font_gate_declaration.py` di questo repo, dove il core C'E'.
-# Quel test non esisteva: era DOCUMENTATO come esistente e basta, ed e'
-# esattamente per questo che la lista ha potuto restare a 68 mentre il manifest
-# passava a 71 (le due Segoe di icone piu' Twemoji Mozilla).
+# What keeps the literal honest is not the attention of whoever edits it: it
+# is `test_the_family_list_in_the_gate_matches_the_core_manifest`, in
+# `tests/test_ci_font_gate_declaration.py` of this repo, where the core IS
+# present. That test did not exist: it was DOCUMENTED as existing and nothing
+# more, and that is exactly why the list was able to stay at 68 while the
+# manifest moved to 71 (the two icon Segoes plus Twemoji Mozilla).
 #
-# ⛔ E LA DERIVA NON DA' UN ROSSO, DA' UN VERDE: misurato il 2026-08-17 sul
-# binario vero. La sonda interroga `EXPECTED + HOST_MUST_BE_ABSENT` e nient'
-# altro, quindi una famiglia tolta di qui smette anche di essere CERCATA: con
-# le tre mancanti il gate ha stampato `detected 68 families (expected 68)` e
-# `FONT GATE OK`, uscita 0, su un binario che ne espone 71. Un gate d'accordo
-# con se' stesso non vede la propria deriva.
+# ⛔ AND THE DRIFT DOES NOT GIVE A RED, IT GIVES A GREEN: measured 2026-08-17
+# on the real binary. The probe queries `EXPECTED + HOST_MUST_BE_ABSENT` and
+# nothing else, so a family removed from here also stops being LOOKED FOR:
+# with the three missing, the gate printed `detected 68 families (expected
+# 68)` and `FONT GATE OK`, exit 0, on a binary that exposes 71. A gate that
+# agrees with itself cannot see its own drift.
 EXPECTED = [
     "Arial", "Bahnschrift", "Calibri", "Cambria", "Cambria Math", "Candara",
     "Comic Sans MS", "Consolas", "Constantia", "Corbel", "Courier New",
@@ -120,13 +120,13 @@ GENERICS = {
 # and JhengHei (they already fall back on firefox-17, so requiring them would
 # fail the known-good build). Keep this list as a regression detector, not an
 # aspiration: everything here loads on firefox-17 and must keep loading.
-#: Un seme fisso, perche' le metriche dichiarate dipendono dal profilo e un
-#: gate che cambia numeri a ogni giro non e' un gate.
+#: A fixed seed, because the declared metrics depend on the profile and a
+#: gate that changes numbers on every run is not a gate.
 _SEED = 970411
 
-#: COPIA di zoom.stealth.fonts.generics come lo dichiara invisible_core.
-#: Costante fra i semi (verificato su 5). Legata al core dal test
-#: test_ci_font_gate_generics_match_the_core, che diventa rosso se divergono.
+#: COPY of zoom.stealth.fonts.generics as invisible_core declares it.
+#: Constant across seeds (verified on 5). Tied to the core by the test
+#: test_ci_font_gate_generics_match_the_core, which turns red if they diverge.
 GENERICS_DECL = (
     "cursive||Comic Sans MS\n"
     "serif|x-math|Cambria Math\n"
@@ -161,29 +161,29 @@ TTC_FAMILIES = [
     "MingLiU-ExtB", "PMingLiU-ExtB",
 ]
 
-#: Le famiglie qui sopra raggruppate per FACCIA, misurate dalla scatola
-#: d'inchiostro. E' l'invariante su cui poggia il controllo, e dice due cose in
-#: una: che ogni faccia carica (una faccia che non carica cade nel gruppo del
-#: ripiego, e il raggruppamento cambia) e che le due piattaforme rispondono
-#: uguale (i valori sono identici, non solo i gruppi).
+#: The families above grouped by FACE, measured from the ink box. This is the
+#: invariant the check rests on, and it says two things at once: that every
+#: face loads (a face that does not load falls into the fallback group, and
+#: the grouping changes) and that the two platforms answer the same way (the
+#: values are identical, not just the groups).
 #:
-#: Il gruppo del RIPIEGO contiene YaHei perche' YaHei E' la faccia di ripiego
-#: per il CJK - misurato ai pixel: chiedendo un font inesistente si ottengono
-#: esattamente i suoi glifi. MingLiU-ExtB e PMingLiU-ExtB stanno li' per un
-#: motivo diverso e altrettanto corretto: sono font dell'Estensione B e la loro
-#: cmap NON copre nessuno dei caratteri della sonda, quindi il ripiego disegna
-#: come deve. Il vecchio controllo chiedeva "questa famiglia misura diverso da
-#: NESSUN font?" e su queste quattro rispondeva no, deducendone che la faccia
-#: non fosse caricata: la domanda era mal posta, perche' la faccia di ripiego e'
-#: essa stessa una delle famiglie imbarcate.
+#: The FALLBACK group contains YaHei because YaHei IS the CJK fallback face -
+#: measured at the pixel level: asking for a nonexistent font produces exactly
+#: its glyphs. MingLiU-ExtB and PMingLiU-ExtB sit there for a different and
+#: equally correct reason: they are Extension-B fonts and their cmap does NOT
+#: cover any of the probe's characters, so the fallback draws as it should.
+#: The old check asked "does this family measure differently from NO font?"
+#: and on these four it answered no, deducing that the face had not loaded:
+#: the question was ill-posed, because the fallback face is itself one of the
+#: bundled families.
 EXPECTED_FACE_GROUPS = [
-    # Il gruppo del RIPIEGO. Contiene YaHei perche' YaHei E' la faccia di
-    # ripiego per il CJK, misurato ai pixel: chiedendo un font inesistente si
-    # ottengono esattamente i suoi glifi. MingLiU-ExtB e PMingLiU-ExtB stanno
-    # qui per un motivo diverso e altrettanto corretto: sono facce
-    # dell'Estensione B e la loro cmap non copre NESSUNO dei caratteri della
-    # sonda (verificato leggendo la cmap dei file imbarcati), quindi il ripiego
-    # disegna come deve.
+    # The FALLBACK group. Contains YaHei because YaHei IS the CJK fallback
+    # face, measured at the pixel level: asking for a nonexistent font
+    # produces exactly its glyphs. MingLiU-ExtB and PMingLiU-ExtB sit here for
+    # a different and equally correct reason: they are Extension-B faces and
+    # their cmap does not cover ANY of the probe's characters (verified by
+    # reading the cmap of the bundled files), so the fallback draws as it
+    # should.
     {"Microsoft YaHei", "Microsoft YaHei UI", "MingLiU-ExtB",
      "PMingLiU-ExtB", "__NoSuchFontXYZ__"},
     {"Microsoft JhengHei", "Microsoft JhengHei UI"},
@@ -219,15 +219,15 @@ DETECT_JS = r"""(arg) => {
   for (const g of arg.generics) gen[g] = size(g);
   const genref = {};
   for (const w of arg.targets) genref[w] = size("'" + w + "'");
-  // La scatola d'INCHIOSTRO di measureText per una stringa CJK, famiglia per
-  // famiglia. Non i pixel e non l'altezza di riga, per due ragioni misurate:
-  //   - l'altezza di riga e' un valore che DICHIARIAMO noi, quindi famiglie
-  //     diverse possono legittimamente condividerla e il confronto non
-  //     distingue piu' niente;
-  //   - i pixel di un canvas con testo non sono leggibili su Linux (voce
+  // The INK box of measureText for a CJK string, family by family. Not the
+  // pixels and not the line height, for two measured reasons:
+  //   - line height is a value WE DECLARE, so different families can
+  //     legitimately share it and the comparison stops distinguishing
+  //     anything;
+  //   - the pixels of a canvas with text are not readable on Linux (entry
   //     2026-08-11 in 70-known-bugs.md).
-  // La scatola d'inchiostro e' geometria derivata dai glifi: misurata
-  // 2026-08-11 e' identica alla terza cifra fra Windows e Linux.
+  // The ink box is geometry derived from the glyphs: measured 2026-08-11 it
+  // is identical to the third digit between Windows and Linux.
   const c = document.createElement('canvas');
   const cx = c.getContext('2d');
   const inkbox = {};
@@ -242,37 +242,38 @@ DETECT_JS = r"""(arg) => {
   return { present, gen, genref, inkbox };
 }"""
 
-# ⛔ QUI STAVANO QUATTRO PREFS CHE SPEGNEVANO IL NEWTAB, tolte il 2026-08-20 col
-# revert del newtab, per la stessa ragione di `ci_drive_gate.py`: il prodotto non
-# le spedisce piu', e un banco che gira in una configurazione diversa da quella
-# spedita misura un'altra cosa.
+# ⛔ FOUR PREFS THAT DISABLED THE NEWTAB USED TO SIT HERE, removed 2026-08-20
+# with the newtab revert, for the same reason as `ci_drive_gate.py`: the
+# product no longer ships them, and a bench that runs in a configuration
+# different from what ships measures a different thing.
 #
-# Il commento diceva "mirrors ci_drive_gate", e gia' non era vero: erano QUATTRO
-# qui contro SEI la', divergenti da chissa' quando. E' il difetto che questa
-# rimozione chiude alla radice invece di riallineare: adesso non c'e' nessuna
-# lista da tenere in pari, perche' non ce n'e' nessuna.
+# The comment used to say "mirrors ci_drive_gate", and that was already false:
+# it was FOUR here against SIX there, diverged who knows since when. This
+# removal closes the defect at its root instead of realigning it: now there is
+# no list to keep in sync, because there is no list at all.
 #
-# La gara che queste prefs volevano evitare non esiste piu' da nessuna parte:
-# non era Fission, era il browser preallocato della nuova scheda che si prendeva
-# il canale della pagina, ed e' corretto nel motore dal 2026-08-23
-# (`20-our-patches.md` §5.2w). Nessun gate aspetta piu' niente.
+# The race these prefs meant to avoid no longer exists anywhere: it was not
+# Fission, it was the preallocated new-tab browser grabbing the page's
+# channel, and it has been fixed in the engine since 2026-08-23
+# (`20-our-patches.md` §5.2w). No gate waits on anything anymore.
 _PREFS: dict = {}
 
 
-# ── Il limite strutturale di questo gate, misurato e non dedotto ──────────
+# ── The structural limit of this gate, measured and not inferred ─────────
 #
-# Una pagina non puo' ENUMERARE i font di sistema: puo' solo chiedere nome per
-# nome. Quindi la sonda interroga `EXPECTED + HOST_MUST_BE_ABSENT` e nient'altro,
-# e da qui segue una cosa che va detta invece che scoperta: **una famiglia tolta
-# da EXPECTED smette anche di essere CERCATA**, quindi il conteggio torna e il
-# gate passa. Verificato 2026-08-11 come mutazione: cancellando "Georgia"
-# dall'elenco il gate ha risposto "detected 67 families (expected 67)" e OK.
+# A page cannot ENUMERATE the system fonts: it can only ask name by name. So
+# the probe queries `EXPECTED + HOST_MUST_BE_ABSENT` and nothing else, and
+# from that follows something that needs to be said rather than discovered:
+# **a family removed from EXPECTED also stops being LOOKED FOR**, so the count
+# comes out even and the gate passes. Verified 2026-08-11 as a mutation:
+# deleting "Georgia" from the list, the gate answered "detected 67 families
+# (expected 67)" and OK.
 #
-# Non e' correggibile dall'interno: e' il motivo per cui l'elenco esiste. La
-# conseguenza pratica e' che HOST_MUST_BE_ABSENT deve restare GENEROSO, perche'
-# e' l'unico posto da cui puo' arrivare la scoperta di un font dell'host che non
-# ci aspettavamo. Un nome che non e' in nessuna delle due liste e' invisibile a
-# questo gate per costruzione.
+# It cannot be fixed from the inside: it is the reason the list exists. The
+# practical consequence is that HOST_MUST_BE_ABSENT must stay GENEROUS,
+# because it is the only place from which the discovery of an unexpected host
+# font can arrive. A name that is in neither list is invisible to this gate
+# by construction.
 
 
 def main(exe: str) -> int:
@@ -285,56 +286,58 @@ def main(exe: str) -> int:
         "ttc": TTC_FAMILIES,
         "cjk": "中文字体測試あア漢字",
     }
-    # Lancio GREZZO, e una dichiarazione consegnata a mano. Il job di gate in CI
-    # installa solo Playwright: invisible_core non c'e' e non puo' esserci senza
-    # cambiare il workflow, cioe' senza ricostruire i cinque archivi.
+    # RAW launch, and a hand-delivered declaration. The CI gate job installs
+    # only Playwright: invisible_core is not there and cannot be without
+    # changing the workflow, i.e. without rebuilding the five archives.
     #
-    # La sola cosa che manca a un motore lanciato grezzo e' la mappa dei
-    # generici. Misurato 2026-08-11 sullo stesso binario: senza,
-    # serif/sans-serif/monospace/cursive/fantasy collassano TUTTI su Arial su
-    # Linux (su Windows no, perche' li' i default di Gecko coincidono per caso
-    # con la persona che dichiariamo); con, mappano su Times New Roman, Arial,
-    # Consolas e Comic Sans su ENTRAMBE, con gli stessi numeri.
+    # The only thing missing from a rawly-launched engine is the generics map.
+    # Measured 2026-08-11 on the same binary: without it,
+    # serif/sans-serif/monospace/cursive/fantasy ALL collapse onto Arial on
+    # Linux (not on Windows, because there Gecko's defaults happen to coincide
+    # with the persona we declare); with it, they map onto Times New Roman,
+    # Arial, Consolas and Comic Sans on BOTH, with the same numbers.
     #
-    # GENERICS_DECL sotto e' una COPIA di cio' che invisible_core dichiara, ed
-    # e' l'unica del progetto. Non puo' divergere in silenzio: la lega il test
-    # test_ci_font_gate_generics_match_the_core, che confronta questa stringa
-    # con quella prodotta dal core e diventa rosso se si separano.
+    # GENERICS_DECL below is a COPY of what invisible_core declares, and it is
+    # the only one in the project. It cannot diverge silently: it is tied by
+    # the test test_ci_font_gate_generics_match_the_core, which compares this
+    # string against the one the core produces and turns red if they part
+    # ways.
     from playwright.sync_api import sync_playwright
 
     prefs = dict(_PREFS)
     prefs["zoom.stealth.fonts.generics"] = GENERICS_DECL
 
-    # ⛔ Le prefs si scrivono nel PROFILO, non si mandano sul protocollo.
-    # Fino a firefox-20 questo era `launch(firefox_user_prefs=prefs)`, che
-    # Playwright consegna al browser dentro `Browser.enable` - cioe' DOPO
-    # l'avvio. Da firefox-21 il motore lo RIFIUTA invece di applicarle tardi:
+    # ⛔ Prefs are written into the PROFILE, not sent over the protocol.
+    # Through firefox-20 this was `launch(firefox_user_prefs=prefs)`, which
+    # Playwright delivers to the browser inside `Browser.enable` - i.e. AFTER
+    # startup. From firefox-21 the engine REFUSES it instead of applying it
+    # late:
     #
     #     Browser.enable no longer applies preferences. They are written into
     #     the profile before startup...
     #
-    # ed e' il rifiuto giusto. Applicarle dopo l'avvio significa che il primo
-    # lancio inizializza gfx e font coi default e il secondo con le prefs
-    # attive: due percorsi diversi, che sono la causa di [B150]. E ignorarle
-    # sarebbe peggio - un browser senza le prefs che il chiamante crede di aver
-    # impostato, e nessun errore.
+    # and that is the right refusal. Applying them after startup means the
+    # first launch initializes gfx and fonts with the defaults and the second
+    # with the prefs active: two different paths, which are the cause of
+    # [B150]. And ignoring them would be worse - a browser without the prefs
+    # the caller believes it set, and no error.
     #
-    # Un `user.js` nel profilo viene letto all'AVVIO, quindi la mappa dei
-    # generici c'e' gia' quando gfx si inizializza: un percorso solo.
-    profilo = Path(tempfile.mkdtemp(prefix="ci-font-gate-"))
-    (profilo / "user.js").write_bytes(
+    # A `user.js` in the profile is read at STARTUP, so the generics map is
+    # already there when gfx initializes: a single path.
+    profile_dir = Path(tempfile.mkdtemp(prefix="ci-font-gate-"))
+    (profile_dir / "user.js").write_bytes(
         ("".join("user_pref(%s, %s);\n" % (json.dumps(k), json.dumps(v))
                  for k, v in sorted(prefs.items()))).encode("utf-8"))
     with sync_playwright() as p:
         ctx = p.firefox.launch_persistent_context(
-            str(profilo), executable_path=exe, headless=True)
+            str(profile_dir), executable_path=exe, headless=True)
         try:
             page = ctx.new_page()
             page.goto("about:blank")
             r = page.evaluate(DETECT_JS, arg)
         finally:
             ctx.close()
-            shutil.rmtree(profilo, ignore_errors=True)
+            shutil.rmtree(profile_dir, ignore_errors=True)
 
     detected = {f for f, v in r["present"].items() if v}
     expected = set(EXPECTED)
@@ -359,38 +362,39 @@ def main(exe: str) -> int:
         print(f"[font-gate] HOST LEAK (block-at-birth did not run!): {leaked_host}")
     if gen_bad:
         print(f"[font-gate] GENERIC MISMATCH: {gen_bad}")
-    # I gruppi di facce, misurati adesso, contro quelli attesi. Un raggruppamento
-    # che cambia dice che una faccia e' caduta nel ripiego; un VALORE che cambia
-    # dice che le metriche dichiarate si sono mosse, o che le due piattaforme non
-    # rispondono piu' uguale. Sono due difetti diversi e il messaggio li separa.
+    # The face groups, measured now, against the expected ones. A grouping
+    # that changes says a face fell into the fallback; a VALUE that changes
+    # says the declared metrics have shifted, or that the two platforms no
+    # longer answer the same way. These are two different defects and the
+    # message keeps them apart.
     ink = r.get("inkbox", {})
-    visti = {}
+    seen = {}
     for fam, box in ink.items():
-        visti.setdefault(box, []).append(fam)
-    # Si confronta la STRUTTURA - quali famiglie condividono una faccia - non i
-    # valori. I valori sono identici fra Windows e Linux solo quando il browser
-    # riceve tutte le sue dichiarazioni, e questo gate lo lancia grezzo perche'
-    # il job della CI non ha invisible_core: a lancio grezzo Linux torna bounds
-    # interi (la grid-fit di FreeType) mentre Windows torna frazioni. La
-    # struttura invece coincide, e' quella che risponde alla domanda "questa
-    # faccia ha caricato?" - una faccia che non carica CADE nel gruppo del
-    # ripiego e il raggruppamento cambia. La parita' cross-OS dei valori e' un
-    # controllo diverso, che va fatto sotto il wrapper dove le dichiarazioni ci
-    # sono tutte.
-    misurati = [set(f) for f in visti.values()]
+        seen.setdefault(box, []).append(fam)
+    # The STRUCTURE is compared - which families share a face - not the
+    # values. The values are identical between Windows and Linux only when the
+    # browser receives all its declarations, and this gate launches it raw
+    # because the CI job has no invisible_core: on a raw launch Linux returns
+    # integer bounds (FreeType's grid-fit) while Windows returns fractions.
+    # The structure coincides instead, and it is what answers the question
+    # "did this face load?" - a face that does not load FALLS into the
+    # fallback group and the grouping changes. Cross-OS parity of the values
+    # is a different check, one that has to be done under the wrapper where
+    # all the declarations are present.
+    measured = [set(f) for f in seen.values()]
     face_bad = []
-    for atteso in EXPECTED_FACE_GROUPS:
-        if atteso not in misurati:
-            vicino = max(misurati, key=lambda g: len(g & atteso), default=set())
-            face_bad.append(f"gruppo atteso {sorted(atteso)} non trovato; "
-                            f"il piu' vicino misurato e' {sorted(vicino)}")
-    for g in misurati:
+    for expected_group in EXPECTED_FACE_GROUPS:
+        if expected_group not in measured:
+            nearest = max(measured, key=lambda g: len(g & expected_group), default=set())
+            face_bad.append(f"expected group {sorted(expected_group)} not found; "
+                            f"the closest measured is {sorted(nearest)}")
+    for g in measured:
         if g not in EXPECTED_FACE_GROUPS:
-            face_bad.append(f"gruppo non previsto: {sorted(g)}")
+            face_bad.append(f"unexpected group: {sorted(g)}")
     if face_bad:
-        print("[font-gate] FACCE: il raggruppamento non e' quello atteso")
-        for riga in face_bad:
-            print(f"[font-gate]   {riga}")
+        print("[font-gate] FACES: the grouping is not the expected one")
+        for line in face_bad:
+            print(f"[font-gate]   {line}")
 
     ok = (not missing and not extra and not leaked_host and not gen_bad
           and not face_bad)

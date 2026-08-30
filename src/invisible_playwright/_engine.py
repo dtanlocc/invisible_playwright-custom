@@ -76,17 +76,17 @@ def assert_playwright_range() -> None:
     seal = active_seal()
     if not seal.playwright_min or not seal.playwright_max:
         return
-    # La versione del client VENDORIZZATO, non di un pacchetto installato.
+    # The version of the VENDORED client, not of an installed package.
     #
-    # Fino al fork questa riga faceva `_pkg_version("playwright")` con un
-    # `except PackageNotFoundError: return`. Tolta la dipendenza, quel percorso
-    # sarebbe diventato l'UNICO percorso: il gate avrebbe smesso di controllare
-    # qualunque cosa continuando a stampare verde, che e' il modo esatto in cui
-    # nove workflow di questo progetto sono stati verdi mentre erano rotti.
+    # Before the fork this line did `_pkg_version("playwright")` with an
+    # `except PackageNotFoundError: return`. With the dependency removed, that
+    # path would have become the ONLY path: the gate would have stopped
+    # checking anything while still printing green, which is the exact way
+    # nine workflows in this project were green while they were broken.
     #
-    # Il client ora e' dentro di noi e la sua versione e' un fatto locale, quindi
-    # non c'e' piu' nessun caso "assente" da tollerare: se _repo_version non si
-    # importa, il pacchetto e' rotto e deve dirlo.
+    # The client now lives inside us and its version is a local fact, so
+    # there is no longer any "absent" case to tolerate: if _repo_version
+    # fails to import, the package is broken and must say so.
     from invisible_playwright._pw._repo_version import version as have
 
     def t(v: str):

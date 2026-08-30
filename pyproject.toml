@@ -4,22 +4,29 @@ build-backend = "hatchling.build"
 
 [project]
 name = "invisible_playwright"
-version = "0.7.4"
+version = "0.8.0"
 description = "Playwright wrapper for a patched Firefox with deterministic stealth profile."
 readme = "README.md"
 requires-python = ">=3.11"
-# ⛔ DUE LICENZE, non una, da quando src/invisible_playwright/_driver/ e' un fork
-# del driver Node di Playwright (Apache-2.0). Il codice nostro resta MIT; quella
-# cartella no, e ridistribuirla sotto una dichiarazione MIT direbbe il falso su
-# cosa l'utente sta ricevendo.
+# ⛔ TWO LICENSES, not one, since src/invisible_playwright/_pw/ is a fork of
+# Playwright's Python client (Apache-2.0). Our own code stays MIT; that
+# directory does not, and redistributing it under an MIT declaration would
+# misstate what the user is receiving.
 #
-# Non e' una precauzione teorica: questo stesso file, poche righe piu' sotto,
-# esclude gia' tests/playwright-upstream dall'sdist per identica ragione, scritta
-# li' nel 2026. Quella volta si scelse di non spedire; qui si sceglie di
-# spedire, quindi va dichiarato.
+# ⛔ THE NODE DRIVER WENT ON 2026-08-28 AND THIS LINE DID NOT MOVE, which is the
+# part worth writing down. `_driver/` was the other Apache-2.0 folder and is
+# gone, together with its LICENSE, NOTICE and ThirdPartyNotices.txt - but `_pw/`
+# is still here, still carries Microsoft's copyright headers, and is still
+# redistributed. Dropping the declaration because "the driver is gone" would
+# have been the wrong deduction, and `tests/test_fork.py` asserts the surviving
+# obligation by name so that nobody makes it later.
 #
-# I file che rendono lecita la ridistribuzione - LICENSE, NOTICE,
-# ThirdPartyNotices.txt - stanno dentro _driver/package/ e non si toccano.
+# This is not a theoretical precaution: this same file, a few lines below,
+# already excludes tests/playwright-upstream from the sdist for the identical
+# reason. That time the choice was not to ship; here the choice is to ship, so
+# it must be declared.
+#
+# The file that makes the redistribution lawful is `_pw/LICENSE`, untouched.
 license = "MIT AND Apache-2.0"
 authors = [{ name = "feder-cr", email = "85809106+feder-cr@users.noreply.github.com" }]
 keywords = ["playwright", "firefox", "stealth", "anti-detect", "automation"]
@@ -62,22 +69,22 @@ dependencies = [
     # metadata; nothing in src/ hardcodes a second copy (tests/test_core_pin.py
     # fails if one appears). What stays invisible to install-time machinery is the
     # --no-deps / lockfile residue, and _pin.py is the only layer that sees it.
-    "invisible_core==21.16.0",
-    # ⛔ playwright NON e' piu' una dipendenza: dal fork completo il client
-    # Python vive in src/invisible_playwright/_pw/ e il driver Node in
-    # src/invisible_playwright/_driver/. Reintrodurla non romperebbe niente in
-    # modo visibile - e' il problema - perche' i due pacchetti convivono senza
-    # collidere: semplicemente uno dei due non verrebbe mai eseguito, e chi
-    # legge il pyproject crederebbe il contrario.
+    "invisible_core==23.16.0",
+    # ⛔ playwright is NO LONGER a dependency: since the full fork, the Python
+    # client lives in src/invisible_playwright/_pw/ and the Node driver in
+    # src/invisible_playwright/_driver/. Reintroducing it would not visibly
+    # break anything - that is the problem - because the two packages coexist
+    # without colliding: one of them would simply never run, and whoever
+    # reads the pyproject would believe the opposite.
     #
-    # Cio' che NON vendorizziamo e' il solo runtime Node (92,3 MB su 105), che
-    # invisible_playwright._node scarica al primo uso da nodejs.org verificandone
-    # il checksum.
+    # What we do NOT vendor is only the Node runtime (92.3 MB out of 105),
+    # which invisible_playwright._node downloads on first use from nodejs.org,
+    # verifying its checksum.
     #
-    # Il vincolo di versione non e' sparito, e' cambiato di posto: il sigillo
-    # porta l'intervallo di client con cui il binario e' stato provato, e
-    # _engine.assert_playwright_range() lo confronta con la versione del client
-    # VENDORIZZATO. Prima leggeva quella del pacchetto installato.
+    # The version constraint has not disappeared, it has moved: the seal
+    # carries the client range the binary was tested against, and
+    # _engine.assert_playwright_range() compares it against the VENDORED
+    # client's version. Before, it read the installed package's version.
     # Reading another process's environment block is the only way to identify
     # THIS session's browser tree exactly, and it is the identification that
     # makes reaping safe: on a fleet, several sessions start on the same binary
@@ -89,27 +96,28 @@ dependencies = [
     # exception, a killed runner - so an optional reaper would be absent on
     # precisely the machines that need it, and absent silently.
     "psutil>=5.9",
-    # ⛔ ERANO DIPENDENZE TRANSITIVE DI `playwright`, e togliendo quello sono
-    # sparite con lui. Il client vendorizzato in `_pw/` le importa comunque -
-    # `pyee` per gli emettitori di eventi, `greenlet` per l'API sincrona - quindi
-    # ora deve dichiararle questo pacchetto: chi vendorizza eredita le
-    # dipendenze di cio' che ha vendorizzato.
+    # ⛔ THESE WERE TRANSITIVE DEPENDENCIES OF `playwright`, and removing that
+    # made them disappear with it. The client vendored in `_pw/` still imports
+    # them - `pyee` for the event emitters, `greenlet` for the sync API - so
+    # this package must now declare them itself: whoever vendors something
+    # inherits the dependencies of what it vendored.
     #
-    # Misurato il 2026-08-26 e non dedotto: il wheel 0.7.3 si installava e poi
-    # `import invisible_playwright` moriva con `No module named 'pyee'`. In CI
-    # non si vedeva perche' il job e2e fa ancora `pip install playwright` per il
-    # solo `install-deps`, e quel comando le ritirava dentro dalla porta di
-    # servizio. E' la classe della issue #14: si installa, e si rompe solo
-    # dall'utente.
+    # Measured on 2026-08-26, not inferred: wheel 0.7.3 would install and
+    # then `import invisible_playwright` would die with `No module named
+    # 'pyee'`. It was not visible in CI because the e2e job still runs `pip
+    # install playwright` for the sole purpose of `install-deps`, and that
+    # command pulled them back in through the service door. It is the same
+    # class as issue #14: it installs, and it only breaks for the user.
     #
-    # Gli intervalli sono quelli che playwright 1.61 dichiarava, per non
-    # inventare un vincolo diverso da quello con cui il client e' stato provato.
+    # The ranges are the ones playwright 1.61 declared, so as not to invent
+    # a constraint different from the one the client was actually tested
+    # against.
     "pyee>=13,<14",
     "greenlet>=3.1.1,<4.0.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "build>=1", "ruff>=0.6", "pytest-rerunfailures>=14", "pytest-timeout>=2", "playwright==1.61.0"]
+dev = ["pytest>=7", "build>=1", "ruff>=0.6", "pytest-rerunfailures>=14", "pytest-timeout>=2", "pytest-xdist>=3", "playwright==1.61.0"]
 
 [tool.pytest.ini_options]
 markers = [
@@ -144,6 +152,24 @@ markers = [
 # `integration` is NOT excluded. It is in-process and fast, it is what covers
 # the release wiring, and it is the selection a push most needs.
 addopts = "-m 'not slow and not e2e' --strict-markers"
+
+# ⛔ THE SUITE TESTS *THIS* CHECKOUT, not whatever the shared environment's
+# editable install happens to point at. Without this line the package comes
+# from whichever directory last ran `pip install -e`, and on 2026-08-29 that
+# was a DIFFERENT working copy of this same repository, in C:/tmp, sitting on
+# an older branch with no `_juggler/` package at all: a plain `pytest -q`
+# reported 7 collection errors and ran zero tests, in a tree whose own suite
+# is green.
+#
+# It failed loudly that time, which was luck rather than design - the two
+# trees happened to differ by a whole subpackage. Had they differed by one
+# function's behaviour instead, the suite would have gone green while testing
+# code nobody had written here, which is the false green this project keeps
+# finding in its own instruments.
+#
+# `src` is relative to this file, so each checkout points at itself and two
+# working copies of this repo stop fighting over one interpreter.
+pythonpath = ["src"]
 
 # tests/playwright-upstream/ is a vendored Microsoft Playwright test suite
 # used for compatibility verification on demand. It has its own deps

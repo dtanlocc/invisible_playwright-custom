@@ -47,16 +47,21 @@ _enforce_core_pin()
 from ._engine import assert_playwright_range as _assert_pw_range
 _assert_pw_range()
 
-# ── Il driver Playwright biforcato ───────────────────────────────────────────
-# Non c'e' niente da agganciare qui. Il client vendorizzato in _pw/ punta al
-# driver in _driver/ per COSTRUZIONE - lo fa _pw/_impl/_driver.py, l'unico file
-# del client in cui abbiamo cambiato del comportamento - invece che con una
-# sostituzione a runtime.
+# ── There is no driver any more ──────────────────────────────────────────────
+# ⛔ REMOVED ON 2026-08-28, and with it the last reason this package needed
+# Node. What used to sit here was a note explaining that the vendored client in
+# _pw/ pointed at the forked driver in _driver/ by construction. Both are gone:
+# _driver/ (6 MB of JavaScript), _node.py (which downloaded a 92 MB node.exe on
+# first use), _pw/_impl/_driver.py and PipeTransport.
 #
-# Il gancio c'e' stato per qualche ora, quando avevamo forkato il solo driver
-# Node e il client era ancora quello installato. Con il fork completo diventava
-# una seconda fonte di verita' per lo stesso fatto, quindi e' stato tolto:
-# un percorso, scritto in un posto solo.
+# What answers the client now is the in-process Python server in _juggler/,
+# which speaks the same protocol. It became the default on the same day and on
+# evidence rather than on the code looking finished: 188 e2e passed on BOTH
+# transports, protocol parity on methods, parameter names, object types,
+# initializer fields, events and parentage, and the realness gates green on the
+# Python path for the first time.
+#
+# ⛔ A first install no longer downloads anything but the browser.
 
 from invisible_core import get_default_args, get_default_stealth_prefs
 from invisible_core import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION

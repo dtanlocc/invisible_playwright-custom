@@ -1,26 +1,26 @@
-"""Il dialogo di scelta file si intercetta, e quello NATIVO non si apre.
+"""The file-chooser dialog gets intercepted, and the NATIVE one never opens.
 
-PERCHE' SERVE UN GATE. Questa e' la classe di guasto piu' silenziosa che il
-progetto abbia visto: tutta la catena JS/Juggler esisteva ed era cablata
-correttamente - il comando `Page.setInterceptFileChooserDialog`, l'evento
-`Page.fileChooserOpened`, il flag sul docShell, l'observer in PageAgent.js - ma
-MANCAVA l'ultimo anello nativo. Il flag veniva scritto e non lo leggeva nessuno
-(il commento in `nsDocShell.cpp` lo diceva: "storage only"), e l'observer che
-PageAgent ascoltava, `juggler-file-picker-shown`, in tutto l'albero compariva
-solo sulla riga che lo ascoltava: nessuno lo notificava mai.
+WHY THIS GATE EXISTS. This is the most silent failure class the project has
+seen: the whole JS/Juggler chain existed and was wired up correctly - the
+`Page.setInterceptFileChooserDialog` command, the `Page.fileChooserOpened`
+event, the flag on the docShell, the observer in PageAgent.js - but the last
+native link was MISSING. The flag was written and nobody read it (the comment
+in `nsDocShell.cpp` said so: "storage only"), and the observer PageAgent was
+listening for, `juggler-file-picker-shown`, appeared in the whole tree only on
+the line that listened for it: nobody ever fired it.
 
-Il risultato: `expect_file_chooser()` restava appeso fino al timeout mentre una
-finestra "Apri file" di Windows si apriva davvero, rubando il focus al sistema
-operativo - e i documenti pubblici del pacchetto promettono per iscritto il
-contrario ("The native OS window never appears on screen"). Nessun test della
-suite lo copriva: gli unici che lo toccano sono quelli upstream di Microsoft,
-che stanno in `tests/playwright-upstream/`, cartella esclusa da pytest.
+The result: `expect_file_chooser()` hung until timeout while a real Windows
+"Open File" window actually popped open, stealing focus from the operating
+system - while the package's public docs promise in writing the opposite
+("The native OS window never appears on screen"). No test in the suite
+covered it: the only ones that touch it are Microsoft's upstream tests, which
+live in `tests/playwright-upstream/`, a folder excluded from pytest.
 
-⛔ IL TERZO TEST E' IL CONTROLLO E NON VA TOLTO. Sopprimere il dialogo nativo e'
-facile; sopprimerlo SOLO quando l'automazione lo ha chiesto e' il punto. Senza
-il controllo, questo file resterebbe verde anche se avessimo rotto i file input
-per tutti - che e' esattamente il modo in cui si "aggiusta" un difetto
-peggiorando il prodotto.
+⛔ THE THIRD TEST IS THE CONTROL AND MUST NOT BE REMOVED. Suppressing the
+native dialog is easy; suppressing it ONLY when automation asked for it is the
+point. Without the control, this file would stay green even if we had broken
+file inputs for everyone - which is exactly how a defect gets "fixed" by
+making the product worse.
 """
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 @pytest.fixture
 def pagina_locale():
-    """Una pagina vera da 127.0.0.1: i `data:` URL portano una CSP propria."""
+    """A real page from 127.0.0.1: `data:` URLs carry their own CSP."""
     with socketserver.TCPServer(("127.0.0.1", 0), _Handler) as srv:
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
@@ -75,20 +75,20 @@ def file_campione(tmp_path):
 
 
 @pytest.mark.e2e
-def test_expect_file_chooser_riceve_levento(firefox_binary, pagina_locale):
-    """L'evento arriva. Prima del 2026-08-25 questo scadeva sempre.
+def test_expect_file_chooser_receives_the_event(firefox_binary, pagina_locale):
+    """The event arrives. Before 2026-08-25 this always timed out.
 
-    ⛔ Qui c'era un `xfail`, e se n'e' andato come aveva promesso di fare. La sua
-    ragione diceva: il rimedio sta nel MOTORE (PageAgent.js ascolta
-    `file-input-picker-opening` invece di `juggler-file-picker-shown`) da un
-    commit POSTERIORE a `firefox-20`, "diventa verde da solo al primo firefox-N
-    che include quel commit". Quel rilascio e' `firefox-21`: misurato il
-    2026-08-27 contro il binario SPEDITO (BuildID 20260827000135, lo stesso che
-    il sigillo dichiara), questo caso torna XPASS.
+    ⛔ There used to be an `xfail` here, and it went away as it promised to. Its
+    reason said: the fix lives in the ENGINE (PageAgent.js listens for
+    `file-input-picker-opening` instead of `juggler-file-picker-shown`) as of a
+    commit AFTER `firefox-20`, "turns green on its own at the first firefox-N
+    that includes that commit". That release is `firefox-21`: measured on
+    2026-08-27 against the SHIPPED binary (BuildID 20260827000135, the same one
+    the seal declares), this case now comes back XPASS.
 
-    Gli altri due di questo file restano `xfail`: sono [B178], che questa
-    release non tocca - verificato che nessun commit fra `firefox-20` e HEAD
-    nomini `setFileInputFiles`.
+    The other two tests in this file remain `xfail`: they are [B178], which
+    this release does not touch - verified that no commit between
+    `firefox-20` and HEAD names `setFileInputFiles`.
     """
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
@@ -96,26 +96,26 @@ def test_expect_file_chooser_riceve_levento(firefox_binary, pagina_locale):
         with page.expect_file_chooser(timeout=15000) as info:
             page.click("#b")
         chooser = info.value
-        # is_multiple e' un METODO su questo client, non una proprieta'.
+        # is_multiple is a METHOD on this client, not a property.
         assert chooser.is_multiple() is False
         assert chooser.element is not None
 
 
 @pytest.mark.xfail(
-    reason="difetto PREESISTENTE, non di questa patch: impostare file REALI su "
-           "un input fallisce (`setFileInputFiles` -> 'object ... no longer "
-           "usable', e `set_input_files` va in timeout). Verificato sul binario "
-           "dell'ultima release, dove fallisce identico. Vedi 70-known-bugs.md "
-           "[B178]. Questo test diventa verde da solo il giorno in cui B178 e' "
-           "chiuso, e per questo non e' stato cancellato.",
+    reason="PRE-EXISTING defect, not from this patch: setting REAL files on "
+           "an input fails (`setFileInputFiles` -> 'object ... no longer "
+           "usable', and `set_input_files` times out). Verified on the "
+           "binary from the latest release, where it fails identically. See "
+           "70-known-bugs.md [B178]. This test turns green on its own the "
+           "day B178 is closed, and that is why it was not deleted.",
     strict=False)
 @pytest.mark.e2e
-def test_i_file_scelti_arrivano_alla_pagina(firefox_binary, pagina_locale,
-                                            file_campione):
-    """Non basta che l'evento scatti: il file deve arrivare davvero al DOM.
+def test_the_chosen_files_arrive_at_the_page(firefox_binary, pagina_locale,
+                                              file_campione):
+    """It is not enough for the event to fire: the file must actually reach the DOM.
 
-    Un `change` che non parte sarebbe un segnale soppresso, che per la regola 12
-    e' un FALLIMENTO e non un successo.
+    A `change` that does not fire would be a suppressed signal, which per rule
+    12 is a FAILURE, not a success.
     """
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
@@ -128,22 +128,22 @@ def test_i_file_scelti_arrivano_alla_pagina(firefox_binary, pagina_locale,
 
 
 @pytest.mark.xfail(
-    reason="stesso difetto PREESISTENTE di B178: `set_input_files` con un "
-           "percorso reale va in timeout anche sul binario dell'ultima "
-           "release. Resta qui perche' e' IL CONTROLLO - il giorno in cui B178 "
-           "e' chiuso deve tornare a dimostrare che il dialogo si sopprime "
-           "SOLO su richiesta - ma non puo' essere un'asserzione dura finche' "
-           "l'API che usa e' rotta a monte.",
+    reason="same PRE-EXISTING defect as B178: `set_input_files` with a "
+           "real path times out even on the binary from the latest "
+           "release. Stays here because it IS THE CONTROL - the day B178 "
+           "is closed it must go back to proving that the dialog is "
+           "suppressed ONLY on request - but it cannot be a hard assertion "
+           "while the API it uses is broken upstream.",
     strict=False)
 @pytest.mark.e2e
-def test_senza_intercettazione_i_file_input_restano_normali(firefox_binary,
-                                                            pagina_locale,
-                                                            file_campione):
-    """IL CONTROLLO. Il rimedio deve sopprimere il dialogo SOLO su richiesta.
+def test_without_interception_the_file_inputs_remain_normal(firefox_binary,
+                                                              pagina_locale,
+                                                              file_campione):
+    """THE CONTROL. The fix must suppress the dialog ONLY on request.
 
-    Qui nessuno chiede di intercettare: `set_input_files` deve continuare a
-    funzionare e la pagina deve vedere il suo `change`. Se questo diventa rosso,
-    il rimedio ha rotto i file input per tutti invece di intercettarli per noi.
+    Here nobody asks to intercept: `set_input_files` must keep working and
+    the page must see its `change`. If this turns red, the fix broke file
+    inputs for everyone instead of intercepting them just for us.
     """
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()

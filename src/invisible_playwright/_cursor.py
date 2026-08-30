@@ -1429,15 +1429,15 @@ def _wrap_mouse_move(original: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def _wrap_mouse_click(original: Callable[..., Any]) -> Callable[..., Any]:
-    """Porta il puntatore sul punto prima di cliccarlo.
+    """Walks the pointer onto the point before clicking it.
 
-    `Mouse.click` e `Mouse.dblclick` passano entrambe da `_click`, che manda
-    `mouseClick` senza chiamare `self.move`: il rattoppo su `move` non le vede,
-    e il puntatore compare sul bersaglio senza esserci mai arrivato. Misurato:
-    un solo mousemove contro i dieci di `locator.click()`.
+    `Mouse.click` and `Mouse.dblclick` both go through `_click`, which sends
+    `mouseClick` without calling `self.move`: the patch on `move` does not see
+    them, and the pointer shows up on the target without ever having arrived
+    there. Measured: a single mousemove against the ten from `locator.click()`.
 
-    Il movimento passa da `self.move`, che e' gia' rattoppato: un solo
-    generatore di traiettorie, un solo seme.
+    The movement goes through `self.move`, which is already wrapped: one
+    trajectory generator, one seed.
     """
 
     async def wrapper(self: Any, x: float, y: float, **kwargs: Any) -> Any:
@@ -1446,8 +1446,8 @@ def _wrap_mouse_click(original: Callable[..., Any]) -> Callable[..., Any]:
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001
-            # Un percorso mancato non deve diventare un'azione mancata: stessa
-            # scelta gia' fatta per move.
+            # A missed path must not become a missed action: the same choice
+            # already made for move.
             _warn_once(
                 "click-move-failed",
                 "the pointer path raised before mouse.click (%s: %s); the click "
