@@ -33,6 +33,9 @@ telling the difference before you ship a fix, not after.
 - [Content-Security-Policy Blocks Playwright's Injected Scripts](content-security-policy-blocks-playwright-scripts.md) - A page's CSP can refuse `addInitScript`; what `bypassCSP` fixes and what it changes about the test.
 - [Playwright "Executable Doesn't Exist" After Install](playwright-executable-doesnt-exist.md) - The most common first-run error, and its Docker, CI and serverless variants.
 - [Playwright "Page Crashed" Error](playwright-page-crashed-error.md) - An OOM-killed content process versus an actual engine bug, and how to tell them apart.
+- [Does Playwright Trigger hCaptcha More Often?](does-playwright-trigger-hcaptcha.md) - How hCaptcha's invisible pass reads fingerprint, IP and session inputs, and which of those an engine can actually move.
+- [Playwright Firefox: SEC_ERROR_UNKNOWN_ISSUER](playwright-firefox-sec-error-unknown-issuer.md) - Firefox's own NSS certificate-trust error, not a Chromium string; why curl works in a container and Firefox still fails.
+- [Playwright ERR_BLOCKED_BY_CLIENT via page.route](playwright-err-blocked-by-client-page-route.md) - Request blocking with `page.route()` reproduces the exact string a real ad-blocker extension produces.
 
 ## When you get blocked or detected
 
