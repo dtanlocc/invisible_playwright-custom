@@ -195,3 +195,4 @@ for the model that orders the rest, then pick the task you have.
 - [How to Handle a PDF That Opens in a New Tab with Playwright](how-to-handle-pdf-opens-new-tab-playwright.md) - Catch the new page with `context.expect_page()`, then pull the real bytes instead of screenshotting the viewer.
 - [Does Playwright Support Firefox Extensions?](does-playwright-support-firefox-extensions.md) - The documented extension API is Chromium-only; loading an .xpi into Firefox means a persistent profile, not a launch flag.
 - [Automating an Email OTP / Verification-Link Login with Playwright](automating-email-otp-verification-login-playwright.md) - Poll your own inbox over IMAP mid-login and feed the code back into the same session that requested it.
+- [Automating TOTP-Based 2FA Login with Playwright](automating-totp-2fa-login-playwright.md) - Generate a time-based code with pyotp from the same shared secret an authenticator app would scan; no inbox, no polling.

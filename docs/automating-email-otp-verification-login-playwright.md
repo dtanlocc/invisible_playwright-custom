@@ -260,7 +260,10 @@ inbox and credentials that are actually yours.
 - This project's own notes on session and fingerprint consistency, linked throughout,
   for why the request and the redemption belong in one identity.
 
-**See also:** [Why automating login is riskier than reusing a session](automating-login-vs-session-reuse.md)
+**See also:** [Automating TOTP-Based 2FA Login with Playwright](automating-totp-2fa-login-playwright.md)
+for the other common second-login-step mechanism, a locally computed authenticator
+code with no inbox and no polling involved at all, [Why automating login is riskier
+than reusing a session](automating-login-vs-session-reuse.md)
 for the fingerprint-consistency argument this page depends on,
 [how to scrape data behind a login with Playwright](how-to-scrape-behind-login-playwright.md)
 for the end-to-end session-reuse pattern this flow feeds into, and

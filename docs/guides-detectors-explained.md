@@ -43,6 +43,8 @@ whether a browser is telling the truth about what it claims to be.
 - [Vercel Bot Protection (BotID), Explained](vercel-bot-protection-botid-explained.md) - a client-side challenge plus an optional Kasada-powered Deep Analysis tier, including real false-positive reports.
 - [GeeTest v4 (Slide/Click Captcha), Explained](geetest-v4-explained.md) - drag, tap-in-order or match-three, encrypted client-side and verified server-side.
 - [Honeypot Fields and Hidden Links: How Sites Trap Scrapers](honeypot-fields-explained.md) - a field or link a real visitor never sees, that a script reading raw DOM will trigger.
+- [hCaptcha, Explained](hcaptcha-explained.md) - an invisible risk pass first, a visual puzzle only when unsure, and a data-labeling business underneath.
+- [hCaptcha Enterprise vs Standard](hcaptcha-enterprise-vs-standard.md) - the same mechanism, plus custom difficulty tuning, dedicated risk models and an SLA instead of the free tier's labeled-data economy.
 
 ## What a fingerprint is and how accurate it is
 
