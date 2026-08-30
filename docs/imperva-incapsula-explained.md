@@ -11,6 +11,8 @@ nav_order: 28
 
 Imperva is a commercial web application firewall and bot management vendor, and its bot product still carries the fingerprints of Incapsula, the company Imperva acquired in 2014 and folded its WAF business into. The cookie names it sets today, `incap_ses_*` and `visid_incap_*`, are Incapsula's own naming, over a decade later. Whether a search leads with "Imperva" or "Incapsula" it is the same detection stack underneath.
 
+Imperva made a second, later acquisition in the same product line: it announced the purchase of Distil Networks on June 4, 2019, a separate bot-detection vendor founded in 2011 that Imperva's own press release called "the industry-recognized leader in Bot Management." Distil ran briefly as its own platform inside Imperva before being fully folded into what Imperva now sells as Advanced Bot Protection, the same product line already covered on this page. A search for the legacy "Distil Networks" name today is looking for the same detection stack this page describes, not a separate, still-active product.
+
 Like DataDome, Imperva is not a library you can read. What follows separates Imperva's own published claims from what independent reverse engineering has worked out from the outside, and marks each claim accordingly.
 
 ## The shape of it: escalating challenges, not one check
@@ -64,6 +66,10 @@ That says nothing about the network-layer fingerprint, which depends on the TLS 
 
 - Imperva, [How Incapsula Client Classification Challenges Bots](https://www.imperva.com/blog/archive/how-incapsula-client-classification-challenges-bots/),
   retrieved 2026-08-30, for the cookie/JavaScript-cookie/CAPTCHA escalation sequence and the "80%" figure, quoted directly above.
+- Imperva, [Imperva to Acquire Distil Networks, the Industry-Recognized Leader in Bot Management](https://www.imperva.com/company/press_releases/imperva-to-acquire-distil-networks-the-industry-recognized-leader-in-bot-management/),
+  retrieved 2026-08-30, for the June 4, 2019 announcement date, Distil's 2011 founding, and the "industry-recognized leader in Bot Management" quote.
+- BusinessWire, [Imperva Unveils Fully Integrated Advanced Bot Protection Solution](https://www.businesswire.com/news/home/20200225005362/en/Imperva-Unveils-Fully-Integrated-Advanced-Bot-Protection-Solution),
+  retrieved 2026-08-30, for the Distil platform's integration into Advanced Bot Protection.
 - Imperva, [Advanced Bot Protection product page](https://www.imperva.com/products/advanced-bot-protection-management/),
   retrieved 2026-08-30, for the "700 dimensions" figure and the named signal categories (client interrogation, behavior analysis, ML, connection characteristics, threat intelligence).
 - Imperva, [Good Bots In, Bad Bots Out](https://www.imperva.com/blog/bot-classification/),

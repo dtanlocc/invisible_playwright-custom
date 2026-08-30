@@ -45,6 +45,7 @@ whether a browser is telling the truth about what it claims to be.
 - [Honeypot Fields and Hidden Links: How Sites Trap Scrapers](honeypot-fields-explained.md) - a field or link a real visitor never sees, that a script reading raw DOM will trigger.
 - [hCaptcha, Explained](hcaptcha-explained.md) - an invisible risk pass first, a visual puzzle only when unsure, and a data-labeling business underneath.
 - [hCaptcha Enterprise vs Standard](hcaptcha-enterprise-vs-standard.md) - the same mechanism, plus custom difficulty tuning, dedicated risk models and an SLA instead of the free tier's labeled-data economy.
+- [Cloudflare Bot Management, Explained](cloudflare-bot-management-explained.md) - the always-on scoring engine behind Cloudflare's edge, distinct from the Turnstile widget: a 1-99 bot score from JA3/JA4, HTTP fingerprinting, ML and behavior.
 
 ## What a fingerprint is and how accurate it is
 
