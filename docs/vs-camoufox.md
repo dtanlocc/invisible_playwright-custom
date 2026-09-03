@@ -12,8 +12,13 @@ invisible_playwright and Camoufox both compile Firefox from source and set the f
 in C++, so neither is stealthier in the abstract. The real difference is how each produces
 the identity: Camoufox rotates a fresh, plausible device per session, while
 invisible_playwright derives every field deterministically from one seed, so a failing run
-can be replayed exactly. Camoufox currently covers more surfaces, notably geolocation and
-`Intl`.
+can be replayed exactly. Camoufox covers more surfaces, notably geolocation and
+`Intl` - with one caveat its own README now states plainly (checked
+2026-09-04): after about a year's gap in maintenance, the project reports its
+detection results "have gone down in performance due to the base Firefox
+version and newly discovered fingerprint inconsistencies", and development has
+since resumed. The surface list still stands; the freshness behind it is what
+that note is about.
 
 Most comparisons in this space are between things that are not comparable: a page-level
 script against a patched binary, or a Chromium tool against a Firefox one. This one is
@@ -152,7 +157,9 @@ reading about.
 
 Working from the above rather than from claims:
 
-- **Need geolocation, or non-English `Intl` correctness?** Camoufox, today.
+- **Need geolocation, or non-English `Intl` correctness?** Camoufox covers
+  them and this project does not; weigh that against the maintenance-gap
+  note above, which is Camoufox's own.
 - **Need to replay a failing run exactly?** A seeded derivation gives you that by
   construction.
 - **Need a font surface that is identical on a container and a desktop?** The bundled

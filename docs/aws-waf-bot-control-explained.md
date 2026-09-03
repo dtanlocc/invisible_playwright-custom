@@ -50,7 +50,7 @@ A sample of named rules, quoted from AWS's own rule listing, gives a concrete se
 
 The token-reuse family is worth pausing on: it does not ask whether any single request looks automated, it asks whether one browser's proof-of-legitimacy is being shared across more devices, networks or countries than a single real session plausibly touches in five minutes. That is a detection axis with no fingerprint answer at all, honest or otherwise, because the thing being scored is reuse across sessions, not any property of one session's browser.
 
-AWS is also explicit about a category it treats differently from everything above: a maintained list of roughly 1,400 verified bots (AWS calls this "Akamai-style" verification the same idea by a different name; search engine crawlers, monitoring services, SEO tools) that Bot Control identifies and does not block, adding a `bot:verified` label plus category and organization labels instead. A newer addition, **Web Bot Authentication**, lets a bot cryptographically sign its requests against a public key directory; a verified signature (`web_bot_auth:verified`) causes the category-block and `TGT_TokenAbsent` rules to skip that request entirely, a mechanism for bots that want to identify themselves honestly and be let through rather than evade detection.
+AWS is also explicit about a category it treats differently from everything above: a maintained list of verified bots (search engine crawlers, monitoring services, SEO tools) that Bot Control identifies and does not block, adding a `bot:verified` label plus category and organization labels instead. A newer addition, **Web Bot Authentication**, lets a bot cryptographically sign its requests against a public key directory; a verified signature (`web_bot_auth:verified`) causes the category-block and `TGT_TokenAbsent` rules to skip that request entirely, a mechanism for bots that want to identify themselves honestly and be let through rather than evade detection.
 
 ## What an engine answers honestly, and what a browser cannot touch
 
@@ -70,7 +70,7 @@ Several rule families sit entirely outside what any browser engine can affect. `
 
 **What is token reuse, and why does it matter?** The same proof-of-legitimacy token appearing across multiple IPs, countries, or ASNs within a five-minute window. It is a detection axis with no browser-level answer, because it scores how a token is being shared, not what any individual session's browser does.
 
-**Does Bot Control block search engines and other known-good bots?** No. AWS maintains a verified-bot list (~1,400 entries) that gets labeled and passed rather than blocked, and a newer cryptographic mechanism, Web Bot Authentication, lets a bot sign requests to prove its identity instead of being challenged.
+**Does Bot Control block search engines and other known-good bots?** No. AWS maintains a verified-bot list that gets labeled and passed rather than blocked, and a newer cryptographic mechanism, Web Bot Authentication, lets a bot sign requests to prove its identity instead of being challenged.
 
 **Does a real browser engine defeat AWS WAF Bot Control?** It answers the automation-signature and browser-consistency rules honestly, which removes that whole failure class. It has no bearing on IP/data-center signals, token-reuse-across-sessions rules, or the ML-based coordinated-activity detection, all of which operate above the level of any single browser.
 

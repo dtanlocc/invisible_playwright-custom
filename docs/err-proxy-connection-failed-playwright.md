@@ -25,9 +25,10 @@ commonly over bad credentials or a destination it will not forward to.
 `ERR_PROXY_CONNECTION_FAILED` fires earlier and more broadly: the browser never
 managed to open a TCP socket to the proxy at all, whether the destination is HTTP or
 HTTPS, whether authentication was ever going to be needed, before any `CONNECT`
-exchange is possible. Chromium's own numbering reflects the ordering: `-130` for
-`ERR_PROXY_CONNECTION_FAILED`, `-111` for `ERR_TUNNEL_CONNECTION_FAILED`, a
-lower-level failure assigned a separate, earlier code on purpose.
+exchange is possible. Chromium keeps them as two distinct codes for exactly
+that reason: `-130` for `ERR_PROXY_CONNECTION_FAILED`, `-111` for
+`ERR_TUNNEL_CONNECTION_FAILED` - one failure before any `CONNECT`, one during
+it.
 
 If you see `ERR_TUNNEL_CONNECTION_FAILED`, the proxy is reachable and rejected one
 specific request. If you see `ERR_PROXY_CONNECTION_FAILED`, the proxy was never
@@ -145,7 +146,7 @@ fingerprint or engine-identity layer this project touches.
 ## Sources
 
 - Chromium's [`net/base/net_error_list.h`](https://chromium.googlesource.com/chromium/src/+/main/net/base/net_error_list.h),
-  for the exact definitions of `ERR_PROXY_CONNECTION_FAILED` (-130) and the earlier,
+  for the exact definitions of `ERR_PROXY_CONNECTION_FAILED` (-130) and the
   distinct `ERR_TUNNEL_CONNECTION_FAILED` (-111), retrieved 2026-08-30.
 - [microsoft/playwright#9437](https://github.com/microsoft/playwright/issues/9437),
   a real report of this exact error from a `server: "per-context"` proxy launch

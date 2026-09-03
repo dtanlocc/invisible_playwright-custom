@@ -163,7 +163,9 @@ around it. Validate the pairing, not the direction.
 
 ```python
 def apply_update(history, new_reading):
-    if history and new_reading["home"] < history[-1]["home"]:
+    # scores read off a page are strings, and "10" < "9" lexicographically:
+    # compare as numbers or every two-digit score reads as a decrease
+    if history and int(new_reading["home"]) < int(history[-1]["home"]):
         # a drop with no explanation is suspicious; a drop next to a review flag is not
         if not new_reading.get("var_review"):
             print("unexplained score decrease, flag for review:", new_reading)

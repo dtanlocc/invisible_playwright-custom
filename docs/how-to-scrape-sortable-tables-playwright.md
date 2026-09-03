@@ -107,12 +107,14 @@ markup: a client-side sort produces no request at all, only a repaint, while a
 server-side sort fires a request you can catch mid-click.
 
 ```python
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
 with page.expect_response(lambda r: r.request.method == "GET", timeout=2000) as caught:
     try:
         page.get_by_role("columnheader", name="Price").click()
         response = caught.value
         server_side = "sort" in response.url or "order" in response.url
-    except TimeoutError:
+    except PlaywrightTimeout:   # playwright.sync_api.TimeoutError, not the builtin
         server_side = False   # no matching request fired: this is a client-side sort
 ```
 

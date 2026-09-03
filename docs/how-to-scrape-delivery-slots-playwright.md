@@ -194,9 +194,10 @@ changes rather than by how fast the machine can ask:
 ```python
 import time
 
-with sync_playwright() as p:
-    browser = p.firefox.launch()
-    page = browser.new_context().new_page()
+from invisible_playwright import InvisiblePlaywright
+
+with InvisiblePlaywright(seed=7) as browser:
+    page = browser.new_page()
     for postcode in POSTCODES:
         set_postcode(page, postcode)
         rows.extend(read_all_weeks(page))

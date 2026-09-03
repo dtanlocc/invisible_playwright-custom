@@ -58,12 +58,12 @@ DOM at the moment the action runs rather than trusting whatever it found earlier
 ```python
 # fragile: element_handle is a snapshot, and a re-render invalidates it
 handle = page.query_selector("button.submit")
-await some_state_changing_call()
+some_state_changing_call()
 handle.click()          # may throw "not attached" if a re-render swapped the node
 
 # robust: the locator re-queries the live DOM at click time
 locator = page.locator("button.submit")
-await some_state_changing_call()
+some_state_changing_call()
 locator.click()          # resolves fresh, right before acting
 ```
 
@@ -93,7 +93,7 @@ assume React or Vue is the culprit:
 1. **Confirm you are using a `Locator`, not a stored `ElementHandle`.** This alone
    resolves most reports.
 2. **Search your code for `.element_handle()` or `element_handle=True`.** Anywhere a
-   handle is extracted and held past the next `await`, it can go stale.
+   handle is extracted and held past the next state-changing call, it can go stale.
 3. **Open a trace and step through the action.** Playwright's trace viewer shows the DOM
    at each step, so you can see the re-render happen rather than infer it.
 4. **Check whether the target is a framework component with a changing `key`.** A list

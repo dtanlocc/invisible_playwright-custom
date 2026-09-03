@@ -193,6 +193,17 @@ responses mid-scrape](how-to-handle-403-429-backoff-mid-scrape-playwright.md).
 ```python
 from datetime import timedelta
 
+def read_row(row, week_start):
+    # the same shape as the first block, plus the week it came from
+    return {
+        "occurrence_id": row.get_attribute("data-occurrence-id"),
+        "class_name": row.locator(".class-name").inner_text(),
+        "instructor": row.locator(".instructor").inner_text(),
+        "room": row.locator(".room").inner_text(),
+        "start_time": row.get_attribute("data-start-iso"),
+        "week_start": week_start.isoformat(),
+    }
+
 def pull_weeks(page, base_url, studio, start_week, max_weeks=8):
     all_classes = []
     for week_offset in range(max_weeks):
@@ -279,8 +290,8 @@ def scrape_schedule(studio, start_week, max_weeks=4):
     with InvisiblePlaywright(seed=42) as browser:
         page = browser.new_page()
 
-        capacities = {}
-        page.on("response", lambda r: on_response(r, capacities))
+        capacities.clear()   # the module-level store the listener writes into
+        page.on("response", on_response)
 
         rows = pull_weeks(page, "https://example.com/schedule",
                            studio, start_week, max_weeks)

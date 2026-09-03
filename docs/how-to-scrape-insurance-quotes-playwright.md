@@ -229,7 +229,7 @@ with InvisiblePlaywright(seed=42) as browser:
             page.get_by_role("button", name="Get my quote").click()
         results.append(caught.value.json())
         page.close()
-        page.wait_for_timeout(rng.randint(4000, 11000))
+        time.sleep(rng.randint(4, 11))   # the page is closed; pause off it
 ```
 
 The pause between profiles is doing the same job the pause between clicks does
