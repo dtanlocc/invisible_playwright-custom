@@ -99,7 +99,7 @@ import re
 TAG = re.compile(r"<[^>]+>")
 
 def clean(text):
-    return TAG.sub(" ", text or "").replace(" ", " ").strip()
+    return TAG.sub(" ", text or "").replace("\xa0", " ").strip()
 
 def normalise_instructions(value):
     return list(_walk(value, section=""))
@@ -153,7 +153,7 @@ VULGAR = {
 DASHES = "‐‑‒--−"   # hyphen variants and minus sign
 
 def normalise(text):
-    text = text.replace(" ", " ").replace("⁄", "/")
+    text = text.replace("\xa0", " ").replace("⁄", "/")
     for ch in DASHES:
         text = text.replace(ch, "-")
     for ch, fraction in VULGAR.items():
