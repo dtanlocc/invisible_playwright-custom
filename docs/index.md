@@ -22,6 +22,10 @@ the thing it describes, and several of them record something we got wrong first.
 - **[Integrations](integrations/)** - running this inside Scrapy, Crawlee, Robot
   Framework, CodeceptJS, test runners and Playwright MCP, including which frameworks
   it does not fit and why.
+- **[The agent on top](https://github.com/feder-cr/AIHawk/wiki)** - this engine also
+  drives [AIHawk](https://github.com/feder-cr/AIHawk), an AI agent you instruct in
+  plain language; its wiki covers the agent layer the way this one covers the
+  browser: comparisons, blocked agents, and task guides.
 
 ## If you don't know where to start
 
