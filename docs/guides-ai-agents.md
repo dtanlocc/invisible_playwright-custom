@@ -17,6 +17,12 @@ verified against the framework's actual source before anything is claimed about 
 several candidates that looked like a fit by star count turned out not to use
 Playwright, or not to touch Firefox, at all.
 
+These pages are for developers wiring an agent to this engine. The
+agent-experience side - what to run, which agent products compare how, what to
+check when an agent gets blocked - lives on the
+[AIHawk wiki](https://github.com/feder-cr/AIHawk/wiki), the agent built on this
+same engine.
+
 ## Framework integrations
 
 - [Give a LangChain agent an invisible_playwright browser](langchain-agent-invisible-playwright-browser.md) - hand PlayWrightBrowserToolkit a launched browser so its tools inherit a real fingerprint.
