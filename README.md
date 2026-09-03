@@ -199,6 +199,16 @@ is the map most other pages link back to, [Playwright detected as a bot on one s
 is the troubleshooting order, and [navigator.webdriver is not the tell you think it is](docs/navigator-webdriver-explained.md)
 explains the most famous property in this space and why patching it alone buys you
 almost nothing.
+
+The detectors section now covers the commercial anti-bot products by name, each
+read from its own documentation or from confirmed reverse engineering:
+[Cloudflare Bot Management](docs/cloudflare-bot-management-explained.md) and
+[Turnstile](docs/cloudflare-turnstile-explained.md),
+[DataDome](docs/datadome-explained.md), [Kasada](docs/kasada-explained.md),
+[Akamai Bot Manager](docs/akamai-bot-manager-explained.md),
+[PerimeterX](docs/perimeterx-explained.md), [hCaptcha](docs/hcaptcha-explained.md),
+[Imperva](docs/imperva-incapsula-explained.md), and
+[the rest of the set](docs/guides-detectors-explained.md).
 - [crawl4ai stealth and custom browser engines](docs/crawl4ai-stealth-custom-browser.md) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
 - [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
 - [How to make Linux and macOS report real Windows fonts](docs/bundled-fonts-cross-platform.md) - one manifest, three font backends convinced not to ask the host, and the four seams still open
