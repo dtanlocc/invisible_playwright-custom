@@ -1,6 +1,6 @@
 ---
 title: "Playwright \"Subtree Intercepts Pointer Events\""
-description: "Something else is sitting on top of the element you asked Playwright to click. Reaching for force:true clicks through it instead of finding out what it is, and that gap is itself a real-user difference."
+description: "Something else is sitting on top of the element you asked Playwright to click. Reaching for force:true fires blind at the same spot instead of finding out what is there, and that gap is itself a real-user difference."
 parent: "Testing and Troubleshooting"
 grand_parent: "Guides"
 nav_order: 22
@@ -46,20 +46,20 @@ regardless of what is on top. It makes the error disappear and it does not make 
 obstruction disappear. Two things follow from that, and the second one matters
 specifically for a browser-automation project built around looking like a real user.
 
-First, mechanically: a forced click can land on an element that a real pointer physically
-cannot reach, because the thing intercepting it is still there and still rendered on top.
-Playwright's synthetic event bypasses the browser's own hit-testing to reach the
-underlying element directly. A real mouse click at that same screen coordinate would hit
-the overlay, not your target - so forcing the click doesn't just skip a check, it
-performs an interaction no person using that page could physically produce. Whatever
-handler fires as a result runs in a state the real UI was never designed to reach through
-a pointer at all.
+First, mechanically: `force` skips the check, not the browser. Playwright
+still delivers a real click at your target's coordinates, the browser's
+hit-testing still applies, and whatever sits on top at that point is what
+receives it. You have not reached your element; you have clicked the overlay
+blind. Whatever handler fires belongs to the obstruction - or to nothing -
+while your script carries on believing the button was pressed, which is how a
+forced click turns one visible failure into a silent wrong path.
 
-Second, and this is the part worth internalizing rather than skipping past: an action
-that cannot happen via a real cursor at that point in time is itself a signal, on any
-page instrumented to notice it. A click handler that fires without the coordinate ever
-having been reachable by a real pointer, or without the overlay's own dismiss logic
-having run first, is exactly the kind of behavioral inconsistency a page can check for
+Second, and this is the part worth internalizing rather than skipping past:
+clicking blind into an overlay is itself a tell, on any
+page instrumented to notice it. A cookie banner that gets clicked on its
+backdrop instead of its buttons, a modal whose own dismiss logic never ran
+before the flow continued underneath,
+is exactly the kind of behavioral inconsistency a page can check for
 independent of any browser fingerprint. `force: true` does not just risk clicking the
 wrong thing; it risks producing an interaction shape no genuine user session would ever
 generate.

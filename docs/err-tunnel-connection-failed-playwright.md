@@ -24,9 +24,10 @@ established` if the proxy agrees. Only then does the actual TLS handshake happen
 inside that tunnel. `ERR_TUNNEL_CONNECTION_FAILED` fires when the CONNECT exchange
 itself fails, before any TLS or HTTP traffic to the destination exists.
 
-Chromium's own error list, which Firefox-under-Playwright inherits at the network-stack
-naming level, defines it plainly: "a tunnel connection through the proxy could not be
-established." The adjacent code, `ERR_PROXY_CONNECTION_FAILED`, is earlier and
+Chromium's own error list defines it plainly: "a tunnel connection through the
+proxy could not be established." (The name is Chromium's; Firefox's network
+stack spells the same family of failures as `NS_ERROR_*` codes, and this page
+uses the Chromium name because it is the one people search for.) The adjacent code, `ERR_PROXY_CONNECTION_FAILED`, is earlier and
 different: it means the browser could not even open a TCP connection to the proxy
 itself. `ERR_TUNNEL_CONNECTION_FAILED` means the browser did reach the proxy, and the
 CONNECT for this specific destination is what failed. That distinction rules out "the

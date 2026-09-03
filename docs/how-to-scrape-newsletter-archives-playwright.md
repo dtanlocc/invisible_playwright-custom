@@ -255,6 +255,8 @@ for a better date on newer issues, fetch each issue page, resolve its links thro
 cache, and merge the result into a keyed store instead of a flat list.
 
 ```python
+import feedparser
+
 def run(base_url, feed_url, browser):
     page = browser.new_page()
     context = page.context
@@ -281,7 +283,8 @@ def run(base_url, feed_url, browser):
         record.update(title_fields(page))
         record["resolved_links"] = [
             resolve_redirect(context, href, cache)
-            for href in page.locator("article a, .campaign-body a").all_attribute_values("href")
+            for href in page.locator("article a, .campaign-body a").evaluate_all(
+                "els => els.map(e => e.getAttribute('href'))")
             if href
         ]
         rows = merge_row(rows, record)

@@ -135,6 +135,8 @@ target application's enrollment page shows different values, in an advanced setu
 screen or in the raw `otpauth://` URI, pass them explicitly:
 
 ```python
+import hashlib
+
 totp = pyotp.TOTP(secret, digits=8, digest=hashlib.sha256, interval=60)
 ```
 

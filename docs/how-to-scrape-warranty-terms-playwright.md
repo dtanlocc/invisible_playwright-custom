@@ -148,6 +148,8 @@ Warranty pages change over time, and the page you read today shows the current r
 Pull the revision date the page states for itself and carry it as part of the row, so anything comparing a scraped term against a purchase date can check whether the two actually line up.
 
 ```python
+from datetime import datetime
+
 REVISION_RE = re.compile(
     r"(?:last updated|effective|revised)[:\s]+([A-Za-z]+ \d{1,2}, \d{4})",
     re.IGNORECASE,
@@ -162,7 +164,10 @@ def covers_purchase(document_date, purchase_date):
     # or postdate a given purchase, so treat it as unknown, not as current.
     if document_date is None:
         return None
-    return document_date <= purchase_date
+    # the regex hands back "Month D, YYYY" as text; parse before comparing,
+    # because "April 2, 2026" <= "March 1, 2020" is true as strings
+    parsed = datetime.strptime(document_date, "%B %d, %Y").date()
+    return parsed <= purchase_date
 ```
 
 A page with no visible revision date is common, and the honest answer in that case is "unknown," not a silent assumption that today's text always applied. Related dates and durations parsed elsewhere on the same page benefit from the same discipline; the mechanics for turning loose date and price text into comparable values are in [cleaning scraped prices and dates](how-to-clean-scraped-prices-and-dates-playwright.md).

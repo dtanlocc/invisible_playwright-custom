@@ -80,6 +80,15 @@ import re
 import ssl
 import time
 
+def extract_text(msg):
+    # the plain-text part of a possibly multipart message
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.get_content_type() == "text/plain":
+                return part.get_payload(decode=True).decode(errors="replace")
+        return ""
+    return msg.get_payload(decode=True).decode(errors="replace")
+
 def fetch_code_from_inbox(sent_at, timeout_s=60, poll_every_s=2):
     ctx = ssl.create_default_context()
     deadline = time.time() + timeout_s

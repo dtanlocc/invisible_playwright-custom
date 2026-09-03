@@ -41,6 +41,10 @@ nearly always capped at the most recent entries.
 import re
 from invisible_playwright import InvisiblePlaywright
 
+# detect_shape leans on parse_version, defined in the "reading versions"
+# section below: when composing the page's blocks into one script, that
+# block goes above this one.
+
 def detect_shape(page):
     """Report every shape the page offers and let the caller choose."""
     feed = page.locator('link[rel="alternate"][type*="xml"]').first

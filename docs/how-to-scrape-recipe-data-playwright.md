@@ -150,7 +150,7 @@ VULGAR = {
     "⅓": "1/3", "⅔": "2/3",
     "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
 }
-DASHES = "‐‑‒--−"   # hyphen variants and minus sign
+DASHES = "\u2010\u2011\u2012\u2013\u2014-\u2212"   # hyphen variants, en/em dash, minus
 
 def normalise(text):
     text = text.replace("\xa0", " ").replace("⁄", "/")
