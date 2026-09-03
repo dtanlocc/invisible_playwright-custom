@@ -246,7 +246,7 @@ the widget in a real browser.
 - Our notes on deep single-session walks and why a seed-stable fingerprint keeps one
   identity across many sequential loads to the same endpoint.
 
-**See also:** [how to scrape reviews and ratings](how-to-scrape-reviews-and-ratings-playwright.md)
+**See also:** [how to scrape star ratings](how-to-scrape-reviews-and-ratings-playwright.md)
 for the star-rating and "read more" fields on each row, [how to scrape paginated pages with
 Playwright](how-to-scrape-paginated-pages-playwright.md) for the general page-turn pattern,
 [how to scrape infinite scroll pages](how-to-scrape-infinite-scroll-playwright.md) for review
