@@ -114,6 +114,9 @@ dependencies = [
     # against.
     "pyee>=13,<14",
     "greenlet>=3.1.1,<4.0.0",
+    # Patched-Firefox B178 fallback: operate the real Windows file chooser while
+    # keeping it DWM-cloaked. Scoped to Windows; other platforms do not import it.
+    "pywinauto>=0.6.9; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

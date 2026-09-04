@@ -68,6 +68,13 @@ from invisible_core import BINARY_VERSION, FIREFOX_UPSTREAM_VERSION
 from invisible_core import GeoTimezoneError, resolve_session_timezone
 from invisible_core import ensure_binary, ensure_geoip_mmdb
 from .launcher import InvisiblePlaywright
+from .native_upload import NativeUploadError, set_input_files_native
+from .media_integrity import merge_faithful_canvas_readback
+from .firefox_extensions import (
+    FirefoxExtensionInstallError,
+    firefox_extension_id,
+    install_firefox_extensions,
+)
 
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
@@ -80,6 +87,12 @@ except PackageNotFoundError:
 
 __all__ = [
     "InvisiblePlaywright",
+    "NativeUploadError",
+    "set_input_files_native",
+    "merge_faithful_canvas_readback",
+    "FirefoxExtensionInstallError",
+    "firefox_extension_id",
+    "install_firefox_extensions",
     "ensure_binary",
     "ensure_geoip_mmdb",
     "get_default_stealth_prefs",

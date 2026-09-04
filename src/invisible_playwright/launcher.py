@@ -4,7 +4,7 @@ from __future__ import annotations
 import secrets
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Union
 
 from invisible_playwright._pw.sync_api import Browser, BrowserContext, Playwright, sync_playwright
 
@@ -14,6 +14,7 @@ from invisible_core._fpforge import Profile, generate_profile
 from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
 from ._engine import assert_wire_version, resolve_executable
+from .firefox_extensions import install_firefox_extensions
 from invisible_core import configure_proxy as _configure_proxy_shared
 from ._reaper import SessionToken, guard_for
 
@@ -213,6 +214,7 @@ class InvisiblePlaywright(_session.CommonLaunch):
         self._extra_prefs = extra_prefs
         self._binary_path = binary_path
         self._profile_dir: Optional[Path] = Path(profile_dir) if profile_dir else None
+        self._firefox_extensions: tuple[Path, ...] = ()
         # reCAPTCHA cookie pre-seed - opt-in. Gated server-side: if a
         # persistent profile_dir is in use, respect its existing cookies
         # and DON'T enable pre-seed (the profile owns its own state).
@@ -247,6 +249,18 @@ class InvisiblePlaywright(_session.CommonLaunch):
         #: successful check, so it counts the bursts and not the total.
         self._uscite_non_misurabili: int = 0
 
+    def set_firefox_extensions(
+        self, xpi_paths: Iterable[Union[str, Path]]
+    ) -> "InvisiblePlaywright":
+        """Install these Firefox XPIs atomically before the next launch.
+
+        This intentionally is not a constructor argument: invisible_playwright
+        guarantees the public constructor shape for existing integrations.
+        """
+
+        self._firefox_extensions = tuple(Path(path) for path in xpi_paths)
+        return self
+
     def __enter__(self) -> Union[Browser, BrowserContext]:
         # Resolve timezone="auto" (and the proxy-set-but-unset default) to a
         # concrete IANA zone AND discover the proxy egress IP - one round-trip,
@@ -275,7 +289,9 @@ class InvisiblePlaywright(_session.CommonLaunch):
         # binary_path= never reaches ensure_binary(), so the engine check lives
         # on the resolved executable rather than inside the fetcher.
         executable = resolve_executable(self._binary_path)
-        # the REAL result of _resolve_headless (did it create an alternate
+        if self._firefox_extensions:
+            install_firefox_extensions(executable, self._firefox_extensions)
+        # The REAL result of _resolve_headless (did it create an alternate
         # desktop or not?) must be known BEFORE composing the prefs, not
         # after: B172, 2026-08-24.
         pw_headless = self._resolve_headless()
