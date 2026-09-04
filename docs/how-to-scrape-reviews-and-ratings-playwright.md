@@ -1,18 +1,21 @@
 ---
-title: "How to scrape reviews and ratings with Playwright"
-description: "Scrape star ratings hidden in aria-label or CSS fill-width, expand every per-review Read more, and page the load more XHR to its natural end with Playwright."
+title: "How to scrape star ratings with Playwright"
+description: "Scrape star ratings with Playwright: read the score from aria-label or CSS fill-width instead of the text, expand every per-review Read more, and page the load-more XHR to its natural end."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 39
 ---
 
 
-# How to scrape reviews and ratings with Playwright
+# How to scrape star ratings with Playwright
 
-To scrape reviews and ratings with Playwright, read the star rating from its
+To scrape star ratings with Playwright, read the rating from its
 `aria-label` or CSS fill-width instead of its text, click each per-review "Read more"
 before you extract the body, and page the "load more" XHR until the DOM count stops
-rising. Those are the three fields a review page hides, and each one has a specific fix.
+rising. Those are the three fields a rating widget hides, and each one has a specific
+fix. This page is about the RATING surfaces; the review text itself, the tabbed
+widget that hides it and its own pagination are on
+[scraping product reviews](how-to-scrape-product-reviews-playwright.md).
 
 Review pages are built to be read by a person and to resist being read by a program,
 and they do it with the two fields you actually came for. The star rating is almost

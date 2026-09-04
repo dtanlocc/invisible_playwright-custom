@@ -1,15 +1,15 @@
 ---
-title: "How to scrape sports scores and stats with Playwright"
-description: "Scrape live sports scores and stats with Playwright: read the score feed over a WebSocket, click each stat tab to trigger its XHR, and hold one long session."
+title: "How to scrape sports stats and box scores with Playwright"
+description: "Scrape sports stats and box scores with Playwright: read the data feed over its WebSocket, click each stat tab to trigger its XHR, and keep live and historical tables on separate parsers."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 50
 ---
 
 
-# How to scrape sports scores and stats with Playwright
+# How to scrape sports stats and box scores with Playwright
 
-**To scrape sports scores and stats with Playwright, read the data feed instead of
+**To scrape sports stats and box scores with Playwright, read the data feed instead of
 the rendered widget: subscribe to the WebSocket (or the polling XHR) that carries the
 score, click each stat tab to trigger the request that loads its panel, route live and
 finished-match data to separate parsers, and hold one seed-pinned session at a human

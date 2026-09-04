@@ -19,7 +19,7 @@ score using the event's own minute, not the moment you happened to scrape. Do th
 have to guess the order of.
 
 This is a narrower problem than reading a scoreboard once or pulling post-match stats.
-[Scraping sports scores and stats](how-to-scrape-sports-scores-and-stats-playwright.md)
+[Scraping sports stats and box scores](how-to-scrape-sports-scores-and-stats-playwright.md)
 covers reading the feed transport itself, switching parsers between live and finished
 formats, and holding a long session without tripping a rate check. This page assumes you
 have already solved that part and asks the harder question underneath it: once you are
@@ -297,10 +297,10 @@ latency is what paid live-data feeds are built and sold to provide.
   returns a standard Playwright `Browser`. See [Quickstart](quickstart.md) and
   [Configuration](configuration.md).
 - This project's own sibling article on the transport layer underneath a live score,
-  [scraping sports scores and stats](how-to-scrape-sports-scores-and-stats-playwright.md),
+  [scraping sports stats and box scores](how-to-scrape-sports-scores-and-stats-playwright.md),
   for reading the WebSocket or polling XHR itself.
 
-**See also:** [scraping sports scores and stats](how-to-scrape-sports-scores-and-stats-playwright.md)
+**See also:** [scraping sports stats and box scores](how-to-scrape-sports-scores-and-stats-playwright.md)
 for reading the feed transport and holding the session, [capturing XHR and API
 responses](how-to-capture-xhr-api-responses-playwright.md) for the request-level
 mechanics both articles rely on, [rate-limiting your scraper](how-to-rate-limit-your-scraper-playwright.md)

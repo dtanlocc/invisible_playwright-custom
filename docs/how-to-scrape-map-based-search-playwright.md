@@ -263,7 +263,7 @@ return the same item more than once by design.
   [mouse](https://playwright.dev/python/docs/api/class-mouse) methods used here, all of
   which are stock, documented Playwright.
 
-**See also:** [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)
+**See also:** [scraping local business results from a map](how-to-scrape-map-based-local-results-playwright.md) for the local-listing half of this shape, where the exit region has to match the area you are mapping, [capturing XHR and API responses](how-to-capture-xhr-api-responses-playwright.md)
 for the interception pattern this page points at the box request,
 [WebGL renderer strings](webgl-renderer-strings.md) for the graphics surface a map reads,
 and [the detection checklist](playwright-detected-as-bot.md) for when a clean fingerprint

@@ -1,13 +1,13 @@
 ---
-title: "How to scrape map-based local results with Playwright"
-description: "Scrape map-based local results with Playwright: drive the viewport, capture the bounds-keyed XHR per step, and tile an area through an in-region proxy."
+title: "Scrape local business results from a map with Playwright"
+description: "Scrape local business results from a map with Playwright: drive the viewport, capture the bounds-keyed XHR per step, and tile the area through an in-region identity."
 parent: "Scraping with Playwright"
 grand_parent: "Guides"
 nav_order: 49
 ---
 
 
-# How to scrape map-based local results with Playwright
+# Scrape local business results from a map with Playwright
 
 A map-based results list is not a page of rows you can paginate. It is a projection of
 whatever falls inside the current latitude and longitude bounding box, and the list only
