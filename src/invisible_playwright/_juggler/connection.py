@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -452,23 +453,42 @@ def _wait_until_ready(p, timeout: float):
     The lines are KEPT rather than tested and dropped: they are the only
     account of a startup that fails, and they cost a list.
     """
+    # ``BufferedReader.readline()`` blocks until Firefox writes a newline. A
+    # MOZILLA_OFFICIAL build may suppress the readiness ``dump()``, so doing
+    # that read inside this loop made the deadline fictional. Keep the
+    # blocking read on a daemon thread and enforce the deadline here.
     detto = []
+    lines: queue.Queue = queue.Queue()
+    eof = object()
+
+    def read_stdout() -> None:
+        try:
+            while True:
+                line = p.stdout.readline()
+                if not line:
+                    break
+                lines.put(line)
+        except Exception:
+            pass
+        finally:
+            lines.put(eof)
+
+    threading.Thread(
+        target=read_stdout,
+        name="juggler-readiness",
+        daemon=True,
+    ).start()
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if p.poll() is not None:
-            # Drain what is still buffered: the last line before the exit is
-            # usually the one that says why.
-            try:
-                resto = p.stdout.read() or b""
-            except Exception:
-                resto = b""
-            detto += [r for r in resto.decode("utf-8", "replace").split("\n") if r.strip()]
-            return False, detto
-        line = p.stdout.readline()
-        if not line:
-            time.sleep(0.01)
+        remaining = max(0.0, deadline - time.monotonic())
+        try:
+            item = lines.get(timeout=min(0.05, remaining))
+        except queue.Empty:
             continue
-        testo = line.decode("utf-8", "replace").rstrip("\r\n")
+        if item is eof:
+            return False, detto
+        testo = item.decode("utf-8", "replace").rstrip("\r\n")
         if testo.strip():
             detto.append(testo)
         if _READY in testo:

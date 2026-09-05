@@ -8,12 +8,48 @@ simulated.
 """
 from __future__ import annotations
 
+import io
+import time
 import tempfile
 
 import pytest
 
 from invisible_playwright._juggler import connection as conn
 from invisible_playwright._juggler.protocol import COMMANDS, EVENTS
+
+
+class _ReadinessProcess:
+    def __init__(self, stdout):
+        self.stdout = stdout
+
+    def poll(self):
+        return None
+
+
+def test_readiness_timeout_is_real_when_stdout_never_writes_a_line():
+    class SlowSilentStdout:
+        def readline(self):
+            time.sleep(0.2)
+            return b""
+
+    started = time.monotonic()
+    seen, output = conn._wait_until_ready(
+        _ReadinessProcess(SlowSilentStdout()), 0.02
+    )
+
+    assert not seen
+    assert output == []
+    assert time.monotonic() - started < 0.15
+
+
+def test_readiness_line_is_collected_without_waiting_for_the_deadline():
+    seen, output = conn._wait_until_ready(
+        _ReadinessProcess(io.BytesIO(b"noise\nJuggler listening to the pipe\n")),
+        1.0,
+    )
+
+    assert seen
+    assert output == ["noise", "Juggler listening to the pipe"]
 
 
 # ── without a browser ───────────────────────────────────────────────────────

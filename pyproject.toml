@@ -148,6 +148,7 @@ markers = [
     "e2e: needs something outside this process - the network, the real patched binary, or a display",
     "slow: builds a wheel or an sdist - opt-in only",
     "linux_only: requires Linux",
+    "timeout: per-test wall-clock limit supplied by pytest-timeout",
 ]
 # Both exclusions in ONE addopts: declaring the key twice is a TOML error, not
 # a merge, and pytest then sees neither value.
