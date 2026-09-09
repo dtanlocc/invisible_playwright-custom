@@ -13,7 +13,7 @@ To scrape weather station data with Playwright, capture the underlying observati
 feed instead of parsing the rendered table, convert every timestamp to UTC once using
 the offset the feed itself carries, keep each reading tagged with a station id, a
 timestamp, a timezone and a variable name, store it at the interval the station
-actually reported rather than resampling it to a fixed grid, and read the station
+actually reported instead of resampling it to a fixed grid, and read the station
 status field to tell a missing reading apart from a station that went offline.
 
 A weather dashboard looks like the simplest scraping target there is: a table of
@@ -79,7 +79,7 @@ with InvisiblePlaywright(seed=42) as browser:
 
 Keep the original offset alongside the converted timestamp. If a station later turns
 out to have the wrong offset in its metadata, you can recompute every stored row from
-the value you kept rather than re-scraping the archive. Converting without recording
+the value you kept instead of re-scraping the archive. Converting without recording
 what you converted from is a one-way trip.
 
 ## Store readings as reported, never resampled to a fixed grid
@@ -93,6 +93,12 @@ reporting cadence, and the raw intervals are never written down again.
 Store the reading exactly as the feed reported it, with its own timestamp, and store the
 cadence as data rather than assuming it. A downstream consumer that genuinely needs a
 fixed grid can resample from the as-reported table at query time.
+
+One row per observation, with whichever variables that station actually reports and no
+padding for the ones it does not, is the case
+[JSON Lines was already the right container for](how-to-scrape-to-json-lines-playwright.md):
+a station reporting three variables and one reporting twenty append to the same file,
+and a partial run leaves a file that still parses.
 
 ```python
 def rows_from_feed(feed, variable_map):
@@ -198,6 +204,11 @@ A historical archive is almost never paginated by row count the way a search res
 list is. It is paginated by day or by month, so a request asks for one calendar period
 and gets back everything that station reported in it. A five-year pull across one
 station is roughly sixty separate requests, one per month, not one long scroll.
+
+Sixty requests is long enough that something will interrupt one of them, and a
+calendar walk has the property that makes recovery cheap: the period is the key, so
+[a run can pick up from the period it stopped on](how-to-resume-an-interrupted-scrape-playwright.md)
+without re-reading the years already stored.
 
 Walk the calendar explicitly and issue one request per period. `page.request` shares
 the browsing context's cookies with a plain HTTP call, so an archive endpoint gated

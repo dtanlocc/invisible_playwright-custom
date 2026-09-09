@@ -16,7 +16,7 @@ Error: locator.click: <element> intercepts pointer events
 Playwright checks, before every click, whether the element it is about to act on is
 actually the thing that would receive the click - "the hit target of the pointer event
 at the action point," in Playwright's own wording for the check. When something else
-occupies that point instead, the click is refused rather than sent somewhere silently
+occupies that point instead, the click is refused, not sent somewhere silently
 wrong. This is the "Receives Events" actionability check, and it exists for the same
 reason strict mode does: a click that lands on the wrong thing should fail loudly, not
 succeed against a target nobody asked for.
@@ -52,9 +52,13 @@ hit-testing still applies, and whatever sits on top at that point is what
 receives it. You have not reached your element; you have clicked the overlay
 blind. Whatever handler fires belongs to the obstruction - or to nothing -
 while your script carries on believing the button was pressed, which is how a
-forced click turns one visible failure into a silent wrong path.
+forced click turns one visible failure into a silent wrong path. The hit test is
+the same one that
+[consumed most of the humanised pointer path on the calls real scripts make](hover-mouse-movement-bug.md),
+which is worth knowing because it means the check is doing real work and not
+merely being cautious.
 
-Second, and this is the part worth internalizing rather than skipping past:
+Second, and this is the part worth internalizing instead of skipping past:
 clicking blind into an overlay is itself a tell, on any
 page instrumented to notice it. A cookie banner that gets clicked on its
 backdrop instead of its buttons, a modal whose own dismiss logic never ran
@@ -78,7 +82,10 @@ except Exception:
 ```
 
 **2. Check if it is timing rather than layout.** If the obstruction is a transition or an
-animation, waiting for it to finish is the actual fix, not forcing through it:
+animation, waiting for it to finish is the actual fix, not forcing through it. A
+transition that removes and rebuilds the element instead of moving it produces
+[the not-attached error rather than this one](playwright-element-not-attached-to-dom.md),
+so which of the two you get already narrows what the page is doing:
 
 ```python
 locator = page.get_by_role("button", name="Submit")

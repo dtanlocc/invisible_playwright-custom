@@ -20,6 +20,12 @@ widget. The failure is silent in the way CSP failures usually are: no exception 
 Python code, a console warning in the browser you likely never read, and code that
 simply never ran.
 
+That is worth reading as a property of the layer, not an accident. An init script is
+page JavaScript, and page JavaScript is the outermost of
+[the three levels anything can be changed at](playwright-stealth-levels.md): it is the
+level the page itself is allowed to have an opinion about, and CSP is the page
+exercising that opinion.
+
 ## What CSP actually restricts
 
 By default, a policy that sets `default-src` or `script-src` blocks inline `<script>`
@@ -58,7 +64,7 @@ There are two different reasons you might reach for this flag, and only one of t
 survives contact with what the flag actually does.
 
 **Legitimate testing need: your own code, your own CSP.** If you are testing a page you
-control and the point of the test is the page's functionality rather than its CSP
+control and the point of the test is the page's functionality instead of its CSP
 configuration, bypassing CSP to let your own instrumentation or a third-party testing
 widget run is a reasonable, disclosed tradeoff. You know the header is there, you know
 you are turning it off for the test, and the production page a real visitor loads still
@@ -74,7 +80,10 @@ that is a difference from a genuine session, not a neutral convenience. Whether 
 specific target's own logic could ever observe that difference from inside the page is a
 separate question this page cannot answer for you, but the premise underneath
 "bypassing CSP is invisible" does not hold: it is a real change to how the page executes,
-not a transparent workaround.
+not a transparent workaround. It belongs on the same list as every other setting that
+makes a session behave unlike a visitor's, which is the list
+[the checklist for a session being detected](playwright-detected-as-bot.md) works
+through in order.
 
 The practical rule: use `bypassCSP` when you are testing your own integration against
 your own header and you know exactly why it is there. Treat it as a real behavioral
@@ -108,7 +117,7 @@ broader than most cases need.
 
 **Known limitation:** documented reports exist of `bypassCSP` not resolving every CSP or
 CORS error depending on the specific directive and browser version, so confirm the
-console warning is actually gone after setting the option rather than assuming the flag
+console warning is actually gone after setting the option instead of assuming the flag
 is unconditionally comprehensive.
 
 ## Diagnostic checklist
@@ -116,11 +125,11 @@ is unconditionally comprehensive.
 1. Check the browser console for a `Content-Security-Policy` message naming the refused
    directive before assuming your injection code is broken.
 2. Read the response's `content-security-policy` header directly to see the actual
-   policy rather than guessing from the symptom.
+   policy instead of guessing from the symptom.
 3. Confirm the refusal is `script-src` (or `default-src` covering it), not an unrelated
    directive that happens to also block something in your flow.
 4. Decide whether this is your own page under test or a third-party target, and apply
-   the tradeoff above rather than reaching for `bypass_csp` reflexively.
+   the tradeoff above instead of reaching for `bypass_csp` reflexively.
 5. After setting `bypass_csp=True`, re-check the console to confirm the specific warning
    is gone; a version-specific gap means it is not always comprehensive.
 

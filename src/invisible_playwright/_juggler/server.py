@@ -557,7 +557,15 @@ class FrameDispatcher(Dispatcher):
                                 "newDocument": {"request": None}})
         # ⛔ `goto` answers with a Response CHANNEL or null, never with a URL.
         # `_frame.py` calls `from_nullable_channel` on it.
-        return {"response": None}
+        #
+        # ⛔ AND IT WAS HARDCODED TO null UNTIL 2026-09-08, WHICH WAS THE WHOLE
+        # OF [B200]: the network layer was already right - the events, the
+        # statuses and `expect_response` all worked - and only the RETURN VALUE
+        # was missing, so nothing in this project saw it for a month because
+        # nothing in this project reads what `goto` answers. Crawlee does, and
+        # treats a None as a failed load, so every request it made failed.
+        return {"response": self.page.navigation_response(
+            result["navigationId"])}
 
     # ── reading ─────────────────────────────────────────────────────────────
     def op_title(self, params: Dict) -> Any:
@@ -1142,6 +1150,13 @@ class RequestDispatcher(Dispatcher):
     def __init__(self, server, page: "PageDispatcher", params: Dict) -> None:
         self.page = page
         self.request_id = params.get("requestId")
+        #: The navigation this request BELONGS to, or None when it is not a
+        #: document load. ⛔ `NetworkObserver.js` sets it only on the main
+        #: document channel, and hands the SAME id to every hop of a redirect
+        #: chain, so it identifies a navigation exactly rather than by
+        #: heuristic - which is what makes `PageDispatcher.navigation_response`
+        #: able to answer `goto` with the response of the document it loaded.
+        self.navigation_id = params.get("navigationId")
         self.raw_headers = _headers_array(params.get("headers"))
         self.response: Optional["ResponseDispatcher"] = None
         #: Filled by `Network.requestFailed`. ⛔ None until it fails: an
@@ -1170,7 +1185,7 @@ class RequestDispatcher(Dispatcher):
             # this is where somebody will come looking.
             **({"postData": params["postData"]}
                if params.get("postData") is not None else {}),
-            "isNavigationRequest": bool(params.get("navigationId")),
+            "isNavigationRequest": bool(self.navigation_id),
             "resourceType": _resource_type(params),
             "frame": page.frame_for(frame_id).channel,
         })
@@ -1420,6 +1435,8 @@ class PageDispatcher(Dispatcher):
         "setViewportSize": "op_set_viewport_size",
         "emulateMedia": "op_emulate_media",
         "screenshot": "op_screenshot",
+        "screencastStart": "op_screencast_start",
+        "screencastStop": "op_screencast_stop",
         "bringToFront": "op_bring_to_front",
         "exposeBinding": "op_expose_binding",
         "touchscreenTap": "op_touchscreen_tap",
@@ -1448,6 +1465,9 @@ class PageDispatcher(Dispatcher):
         self.context = context
         self.session = session
         self.target_id = target_id
+        # The id Juggler gave the running screencast, or None. One per page,
+        # because the engine holds one capture sink per window.
+        self._screencast_id: Optional[str] = None
         conn = context.browser.conn
         self.lifecycle = Lifecycle(conn, session)
         self.injected = InjectedScript(conn, session)
@@ -1470,6 +1490,16 @@ class PageDispatcher(Dispatcher):
         self.replayed_events = replayed
         self._frames: Dict[str, Any] = {}
         self._requests: Dict[str, Any] = {}
+        #: navigationId -> the document RequestDispatcher of that navigation.
+        #: ⛔ AN INDEX, NOT A SECOND COPY: the response itself keeps living on
+        #: the request, and this only answers "which request loaded navigation
+        #: N". It cannot be replaced by a scan of `_request_log`, which is
+        #: capped, nor of `_requests`, which is emptied on `requestFinished` -
+        #: and by the time `goto` stops waiting for `load` the document request
+        #: has finished. Capped like the logs, and a REDIRECT overwrites its
+        #: own entry hop by hop, so the last writer is the final hop, which is
+        #: the response Playwright answers with.
+        self._navigation_requests: Dict[str, Any] = {}
         # ⛔ CAPPED, and that is not a detail: a page printing in a loop
         # would exhaust the memory of the process DRIVING it. Playwright keeps
         # the same logs and caps them for the same reason.
@@ -1555,9 +1585,34 @@ class PageDispatcher(Dispatcher):
         conn.remove_listener(self._route_juggler_event)
         self.lifecycle.detach()
         self.injected.detach()
+        # A screencast owns a capture thread in the browser, reading a window
+        # that is about to go. The engine stops it when the page is disposed
+        # too; asking first means a page closed from here never leaves a
+        # frame in flight with nobody to acknowledge it.
+        if self._screencast_id:
+            conn.post("Page.stopScreencast", {}, session=self.session)
+            self._screencast_id = None
 
     def _on_juggler_event(self, method: str, params: Dict) -> None:
-        if method == "Runtime.console":
+        if method == "Page.screencastFrame":
+            # ⛔ ON THE READER THREAD, and both halves have to respect that.
+            # The frame goes up to the client as the event `Screencast`
+            # listens for - base64 stays base64, the client decodes - under
+            # the names the vendored client reads (`viewportWidth`, not the
+            # engine's `deviceWidth`). The ack goes back with `post`: a `send`
+            # here would wait for a reply only this thread can deliver.
+            if not self._screencast_id:
+                return
+            self.emit("screencastFrame", {
+                "data": params.get("data") or "",
+                "timestamp": params.get("timestamp") or 0,
+                "viewportWidth": params.get("deviceWidth") or 0,
+                "viewportHeight": params.get("deviceHeight") or 0,
+            })
+            self.conn.post("Page.screencastFrameAck",
+                           {"screencastId": self._screencast_id},
+                           session=self.session)
+        elif method == "Runtime.console":
             # ⛔ THE LOG FILLS HERE, not inside `console_messages()`. A log
             # filled on request can only ever hold what arrived AFTER the
             # request, which is nothing: `page.console_messages()` would always
@@ -1638,6 +1693,8 @@ class PageDispatcher(Dispatcher):
             request = RequestDispatcher(self.server, self, params)
             self._requests[params.get("requestId")] = request
             self._remember(self._request_log, request)
+            if request.navigation_id:
+                self._remember_navigation(request)
             self.context.emit("request", {"request": request.channel,
                                           "page": self.channel})
             if self.context.intercepting and params.get("isIntercepted"):
@@ -1706,6 +1763,44 @@ class PageDispatcher(Dispatcher):
         log.append(entry)
         if len(log) > PageDispatcher.LOG_LIMIT:
             del log[0]
+
+    def _remember_navigation(self, request: "RequestDispatcher") -> None:
+        """Index a document request by the navigation it belongs to.
+
+        ⛔ THE KEY IS RE-INSERTED, not merely overwritten, so that a redirect
+        chain keeps ONE entry and keeps it at the young end of the dict. A
+        plain assignment would leave the entry at the position of the first
+        hop, and the eviction below - which drops the oldest key - would then
+        be able to throw away a navigation that is still in progress.
+        """
+        index = self._navigation_requests
+        index.pop(request.navigation_id, None)
+        index[request.navigation_id] = request
+        while len(index) > PageDispatcher.LOG_LIMIT:
+            del index[next(iter(index))]
+
+    def navigation_response(self, navigation_id: Optional[str]) -> Any:
+        """The Response CHANNEL for a finished navigation, or None.
+
+        ⛔ None IS A REAL ANSWER, and Playwright gives it in exactly the cases
+        that reach here with nothing to return: a same-document navigation or
+        an anchor (no navigationId at all, so `goto` never even started a
+        document load), and a navigation whose document request failed or was
+        served without a response. Answering with an empty object instead
+        would turn "there is no response" into "here is a response with no
+        status", which is the shape of lie rule 12 is about.
+
+        The three cases collapse into ONE lookup on purpose: a `None` id, an
+        id nothing was indexed under, and an indexed request that has no
+        response yet all mean the same thing here. An explicit guard on the
+        id was written first and removed - it could not change the answer,
+        since `get(None)` misses like any other miss, so it was a second
+        place deciding a question this line already decides.
+        """
+        request = self._navigation_requests.get(navigation_id)
+        if request is None or request.response is None:
+            return None
+        return request.response.channel
 
     def _announce_file_chooser(self, params: Dict) -> None:
         """Build the handle the client expects and emit `fileChooser`.
@@ -1858,10 +1953,16 @@ class PageDispatcher(Dispatcher):
             # normal answer in Playwright, and raising would turn an ordinary
             # "there is nothing behind" into a failed script.
             return {"response": None}
-        self.lifecycle.wait_for_new_navigation(
+        # ⛔ THE ANCHOR IS THE ANSWER. History gives back no navigationId, so
+        # the wait is what discovers which navigation this was - and it is the
+        # only thing that can, since reading the frame afterwards would race a
+        # navigation the page started on its own. Returning it is what lets
+        # `reload` answer with a Response like `goto` does: the same [B200],
+        # which would otherwise be reopened here in a month.
+        navigation = self.lifecycle.wait_for_new_navigation(
             frame_id, previous, params.get("waitUntil") or "load",
             timeout=(params.get("timeout") or 30000) / 1000.0)
-        return {"response": None}
+        return {"response": self.navigation_response(navigation)}
 
     def op_go_back(self, params: Dict) -> Any:
         return self._history("Page.goBack", params)
@@ -2244,6 +2345,95 @@ class PageDispatcher(Dispatcher):
         self.send("Page.bringToFront", {})
         return None
 
+    #: The bound a screencast frame is scaled to fit when the caller gives no
+    #: `size`. The frame is the whole WINDOW, chrome included, so this is not
+    #: a viewport size; it is a ceiling that keeps a JPEG of a 1920x1080 window
+    #: around 100 KB. Frames are never scaled up.
+    SCREENCAST_DEFAULT_SIZE = {"width": 1280, "height": 800}
+    SCREENCAST_DEFAULT_QUALITY = 80
+
+    #: Frames per second when the caller does not ask for a rate.
+    #:
+    #: ⛔ TEN AND NOT TWENTY-FIVE, and the caller can ask for either. Measured
+    #: 2026-09-08 on the same page, interleaved arms: asking for 10 delivers
+    #: 9.6-9.8 fps and 257 KB/s, asking for 25 delivers 23.8-24.0 and 629 KB/s.
+    #: Raising the constant would impose two and a half times the bandwidth on
+    #: every consumer to serve the one that is watching, and a batch job that
+    #: never looks at a frame would pay it too. So the default stays where it
+    #: is and somebody watching a window says so.
+    #:
+    #: The engine's own default is 25 (`fps || 25` in TargetRegistry.js); this
+    #: number is the wrapper's opinion, not the engine's.
+    SCREENCAST_FPS = 10
+
+    def op_screencast_start(self, params: Dict) -> Any:
+        """`page.screencast.start(on_frame=...)`: live JPEG frames of the
+        browser WINDOW.
+
+        ⛔ THE WINDOW, NOT THE PAGE, AND THAT IS THE POINT. `page.screenshot()`
+        already gives the content viewport. What it can never give is the
+        pointer, which is drawn in the chrome document precisely so that no
+        page can see it - and a person watching an agent work wants the
+        pointer, the tab strip and the address bar. So every screencast this
+        server starts asks the engine for `fullWindow`, our own flag on
+        `Page.startScreencast`, and the `viewportWidth`/`viewportHeight` the
+        client reads on each frame are the captured window's size in device
+        pixels.
+
+        Nothing is injected into the page and no script runs in it: the engine
+        captures the window through the operating system, in the parent
+        process, and the content process is never told.
+
+        ⛔ `record` (a video file) is REFUSED, not ignored. The engine has no
+        encoder - the VP8/WebM half of Playwright's screencast was never
+        rebuilt - and the refusal at context creation for `record_video_dir`
+        is the same decision one level up.
+        """
+        if self._screencast_id:
+            raise ProtocolException(
+                "a screencast is already running on this page; stop it first")
+        if params.get("record"):
+            raise ProtocolException(
+                "screencast to a video FILE is not available: the engine "
+                "streams JPEG frames and has no video encoder. Pass "
+                "on_frame= to receive the frames instead of path=")
+        if not params.get("sendFrames"):
+            raise ProtocolException(
+                "screencast.start() was called with neither on_frame= nor "
+                "path=, so there is nobody to deliver frames to")
+        size = params.get("size") or self.SCREENCAST_DEFAULT_SIZE
+        quality = params.get("quality")
+        if quality is None:
+            quality = self.SCREENCAST_DEFAULT_QUALITY
+        # ⛔ THE CALLER'S RATE, WHERE THIS IGNORED IT. The engine takes an `fps`
+        # and this passed the constant unconditionally, so `screencast.start()`
+        # had no way to ask for more - a live view got ten frames a second
+        # whatever it wanted, which is what made the pane feel slow after the
+        # client's own pause was fixed. Same shape as `quality` and `size`
+        # above: the caller decides, the constant is what happens when nobody
+        # does.
+        fps = params.get("fps")
+        if fps is None:
+            fps = self.SCREENCAST_FPS
+        result = self.send("Page.startScreencast", {
+            "width": int(size["width"]),
+            "height": int(size["height"]),
+            "quality": int(quality),
+            "fullWindow": True,
+            "fps": int(fps),
+        })
+        self._screencast_id = result["screencastId"]
+        # The client's `start()` reads an optional `artifact` from the reply
+        # for the video-file case, which does not exist here.
+        return {}
+
+    def op_screencast_stop(self, params: Dict) -> Any:
+        if not self._screencast_id:
+            return None
+        self._screencast_id = None
+        self.send("Page.stopScreencast", {})
+        return None
+
     def op_noop(self, params: Dict) -> Any:
         return None
 
@@ -2318,6 +2508,23 @@ class PageDispatcher(Dispatcher):
 
 
 # ── context, browser, browser type ──────────────────────────────────────────
+def _address(context_id: Optional[str], params: Dict) -> Dict:
+    """The context a `Browser.*` command is about, in the form Juggler reads.
+
+    ⛔ `None` IS THE DEFAULT CONTEXT, AND IT IS ADDRESSED BY ABSENCE. Juggler
+    keeps every context in a Map keyed by its id and registers the default one
+    under `undefined`, so an omitted field resolves to it and a `null` does not:
+    `Map.get(null)` finds nothing, and the command fails naming no cause. Every
+    command that names a context goes through here, so the rule lives once.
+    """
+    out = dict(params)
+    if context_id is None:
+        out.pop("browserContextId", None)
+    else:
+        out["browserContextId"] = context_id
+    return out
+
+
 class BrowserContextDispatcher(Dispatcher):
     TYPE = "BrowserContext"
     METHODS = {
@@ -2340,9 +2547,12 @@ class BrowserContextDispatcher(Dispatcher):
     }
 
     def __init__(self, server, browser: "BrowserDispatcher", options: Dict,
-                 context_id: str) -> None:
+                 context_id: Optional[str]) -> None:
         self.browser = browser
         self.options = options
+        #: `None` is the DEFAULT context - userContextId 0, the one whose
+        #: cookies and storage are the profile's. It is what a persistent
+        #: launch hands back; every other context is a Juggler container.
         self.context_id = context_id
         # ⛔ THE THREE CHILDREN COME FIRST. `_browser_context.py` resolves all
         # of them with `from_channel` inside its constructor, so a context whose
@@ -2468,7 +2678,7 @@ class BrowserContextDispatcher(Dispatcher):
     def op_new_page(self, params: Dict) -> Any:
         conn = self.conn
         result = conn.send("Browser.newPage",
-                           {"browserContextId": self.context_id}, timeout=30)
+                           _address(self.context_id, {}), timeout=30)
         target_id = result["targetId"]
         session = self.browser.session_for(target_id, timeout=20.0)
         page = PageDispatcher(self.server, self, session, target_id)
@@ -2478,9 +2688,8 @@ class BrowserContextDispatcher(Dispatcher):
 
     # ── cookies, permissions, geolocation ───────────────────────────────────
     def _browser_send(self, command: str, params: Dict) -> Any:
-        params = dict(params)
-        params["browserContextId"] = self.context_id
-        return self.conn.send(command, params, timeout=30)
+        return self.conn.send(command, _address(self.context_id, params),
+                              timeout=30)
 
     def op_add_cookies(self, params: Dict) -> Any:
         """⛔ `expires` IS SECONDS AND -1 MEANS SESSION, not zero and not
@@ -2553,6 +2762,21 @@ class BrowserContextDispatcher(Dispatcher):
         return {"cookies": result.get("cookies") or [], "origins": []}
 
     def op_close(self, params: Dict) -> Any:
+        if self.context_id is None:
+            # ⛔ THE DEFAULT CONTEXT IS NEVER REMOVED, and closing it closes
+            # the browser: that is what upstream does for a persistent context,
+            # whose only context it is. `Browser.removeBrowserContext` on it
+            # would make Juggler's `destroy()` unregister the default from its
+            # maps and leave a browser that no command can address.
+            for page in list(self.pages):
+                try:
+                    page.announce_closed()
+                except Exception:
+                    pass
+            self.emit("close")
+            self.dispose()
+            self.browser.op_close({})
+            return None
         try:
             self.conn.send("Browser.removeBrowserContext",
                                    {"browserContextId": self.context_id},
@@ -2745,7 +2969,7 @@ class BrowserDispatcher(Dispatcher):
         self.emit("context", {"context": context.channel})
         return {"context": context.channel}
 
-    def _apply_context_options(self, context_id: str, params: Dict) -> None:
+    def _apply_context_options(self, context_id: Optional[str], params: Dict) -> None:
         """Push the options the caller asked for into the engine.
 
         ⛔ BEFORE THE FIRST PAGE EXISTS, and that ordering is the whole point:
@@ -2764,7 +2988,7 @@ class BrowserDispatcher(Dispatcher):
             value = params.get(name)
             if value in (None, ""):
                 continue
-            self.conn.send(command,
+            self._context_send(command,
                            {"browserContextId": context_id, field: value},
                            timeout=10)
         # ⛔ The rest of the option set, each one a lever that was arriving
@@ -2782,34 +3006,34 @@ class BrowserDispatcher(Dispatcher):
             except ValueError as exc:
                 raise ProtocolException(
                     "new_context(proxy=...) cannot be applied: %s" % exc)
-            self.conn.send("Browser.setContextProxy",
+            self._context_send("Browser.setContextProxy",
                            dict(proxy, browserContextId=context_id),
                            timeout=10)
         headers = params.get("extraHTTPHeaders")
         if headers:
-            self.conn.send("Browser.setExtraHTTPHeaders",
+            self._context_send("Browser.setExtraHTTPHeaders",
                            {"browserContextId": context_id,
                             "headers": headers}, timeout=10)
         if params.get("offline"):
-            self.conn.send("Browser.setOnlineOverride",
+            self._context_send("Browser.setOnlineOverride",
                            {"browserContextId": context_id,
                             "override": "offline"}, timeout=10)
         geolocation = params.get("geolocation")
         if geolocation:
-            self.conn.send("Browser.setGeolocationOverride",
+            self._context_send("Browser.setGeolocationOverride",
                            {"browserContextId": context_id,
                             "geolocation": geolocation}, timeout=10)
         credentials = params.get("httpCredentials")
         if credentials:
-            self.conn.send("Browser.setHTTPCredentials",
+            self._context_send("Browser.setHTTPCredentials",
                            {"browserContextId": context_id,
                             "credentials": credentials}, timeout=10)
         if params.get("ignoreHTTPSErrors"):
-            self.conn.send("Browser.setIgnoreHTTPSErrors",
+            self._context_send("Browser.setIgnoreHTTPSErrors",
                            {"browserContextId": context_id,
                             "ignoreHTTPSErrors": True}, timeout=10)
         if params.get("bypassCSP"):
-            self.conn.send("Browser.setBypassCSP",
+            self._context_send("Browser.setBypassCSP",
                            {"browserContextId": context_id,
                             "bypassCSP": True}, timeout=10)
         # ⛔ Inverted on purpose: Playwright says `javaScriptEnabled=False`,
@@ -2817,11 +3041,11 @@ class BrowserDispatcher(Dispatcher):
         # other would turn scripting OFF for every default context, which is
         # the kind of inversion that looks like the site being broken.
         if params.get("javaScriptEnabled") is False:
-            self.conn.send("Browser.setJavaScriptDisabled",
+            self._context_send("Browser.setJavaScriptDisabled",
                            {"browserContextId": context_id,
                             "javaScriptDisabled": True}, timeout=10)
         if params.get("hasTouch"):
-            self.conn.send("Browser.setTouchOverride",
+            self._context_send("Browser.setTouchOverride",
                            {"browserContextId": context_id,
                             "hasTouch": True}, timeout=10)
         permissions = params.get("permissions")
@@ -2831,7 +3055,7 @@ class BrowserDispatcher(Dispatcher):
             # `TargetRegistry.js`). An empty string would ALSO match every url
             # through the `startsWith` half, which is exactly the kind of
             # accident that works until somebody tightens that condition.
-            self.conn.send("Browser.grantPermissions",
+            self._context_send("Browser.grantPermissions",
                            {"browserContextId": context_id, "origin": "*",
                             "permissions": permissions}, timeout=10)
         viewport = params.get("viewport")
@@ -2850,9 +3074,42 @@ class BrowserDispatcher(Dispatcher):
                 wanted["deviceScaleFactor"] = params["deviceScaleFactor"]
             if params.get("isMobile"):
                 wanted["isMobile"] = True
-            self.conn.send("Browser.setDefaultViewport",
+            self._context_send("Browser.setDefaultViewport",
                            {"browserContextId": context_id,
                             "viewport": wanted}, timeout=10)
+
+    def _context_send(self, command: str, params: Dict, timeout: float = 10) -> Any:
+        """A `Browser.*` command about one context. The literal dicts above
+        carry `browserContextId` with the id, or with None for the default
+        context; `_address` turns None into the absence Juggler reads."""
+        return self.conn.send(command,
+                              _address(params.get("browserContextId"), params),
+                              timeout=timeout)
+
+    def op_default_context(self, params: Dict) -> Any:
+        """The context whose state IS the profile's: userContextId 0, the one
+        `launchPersistentContext` promises.
+
+        ⛔ UNTIL 0.12.0 THE PERSISTENT PATH HANDED BACK `op_new_context`, AND A
+        `profile_dir=` KEPT NOTHING. `Browser.createBrowserContext` makes a
+        container, a fresh userContextId, and Juggler's `destroy()` calls
+        `ContextualIdentityService.remove` on it, which deletes the container's
+        cookies and storage together with the identity. Every cookie and every
+        localStorage entry a session wrote lived in a container that died with
+        the session: `cookies.sqlite` in the profile stayed at zero rows, and
+        the second session of the same profile started logged out. Measured
+        2026-09-05 against the published 0.12.0, cookies and localStorage both,
+        while the docs promised "logging in once instead of every run".
+
+        Upstream's persistent context is the DEFAULT one, addressed by omitting
+        `browserContextId`. That is what this returns, with the same options
+        applied the same way.
+        """
+        self._apply_context_options(None, params)
+        context = BrowserContextDispatcher(self.server, self, params, None)
+        self.contexts.append(context)
+        self.emit("context", {"context": context.channel})
+        return {"context": context.channel}
 
     def op_new_page(self, params: Dict) -> Any:
         context = self.op_new_context(params)
@@ -2909,7 +3166,7 @@ class BrowserTypeDispatcher(Dispatcher):
         browser_channel = self.op_launch(dict(params, userDataDir=directory))
         browser = self.server.object(browser_channel["browser"]["guid"])
         return {"browser": browser_channel["browser"],
-                "context": browser.op_new_context(params)["context"]}
+                "context": browser.op_default_context(params)["context"]}
 
     def op_launch(self, params: Dict) -> Any:
         executable = params.get("executablePath")

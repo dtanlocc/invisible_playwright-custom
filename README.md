@@ -23,6 +23,14 @@ Anti-bots ask two questions, and reCAPTCHA, hCaptcha and Cloudflare Turnstile sc
 - Every click, hover and drag follows a natural mouse path with human timing, no teleporting cursor.
 - Each input is byte-identical to a real mouse: real input source, pressure, trusted events.
 
+**And one thing the stock driver cannot do.** Playwright's own documentation says
+"Closed-mode shadow roots are not supported", and measured on 2026-09-05 against a page
+carrying one open and one closed root, stock Playwright returned zero matches for the
+closed content in Firefox and in Chromium alike. This engine returns the element, while
+the page still reads `null` from `element.shadowRoot`, so nothing observable to the page
+changes. The three-arm table and the page that reproduces it:
+[closed shadow roots](https://github.com/feder-cr/invisible_playwright/wiki/closed-shadow-root-playwright).
+
 Driven by the standard Playwright API. Full breakdown: [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
 
 ---
@@ -49,8 +57,8 @@ This page is the engine, as a Python library. There are two ways to use it
 without writing code, and both are one line:
 
 - **From an MCP client you already have** (Claude Code, Claude Desktop,
-  Cursor): `claude mcp add stealth -- uvx invisible-playwright-mcp`. See
-  [invisible-playwright-mcp](https://github.com/feder-cr/invisible-playwright-mcp).
+  Cursor): `claude mcp add stealth -- uvx aihawk`. See
+  [the MCP server page](https://github.com/feder-cr/AIHawk/wiki/mcp-server).
 - **With an interface and a model included**, needing only an OpenRouter key:
   `uvx aihawk ui --openrouter-key sk-or-...`. See
   [AIHawk](https://github.com/feder-cr/AIHawk).
@@ -228,11 +236,11 @@ two around it are how most people reach it:
 
 - **[invisible_core](https://github.com/feder-cr/invisible_core)** - seed to
   fingerprint to preferences, plus proxy and geolocation. This package pins it.
-- **[invisible-playwright-mcp](https://github.com/feder-cr/invisible-playwright-mcp)**
-  - this engine as an MCP server, for any client that brings its own model.
-- **[AIHawk](https://github.com/feder-cr/AIHawk)** - an interface and a model,
-  from one command. A client of the server above, with no private path to the
-  browser.
+- **[AIHawk](https://github.com/feder-cr/AIHawk)** - this engine as an MCP
+  server (`uvx aihawk`, for any client that brings its own
+  model) and, in the same package, an interface with a model included, from
+  one command. The interface is a client of the server, with no private path
+  to the browser.
 
 **The open-source neighbours**, and what each one is for.
 
@@ -282,5 +290,6 @@ This project is for educational purposes only. It is provided as-is, with no war
   <a href="https://github.com/feder-cr/invisible_playwright/blob/main/LICENSE"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/license.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/python.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/feder-cr/firefox_antidetect_patch/releases"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/badges/firefox.svg" alt="Firefox 151.0"></a>
+  <img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/badges/docs/badges/launches.svg" alt="browser launches">
   <a href="https://github.com/feder-cr/invisible_playwright/stargazers"><img src="https://raw.githubusercontent.com/feder-cr/invisible_playwright/badges/docs/badges/stars.svg" alt="GitHub stars"></a>
 </p>

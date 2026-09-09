@@ -6,6 +6,178 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-08
+
+### Added
+- **`page.screencast.start(fps=...)` sets the frame rate, and the default
+  stays at ten.** The engine has taken a frame rate all along, and the wrapper
+  passed its own constant to it whatever the caller asked, so a live view could
+  not go past ten frames a second no matter what it did. Measured on the same
+  page, interleaved arms: asking for 10 delivers 9.6-9.8 fps at 257 KB/s,
+  asking for 25 delivers 23.8-24.0 at 629 KB/s. The default does not move,
+  which is the whole shape of the change: raising it would put two and a half
+  times the bandwidth on every consumer to serve the one that is watching a
+  window, so the caller decides and the constant is what happens when nobody
+  does. That is how `quality` and `size` on the same call already work.
+
+## [0.13.2] - 2026-09-07
+
+### Fixed
+- **`page.goto()` now answers with the Response, instead of always `None`.**
+  The navigation itself was never broken - the page loaded, the `response`
+  events carried the right statuses and `expect_response` worked - but the
+  return value was hardcoded to `None`, so `page.goto(url).status` was not
+  reachable. `page.reload()` answers with a Response too, and so does history
+  navigation, which shares that code path but is still held back by a separate
+  engine defect of its own. A redirect chain answers with the FINAL response,
+  and a same-document navigation still answers `None`, as upstream does.
+  Crawlee treats a `None` here as a failed load, so a `PlaywrightCrawler`
+  driven by this package failed every request; it now finishes them.
+
+## [0.13.1] - 2026-09-06
+
+### Changed
+- **The engine is `firefox-29`, through `invisible-core 29.19.0`.** It carries
+  the screencast that `page.screencast.start(on_frame=...)` needs, so the
+  feature shipped in 0.13.0 now has an engine that answers it, and the
+  full-window frame no longer carries the Windows resize border. Nothing
+  else moves: the pin follows the seal.
+
+## [0.13.0] - 2026-09-05
+
+### Added
+- **`page.screencast.start(on_frame=...)` streams JPEG frames of the browser
+  WINDOW.** `page.screenshot()` gives the content viewport and can never show
+  the pointer, which is drawn in the chrome document precisely so that no page
+  can see it. The screencast captures the window through the operating system
+  in the parent process - tab strip, address bar and pointer included, nothing
+  injected into the page - and hands each frame to `on_frame` as JPEG bytes
+  with the captured window's size. Needs an engine from `firefox-28` on;
+  `size=` bounds the frame (scaled down to fit, never up, default 1280x800)
+  and `quality=` the JPEG quality (default 80). `path=` (a video file) is
+  refused by name: the engine has no video encoder.
+
+### Fixed
+- **Two threads writing the Juggler pipe could splice two commands into one
+  line.** Frames are acknowledged from the reader thread while the caller's
+  thread dispatches input; the pipe now has a write lock, and a
+  `Connection.post` that sends without waiting for the reply.
+
+## [0.12.3] - 2026-09-05
+
+### Fixed
+- **Orphaned `.tmp-<tag>-<pid>` trees in the engine cache are swept.** Through
+  `invisible-core 27.19.0`: a download killed during `verifying` or
+  `extracting` used to leave up to the whole extracted tree behind, because
+  only a fresh download by the same pid ever removed it. `ensure_binary` now
+  removes the trees whose process is gone, on every call, and leaves alone
+  this process's own tree, a live process's tree and anything not named after
+  a pid. The MCP server 0.13.0 starts the download with the process, which made
+  a killed download an ordinary event rather than a Ctrl-C.
+
+## [0.12.2] - 2026-09-05
+
+### Changed
+- **The launch counter lives on the engine's repository.** Every session now
+  declares `invisible_firefox.usage_ping.url` through `invisible-core 27.18.0`,
+  pointing at the `usage-counter` release of `firefox_antidetect_patch`, the
+  repository that builds and ships the engine. The engine's compiled default
+  says the same from the next build. Engines older than firefox-21 do not read
+  the pref and are not counted. To opt out of the ping, set
+  `invisible_firefox.usage_ping.enabled` to `False` in `extra_prefs`.
+- **The `browser launches` badge is back.** It was removed in 0.7.2 because the
+  counter behind it lived on a repository that had been deleted, so the badge
+  would have redrawn a frozen number every morning. The counter has lived on
+  this repository since 2026-08-19 and is counting again, so the figure the
+  badge shows is live. It is cumulative, and it undercounts: engines before
+  firefox-21 still ask the old address, and they rejoin only as they upgrade.
+
+## [0.12.1] - 2026-09-05
+
+### Fixed
+- **A persistent profile keeps its cookies and storage for the next session.**
+  Since 0.8.0, `profile_dir=` kept nothing: the first session on a profile set a
+  cookie and a localStorage entry and read both back, the second session on the
+  same profile read an empty jar and `None`, and on disk `cookies.sqlite` held
+  zero rows. The persistent launch handed back an ordinary context, a Juggler
+  container with its own userContextId, and Juggler deletes a container's
+  cookies and storage together with the identity when the context is removed;
+  everything a session wrote lived in a container that died with the session.
+  The persistent context is now the browser's default one, the one whose state
+  is the profile's, addressed by omitting `browserContextId` and never removed;
+  closing it closes the browser, as upstream does. Found by a clean-environment
+  check of 0.12.0, on the day after the docs page promised "logging in once
+  instead of every run".
+
+### Added
+- **A test that a persistent profile keeps state**, e2e: two sessions on one
+  profile, cookie and localStorage written in the first and read in the second,
+  and the cookie row read from `cookies.sqlite` in between, so a regression
+  cannot pass by keeping the data where the page sees it and the disk does not.
+  Against 0.12.0 it fails on the on-disk read.
+
+## [0.12.0] - 2026-09-04
+
+### Fixed
+- **The first launch on Windows works.** On a machine that had never run the
+  engine from that path, the first `InvisiblePlaywright(...)` exited with
+  `3221226505` (0xC0000409) before the protocol came up, and the second one
+  worked. It was Firefox's launcher process, not the browser: on a new path
+  `firefox.exe` runs as the launcher first and forwards the Juggler pipe to the
+  real browser, and it read that pipe from CRT descriptors 3 and 4, which the
+  Node.js driver provides and this client does not, since it names the handles
+  in `PW_PIPE_READ` / `PW_PIPE_WRITE`. The launcher died on `_get_osfhandle(3)`;
+  the next launch found a launcher timestamp with no browser timestamp in the
+  registry and disabled the launcher for that path, which is why it failed
+  exactly once per machine and why nothing about the cache directory mattered.
+  The engine is firefox-27, where the launcher forwards the handles it is
+  handed. Every Windows first launch since 0.8.0, the release where this client
+  replaced the Node driver, had this; the daily Windows install check had been
+  red since 2026-08-31. (#144)
+
+### Added
+- **A test for the first launch from a path Firefox has never run from**,
+  Windows only, e2e. It removes the launcher's registry values for the binary
+  under test, launches once, and checks both that the page answers and that the
+  launcher recorded a start followed by the browser's, so a success with the
+  launcher disabled, the path that always worked, does not pass. Against
+  firefox-26 it fails with the exit code above.
+
+### Internal
+- Engine pin moved to firefox-27 through `invisible-core 27.17.0`.
+
+## [0.11.0] - 2026-09-04
+
+### Fixed
+- **A screenshot photographs where the page is.** The clip was
+  `{x: 0, y: 0, width: innerWidth, height: innerHeight}`, and that clip is in
+  document coordinates: not the window, but the top corner of the page at the
+  window's size. An agent that scrolled and looked got the same image every
+  time, and nothing in the image says so. `full_page` was not read at all:
+  800x600 came back where 800x4000 was asked for. (#136)
+- **Two manual workflows stop calling the removed `path` command.** Both
+  called `python -m invisible_playwright path`, a subcommand removed when the
+  CLI became `fetch` plus `version`. The Windows launch matrix failed in all
+  three cells before reaching its launch probe, and the WebRTC gate had not run
+  since the removal. The existing parser gate scanned Python tests only, so
+  neither call site was in its perimeter; there is now one that reads the
+  workflows too. Thanks to @SamadhiFire for finding and fixing it. (#141)
+
+### Added
+- **A check that asks the index whether the version a change proposes is
+  still free**, on pull requests. This release exists partly because that
+  check found its own repository in the state it exists to prevent: 0.10.0 was
+  on the index while main sat on 0.10.0 with fifteen commits on top of the
+  tag, the screenshot fix among them. A release from there would have
+  published nothing and reported success, because the publish workflow treats
+  an already-present version as a deliberate no-op, which is right for a
+  re-pushed tag and indistinguishable from somebody forgetting to bump. (#142)
+
+### Documentation
+- Twelve pages stop shipping code that cannot run as pasted, tool metadata is
+  out of the shipped screenshots, and the front page names the agent layer
+  that sits on this engine. (#137, #138, #139, #140)
+
 ## [0.10.0] - 2026-09-03
 
 ### Added
