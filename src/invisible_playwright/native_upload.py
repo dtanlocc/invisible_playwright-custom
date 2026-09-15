@@ -19,7 +19,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 
 _CHOOSER_LOCK = threading.Lock()
@@ -28,6 +28,15 @@ _DWMWA_CLOAK = 13
 _FILE_NAME_CONTROL_ID = 1148
 _CLICK_COMPLETION_TIMEOUT_SECONDS = 5.0
 _CHOOSER_LOCK_WAIT_TIMEOUT_SECONDS = 90.0
+_CONTROL_READY_TIMEOUT_SECONDS = 5.0
+_DIALOG_ACCEPT_TIMEOUT_SECONDS = 12.0
+_WM_GETTEXT = 0x000D
+_WM_GETTEXTLENGTH = 0x000E
+_WM_COMMAND = 0x0111
+_WM_NEXTDLGCTL = 0x0028
+_IDOK = 1
+_SMTO_BLOCK = 0x0001
+_SMTO_ABORTIFHUNG = 0x0002
 
 
 async def _acquire_chooser_lock(
@@ -81,7 +90,13 @@ def _snapshot_dialogs() -> set[int]:
             pass
         return True
 
-    win32gui.EnumWindows(collect, None)
+    # EnumWindows can fail transiently when a shell dialog is destroyed while
+    # Windows is enumerating its out-of-process controls. Handles collected
+    # before that race are still useful; a later polling pass sees the rest.
+    try:
+        win32gui.EnumWindows(collect, None)
+    except Exception:
+        pass
     return dialogs
 
 
@@ -225,6 +240,147 @@ def _watch_new_dialog(
     found.set()
 
 
+def _read_control_text(hwnd: int, timeout_ms: int = 1_000) -> tuple[str, bool]:
+    """Read another process' Edit text with bounded Win32 messages.
+
+    GetWindowText intentionally does not return control text owned by another
+    process. WM_GETTEXT is a system message, so Windows marshals it across the
+    boundary. The boolean says whether this authoritative read was available.
+    """
+    import win32gui
+
+    user32 = ctypes.windll.user32
+    send_timeout = getattr(user32, "SendMessageTimeoutW", None)
+    if not callable(send_timeout):
+        try:
+            return str(win32gui.GetWindowText(hwnd) or ""), False
+        except Exception:
+            return "", False
+
+    try:
+        from ctypes import wintypes
+
+        send_timeout.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+            wintypes.UINT,
+            wintypes.UINT,
+            ctypes.POINTER(ctypes.c_size_t),
+        ]
+        send_timeout.restype = wintypes.LPARAM
+        flags = _SMTO_BLOCK | _SMTO_ABORTIFHUNG
+        length_result = ctypes.c_size_t(0)
+        ok = send_timeout(
+            ctypes.c_void_p(hwnd),
+            _WM_GETTEXTLENGTH,
+            0,
+            0,
+            flags,
+            max(50, int(timeout_ms)),
+            ctypes.byref(length_result),
+        )
+        if not ok:
+            return "", False
+        buffer = ctypes.create_unicode_buffer(max(1, int(length_result.value) + 1))
+        copied_result = ctypes.c_size_t(0)
+        ok = send_timeout(
+            ctypes.c_void_p(hwnd),
+            _WM_GETTEXT,
+            len(buffer),
+            ctypes.cast(buffer, ctypes.c_void_p).value or 0,
+            flags,
+            max(50, int(timeout_ms)),
+            ctypes.byref(copied_result),
+        )
+        if not ok:
+            return "", False
+        return buffer.value, True
+    except Exception:
+        try:
+            return str(win32gui.GetWindowText(hwnd) or ""), False
+        except Exception:
+            return "", False
+
+
+def _focus_dialog_control(hwnd: int, control: int) -> None:
+    """Attach briefly to the dialog thread so its edit really receives focus."""
+    import win32gui
+
+    user32 = ctypes.windll.user32
+    kernel32 = getattr(ctypes.windll, "kernel32", None)
+    attached = False
+    current_thread = 0
+    dialog_thread = 0
+    try:
+        if kernel32 is not None:
+            current_thread = int(kernel32.GetCurrentThreadId())
+        get_thread = getattr(user32, "GetWindowThreadProcessId", None)
+        if callable(get_thread):
+            dialog_thread = int(get_thread(ctypes.c_void_p(hwnd), None))
+        attach = getattr(user32, "AttachThreadInput", None)
+        if (
+            callable(attach)
+            and current_thread
+            and dialog_thread
+            and current_thread != dialog_thread
+        ):
+            attached = bool(attach(current_thread, dialog_thread, True))
+        for method_name in (
+            "BringWindowToTop",
+            "SetForegroundWindow",
+            "SetActiveWindow",
+        ):
+            method = getattr(user32, method_name, None)
+            if callable(method):
+                try:
+                    method(ctypes.c_void_p(hwnd))
+                except Exception:
+                    pass
+        win32gui.SendMessage(hwnd, _WM_NEXTDLGCTL, control, 1)
+        set_focus = getattr(user32, "SetFocus", None)
+        if callable(set_focus):
+            set_focus(ctypes.c_void_p(control))
+        else:
+            win32gui.SetFocus(control)
+    except Exception:
+        try:
+            win32gui.SendMessage(hwnd, _WM_NEXTDLGCTL, control, 1)
+            win32gui.SetFocus(control)
+        except Exception:
+            pass
+    finally:
+        if attached:
+            try:
+                user32.AttachThreadInput(current_thread, dialog_thread, False)
+            except Exception:
+                pass
+
+
+def _notify_filename_changed(hwnd: int, filename: int, control_id: int) -> None:
+    """Synchronise the Explorer-style dialog model with its filename Edit."""
+    user32 = ctypes.windll.user32
+    for notification in (0x0400, 0x0300):  # EN_UPDATE, EN_CHANGE
+        user32.SendMessageW(
+            ctypes.c_void_p(hwnd),
+            _WM_COMMAND,
+            (control_id & 0xFFFF) | (notification << 16),
+            filename,
+        )
+
+
+def _post_dialog_accept(hwnd: int, open_button: int) -> None:
+    """Queue IDOK on the dialog itself so activation cannot swallow BM_CLICK."""
+    import win32gui
+
+    # BM_CLICK can be ignored when a dialog is inactive. The chooser is
+    # intentionally offscreen/DWM-cloaked, so send the equivalent command to
+    # its dialog manager. PostMessage stays non-blocking if validation opens a
+    # child alert for a genuinely invalid filename.
+    win32gui.PostMessage(hwnd, _WM_COMMAND, _IDOK, open_button)
+
+
 def _fill_and_accept(hwnd: int, files: Sequence[str]) -> dict[str, Any]:
     import win32con
     import win32gui
@@ -246,45 +402,77 @@ def _fill_and_accept(hwnd: int, files: Sequence[str]) -> dict[str, Any]:
             pass
         return True
 
-    win32gui.EnumChildWindows(hwnd, collect_edit, None)
-    if not edits:
-        raise NativeUploadError("Windows file chooser has no File name control.")
-
     value = files[0] if len(files) == 1 else " ".join(f'"{path}"' for path in files)
+
     def control_id(edit: int) -> int:
         try:
             return int(win32gui.GetDlgCtrlID(edit))
         except Exception:
             return -1
 
-    # Explorer-style Open dialogs can expose both the top-right Search box
-    # and the File name edit as visible Edit controls. Enumeration order is
-    # timing-dependent and changes in a one-file/CREATE_NO_WINDOW launch. The
-    # language-independent Win32 control id is the stable selector.
-    filename = next(
-        (edit for edit in edits if control_id(edit) == _FILE_NAME_CONTROL_ID),
-        next(
-            (edit for edit in edits if win32gui.IsWindowVisible(edit)),
-            edits[0],
-        ),
-    )
+    # EnumWindows can reveal #32770 before Explorer has finished creating and
+    # enabling ID 1148/IDOK. Waiting here removes the intermittent race where
+    # the Edit exists but cannot accept automation yet.
+    filename = 0
+    open_button = 0
+    ready_deadline = time.monotonic() + _CONTROL_READY_TIMEOUT_SECONDS
+    while time.monotonic() < ready_deadline:
+        edits.clear()
+        try:
+            win32gui.EnumChildWindows(hwnd, collect_edit, None)
+        except Exception:
+            edits.clear()
+        filename = next(
+            (edit for edit in edits if control_id(edit) == _FILE_NAME_CONTROL_ID),
+            next(
+                (
+                    edit
+                    for edit in edits
+                    if bool(win32gui.IsWindowVisible(edit))
+                ),
+                edits[0] if edits else 0,
+            ),
+        )
+        open_button = int(win32gui.GetDlgItem(hwnd, _IDOK) or 0)
+        if filename and open_button:
+            try:
+                if (
+                    win32gui.IsWindowEnabled(hwnd)
+                    and win32gui.IsWindowEnabled(filename)
+                    and win32gui.IsWindowEnabled(open_button)
+                ):
+                    break
+            except Exception:
+                break
+        time.sleep(0.05)
+    if not filename:
+        raise NativeUploadError("Windows file chooser has no File name control.")
+    if not open_button:
+        raise NativeUploadError("Windows file chooser has no Open button.")
+
     diagnostics: dict[str, Any] = {
         "dialog_visible": bool(win32gui.IsWindowVisible(hwnd)),
         "edit_control_ids": [control_id(edit) for edit in edits],
         "selected_control_id": control_id(filename),
+        "controls_ready": True,
     }
+    _focus_dialog_control(hwnd, filename)
+    # WM_SETTEXT is a system message, so Windows safely marshals its string
+    # across the process boundary. On current Windows 11 common dialogs it is
+    # also the only path that survives a headed-but-DWM-cloaked Firefox window.
+    # GetWindowText is not a valid cross-process readback for an Edit control;
+    # _read_control_text uses bounded WM_GETTEXT instead so a successful setter
+    # can be distinguished from a chooser that silently discarded the value.
+    wm_settext_sent = False
     try:
-        # The dialog lives on Firefox's UI thread. A pre-show chooser does not
-        # accept Edit selection messages until Windows has assigned keyboard
-        # focus once. It is already parked offscreen and DWM-cloaked here.
-        win32gui.SetForegroundWindow(hwnd)
-        win32gui.SetFocus(filename)
-    except Exception:
-        pass
-    # Common dialogs ignore WM_SETTEXT on this ComboBox edit while it is
-    # cloaked/parked. Mirror the reliable Edit control sequence: select all,
-    # then replace the selection with a Unicode buffer.
-    buffer = ctypes.create_unicode_buffer(value, size=len(value) + 1)
+        diagnostics["wm_settext_result"] = win32gui.SendMessage(
+            filename, win32con.WM_SETTEXT, 0, value
+        )
+        wm_settext_sent = True
+    except Exception as exc:
+        diagnostics["wm_settext_error"] = f"{type(exc).__name__}: {exc}"
+    diagnostics["wm_settext_sent"] = wm_settext_sent
+
     user32 = ctypes.windll.user32
     try:
         from ctypes import wintypes
@@ -299,51 +487,59 @@ def _fill_and_accept(hwnd: int, files: Sequence[str]) -> dict[str, Any]:
     except (AttributeError, TypeError):
         # Unit doubles need not implement ctypes function metadata.
         pass
-    user32.SetFocus(ctypes.c_void_p(filename))
-    user32.SendMessageW(
-        ctypes.c_void_p(filename),
-        win32con.EM_SETSEL,
-        0,
-        -1,
-    )
-    user32.SendMessageW(
-        ctypes.c_void_p(filename),
-        win32con.EM_REPLACESEL,
-        1,
-        ctypes.addressof(buffer),
-    )
-    actual_text = win32gui.GetWindowText(filename)
+    control = control_id(filename) & 0xFFFF
+    _notify_filename_changed(hwnd, filename, control)
+    time.sleep(0.12)
+    actual_text, reliable_readback = _read_control_text(filename)
+    diagnostics["wm_gettext_reliable"] = reliable_readback
+    diagnostics["wm_settext_readback_matches"] = actual_text == value
     diagnostics["win32_text_matches"] = actual_text == value
-    if actual_text != value:
+    pywinauto_sent = False
+    has_supplementary_unicode = any(ord(character) > 0xFFFF for character in value)
+    diagnostics["has_supplementary_unicode"] = has_supplementary_unicode
+    if has_supplementary_unicode:
+        # EditWrapper's EM_REPLACESEL path has corrupted UTF-16 surrogate pairs
+        # in real Firefox choosers (for example U+1F35A RICE BALL). WM_SETTEXT
+        # is Unicode-safe and the explicit EN_UPDATE/EN_CHANGE notifications
+        # below update the common-dialog filename model without rewriting it.
+        diagnostics["pywinauto_replace"] = "skipped-supplementary-unicode"
+    elif not reliable_readback or actual_text != value:
         try:
-            # pywinauto's EditWrapper performs the additional focus/selection
-            # notifications required by Explorer-style common dialogs. Import
-            # the concrete module (not the dynamically resolved Desktop
-            # backend) so one-file compilers can follow it deterministically.
+            # EditWrapper uses EM_SETSEL + EM_REPLACESEL. Run it for BMP-only
+            # paths even when WM_SETTEXT succeeded: some Explorer-style chooser
+            # instances need the replace sequence to update their filename model.
             from pywinauto.controls.win32_controls import EditWrapper
 
             EditWrapper(filename).set_edit_text(value)
-            diagnostics["pywinauto_fallback"] = "completed"
-        except Exception as exc:
-            diagnostics["pywinauto_fallback"] = (
-                f"{type(exc).__name__}: {exc}"
+            pywinauto_sent = True
+            diagnostics["pywinauto_replace"] = "completed"
+            _notify_filename_changed(hwnd, filename, control)
+            time.sleep(0.12)
+            actual_text, pywinauto_readback_reliable = _read_control_text(filename)
+            diagnostics["pywinauto_readback_reliable"] = (
+                pywinauto_readback_reliable
             )
-            # WM_GETTEXT can return an empty string for another process's
-            # common-dialog Edit control even after the edit accepted the
-            # value. Browser-side ``element.files`` below is the authoritative
-            # verification; do not turn an unreadable OS control into a false
-            # upload failure.
-            pass
+            diagnostics["pywinauto_text_matches"] = actual_text == value
+        except Exception as exc:
+            diagnostics["pywinauto_replace"] = f"{type(exc).__name__}: {exc}"
+    else:
+        diagnostics["pywinauto_replace"] = "not-needed-wm-gettext-confirmed"
 
-    # ``EditWrapper.set_edit_text`` can report completion even though the
-    # Explorer-style dialog has not updated its internal File name model. Read
-    # it back, then fall back to WM_CHAR messages. WM_CHAR contains no pointer
-    # into this process, works across the Firefox process boundary, and emits
-    # the same edit notifications as typed input without using the clipboard.
-    fallback_text = win32gui.GetWindowText(filename)
+    fallback_text, fallback_readback_reliable = _read_control_text(filename)
     diagnostics["fallback_text_matches"] = fallback_text == value
-    if fallback_text != value:
-        user32.SetFocus(ctypes.c_void_p(filename))
+    diagnostics["fallback_readback_reliable"] = fallback_readback_reliable
+    # WM_SETTEXT returning non-zero only means the message was processed. If
+    # authoritative WM_GETTEXT still disagrees, type into the Edit so its own
+    # window procedure emits the same state changes as real keyboard input.
+    if (
+        (fallback_readback_reliable and fallback_text != value)
+        or (
+            not fallback_readback_reliable
+            and not wm_settext_sent
+            and not pywinauto_sent
+        )
+    ):
+        _focus_dialog_control(hwnd, filename)
         user32.SendMessageW(
             ctypes.c_void_p(filename),
             win32con.EM_SETSEL,
@@ -351,42 +547,63 @@ def _fill_and_accept(hwnd: int, files: Sequence[str]) -> dict[str, Any]:
             -1,
         )
         user32.SendMessageW(ctypes.c_void_p(filename), 0x0303, 0, 0)  # WM_CLEAR
-        for character in value:
+        # WM_CHAR transports UTF-16 code units, not Unicode scalar values.
+        # Split supplementary characters into their surrogate pair so this
+        # final fallback also preserves emoji in Windows paths.
+        utf16_units = (
+            int.from_bytes(value.encode("utf-16-le")[index:index + 2], "little")
+            for index in range(0, len(value.encode("utf-16-le")), 2)
+        )
+        for code_unit in utf16_units:
             user32.SendMessageW(
                 ctypes.c_void_p(filename),
                 0x0102,  # WM_CHAR
-                ord(character),
+                code_unit,
                 0,
             )
-        fallback_text = win32gui.GetWindowText(filename)
+        _notify_filename_changed(hwnd, filename, control)
+        time.sleep(0.12)
+        fallback_text, wm_char_readback_reliable = _read_control_text(filename)
+        diagnostics["wm_char_readback_reliable"] = wm_char_readback_reliable
         diagnostics["wm_char_text_matches"] = fallback_text == value
 
     # Tell the common-dialog parent that control 1148 changed. Merely setting
     # the Edit text is insufficient on some Windows 10/11 dialog builds: the
     # visible text changes, but IDOK still reads an older empty value.
-    control = control_id(filename) & 0xFFFF
-    for notification in (0x0400, 0x0300):  # EN_UPDATE, EN_CHANGE
-        user32.SendMessageW(
-            ctypes.c_void_p(hwnd),
-            0x0111,  # WM_COMMAND
-            control | (notification << 16),
-            filename,
+    _notify_filename_changed(hwnd, filename, control)
+
+    final_text, final_readback_reliable = _read_control_text(filename)
+    diagnostics["final_readback_reliable"] = final_readback_reliable
+    diagnostics["final_text_matches"] = final_text == value
+    if final_readback_reliable and final_text != value:
+        raise NativeUploadError(
+            "Windows file chooser did not retain the filename. "
+            f"Diagnostics: {diagnostics}"
         )
 
     time.sleep(0.35)
 
-    # IDOK is language-independent, unlike the localized Open/Mở caption.
-    open_button = win32gui.GetDlgItem(hwnd, 1)
-    if not open_button:
-        raise NativeUploadError("Windows file chooser has no Open button.")
-    win32gui.SendMessage(open_button, win32con.BM_CLICK, 0, 0)
+    # IDOK is language-independent, unlike the localized Open caption. Keep the
+    # command asynchronous: a genuinely invalid filename can open a modal alert
+    # on the chooser thread, and synchronous dispatch would then hold the global
+    # chooser lock until someone dismissed that hidden alert.
+    _focus_dialog_control(hwnd, filename)
+    _post_dialog_accept(hwnd, open_button)
     diagnostics["open_clicked"] = True
+    diagnostics["accept_method"] = "WM_COMMAND_IDOK"
     is_window = getattr(win32gui, "IsWindow", None)
     if callable(is_window):
-        close_deadline = time.monotonic() + 3.0
+        close_deadline = time.monotonic() + _DIALOG_ACCEPT_TIMEOUT_SECONDS
         while is_window(hwnd) and time.monotonic() < close_deadline:
             time.sleep(0.05)
         diagnostics["dialog_closed_after_open"] = not bool(is_window(hwnd))
+        if is_window(hwnd):
+            try:
+                diagnostics["dialog_enabled_after_open"] = bool(
+                    win32gui.IsWindowEnabled(hwnd)
+                )
+            except Exception:
+                pass
     return diagnostics
 
 
@@ -399,9 +616,68 @@ def _cancel_dialog(hwnd: int | None) -> None:
 
         cancel = win32gui.GetDlgItem(hwnd, 2)
         if cancel:
-            win32gui.SendMessage(cancel, win32con.BM_CLICK, 0, 0)
+            win32gui.PostMessage(cancel, win32con.BM_CLICK, 0, 0)
+        else:
+            # The common-dialog validation alert observed on Windows 11 owns
+            # one visible ``OK`` button whose control id is 0. GetDlgItem
+            # cannot identify it reliably, so enumerate direct children and
+            # click the first enabled button. This re-enables the parent
+            # chooser, which the next cleanup pass can cancel normally.
+            buttons: list[int] = []
+
+            def collect_button(child: int, _extra: Any) -> bool:
+                try:
+                    if (
+                        win32gui.GetClassName(child) == "Button"
+                        and win32gui.IsWindowEnabled(child)
+                    ):
+                        buttons.append(int(child))
+                except Exception:
+                    pass
+                return True
+
+            win32gui.EnumChildWindows(hwnd, collect_button, None)
+            if buttons:
+                win32gui.PostMessage(buttons[0], win32con.BM_CLICK, 0, 0)
+            else:
+                win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
     except Exception:
         pass
+
+
+def _close_owned_dialogs(
+    *,
+    owner_process_ids: frozenset[int] | None,
+    owner_session_token: Any | None,
+    exclude: set[int] | None = None,
+    timeout_seconds: float = 1.5,
+) -> list[int]:
+    """Dismiss chooser/error dialogs belonging to one browser session."""
+    import win32gui
+
+    protected = exclude or set()
+    deadline = time.monotonic() + max(0.1, timeout_seconds)
+    remaining: list[int] = []
+    while time.monotonic() < deadline:
+        remaining = [
+            hwnd
+            for hwnd in _snapshot_dialogs()
+            if hwnd not in protected
+            and _is_firefox_dialog(
+                hwnd, owner_process_ids, owner_session_token
+            )
+        ]
+        if not remaining:
+            return []
+        # Close an enabled validation alert before its disabled parent chooser.
+        remaining.sort(
+            key=lambda hwnd: bool(win32gui.IsWindowEnabled(hwnd)),
+            reverse=True,
+        )
+        for hwnd in remaining:
+            _cancel_dialog(hwnd)
+        time.sleep(0.05)
+    return remaining
 
 
 async def set_input_files_native(
@@ -412,6 +688,9 @@ async def set_input_files_native(
     allow_input_replacement: bool = False,
     owner_process_ids: Iterable[int] | None = None,
     owner_session_token: Any | None = None,
+    on_dialog_active: Callable[[bool], None] | None = None,
+    trigger_dwell_ms: int | None = None,
+    trigger_click_delay_ms: int | None = None,
     timeout_ms: int = 15_000,
 ) -> None:
     """Attach files through a real, DWM-cloaked Windows chooser.
@@ -423,7 +702,10 @@ async def set_input_files_native(
     page's editor/progress state. The function briefly focuses an offscreen,
     DWM-cloaked dialog and never uses the clipboard. A process-wide lock serialises only the sub-second native
     selection stage so concurrent browser sessions cannot consume one another's
-    chooser.
+    chooser. ``trigger_dwell_ms`` pauses after a pointer hover, while
+    ``trigger_click_delay_ms`` keeps the pointer down briefly on the visible
+    upload button. Both happen only after this session owns the chooser lock,
+    so concurrent accounts cannot interleave native-selection gestures.
     """
 
     if os.name != "nt":
@@ -443,7 +725,26 @@ async def set_input_files_native(
     click_task: asyncio.Task[Any] | None = None
     watcher: threading.Thread | None = None
     stop = threading.Event()
+    before: set[int] = set()
+    activity_notified = False
     try:
+        if on_dialog_active is not None:
+            on_dialog_active(True)
+            activity_notified = True
+
+        # With the global lock held, a chooser owned by this exact browser
+        # session can only be residue from an earlier timed-out attempt.
+        if owner_ids is not None or owner_session_token is not None:
+            stale = await asyncio.to_thread(
+                _close_owned_dialogs,
+                owner_process_ids=owner_ids,
+                owner_session_token=owner_session_token,
+            )
+            if stale:
+                raise NativeUploadError(
+                    f"Could not close stale Windows file dialogs: {stale}"
+                )
+
         multiple = await locator.get_attribute("multiple")
         if len(files) > 1 and multiple is None:
             raise NativeUploadError("The target file input does not allow multiple files.")
@@ -467,9 +768,21 @@ async def set_input_files_native(
         )
         watcher.start()
         click_target = trigger if trigger is not None else locator
-        click_task = asyncio.create_task(
-            click_target.click(no_wait_after=True, timeout=timeout_ms)
-        )
+        if trigger_dwell_ms is not None:
+            try:
+                await click_target.hover(timeout=min(timeout_ms, 5_000))
+                await asyncio.sleep(
+                    max(40, min(1_200, int(trigger_dwell_ms))) / 1_000
+                )
+            except Exception:
+                pass
+        click_options: dict[str, Any] = {
+            "no_wait_after": True,
+            "timeout": timeout_ms,
+        }
+        if trigger_click_delay_ms is not None:
+            click_options["delay"] = max(25, min(350, int(trigger_click_delay_ms)))
+        click_task = asyncio.create_task(click_target.click(**click_options))
 
         ready = await asyncio.wait_for(
             asyncio.to_thread(found.wait, timeout_seconds),
@@ -501,6 +814,14 @@ async def set_input_files_native(
         fill_diagnostics = await asyncio.to_thread(
             _fill_and_accept, dialog_hwnd, files
         )
+        if (
+            fill_diagnostics
+            and fill_diagnostics.get("dialog_closed_after_open") is False
+        ):
+            raise NativeUploadError(
+                "Windows chooser rejected the filename instead of closing. "
+                f"Diagnostics: {fill_diagnostics}"
+            )
         try:
             # Firefox can keep Playwright's click command pending even after
             # the native chooser has accepted the file and closed. The OS
@@ -551,5 +872,18 @@ async def set_input_files_native(
             await asyncio.gather(click_task, return_exceptions=True)
         if watcher is not None:
             await asyncio.to_thread(watcher.join, 1.0)
-        _cancel_dialog(dialog_hwnd)
+        try:
+            await asyncio.to_thread(
+                _close_owned_dialogs,
+                owner_process_ids=owner_ids,
+                owner_session_token=owner_session_token,
+                exclude=before,
+            )
+        except Exception:
+            _cancel_dialog(dialog_hwnd)
+        if activity_notified and on_dialog_active is not None:
+            try:
+                on_dialog_active(False)
+            except Exception:
+                pass
         _CHOOSER_LOCK.release()

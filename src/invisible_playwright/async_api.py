@@ -65,6 +65,7 @@ class InvisiblePlaywright(_session.CommonLaunch):
         self._binary_path = binary_path
         self._profile_dir: Optional[Path] = Path(profile_dir) if profile_dir else None
         self._firefox_extensions: tuple[Path, ...] = ()
+        self._firefox_extension_exclusions: tuple[str, ...] = ()
         # reCAPTCHA pre-seed gated server-side; respect persistent profile.
         self._prep_recaptcha = bool(prep_recaptcha) and self._profile_dir is None
         self._profile: Profile = generate_profile(
@@ -107,6 +108,14 @@ class InvisiblePlaywright(_session.CommonLaunch):
         self._firefox_extensions = tuple(Path(path) for path in xpi_paths)
         return self
 
+    def set_firefox_extension_exclusions(
+        self, addon_ids: Iterable[str]
+    ) -> "InvisiblePlaywright":
+        """Remove these managed add-ons from the shared engine before launch."""
+
+        self._firefox_extension_exclusions = tuple(str(value) for value in addon_ids)
+        return self
+
     async def __aenter__(self) -> Union[Browser, BrowserContext]:
         # Resolve timezone="auto" AND discover the proxy egress IP in one
         # round-trip, off the event loop, before anything reads self._timezone
@@ -139,9 +148,12 @@ class InvisiblePlaywright(_session.CommonLaunch):
         # binary_path= never reaches ensure_binary(), so the engine check lives
         # on the resolved executable rather than inside the fetcher.
         executable = resolve_executable(self._binary_path)
-        if self._firefox_extensions:
+        if self._firefox_extensions or self._firefox_extension_exclusions:
             await asyncio.to_thread(
-                install_firefox_extensions, executable, self._firefox_extensions
+                install_firefox_extensions,
+                executable,
+                self._firefox_extensions,
+                self._firefox_extension_exclusions,
             )
         # The REAL result of _resolve_headless (did it create an
         # alternate desktop or not?) must be known BEFORE composing the
