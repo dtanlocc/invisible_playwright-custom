@@ -32,13 +32,13 @@ import pytest
 
 from invisible_playwright import InvisiblePlaywright
 
-PAGINA = b"""<!DOCTYPE html><html><body>
+PAGE = b"""<!DOCTYPE html><html><body>
 <input id="f" type="file">
-<button id="b" onclick="document.getElementById('f').click()">carica</button>
+<button id="b" onclick="document.getElementById('f').click()">upload</button>
 <pre id="out"></pre>
 <script>
 document.getElementById('f').addEventListener('change', (e) => {
-  const n = e.target.files.length ? e.target.files[0].name : '(nessuno)';
+  const n = e.target.files.length ? e.target.files[0].name : '(none)';
   document.getElementById('out').textContent = 'change:' + n;
 });
 </script></body></html>"""
@@ -48,16 +48,16 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
-        self.send_header("Content-Length", str(len(PAGINA)))
+        self.send_header("Content-Length", str(len(PAGE)))
         self.end_headers()
-        self.wfile.write(PAGINA)
+        self.wfile.write(PAGE)
 
     def log_message(self, *a):
         pass
 
 
 @pytest.fixture
-def pagina_locale():
+def local_page():
     """A real page from 127.0.0.1: `data:` URLs carry their own CSP."""
     with socketserver.TCPServer(("127.0.0.1", 0), _Handler) as srv:
         threading.Thread(target=srv.serve_forever, daemon=True).start()
@@ -68,14 +68,14 @@ def pagina_locale():
 
 
 @pytest.fixture
-def file_campione(tmp_path):
-    p = tmp_path / "campione.txt"
+def sample_file(tmp_path):
+    p = tmp_path / "sample.txt"
     p.write_bytes(b"contenuto di prova")
     return str(p)
 
 
 @pytest.mark.e2e
-def test_expect_file_chooser_receives_the_event(firefox_binary, pagina_locale):
+def test_expect_file_chooser_receives_the_event(firefox_binary, local_page):
     """The event arrives. Before 2026-08-25 this always timed out.
 
     ⛔ There used to be an `xfail` here, and it went away as it promised to. Its
@@ -92,7 +92,7 @@ def test_expect_file_chooser_receives_the_event(firefox_binary, pagina_locale):
     """
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
-        page.goto(pagina_locale, wait_until="load")
+        page.goto(local_page, wait_until="load")
         with page.expect_file_chooser(timeout=15000) as info:
             page.click("#b")
         chooser = info.value
@@ -101,53 +101,50 @@ def test_expect_file_chooser_receives_the_event(firefox_binary, pagina_locale):
         assert chooser.element is not None
 
 
-@pytest.mark.xfail(
-    reason="PRE-EXISTING defect, not from this patch: setting REAL files on "
-           "an input fails (`setFileInputFiles` -> 'object ... no longer "
-           "usable', and `set_input_files` times out). Verified on the "
-           "binary from the latest release, where it fails identically. See "
-           "70-known-bugs.md [B178]. This test turns green on its own the "
-           "day B178 is closed, and that is why it was not deleted.",
-    strict=False)
 @pytest.mark.e2e
-def test_the_chosen_files_arrive_at_the_page(firefox_binary, pagina_locale,
-                                              file_campione):
+def test_the_chosen_files_arrive_at_the_page(firefox_binary, local_page,
+                                              sample_file):
     """It is not enough for the event to fire: the file must actually reach the DOM.
 
     A `change` that does not fire would be a suppressed signal, which per rule
     12 is a FAILURE, not a success.
+
+    ⛔ THIS WAS EXPECTED-RED FOR THREE WEEKS, AND THE REASON GIVEN WAS WRONG.
+    [B178] was recorded as a suspicion about the Windows content sandbox that
+    nobody had checked. The refusal is in the PARENT process and it is
+    explicit: it declines to build a `File` for any content process whose
+    remote type is not `file`, answering NS_ERROR_DOM_INVALID_STATE_ERR, which
+    reaches the caller as "an object that is not, or is no longer, usable" and
+    names nothing at all. The remedy is the preference the engine's own gate
+    calls the "or for testing" escape, `dom.file.createInChild`, and it ships
+    from the core this package now pins.
     """
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
-        page.goto(pagina_locale, wait_until="load")
+        page.goto(local_page, wait_until="load")
         with page.expect_file_chooser(timeout=15000) as info:
             page.click("#b")
-        info.value.set_files(file_campione)
+        info.value.set_files(sample_file)
         page.wait_for_timeout(400)
-        assert "campione.txt" in page.inner_text("#out")
+        assert "sample.txt" in page.inner_text("#out")
 
 
-@pytest.mark.xfail(
-    reason="same PRE-EXISTING defect as B178: `set_input_files` with a "
-           "real path times out even on the binary from the latest "
-           "release. Stays here because it IS THE CONTROL - the day B178 "
-           "is closed it must go back to proving that the dialog is "
-           "suppressed ONLY on request - but it cannot be a hard assertion "
-           "while the API it uses is broken upstream.",
-    strict=False)
 @pytest.mark.e2e
 def test_without_interception_the_file_inputs_remain_normal(firefox_binary,
-                                                              pagina_locale,
-                                                              file_campione):
+                                                              local_page,
+                                                              sample_file):
     """THE CONTROL. The fix must suppress the dialog ONLY on request.
 
     Here nobody asks to intercept: `set_input_files` must keep working and
     the page must see its `change`. If this turns red, the fix broke file
     inputs for everyone instead of intercepting them just for us.
+
+    It is a hard assertion again for the first time since [B178] was opened:
+    the same preference as the test above, reached through the other door.
     """
     with InvisiblePlaywright(seed=42, binary_path=firefox_binary) as browser:
         page = browser.new_page()
-        page.goto(pagina_locale, wait_until="load")
-        page.set_input_files("#f", file_campione)
+        page.goto(local_page, wait_until="load")
+        page.set_input_files("#f", sample_file)
         page.wait_for_timeout(300)
-        assert "campione.txt" in page.inner_text("#out")
+        assert "sample.txt" in page.inner_text("#out")

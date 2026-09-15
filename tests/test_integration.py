@@ -348,12 +348,16 @@ def test_linux_xvfb_workarounds_with_socks_proxy(monkeypatch):
     # Windows-only sandbox key absent on Linux even with virtual_display=True.
     assert "security.sandbox.gpu.level" not in prefs
     # GPU renderer is spoofed from the validated WebGL persona (a coherent Windows
-    # ANGLE GPU whose renderer + params cross-check), applied on every host - NOT the
-    # raw profile.gpu.renderer, which has no coherent param set and is never exposed.
+    # ANGLE GPU whose renderer + params cross-check), applied on every host. The
+    # profile carries that same persona, so `profile.gpu.renderer` is the label of
+    # what the page reads rather than a second value - the comment here used to say
+    # it "has no coherent param set and is never exposed", which stopped being true
+    # when the persona became the profile's own GPU.
     from invisible_core._webgl_personas import select_persona
     _persona = select_persona(profile.seed)
     assert _persona, "expected a validated persona for this seed"
     assert prefs["zoom.stealth.webgl.renderer"] == _persona["prefs"]["zoom.stealth.webgl.renderer"]
+    assert prefs["zoom.stealth.webgl.renderer"] == profile.gpu.renderer
     assert prefs["zoom.stealth.webgl.renderer"]  # non-empty
     assert "ANGLE" in prefs["zoom.stealth.webgl.renderer"]  # Windows ANGLE form
     # The proxy layer no longer writes any endpoint, and what it does write - the
@@ -370,15 +374,19 @@ def test_linux_xvfb_workarounds_with_socks_proxy(monkeypatch):
 
 
 @pytest.mark.integration
-def test_linux_msaa_pin_propagates_through_pipeline(monkeypatch):
-    """IT12 - pinning MSAA on Linux survives the prefs translation; on
-    Windows the same pin is overwritten to 4 (covered by the unit tests)."""
-    monkeypatch.setattr(sys, "platform", "linux")
-    profile = generate_profile(seed=42, pin={"webgl.msaa_samples": 8})
-    prefs = translate_profile_to_prefs(profile)
+def test_msaa_reaches_the_pipeline_identically_on_both_platforms(monkeypatch):
+    """IT12, inverted 2026-09-15 because it asserted a divergence.
 
-    assert prefs["webgl.msaa-samples"] == 8
-    assert prefs["webgl.msaa-samples"] == 8
-    assert prefs["webgl.msaa-force"] is True
+    It read "pinning MSAA on Linux survives the prefs translation; on Windows the
+    same pin is overwritten to 4", and that difference was the tell: the same seed
+    emitted a different gl.SAMPLES on our two builds, on a value whose own comment
+    in the core calls variation detectable. Both emit 4 now and the key is no
+    longer pinnable, so what this checks through the pipeline is the parity."""
+    seen = {}
+    for platform in ("linux", "win32"):
+        monkeypatch.setattr(sys, "platform", platform)
+        prefs = translate_profile_to_prefs(generate_profile(seed=42))
+        seen[platform] = (prefs["webgl.msaa-samples"], prefs["webgl.msaa-force"])
+    assert seen["linux"] == seen["win32"] == (4, True), seen
 
 

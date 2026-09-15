@@ -12,7 +12,6 @@ from invisible_playwright._pw.async_api import Browser, BrowserContext, Playwrig
 from . import _session
 from ._cursor import resolve_cursor_engine
 from invisible_core._fpforge import Profile, generate_profile
-from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
 from ._engine import assert_wire_version, resolve_executable
 from .firefox_extensions import install_firefox_extensions
@@ -68,9 +67,9 @@ class InvisiblePlaywright(_session.CommonLaunch):
         self._firefox_extension_exclusions: tuple[str, ...] = ()
         # reCAPTCHA pre-seed gated server-side; respect persistent profile.
         self._prep_recaptcha = bool(prep_recaptcha) and self._profile_dir is None
-        self._profile: Profile = generate_profile(
-            self.seed, pin=self._pin, fixed_gpu_class=forced_gpu_class(self.seed)
-        )
+        # No `fixed_gpu_class=` - see the note on the same call in `launcher.py`.
+        # The GPU class is derived from the persona `invisible_core` chooses.
+        self._profile: Profile = generate_profile(self.seed, pin=self._pin)
         self._pw: Optional[Playwright] = None
         self._browser: Optional[Browser] = None
         self._persistent_context: Optional[BrowserContext] = None
@@ -92,7 +91,7 @@ class InvisiblePlaywright(_session.CommonLaunch):
         #: Starts as None like it: `_build_env` can be called before
         #: the geo path has resolved, and in that case nothing is
         #: declared.
-        self._srflx_dichiarato: Optional[str] = None
+        self._srflx_declared: Optional[str] = None
         #: See the twin in `launcher.py`: starts at 0 because the first
         #: context must be able to check right away.
         self._ultimo_controllo_uscita: float = 0.0
@@ -130,13 +129,13 @@ class InvisiblePlaywright(_session.CommonLaunch):
         # `_webrtc_egress_ip` is the FACT: where we exit from. It feeds
         # the guard against drift, which compares the current egress
         # against the one at launch.
-        # `_srflx_dichiarato` is the DECISION: what the engine must
+        # `_srflx_declared` is the DECISION: what the engine must
         # announce. It is None when the egress has proven, consistent
         # UDP, because there the real srflx is already correct and
         # declaring one would add a candidate with no matching
         # allocation - the signal a detector running its own TURN reads.
         # The core takes it in a single spot.
-        self._srflx_dichiarato = _geo.srflx_da_dichiarare()
+        self._srflx_declared = _geo.srflx_to_declare()
         # Geo-aware locale: "auto" derives the language from the egress country (reusing
         # the egress IP just discovered), like timezone="auto". Keeps the browser language
         # consistent with the proxy's country instead of a fixed en-US.
@@ -387,4 +386,13 @@ class InvisiblePlaywright(_session.CommonLaunch):
 
 
 
-__all__ = ["InvisiblePlaywright"]
+# The three classes a caller can catch, exported the way Playwright's own
+# `async_api` exports its errors. `TargetClosedError` is the one that matters
+# here: it is what every call on a page, context or browser that is GONE
+# raises - a disposed object or a closed pipe alike, since 0.15.0 - so a
+# caller that has to tell "the page refused" from "the browser died" catches
+# the type instead of matching sentences.
+from invisible_playwright._pw._impl._errors import (  # noqa: E402
+    Error, TargetClosedError, TimeoutError)
+
+__all__ = ["InvisiblePlaywright", "Error", "TargetClosedError", "TimeoutError"]

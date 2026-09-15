@@ -40,6 +40,36 @@ _NOT_PINNABLE = {
     "_raw": "the pre-profile sample dict, not an axis",
 }
 
+#: Individual group FIELDS that exist on the profile and are deliberately not
+#: pinnable. Third level of the same idea as the scalar list above and the group
+#: list below: a field with no pin entry is either a decision or an omission, and
+#: only one of those should pass.
+_NOT_PINNABLE_FIELDS = {
+    "screen.tier": ("The sampler's own label for the screen it drew ('1440p'). "
+                    "Pins are applied after the draw, so pinning the tier could "
+                    "not condition the screen it names, and it emitted no "
+                    "preference either. Removed from the pin table 2026-09-15; "
+                    "the field stays because the label is honest."),
+    "screen.avail_width": ("Derived, not chosen. The engine computes the "
+                           "available rect from width, height and taskbar_px, "
+                           "and no avail value is emitted, so a pin moved the "
+                           "label and nothing a page reads. Removed 2026-09-15."),
+    "screen.avail_height": ("Same as avail_width, and removing it also removed "
+                            "the special case that let a pin beat the taskbar "
+                            "re-derivation: there is no pin left to lose to."),
+}
+
+#: Profile GROUPS that exist but are deliberately not pinnable, with the reason.
+#: Same idea as _NOT_PINNABLE one level up: a group with no pin table is either a
+#: decision or an omission, and only one of those should pass.
+_NOT_PINNABLE_GROUPS = {
+    "webgl": ("msaa_samples is the group's only field and the emitted sample count "
+              "is now the same constant on both builds, so a pin has nothing to "
+              "move. It was pinnable until 2026-09-15, honoured on Linux and "
+              "overridden on Windows, which is what made the two builds emit a "
+              "different gl.SAMPLES for the same seed."),
+}
+
 
 def _doc() -> str:
     return _DOC.read_text(encoding="utf-8")
@@ -141,14 +171,31 @@ def test_the_validators_key_table_matches_the_profile_it_pins():
         for field in dataclasses.fields(profile)
         if dataclasses.is_dataclass(getattr(profile, field.name))
     }
-    assert set(_PIN_GROUPS) == set(model), (
+    unexplained = sorted(set(model) - set(_PIN_GROUPS) - set(_NOT_PINNABLE_GROUPS))
+    assert not unexplained and not (set(_PIN_GROUPS) - set(model)), (
         f"pin groups and profile groups disagree: only in the validator "
-        f"{sorted(set(_PIN_GROUPS) - set(model))}, only on the profile "
-        f"{sorted(set(model) - set(_PIN_GROUPS))}")
+        f"{sorted(set(_PIN_GROUPS) - set(model))}, only on the profile and not "
+        f"declared in _NOT_PINNABLE_GROUPS {unexplained}")
+    stale = sorted(set(_NOT_PINNABLE_GROUPS) & set(_PIN_GROUPS))
+    assert not stale, (
+        f"_NOT_PINNABLE_GROUPS still excuses {stale}, which is pinnable again. "
+        f"A stale excuse reads as a decision that still holds.")
     for group, fields in sorted(model.items()):
-        assert _PIN_GROUPS[group] == fields, (
+        if group in _NOT_PINNABLE_GROUPS:
+            continue
+        excused = {f for f in fields if f"{group}.{f}" in _NOT_PINNABLE_FIELDS}
+        assert _PIN_GROUPS[group] == fields - excused, (
             f"group {group!r}: the validator accepts {sorted(_PIN_GROUPS[group])}, "
-            f"the profile has {sorted(fields)}")
+            f"the profile has {sorted(fields)}, excused {sorted(excused)}")
+    stale_fields = sorted(k for k in _NOT_PINNABLE_FIELDS if k in _valid_keys())
+    assert not stale_fields, (
+        f"_NOT_PINNABLE_FIELDS still excuses {stale_fields}, which is pinnable "
+        f"again. A stale excuse reads as a decision that still holds.")
+    unknown_fields = sorted(
+        k for k in _NOT_PINNABLE_FIELDS
+        if k.split(".", 1)[0] not in model or k.split(".", 1)[1] not in model[k.split(".", 1)[0]])
+    assert not unknown_fields, (
+        f"_NOT_PINNABLE_FIELDS names fields the profile no longer has: {unknown_fields}")
 
 
 def test_top_level_fields_are_either_pinnable_or_listed_as_deliberately_not():

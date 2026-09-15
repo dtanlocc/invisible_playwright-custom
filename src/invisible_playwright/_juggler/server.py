@@ -162,6 +162,25 @@ class APIRequestContextDispatcher(RefusingDispatcher):
 _HANDLE = "<element handle>"
 
 
+def _upload_paths(params: Dict) -> list:
+    """The local paths out of a `setInputFiles` request.
+
+    ⛔ ONE READER, because there are two senders. The same request arrives at
+    the Frame (a selector) and at the ElementHandle (a chooser already holding
+    the input), and the wire shape is the same for both: `localPaths` today,
+    `files` on older clients, and each entry is either a string or a `{name}`
+    object. Two dispatchers each unpacking that by hand is two places that know
+    one fact, and the second one is always the one that falls behind.
+
+    What it deliberately does NOT read is `payloads` and `streams`: those are
+    the upload path where the CLIENT carries the bytes, which is
+    `createTempFiles` and is outside this package's perimeter by decision.
+    """
+    raw = params.get("localPaths") or params.get("files") or []
+    return [entry.get("name") if isinstance(entry, dict) else entry
+            for entry in raw]
+
+
 class ElementHandleDispatcher(Dispatcher):
     TYPE = "ElementHandle"
     METHODS = {
@@ -191,6 +210,7 @@ class ElementHandleDispatcher(Dispatcher):
         "check": "op_check",
         "uncheck": "op_uncheck",
         "selectOption": "op_select_option",
+        "setInputFiles": "op_set_input_files",
     }
 
     def __init__(self, server, frame: "FrameDispatcher", object_id: str,
@@ -345,14 +365,34 @@ class ElementHandleDispatcher(Dispatcher):
             {"objectId": self.object_id}))}
 
     def op_scroll_into_view(self, params: Dict) -> Any:
-        """⛔ [B184]: this does not work in the shipped engine, and it does not
-        work through the Node driver either. It is wired correctly here so the
-        day the engine is fixed nothing else has to change, and the failure
-        arrives from the engine rather than from a missing method."""
-        self.page.send("Page.scrollIntoViewIfNeeded",
-                       _only_set({"frameId": self.frame.frame_id,
-                                  "objectId": self.object_id,
-                                  "rect": params.get("rect")}))
+        """Bring the element into view, through the injected script.
+
+        ⛔ IT USED TO SEND `Page.scrollIntoViewIfNeeded`, AND THAT COMMAND CAN
+        NEVER SUCCEED. [B184]: the engine's handler calls
+        `unsafeObject.scrollRectIntoViewIfNeeded`, and that method is not
+        declared in ANY binding of `Element` in the tree - not a `.webidl`, not
+        a `.idl`, not `Bindings.conf` - so it is `undefined` for every caller
+        and the `else` branch always throws. Measured on the shipped binary at
+        four positions, including an element ALREADY IN VIEW: timeout every
+        time, while `bounding_box()` on the same element answered correctly.
+
+        ⛔ AND THE REMEDY WAS ALREADY IN THIS FILE'S REACH, which is the part
+        worth knowing. `Actions` scrolls before every click through
+        `InjectedScript.scroll_into_view` - native `scrollIntoView` reached from
+        the utility world, `block: "center"` - and has done since a click below
+        the fold was found to miss. So the click path scrolled correctly while
+        the public method sent a command that cannot work. One concept, two
+        implementations, and the broken one was the one users call.
+
+        Reusing that helper rather than writing a second one is the whole fix:
+        no new abstraction, and the two paths cannot drift.
+
+        ⛔ `rect` IS NOT HONOURED, and saying so is better than pretending.
+        Playwright can ask to scroll a sub-rectangle of the element; the helper
+        scrolls the element. No caller in this package passes it, and a partial
+        answer that looks total is worse than a named limit.
+        """
+        self.injected.scroll_into_view(self.frame.frame_id, self.object_id)
         return None
 
     def op_owner_frame(self, params: Dict) -> Any:
@@ -457,6 +497,23 @@ class ElementHandleDispatcher(Dispatcher):
         chosen = self.frame.actions.select_option(
             None, params.get("options") or [], **self._act_args(params))
         return {"values": chosen or []}
+
+    def op_set_input_files(self, params: Dict) -> Any:
+        """⛔ THE DOOR `FileChooser.set_files()` COMES THROUGH, and it was shut.
+
+        A chooser already holds the input element, so the client never sends a
+        selector: it asks this dispatcher for `setInputFiles`, and until now
+        there was no such method here. The refusal was honest - the dispatcher
+        said the operation is inside the perimeter and therefore a gap - but a
+        gap it was, and the whole listening half of the file-chooser feature
+        led to it.
+
+        Same action as the Frame's, same helper reading the request: one
+        upload, not two.
+        """
+        self.frame.actions.set_input_files(_HANDLE, _upload_paths(params),
+                                           **self._act_args(params))
+        return None
 
 class FrameDispatcher(Dispatcher):
     TYPE = "Frame"
@@ -840,10 +897,9 @@ class FrameDispatcher(Dispatcher):
 
     def op_set_input_files(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        paths = [f.get("name") if isinstance(f, dict) else f
-                 for f in (params.get("localPaths") or params.get("files") or [])]
-        self.actions.set_input_files(selector, paths,
-                                          timeout=self._timeout(params), frame_id=frame_id)
+        self.actions.set_input_files(selector, _upload_paths(params),
+                                     timeout=self._timeout(params),
+                                     frame_id=frame_id)
         return None
 
     def op_tap(self, params: Dict) -> Any:
@@ -950,8 +1006,7 @@ class FrameDispatcher(Dispatcher):
         interval stays coarse.
         """
         deadline = time.monotonic() + self._timeout(params)
-        expression = _as_callable(params["expression"]).replace(
-            "ARG", json.dumps(_deserialize(params.get("arg")), default=str))
+        expression = _with_argument(params)
         while True:
             value = self.injected.evaluate_in_main(self.frame_id,
                                                         expression)

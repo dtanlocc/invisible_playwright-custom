@@ -23,21 +23,6 @@ Anti-bots ask two questions, and reCAPTCHA, hCaptcha and Cloudflare Turnstile sc
 - Every click, hover and drag follows a natural mouse path with human timing, no teleporting cursor.
 - Each input is byte-identical to a real mouse: real input source, pressure, trusted events.
 
-**And one thing the stock driver cannot do.** Playwright's own documentation says
-"Closed-mode shadow roots are not supported", and measured on 2026-09-05 against a page
-carrying one open and one closed root, stock Playwright returned zero matches for the
-closed content in Firefox and in Chromium alike. This engine returns the element, while
-the page still reads `null` from `element.shadowRoot`, so nothing observable to the page
-changes. The three-arm table and the page that reproduces it:
-[closed shadow roots](https://github.com/feder-cr/invisible_playwright/wiki/closed-shadow-root-playwright).
-
-Driven by the standard Playwright API. Full breakdown: [feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
-
----
-
-## Still seeing captchas or anti-bot? It's the proxy.
-Once the browser is handled it stops being the variable. If you are still getting challenged, the tell is no longer the browser, it is the IP you come from. Around 90% of proxies are public: anyone can rent the same address, so it is already known and sits on the blocked-IP lists sites check. A perfect browser on a known IP still loses.
-
 ---
 
 ## Install
@@ -49,21 +34,7 @@ python -m invisible_playwright fetch      # one-time download, sha256-verified: 
 
 Requires **Python 3.11 or newer**.
 
-Supported platforms: **Windows x86_64**, **Linux x86_64 / arm64**. macOS is no longer supported (releases stopped at firefox-20); on a Mac the package refuses at launch with a clear message rather than downloading a binary that no longer exists.
-
-### If you would rather prompt than script
-
-This page is the engine, as a Python library. There are two ways to use it
-without writing code, and both are one line:
-
-- **From an MCP client you already have** (Claude Code, Claude Desktop,
-  Cursor): `claude mcp add stealth -- uvx aihawk`. See
-  [the MCP server page](https://github.com/feder-cr/AIHawk/wiki/mcp-server).
-- **With an interface and a model included**, needing only an OpenRouter key:
-  `uvx aihawk ui --openrouter-key sk-or-...`. See
-  [AIHawk](https://github.com/feder-cr/AIHawk).
-
-Same engine underneath, and the second is a client of the first.
+Supported platforms: **Windows x86_64**, **Linux x86_64 / arm64**.
 
 ---
 
@@ -156,8 +127,8 @@ By default everything comes from `seed`. To force specific values while the rest
 with InvisiblePlaywright(
     seed=42,
     pin={
-        "gpu.renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11)",
-        "gpu.vendor":   "Google Inc. (NVIDIA)",
+        "gpu.renderer": "ANGLE (AMD, Radeon R9 200 Series Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "gpu.vendor":   "Google Inc. (AMD)",
         "screen.width":  2560,
         "screen.height": 1440,
         "hardware.concurrency": 16,
@@ -165,6 +136,11 @@ with InvisiblePlaywright(
 ) as browser:
     ...
 ```
+
+A GPU pin picks one of the validated personas rather than setting a free string,
+because the ~81 `getParameter` values and the extension list travel with the
+renderer name and a detector cross-checks them against it. A name the pool does
+not carry raises, and the error lists the ones it does.
 
 Full list of pinnable keys, how pinning interacts with the Bayesian sampler, and common patterns are in **[docs/pinning.md](docs/pinning.md)**.
 
@@ -183,6 +159,16 @@ invisible-playwright version  # wrapper, core and engine versions, and where the
 ```
 
 ## Documentation, guides and comparisons
+
+**If you would rather prompt than script.** This page is the engine, as a Python
+library. Two ways to use it without writing code, both one line: from an MCP client
+you already have (Claude Code, Claude Desktop, Cursor),
+`claude mcp add stealth -- uvx aihawk`, see
+[the MCP server page](https://github.com/feder-cr/AIHawk/wiki/mcp-server); or with an
+interface and a model included, needing only an OpenRouter key,
+`uvx aihawk ui --openrouter-key sk-or-...`, see
+[AIHawk](https://github.com/feder-cr/AIHawk). Same engine underneath, and the second
+is a client of the first.
 
 All of it reads better, and is searchable, in
 **[the wiki](https://github.com/feder-cr/invisible_playwright/wiki)**,
@@ -217,17 +203,6 @@ read from its own documentation or from confirmed reverse engineering:
 [PerimeterX](docs/perimeterx-explained.md), [hCaptcha](docs/hcaptcha-explained.md),
 [Imperva](docs/imperva-incapsula-explained.md), and
 [the rest of the set](docs/guides-detectors-explained.md).
-- [crawl4ai stealth and custom browser engines](docs/crawl4ai-stealth-custom-browser.md) - browser_type accepts firefox but there is no executable_path; where the adapter seam is
-- [Why headless browsers render different fonts](docs/headless-fonts-differ.md) - the three causes, the per-platform font sets, and why the fix is not installing more fonts
-- [How to make Linux and macOS report real Windows fonts](docs/bundled-fonts-cross-platform.md) - one manifest, three font backends convinced not to ask the host, and the four seams still open
-- [measureText and TextMetrics as a fingerprinting surface](docs/measuretext-textmetrics-fingerprinting.md) - ten-plus numbers from one call needing no permission prompt, and the two mistakes we made fixing it
-- [What privacy.resistFingerprinting really does](docs/resist-fingerprinting.md) - and why this project sets it to false on purpose
-- [The ChromeDriver cdc_ variable](docs/cdc-variable-explained.md) - why renaming it is not removing it, and what that generalises to
-- [What bot.sannysoft.com actually checks](docs/sannysoft-explained.md) - row by row, and the canvas-in-iframe test nobody reads
-- [How CreepJS decides you are lying](docs/creepjs-explained.md) - four detection techniques, and why blocking the probe is itself recorded
-- [Firefox preferences that silently do nothing](docs/firefox-prefs-not-applying.md) - five reasons, starting with the one that cost us a real bug
-- [What BotD actually detects](docs/botd-explained.md) - twenty detectors, and why most are not about bots at all
-- [Why a FingerprintJS visitor ID changes](docs/fingerprintjs-visitor-id.md) - it is a hash of 41 components, so one moving moves all of it
 
 ## Related projects
 
@@ -242,29 +217,66 @@ two around it are how most people reach it:
   one command. The interface is a client of the server, with no private path
   to the browser.
 
-**The open-source neighbours**, and what each one is for.
+**The open-source neighbours.** Which one fits depends on the layer your problem is
+at, and on whether you need Firefox or Chromium:
+[three ways to make Playwright undetected](docs/playwright-stealth-levels.md) works
+through what each layer can reach, and [AI browser agents and stealth](docs/ai-browser-agents-stealth.md)
+covers the frameworks that pick Chromium over CDP for you.
 
 **On the Firefox side**
 
-- **[Camoufox](https://github.com/daijro/camoufox)** - an anti-detect Firefox that also patches at the C++ level. It covers a wider surface and ships its own fingerprint database; this project derives a fingerprint from a seed with a Bayesian sampler, so one number reproduces one machine. [Full comparison](docs/vs-camoufox.md).
-- **[LibreWolf](https://librewolf.net)** - a Firefox fork with privacy defaults. It ships a configured binary for people to browse with; this ships source patches plus an automation wrapper.
-- **[arkenfox/user.js](https://github.com/arkenfox/user.js)** - Firefox hardening through preferences. Where a preference is enough, use it; this project patches C++ where one is not.
+- **[Camoufox](https://github.com/daijro/camoufox)** - patches C++ too, wider surface, ships a fingerprint database instead of deriving one from a seed. [Comparison](docs/vs-camoufox.md).
+- **[LibreWolf](https://librewolf.net)** - a privacy-defaults Firefox to browse with, not to automate.
+- **[arkenfox/user.js](https://github.com/arkenfox/user.js)** - hardening through preferences. Where a preference is enough, use it.
 
 **On the Chromium side**
 
-- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork, so the stealth work lands in the driver rather than in the browser binary. [Full comparison](docs/vs-patchright.md).
-- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - the successor to `undetected-chromedriver`, driving Chrome over CDP directly and removing the WebDriver-flavoured tells. [Full comparison](docs/vs-nodriver.md).
-- **[playwright-stealth](https://github.com/Mattwmaster58/playwright_stealth)** - an init-script patch applied before the page loads. Its own maintainer calls it a proof-of-concept; [full comparison](docs/vs-playwright-stealth.md).
-- **[puppeteer-extra-plugin-stealth](https://github.com/berstend/puppeteer-extra)** - the original of this init-script lineage, still widely recommended. Its repository's last substantive commit is from mid-2024; [what that means in practice](docs/puppeteer-extra-stealth-unmaintained.md).
-- **[selenium-stealth](https://github.com/diprajpatra/selenium-stealth)** - the same approach on Selenium/CDP. Its repository's last commit is from December 2021; [what that means in practice](docs/selenium-stealth-unmaintained.md).
-- **[pyppeteer](https://github.com/pyppeteer/pyppeteer)** - the unofficial Python port of Puppeteer. Its own README says it's unmaintained and points to `playwright-python` instead; [what that recommendation is actually about](docs/pyppeteer-unmaintained-playwright.md).
-- **[rebrowser-patches](https://github.com/rebrowser/rebrowser-patches)** - fixes the `Runtime.enable` CDP leak on Chromium, independently converging on close to the same fix Patchright uses. [Full comparison](docs/vs-rebrowser-patches.md).
-- **[fingerprint-suite](https://github.com/apify/fingerprint-suite)** - generates a coherent fingerprint with a Bayesian network, close to this project's own generation approach, then injects it into a Playwright or Puppeteer page on either Chromium or Firefox. [Full comparison](docs/vs-fingerprint-suite.md).
-- **[playwright-with-fingerprints](https://github.com/bablosoft/playwright-with-fingerprints)** - injects fingerprint values sourced from a remote paid service, Windows-only, pinned to a specific Chromium build. [Full comparison](docs/vs-playwright-with-fingerprints.md).
+- **[Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)** - a patched Playwright fork: the work lands in the driver, not the binary. [Comparison](docs/vs-patchright.md).
+- **[nodriver](https://github.com/ultrafunkamsterdam/nodriver)** - successor to `undetected-chromedriver`, driving Chrome over CDP. [Comparison](docs/vs-nodriver.md).
+- **[rebrowser-patches](https://github.com/rebrowser/rebrowser-patches)** - fixes the `Runtime.enable` CDP leak. [Comparison](docs/vs-rebrowser-patches.md).
+- **[fingerprint-suite](https://github.com/apify/fingerprint-suite)** - a Bayesian fingerprint generator, then injected into the page. [Comparison](docs/vs-fingerprint-suite.md).
+- **[playwright-with-fingerprints](https://github.com/bablosoft/playwright-with-fingerprints)** - values from a paid remote service, Windows-only. [Comparison](docs/vs-playwright-with-fingerprints.md).
+- **[playwright-stealth](https://github.com/Mattwmaster58/playwright_stealth)** - an init-script patch; its maintainer calls it a proof-of-concept. [Comparison](docs/vs-playwright-stealth.md).
+- **[puppeteer-extra-plugin-stealth](https://github.com/berstend/puppeteer-extra)** - the original of that lineage, last substantive commit mid-2024. [What that means](docs/puppeteer-extra-stealth-unmaintained.md).
+- **[selenium-stealth](https://github.com/diprajpatra/selenium-stealth)** - the same approach on Selenium, last commit December 2021. [What that means](docs/selenium-stealth-unmaintained.md).
+- **[pyppeteer](https://github.com/pyppeteer/pyppeteer)** - unmaintained by its own README, which points to `playwright-python`. [What that recommendation is about](docs/pyppeteer-unmaintained-playwright.md).
 
-Which of these fits depends on the layer your problem is at, and on whether you need Firefox or Chromium. [Three ways to make Playwright undetected](docs/playwright-stealth-levels.md) works through what each layer can and cannot reach, including what this one costs.
+---
 
-If you are picking between engines rather than tools, note that a large share of AI agent frameworks drive Chromium over CDP, which decides the question for you: [AI browser agents and stealth](docs/ai-browser-agents-stealth.md).
+## What is patched in the engine
+
+Two rules hold across everything below. Every value is decided **before a page can
+ask**, inside the browser, so there is no JavaScript shim to find. And every value
+comes from **one profile**, so no two surfaces contradict each other, which is how a
+spoofed browser is usually caught. Source:
+[feder-cr/firefox_antidetect_patch](https://github.com/feder-cr/firefox_antidetect_patch).
+
+**Identity**
+- `navigator`, the user agent and the client hints are derived together, so they cannot disagree: [does Playwright set navigator.webdriver](docs/does-playwright-set-navigator-webdriver.md), [client hints and Sec-Fetch](docs/client-hints-sec-fetch.md).
+- `navigator.languages` and the `Accept-Language` header are the same declaration, sent and read: [Accept-Language and navigator.languages](docs/accept-language-navigator-languages.md).
+- Screen geometry, `devicePixelRatio` and the media queries exposing it are declared, not read from the host: [devicePixelRatio and the Firefox pref](docs/devicepixelratio-firefox-pref.md), [CSS media query fingerprinting](docs/css-media-query-fingerprinting.md).
+
+**Rendering**
+- Canvas readback is deterministic per seed and keeps the real shape, rather than blocked or noised: [canvas fingerprint noise](docs/canvas-fingerprint-noise.md), [why a canvas fingerprint changes every run](docs/canvas-fingerprint-changes-every-run.md).
+- WebGL reports a coherent GPU persona: vendor, renderer and the parameter limits are cross-checked, not set one at a time: [WebGL renderer strings](docs/webgl-renderer-strings.md), [WebGL parameters are identical](docs/webgl-parameters-are-identical.md).
+- Fonts ship with the browser, so the same faces exist on every host and the platform font engine no longer chooses: [bundled fonts across platforms](docs/bundled-fonts-cross-platform.md), [why headless browsers render different fonts](docs/headless-fonts-differ.md), [detecting installed fonts from JavaScript](docs/detect-installed-fonts-javascript.md).
+- Text metrics follow those fonts: `measureText` returns ten-plus numbers from one call, with no permission prompt: [measureText and TextMetrics](docs/measuretext-textmetrics-fingerprinting.md).
+- Canvas and WebGL agree across operating systems for the same seed: [cross-platform consistency](docs/canvas-webgl-cross-platform-consistency.md), [canvas differs across operating systems](docs/canvas-differs-across-operating-systems.md).
+
+**Audio and media**
+- The audio stack answers from the profile rather than from the host device: [AudioContext fingerprinting](docs/audiocontext-fingerprinting.md), [sample rate and latency](docs/audiocontext-samplerate-latency-fingerprint.md).
+- The codec table is declared, so a Linux host does not answer a Windows question with Linux support: [codec fingerprinting](docs/codec-fingerprinting.md).
+
+**Network**
+- WebRTC offers one synthetic candidate carrying the proxy exit, instead of leaking the real address or offering none, which is itself a tell: [WebRTC ICE candidate spoofing](docs/webrtc-ice-candidate-spoofing.md), [does the WebRTC IP match the proxy exit](docs/webrtc-ip-match-proxy-exit.md).
+- DNS resolves through the proxy, including when the proxy is not in the preferences: [does a proxy leak DNS](docs/does-a-proxy-leak-dns-doh-explained.md), [how to check for a proxy IP leak](docs/how-to-check-proxy-ip-leak.md).
+- The timezone comes from the egress IP, resolved offline, so it matches the exit: [timezone and proxy mismatch](docs/timezone-proxy-mismatch.md), [offline GeoIP timezone](docs/offline-geoip-timezone-proxy.md).
+
+**The automation layer**
+- Input events come from the real input path, so `isTrusted` is true because it is true: [Playwright clicks and isTrusted](docs/playwright-clicks-istrusted.md).
+- The pointer follows a human path and timing, at a cadence a real device could produce: [human mouse movement](docs/human-mouse-movement.md), [mouse dynamics as behavioural biometrics](docs/mouse-dynamics-behavioural-biometrics.md).
+- The debugger surface does not answer the timing questions that give a driven browser away: [debugger timing detection](docs/debugger-timing-detection.md).
+- Closed-mode shadow roots are reachable, which stock Playwright cannot do in either engine, while the page still reads `null`: [closed shadow roots](docs/closed-shadow-root-playwright.md).
 
 ---
 

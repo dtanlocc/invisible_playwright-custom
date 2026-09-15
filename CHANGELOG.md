@@ -6,6 +6,162 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-09-16
+
+### Changed
+- **The language gate comes from the core.** The check that this repository
+  is English used to be a script here and a copy in AIHawk, and the copies
+  drifted: this one never gained the `.js`, `.css` and `.html` coverage the
+  other did, so the front end was outside its sight. It now runs as
+  `invisible_core.english` from the pinned core, `invisible-core` 30.23.0,
+  and what this repository exempts is declared once in
+  `[tool.invisible.english]` in `pyproject.toml`. An exclusion that names
+  nothing is refused, which is the check the copies did not have.
+- **Three names cross into English with the core.** `srflx_to_declare()`,
+  the `srflx_declared` keyword of `build_launch_env` and the attribute that
+  carries the decision follow the core's rename in the same release, because
+  either half alone breaks the launch. Nothing the browser receives changes:
+  the emitted prefs and the launch environment are byte-identical to 0.16.1.
+
+## [0.16.1] - 2026-09-15
+
+### Fixed
+- **Setting real files on a file input works.** Both doors ended in
+  `InvalidStateError: An attempt was made to use an object that is not, or is
+  no longer, usable`, a sentence naming no file, no API and no preference. The
+  refusal is in the parent process: it declines to build a `File` for any
+  content process whose remote type is not `file`. The preference the engine's
+  own gate calls the "or for testing" escape ships from `invisible-core`
+  30.22.0, which this release pins, and the two tests that covered the defect
+  are hard assertions again for the first time since it was opened.
+- **`FileChooser.set_files()` could not upload anything, and said so.** A
+  chooser already holds the input element, so the client asks the
+  `ElementHandle` for `setInputFiles` rather than going through a selector, and
+  this package had no such method: the whole listening half of the file-chooser
+  feature led to a dispatcher that correctly reported a gap rather than a
+  decision. The element handle now performs the same upload the frame does,
+  through the same action and the same reader of the request, so there is one
+  upload path and not two. The engine-side half of file uploads is a preference
+  that belongs to `invisible-core` and arrives when the pin moves: the two
+  tests covering it stay expected-red until then, and are now strict so they
+  turn red the day they start passing.
+- **`locator.scroll_into_view_if_needed()` works. It never had.** It sent the
+  engine command `Page.scrollIntoViewIfNeeded`, whose handler calls
+  `scrollRectIntoViewIfNeeded` - a method declared in no binding of `Element`
+  anywhere in the engine, so it was `undefined` for every caller and the call
+  threw every time. Measured at four positions, including an element already in
+  view: a timeout on all four, while `bounding_box()` on the same element
+  answered correctly. The package already knew how to scroll, in the one place
+  that mattered: every click has scrolled through the injected script since a
+  click below the fold was found to miss. The public method now calls that same
+  helper, so there is one scroll and not two. It centres the element rather than
+  scrolling the minimum, and a `rect` argument is not honoured.
+
+### Added
+- **Every operation that refuses now says so in `_juggler/perimeter.py`, and a
+  test keeps it that way.** Ten operations raised `ProtocolException` inline
+  with a good reason beside the code and nothing anywhere that recorded they
+  existed, so there was no way to tell a deliberate refusal from a gap without
+  reading the dispatcher end to end. They are declared in three sets that keep
+  the distinction: the engine offers no command (`drop`, `setOffline`,
+  `setWebSocketInterceptionPatterns`), the answer is fixed when the injected
+  script is built (`registerSelectorEngine`, `setTestIdAttributeName`), or it is
+  simply not written yet (`exposeBinding`, `frameElement`, `resolve`, `reject`,
+  `setExtraHTTPHeaders`). The test fails both ways: a new inline refusal nobody
+  declares, and a declared name that has since started working.
+
+## [0.16.0] - 2026-09-15
+
+### Changed
+- **A GPU pin now selects a validated persona instead of setting a label, and an
+  impossible value is refused rather than ignored.** `pin={"gpu.renderer": ...}`
+  used to change the `Profile` object and leave the browser reporting the seed's
+  own GPU: measured on seed 1561645783, the profile said AMD RX 7900 XTX while
+  `zoom.stealth.webgl.renderer` stayed the seed's NVIDIA GTX 980. The same held
+  for `gpu.vendor` and `gpu.class_tier`, so all three keys were decorative with
+  respect to the page. A renderer string cannot travel alone - around 81
+  `getParameter` values, the shader precisions and the extension list belong to
+  the same GPU - so a pin picks one of the validated personas, and a renderer,
+  vendor or class the pool cannot present raises with the available values named.
+  Sessions that pin nothing are unaffected: 404 seeds emit byte-identical
+  preferences before and after.
+- **`webgl.msaa_samples` is no longer a pin key.** The engine now emits the same
+  MSAA sample count on Windows and Linux, so a pin has nothing left to move.
+  Before this, the value was honoured on Linux and held at 4 on Windows, and the
+  two builds emitted a different `gl.SAMPLES` for the same seed on seven of eight
+  measured seeds.
+
+### Fixed
+- **`docs/pinning.md` described behaviour the code did not have.** It said
+  `gpu.renderer` "lands verbatim in `UNMASKED_RENDERER_WEBGL`" and "does not
+  condition other fields"; both were the opposite of true. The README example
+  pinned a card no validated persona carries, so the snippet a reader copied did
+  nothing.
+
+- **The pinning surface loses three keys that could not work.** `screen.tier`
+  could not condition the screen it named, because pins are applied after the
+  sampler has drawn. `screen.avail_width` and `screen.avail_height` were
+  page-contradicting: the engine derives the available rect from `width`,
+  `height` and `taskbar_px`, so pinning either moved a label on the profile and
+  nothing a page reads. Pin `screen.width`, `screen.height` and
+  `screen.taskbar_px`; the available rect follows from them.
+- **`codec.webspeech_synth` is gone from the profile.**
+  `media.webspeech.synth.enabled` is emitted as a constant `true`, which is what
+  retail Firefox does on desktop, so the sampled field only ever made the profile
+  disagree with the browser - on about 12% of seeds.
+
+### Internal
+- Requires `invisible-core==30.21.0`.
+- `_cursor.humanize_prefs` is deleted. It was a second implementation of the
+  `stealthfox.humanize*` contract with no caller in `src/`, and it disagreed with
+  the live one: it never emitted `stealthfox.humanize.stepMs`. The two properties
+  its tests asserted now run through `_session.build_prefs`, which is the
+  function both front doors actually call.
+
+## [0.15.2] - 2026-09-14
+
+### Fixed
+- **`evaluate` no longer rewrites the JavaScript you passed it.** The argument
+  was placed by searching the built script for the placeholder `ARG` and
+  replacing it - over a string that already held your expression - so those
+  three uppercase letters were rewritten to the argument's JSON anywhere they
+  appeared in your own code. `'CARGO'.length` answered 6 instead of 5, a
+  selector `[data-role='TARGET']` matched nothing, `/ARGH/` became `/nullH/`,
+  and `const ARG = 5` was a syntax error. The three letters only had to appear
+  inside a longer word, and three of those four failures were silent. The
+  argument is now placed in the same formatting pass that inserts the
+  expression, so your code is never scanned. `page.evaluate`,
+  `page.evaluate_handle` and `page.wait_for_function` were affected;
+  `element_handle.evaluate` and `eval_on_selector` already built their wrapper
+  this way and were not.
+- The script the page actually runs is unchanged, character for character, for
+  every expression that did not spell the placeholder, and a test pins it:
+  `evaluate` is the one call that deliberately runs in the main world, so the
+  shape of that wrapper is something a site can look at.
+
+## [0.15.1] - 2026-09-14
+
+### Changed
+- **The engine is `firefox-30`, through `invisible-core 30.19.0`.** The
+  screencast capture no longer ends for good when a headed window is
+  minimised for a moment: the engine listens for its capture module ending,
+  starts another one a second later for as long as the window cannot be
+  captured, and repeats the last frame every 250 ms while the module is
+  quiet, so the age of a frame means one thing to a client that watches it.
+  Nothing else moves: the pin follows the seal.
+
+## [0.15.0] - 2026-09-14
+
+### Changed
+- **A closed pipe is a closed target.** A call made after the browser's pipe
+  closed, or one that was waiting when it closed, now raises
+  `TargetClosedError` - the same class a call on a disposed page, context or
+  browser raises - instead of a plain `Error` carrying `the pipe closed`. The
+  browser being gone is one fact and reaches a caller as one type.
+- `invisible_playwright.async_api` and `invisible_playwright.sync_api` export
+  `Error`, `TimeoutError` and `TargetClosedError`, so a caller can catch the
+  type without importing a private path.
+
 ## [0.14.0] - 2026-09-08
 
 ### Added
