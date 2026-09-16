@@ -156,8 +156,19 @@ class Actions:
     # ── the loop ────────────────────────────────────────────────────────────
     def _retry(self, selector: str, run, *, states=None,
                timeout: float = 30.0, frame_id: Optional[str] = None,
-               position=None, element_id: Optional[str] = None):
+               position=None, element_id: Optional[str] = None,
+               needs_point: bool = True):
         """Resolve, check, act, and if something doesn't match, START OVER.
+
+        ⛔ `needs_point=False` IS FOR THE ACTION THAT HAS NO POINT TO AIM AT.
+        Everything here is built around an event that lands somewhere, so the
+        loop measures a quad before it acts. `set_input_files` doesn't: it
+        hands the paths to the parent process and its `run` ignores the point
+        it is given. Demanding a quad anyway made it fail on the one input
+        shape the whole web uses - the HIDDEN `<input type=file>` behind a
+        styled button - with "the element has no quad (it isn't visible)",
+        after burning the full timeout. Measured on TikTok Studio Upload,
+        2026-09-16: 285 turns, 15s, on an input that was there the whole time.
 
         ⛔ `position` travels HERE and not through each action, because the
         point is recomputed on every turn of this loop: an offset applied by
@@ -208,6 +219,11 @@ class Actions:
                         element_ok = True
                 else:
                     element_ok = True
+
+                if element and element_ok and not needs_point:
+                    # No geometry is read and none is needed: act where the
+                    # node is, hidden or not.
+                    return run(f, element, None)
 
                 if element and element_ok:
                     # ⛔ SCROLL FIRST, and only when the point is not usable.
@@ -586,7 +602,8 @@ class Actions:
                         session=self.session, timeout=30)
             return list(files)
         return self._retry(selector, run, states=[], timeout=timeout,
-                           frame_id=frame_id, element_id=element_id)
+                           frame_id=frame_id, element_id=element_id,
+                           needs_point=False)
 
     def tap(self, selector: str, *, timeout: float = 30.0, frame_id: Optional[str] = None,
             position=None):
