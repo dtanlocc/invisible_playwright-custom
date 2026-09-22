@@ -181,9 +181,41 @@ NOT_WIRED_YET = {
     "setExtraHTTPHeaders",
 }
 
+#: Written, wired, and WITHDRAWN: the engine answers, and what it leaves behind
+#: makes the method worse than its absence.
+#:
+#: ⛔ A FIFTH CATEGORY RATHER THAN A WRONG LABEL, and the four that existed are
+#: why. `NO_ENGINE_COMMAND` is false here, the engine has `Page.goBack` and
+#: performs it. `NOT_WIRED_YET` calls itself "our debt, simply not written",
+#: and this is written. `OUTSIDE` says "left out by decision, not by omission"
+#: and drives a sentence claiming the feature was never in scope. Filing these
+#: under any of the three would have made the inventory say something untrue,
+#: and an inventory that lies is worse than one with a gap, because nobody goes
+#: looking behind it.
+#:
+#: ⛔ EMPTY TODAY, AND IT EMPTIED ITSELF, WHICH IS THE POINT OF HAVING IT.
+#:
+#: `goBack` and `goForward` lived here for one day, 2026-09-16. They were
+#: withdrawn because a document restored from the back forward cache left the
+#: client holding a stale handle for that page's world: locators raised
+#: `Cannot find object with id` while `evaluate()` kept answering, so the method
+#: was right once and wrong immediately afterwards. The cause was read as the
+#: engine's, and it was not: the client cached the injected script per FRAME
+#: while the script is an object inside one CONTEXT, and a frame outlives its
+#: contexts. Handle and context are stored together now, so the question "is
+#: this still mine" is decidable instead of inferred, and the two came back.
+#:
+#: The set stays, and stays declared, for the next operation that is written and
+#: cannot be trusted yet. The four categories beside it would each have said
+#: something untrue about that day - no engine command, decided at build time,
+#: simply not written, left out by decision - and an inventory that lies is
+#: worse than one with a gap, because nobody looks behind it.
+WITHDRAWN: set = set()
+
 #: Everything that answers with a refusal, whatever the reason. `OUTSIDE` is
 #: kept separate because it carries a feature name and drives `refusal()`.
-REFUSED = set(OUTSIDE) | NO_ENGINE_COMMAND | FIXED_AT_BUILD | NOT_WIRED_YET
+REFUSED = (set(OUTSIDE) | NO_ENGINE_COMMAND | FIXED_AT_BUILD | NOT_WIRED_YET
+           | WITHDRAWN)
 
 
 def refusal(operation):

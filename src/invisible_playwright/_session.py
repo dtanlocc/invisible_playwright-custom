@@ -21,16 +21,17 @@ the two classes is `await`, and nothing else belongs in this file.
 from __future__ import annotations
 
 import os
-import sys
 from ._cursor import (ENGINE_BINARY,
                       ENGINE_PYTHON,
                       enable_for as _enable_cursor_engine,
                       max_seconds_for as _cursor_max_seconds)
 from ._engine import resolve_executable
+from ._juggler.server import MOTION_BUDGET_PREF, SESSION_SEED_PREF
 from typing import Any, Dict, Optional
 
 from invisible_core import compose_session_prefs, make_virtual_display
 from invisible_core.launch import (FontManifestMismatch,
+                                   build_launch_env,
                                    cached_font_manifest_path,
                                    verify_font_manifest)
 
@@ -104,17 +105,6 @@ except ImportError as _exc:  # pragma: no cover - exercised by the old-core prob
         f"pulls the core it was built against."
     ) from _exc
 
-#: The proxy egress IP fed to nICEr's bridge as the srflx override. An explicit
-#: caller-supplied value wins over the one discovered at launch.
-WEBRTC_IP_ENV = "STEALTHFOX_WEBRTC_PUBLIC_IP"
-WEBRTC_NO_IPV6_ENV = "STEALTHFOX_WEBRTC_DISABLE_IPV6"
-
-
-#: The engine reads this at startup; see build_env for why a pref cannot
-#: work here. Never rename: it is part of the binary contract.
-FONT_MANIFEST_ENV = "STEALTHFOX_FONT_MANIFEST"
-
-
 def build_env(
     *,
     timezone: Optional[str],
@@ -128,6 +118,15 @@ def build_env(
     profile: Any = None,
     executable: Optional[str] = None,
     base_env: Optional[Dict[str, str]] = None,
+    #: What the session's hidden surface wants in the browser's environment
+    #: (`make_virtual_display().launch_env()`), or nothing. A value of `None`
+    #: names a variable the browser must NOT carry (the Wayland ones an Xvfb
+    #: session drops). ⛔ Applied LAST and over a cleared slot: the surface is
+    #: a fact of THIS session, and a headed session opened while a hidden one
+    #: is still alive in the same process must not inherit the hidden one's
+    #: desktop or display through `os.environ`. `INVPW_DESKTOP` is removed
+    #: unconditionally first for the same reason.
+    display_env: Optional[Dict[str, Optional[str]]] = None,
 ) -> Dict[str, str]:
     """The environment the Firefox subprocess is launched with, minus the token.
 
@@ -146,10 +145,15 @@ def build_env(
 
     `profile=None` sets nothing, which leaves the engine on its own copy - the
     floor that keeps a browser launched without this package rendering.
+
+    What is composed here is only what needs the EXECUTABLE: the manifest is
+    verified against the engine's own fonts before its path is handed over.
+    The environment itself is composed by the core's `build_launch_env`, the
+    one place that knows TZ, the WebRTC declaration, the manifest variable and
+    the hidden surface's `launch_env()`; until 0.25.2 this function was a twin
+    of that body, and the hidden-surface half of the contract lived only here.
     """
-    env = dict(base_env if base_env is not None else os.environ)
-    if timezone:
-        env["TZ"] = tz_env(timezone)
+    manifest_path = None
     manifest = getattr(getattr(profile, "font", None), "manifest", "")
     if manifest:
         # Refuse rather than hand the engine metrics for faces it does not
@@ -170,34 +174,10 @@ def build_env(
                     f"{len(missing)} face file(s) the engine does not carry "
                     f"(e.g. {missing[:3]}). Engine: {executable}. The metrics "
                     f"would describe fonts that are not there.")
-        path = cached_font_manifest_path(manifest)
-        if path is not None:
-            # setdefault: an already-set value wins, same rule as the WebRTC IP.
-            env.setdefault(FONT_MANIFEST_ENV, str(path))
-    # WebRTC srflx override, plus dropping IPv6 from gathering.
-    webrtc_ip = env.get(WEBRTC_IP_ENV) or srflx_declared
-    if webrtc_ip:
-        env[WEBRTC_IP_ENV] = webrtc_ip
-        # ONLY behind a proxy, and the reason is a measurement.
-        #
-        # A retail Firefox on a dual-stack connection emits an IPv6 srflx with
-        # the REAL global address, in the clear: mDNS obfuscation only covers
-        # host candidates. Behind an IPv4 proxy that address would be a leak
-        # and, worse, an inconsistency - HTTP goes out through the proxy and
-        # WebRTC shows home. So there the filter is needed.
-        #
-        # Without a proxy it protects against NOTHING and costs form: measured
-        # on 2026-08-25 against the retail install on the same connection, the
-        # retail emits 6 candidates (host UDP x2, host TCP x2, srflx v4, srflx
-        # v6) while we were emitting 3. We looked like an IPv4-only machine
-        # where the reference is dual-stack.
-        #
-        # Before today this `if` was not involved: the filter was always
-        # turned on by the pref `zoom.stealth.webrtc.disable_ipv6`, which the
-        # environment only overrode. With the second source removed, the
-        # condition became expressible in one line.
-        env[WEBRTC_NO_IPV6_ENV] = "1"
-    return env
+        manifest_path = cached_font_manifest_path(manifest)
+    return build_launch_env({}, timezone=timezone, srflx_declared=srflx_declared,
+                            manifest_path=manifest_path, base_env=base_env,
+                            display_env=display_env)
 
 
 def build_prefs(
@@ -206,11 +186,11 @@ def build_prefs(
     locale: Optional[str],
     timezone: Optional[str],
     extra_prefs: Optional[Dict[str, Any]],
-    headless: bool,
     virtual_display: bool,
     cursor_engine: str,
     humanize: Any,
     show_cursor: Optional[bool] = None,
+    session_seed: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Fingerprint prefs plus the humanize toggle, which is always set explicitly.
 
@@ -227,11 +207,6 @@ def build_prefs(
     #
     # What stays here is this path's DELIVERY and its two decisions:
     #
-    #   cloak      Windows and macOS hide the headless window through the
-    #              binary's own cloak (DWMWA_CLOAK / NSWindow alpha), so the
-    #              pref has to reach the build. The composer applies it with
-    #              setdefault, which is the precedence it had here: an explicit
-    #              user override wins.
     #   humanize   The pref selects WHICH generator runs, not whether motion
     #              happens. While the wrapper draws the path it must be false,
     #              or every waypoint we send would itself be expanded into a
@@ -249,22 +224,53 @@ def build_prefs(
     # The namespace MUST be stealthfox.* - that is what the binary's Juggler
     # reads. An earlier `invisible_playwright.*` spelling was a dead no-op, so
     # humanize never fired and every click teleported the cursor.
-    return compose_session_prefs(
+    prefs = compose_session_prefs(
         profile,
         locale=locale,
         timezone=timezone,
         extra_prefs=extra_prefs,
-        # The REAL value, not a guess: B172, 2026-08-24. The caller
-        # passes the actual result of make_virtual_display() - if it
-        # created nothing (always the case on Windows, where the cloak
-        # has replaced the alternate desktop), this is False here, and
-        # the sandbox workarounds meant for that desktop do not apply.
+        # The REAL value, not a guess: B172, 2026-08-24. The caller passes
+        # whether `make_virtual_display()` actually created something - an
+        # Xvfb on Linux, a Win32 desktop on Windows - and the sandbox
+        # workarounds meant for that desktop apply only then. Nothing here
+        # reads the platform: the fact travels, not a prediction of it.
         virtual_display=virtual_display,
-        cloak=bool(headless and sys.platform in ("win32", "darwin")),
         humanize=(_cursor_max_seconds(humanize)
                   if cursor_engine == ENGINE_BINARY else False),
         show_cursor=show_cursor,
     ).prefs
+    # ⛔ THE TYPING SEED RIDES IN THE PREFS AND NEVER REACHES THE PROFILE.
+    #
+    # The engine client has no seed of its own - it is constructed by a
+    # transport that knows nothing about a session - and this dict is the one
+    # thing the launcher composes in full that already arrives there. The
+    # server pops the key in `op_launch` before writing `user.js`, so no
+    # session identifier is written to disk; the alternatives were a module
+    # global (wrong the moment a process holds two sessions) and a walk through
+    # four private attributes of the vendored client.
+    #
+    # It follows `humanize`, like the cursor: a caller who turned human motion
+    # off asked for a machine, and giving them a hand on the keyboard anyway
+    # would be a second answer to a question they already answered.
+    # ⛔ AND THE MOTION BUDGET RIDES WITH IT, under exactly the same condition,
+    # for the one pointer movement the client cannot wrap: the travel of a drag,
+    # which happens with the button already down and whose far end is only
+    # resolved after the press. That movement is generated inside the server,
+    # so without this the caller's `humanize=<n>` would cap every click and be
+    # ignored by every drag.
+    #
+    # The condition is shared and not merely similar: the server draws a path
+    # only when it has the seed, so a budget without one would cap a movement
+    # nobody is making.
+    #
+    # Milliseconds, and an int: Gecko has no float pref type, and `1.0` written
+    # as a number arrives with the right value and the wrong type - the defect
+    # `ui.textScaleFactor` had.
+    if session_seed is not None and humanize:
+        prefs[SESSION_SEED_PREF] = int(session_seed)
+        prefs[MOTION_BUDGET_PREF] = int(round(
+            _cursor_max_seconds(humanize) * 1000.0))
+    return prefs
 
 
 class ProxyEgressDrifted(RuntimeError):
@@ -385,10 +391,14 @@ class CommonLaunch:
         """Translate the user's ``headless`` flag.
 
         When ``True``, Firefox stays in headed mode (real rendering pipeline →
-        coherent fingerprint) and the window is hidden: on Linux via a fresh
-        Xvfb spawned here; on Windows/macOS via the binary's own window cloak
-        (the ``zoom.stealth.cloak_windows`` pref added in ``_build_prefs``), so
-        ``make_virtual_display()`` returns ``None`` and nothing is spawned.
+        coherent fingerprint) and the window is hidden by drawing on a screen
+        nobody looks at: on Linux a fresh Xvfb spawned here; on Windows a
+        fresh Win32 desktop the spawner creates the browser on
+        (``STARTUPINFO.lpDesktop``, read from ``INVPW_DESKTOP``). The engine
+        is stock on this surface: no pref hides anything.
+
+        ``self._virtual_display`` is the fact ``_build_prefs`` reads to decide
+        whether the desktop workarounds apply (B172).
         """
         if not self._headless:
             return False
@@ -441,11 +451,13 @@ class CommonLaunch:
         part: children inherit the environment, so every process in the tree
         carries it and teardown can find its own tree and only its own.
         """
+        vd = self._virtual_display
         return self._session_token.stamp(
             build_env(timezone=self._timezone,
-                               srflx_declared=self._srflx_declared,
-                               profile=self._profile,
-                               executable=resolve_executable(self._binary_path)))
+                      srflx_declared=self._srflx_declared,
+                      profile=self._profile,
+                      executable=resolve_executable(self._binary_path),
+                      display_env=vd.launch_env() if vd is not None else None))
 
     def _build_prefs(self) -> Dict[str, Any]:
         """Fingerprint prefs plus humanize toggle (always set explicitly).
@@ -460,11 +472,11 @@ class CommonLaunch:
             locale=self._locale,
             timezone=self._timezone,
             extra_prefs=self._extra_prefs,
-            headless=self._headless,
             virtual_display=self._virtual_display is not None,
             cursor_engine=self._cursor_engine,
             humanize=self._humanize,
             show_cursor=self._show_cursor,
+            session_seed=self.seed,
         )
 
     def _arm_cursor_engine(self, owner: Any) -> None:

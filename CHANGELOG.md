@@ -6,7 +6,452 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [0.16.2] - 2026-09-16
+## [0.25.4] - 2026-09-21
+
+### Fixed
+- **Asking again is the caller's choice, not the downloader's.** 0.25.3 put
+  the retry inside the shared download primitive, so the geoip database
+  refresh inherited it - and that caller had already written down the
+  opposite answer, because it holds a cached copy it falls back on. A
+  transient failure there would have spent up to ten seconds of backoff, at
+  browser-session start, on the way to the fallback it was taking anyway, and
+  printed retry lines in a path designed to be silent. The attempt count is
+  now the caller's: the engine download keeps three, and the geoip refresh
+  asks once when it has a cache and three times when it does not, which is
+  the case where the failure is terminal for the session.
+
+### Requires
+- `invisible-core` 34.28.0, which carries that change. Same engine
+  (firefox-34), no change in this package beyond the pin.
+
+## [0.25.3] - 2026-09-21
+
+### Fixed
+- **A transient gateway error on the engine download is asked again instead
+  of ending the install.** Nothing in the package had ever asked twice: a
+  `504 Gateway Time-out` from GitHub on the 262 MB archive came out as
+  `error: 504` and that was the end of it, on a CI runner and on the machine
+  of anyone whose first use of the package landed on one. The download now
+  makes up to three attempts on the failures that mean "ask again" (408,
+  429, 500, 502, 503, 504, dropped connections, read timeouts, a stream that
+  dies mid-transfer), waits 2s and then 8s between them, honours a
+  `Retry-After` the server sends up to a minute, and says on stderr that it
+  is doing so. A permanent answer is unchanged and still comes out on the
+  first ask: a 404 keeps reaching the message that explains a withdrawn tag,
+  and the download deadline is never repeated, because retrying it would
+  multiply the very wait it exists to cap.
+
+### Requires
+- `invisible-core` 34.27.0, which carries that change. Same engine
+  (firefox-34), no change in this package beyond the pin.
+
+## [0.25.2] - 2026-09-21
+
+### Changed
+- **One composer for the launch environment.** `_session.build_env` was a
+  twin of the core's `launch.build_launch_env`, and the hidden surface's half
+  of the contract (the variables `launch_env()` names, including the ones to
+  remove) lived only in the twin. The wrapper now verifies the font manifest
+  against the executable, which is the one thing that needs the executable,
+  and delegates the composition to the core. Same environment on the wire.
+
+### Requires
+- `invisible-core` 34.26.0, where `build_launch_env` takes `display_env`.
+  Same engine (firefox-34).
+
+## [0.25.1] - 2026-09-21
+
+### Fixed
+- **A launch environment the caller names is the whole environment.** The
+  in-process Juggler server added the named variables onto its own process
+  environment, so a variable `build_env` had removed came back: measured on
+  0.25.0 from the index, a `headless=True` session on Linux was born with
+  `WAYLAND_DISPLAY` still set, and only `GDK_BACKEND=x11` kept it off the
+  real desktop. The server now hands the engine exactly what was named;
+  naming nothing (a bare launch) still inherits, because a browser with no
+  `PATH` starts and then cannot reach the network.
+
+## [0.25.0] - 2026-09-21
+
+### Fixed
+- **On Linux the Xvfb display no longer travels through `os.environ`.**
+  `_LinuxVirtualDisplay.start()` used to write `DISPLAY`, `MOZ_ENABLE_WAYLAND`
+  and `GDK_BACKEND` into the process environment and pop the five Wayland
+  variables from it, restoring everything in `stop()`. Every session's
+  environment is a copy of `os.environ`, so a `headless=False` session opened
+  while an Xvfb session was still alive in the same process was born on the
+  Xvfb and never appeared. The whole fact now travels in the surface's
+  `launch_env()`, the same channel the Windows hidden desktop already used: the
+  variables to set, and, named with `None`, the ones the browser must not
+  carry; `build_env` applies both to the session's environment only.
+
+### Requires
+- `invisible-core` 34.25.0, where `launch_env()` gained the `None` half of the
+  contract. Same engine (firefox-34).
+
+## [0.24.0] - 2026-09-21
+
+### Changed
+- **`headless=True` on Windows creates the browser on a hidden Win32 desktop
+  instead of asking the engine to cloak its window.** The spawner now calls
+  `CreateProcessW` itself, naming a fresh desktop object in
+  `STARTUPINFO.lpDesktop` - the one field `subprocess` cannot set - so the
+  launcher, the parent, the GPU process and every content process are born
+  off screen, out of the taskbar and out of alt-tab, with no cooperation from
+  the binary. Linux is unchanged (Xvfb). The pref `zoom.stealth.cloak_windows`
+  is no longer emitted and `invisible_core.cloak_prefs` is gone; the engine
+  is stock on that surface, and the next engine release removes the dead
+  hook.
+
+  Measured on the sealed firefox-33 before shipping, same seed hidden against
+  headed: `hasFocus`, `visibilityState`, `innerWidth/Height`,
+  `outerWidth/Height`, `screenX/Y`, `screen.*`, `devicePixelRatio` and the
+  WebGL renderer string identical, ANGLE D3D11 on both, one Firefox window on
+  the session's desktop and none on the interactive one, three cross-origin
+  navigations in a row without a content-process crash. The two sandbox keys
+  that a hidden desktop needs (`security.sandbox.gpu.level=0`,
+  `security.sandbox.content.level=4`, measured in 2026-05) ride only when the
+  desktop was actually created, never from the platform name.
+
+  Why: the owner chose a stock engine on this surface, and the same
+  mechanism a mass-test harness has used since 2026-05 for dozens of parallel
+  workers. What made it possible now and not in June is that the Node driver
+  is gone: the process is ours to create.
+
+### Requires
+- **The firefox-34 engine, for the screencast of a hidden session.** On
+  firefox-33 a `headless=True` session on Windows starts the window capture
+  and never receives a frame: the engine's cropping capturer saw a visible,
+  uncloaked window and cropped it from the SCREEN, which shows the input
+  desktop only, and the screen capturer moved the capture thread there, after
+  which the window capturer could not read the window either. firefox-34
+  keeps a window that lives on another desktop on the window capturer, whose
+  `PrintWindow` reads it in full from its own desktop. Measured 2026-09-20:
+  0 frames in 15 s on firefox-33, both screencast tests green on the fixed
+  build, hidden. `tests/test_hidden_desktop.py` now asks for a frame from the
+  hidden session, so the engine's release gate proves it on every build.
+
+### Removed
+- `tests/test_cloak.py`, replaced by `tests/test_hidden_desktop.py`, which
+  also carries the control arm the old guard lacked: a headed window is found
+  on the interactive desktop before a hidden one is asserted absent from it.
+- `build_prefs(headless=...)`: the argument selected the cloak layer and
+  selects nothing now. `virtual_display` is the fact that remains.
+
+## [0.23.0] - 2026-09-20
+
+### Changed
+- **The engine floor moves to firefox-33.** It is the first build where a drag
+  gesture is delivered, where a gesture interrupted by a navigation does not
+  leave the page dead to the pointer, and where the renderer acks every mouse
+  event it handles - the ack this driver's questions about input rest on, and
+  the one the engine had lost in its port to Firefox 150.
+
+  On the drag: until now the pinned engine sent its mouse events through a
+  door that could not dispatch `dragover` at all, and then lost the
+  acknowledgement that upstream used to await, so a drag born in the gap
+  between two calls went unnoticed. Measured against the previous engine, a
+  humanised journey opened 0 drag sessions out of 20; against this one, 5 out
+  of 5, and the dose-response on the pause between events went from 5
+  deliveries out of 24 to 24 out of 24, which is the threshold disappearing
+  rather than moving. Nothing in this package changed to get that: the pin
+  carries it, and a consumer only ever runs the engine its seal names.
+
+  The 0.22.3 that was prepared and never published pinned firefox-32, a build
+  that delivered the drag and, under load, failed clicks more often than the
+  engine it replaced - measured on the same runners, the same day: 0 red runs
+  out of 6 before, 1 out of 4 with that engine alone. That is the defect the
+  entry below closes, and it is why that version went out as this one instead.
+
+### Fixed
+- **Under load, a humanised movement no longer collapses into a jump.** The
+  pacer drops an event whose successor is already due rather than sending it
+  late, and that rule had no ceiling in space: on a loaded machine nearly every
+  point was overtaken, the destination survived, and one event carried 89% of
+  an 820 px journey with a timestamp exactly where the plan put it. Now an
+  event is dropped only while the one after it lies within twice the plan's
+  largest step of the last position sent; past that it goes out late, still no
+  closer to the previous one than the 8 ms floor, and the movement overruns
+  its budget by however much the machine is behind. The one overslept sample
+  the Windows timer produces is still dropped, and the plan still ends on
+  time. Both drivers now tell the pacer where the pointer starts, so the first
+  drops are measured from where it really is.
+- **A pointer action that did not reach its element no longer reports
+  success.** `hover`, `click`, `check` and `uncheck` now ask the engine where
+  each event actually landed, as recorded at dispatch by a privileged listener
+  the page cannot see, and raise `ActionMissed` when the move, the press or
+  the release fell on something else. Measured on a target that moves: `hover`
+  returned normally 2 times out of 8 and `click` 8 times out of 8 with the
+  page having seen no event at all. The miss is reported, not retried - the
+  press happened, and repeating it is the defect the retry loop exists to
+  prevent. `force` skips this as it skips the hit-target check. Requires an
+  engine that answers `Page.pointerLanded` and returns an `eventId` from
+  `Page.dispatchMouseEvent`: the question carries the id of the last event the
+  action sent and the engine waits for the renderer's ack of it before it
+  looks, because a `mousemove` is coalesced and dispatched at the next refresh
+  tick, after a question sent right behind it.
+- **The e2e test that asserted a `hover` reaches the page through a handle
+  asserted an entrance, not a move.** It listened for `mouseover`, which fires
+  only when the pointer enters the element, and did not control where the
+  previous action had left the pointer; whether it passed depended on the
+  humanised path of the action before it. It now says what it means. This was
+  the red that appeared on runs whose whole diff was a data file, and it was
+  the test, not the driver.
+
+## [0.22.2] - 2026-09-18
+
+### Fixed
+- **`__version__` describes the code, not the install record.** It came from
+  `importlib.metadata`, which answers about the distribution the installer put
+  there. For a wheel that is the same artifact as the code. For
+  `pip install -e` the metadata is written once while the code keeps moving,
+  and pulling does not touch it. Measured minutes after the checkout had been
+  brought to zero commits behind `origin/main`: the record said 0.16.2 while
+  the tree declared 0.22.1, six releases apart.
+
+  That matters here more than in most packages, because this is the one a
+  measurement names. Read from the program, the X in "measured against
+  invisible-playwright X" was the moment somebody ran `pip install -e`, not the
+  code under test.
+
+  The version is now the install record for a normal install, and for an
+  editable one the version the source tree declares plus a `+editable` local
+  segment, so a tree that can carry uncommitted work is never read as the
+  published release of the same number. Which of the two an install is comes
+  from what `pip` itself wrote in `direct_url.json` (PEP 610), not from a guess
+  about `__file__`. The record is still reported, under
+  `__install_record_version__`, the way `invisible_core` already names it.
+
+- **Two tests were exercising whatever was installed rather than this code.**
+  The `--version` and `-V` arms spawned a subprocess, and a subprocess does not
+  inherit pytest's `pythonpath`. In CI the two coincide, because the workflow
+  installs this repository editable; from a worktree they do not, and the arms
+  went red against a checkout they were never meant to measure.
+
+## [0.22.1] - 2026-09-18
+
+### Fixed
+- **A click is delivered once, whatever the click does to the page.** One
+  `click` could hand the page thirty-nine clicks and then report the action
+  failed; on a control that stays put it did the action twice and reported
+  success. Measured on 0.22.0, three buttons on one page differing only in
+  what their handler does, thirty calls each: a button that does nothing and a
+  button that moves itself were correct thirty times out of thirty, and a
+  button that hides itself received 1068 clicks across 30 calls, all of which
+  were then reported as failures.
+
+  The discriminant is not movement. It is the target ceasing to be hittable by
+  its OWN effect, which is what a modal's close, a cookie banner's accept, a
+  menu item and a submit that becomes a spinner all do.
+
+  The hit target was read before the action and again after it, and both reads
+  raised `WrongHitTarget`, which the retry loop absorbs by starting over -
+  and starting over presses again. The read afterwards cannot answer the
+  question it is asked: once the event has gone out, "the point stopped
+  belonging to the element" is the same observation for a click that missed
+  and for a click that worked. It is gone rather than narrowed.
+
+  What replaces it is one read, between the approach and the press. The read
+  also moved after the approach, which is where the race is: a page that
+  rearranges itself on hover was being judged in the layout from before the
+  pointer arrived.
+
+## [0.22.0] - 2026-09-17
+
+### Fixed
+- **`strict` now refuses an ambiguous selector instead of picking one.** The
+  option was accepted across the public API, the injected script has always
+  known how to raise on it, and nothing in between passed it on: the default
+  stayed false all the way down. Every Locator method sends `strict=True`, so
+  `page.locator("button").click()` on a page with two buttons clicked the
+  FIRST one and reported success. That is not a missing error message. The
+  automation acted on an element nobody had chosen, and said nothing about it.
+- **`force` now bypasses the actionability checks it promises to bypass**, and
+  both of them: the state checks and the hit-target check. "Receives events"
+  is one of the checks the option names, and an overlay intercepting the
+  pointer is the ordinary reason to pass it, so honouring only the first half
+  would leave the option indistinguishable from doing nothing.
+
+### Changed
+- The server reads the per-action options in ONE place rather than one reader
+  per option. A reader per option is the shape that lost these two: seven
+  copies of `params.get("trial")` is how the eighth action gets written
+  without one. A test derives the list of actions that can carry the options
+  from the code and requires every operation reaching one of them to hand
+  them over, so an action added without the wiring is red on the day it is
+  written.
+- `no_wait_after` is NOT in this list, and the note that grouped it with the
+  other two was wrong. Upstream declares it deprecated and without effect, so
+  a client that ignores it matches upstream rather than departing from it.
+
+## [0.21.0] - 2026-09-17
+
+### Added
+- **`go_back()` and `go_forward()` are back**, and the cause 0.18.0 withdrew
+  them for turned out to be here rather than in the engine. A restored
+  document left this client holding the injected script it had cached PER
+  FRAME, while that script is an object inside one execution CONTEXT, and a
+  frame outlives its contexts: every navigation replaces them and so does a
+  restore. The handle and the context it was minted in are stored together
+  now, so "is this still mine" is decided from state rather than inferred
+  from destruction events arriving complete and in order. They do not: on a
+  restore the engine destroys worlds this client was never told existed.
+- The end to end test walks back, forward and back again and READS THROUGH A
+  LOCATOR each time. One movement was green against the defect, and so is
+  asserting on the URL: both of the earlier tests did one of those.
+
+### Changed
+- The perimeter's `WITHDRAWN` set is empty again and stays declared, for the
+  next operation that is written and cannot be trusted yet.
+
+## [0.20.0] - 2026-09-16
+
+### Added
+- **A gate on what the injected script leaves on the page's NODES.** The half of
+  this class that concerned the page's `window` was closed in 0.19.0; this is
+  the other verb. `computeAriaRef` writes `element._ariaRef` while building the
+  accessibility tree, reachable only through `mode="ai"`, and the question
+  underneath had never been answered: does an assignment made through an Xray
+  stay in the sandbox, or reach the page's node?
+
+  Measured against a page served from `127.0.0.1` that watches its own elements:
+  it stays. With `mode="ai"` the snapshot comes back carrying refs and the
+  sandbox sees the expando, while the page sees nothing at all. Nothing was
+  broken and nothing needed fixing - but the day that confinement stops holding,
+  every interactable element would carry a property any page can enumerate, and
+  nothing would have said so. The test drives the writing branch deliberately
+  and fails if it ever stops being reached, so it cannot go quietly green.
+
+## [0.19.0] - 2026-09-16
+
+### Changed
+- **A click has a duration now, and a double click has an interval.**
+  `mousedown` and `mouseup` used to leave together, so what a page measured as
+  the hold was **8.0 ms** against the 60-120 ms a finger takes; and the two
+  presses of a double click had nothing between them, yet were still delivered
+  as a `dblclick`, because that event is born from `clickCount` rather than from
+  the interval - so a page received a double click no operating system would
+  have accepted as one. Both now come from the session's `PointerPersona`, and
+  `delay=`, which was dropped here along with `button` and `modifiers` before
+  it, works again as the override Playwright documents it to be.
+  `humanize=False` keeps the old behaviour.
+
+- **Typing now takes the time a hand takes, and that is a real slowdown you
+  should know about before upgrading.** `page.type`, `locator.press_sequentially`,
+  `keyboard.type` and the typing half of `fill` used to emit keys as fast as the
+  protocol allows: a `keydown` and its `keyup` measured **4.0 ms** apart on a
+  real page, against the 60-120 ms a finger takes, and eleven characters went by
+  in about 50 ms. A site does not have to probe for that, it only has to listen,
+  and a password field is where that listening is already installed. The rhythm
+  now comes from a `TypingPersona` drawn from the session seed - dwell, gaps,
+  the digram structure that makes alternating hands faster than one hand, and
+  occasional hesitations - so `password123` takes about 1.8 s instead of 50 ms.
+  Same seed still types the same way. `humanize=False` keeps the old speed, and
+  the `delay=` you pass still wins over the persona for that call.
+
+- **A drag travels now, instead of arriving.** The whole of `drag_and_drop` was
+  five events, and the two carrying the journey were identical and 7 ms apart -
+  a pair no device can report, since a move event is born from moving. They were
+  deliberate: one jump alone did not reliably start the drag. Measured on a
+  480-pixel drag, that journey now takes 27 events over 26 distinct points, on a
+  path drawn by the same generator and delivered under the same pacing rules as
+  every other pointer movement this package makes. The approach to the source is
+  a path too. `humanize=False` keeps a single event, and `humanize=<seconds>`
+  now caps this movement as it already capped every other one.
+
+### Fixed
+- **`drag_and_drop` raised on a `draggable` element, and left the mouse button
+  down.** Gecko started a native drag session off that single 480-pixel jump,
+  `dispatchDragEvent` then failed with `NS_ERROR_FAILURE`, and the `mouseup`
+  never went out - so the `buttons` field of every event after it said
+  "pressed", including the recovery `mouseup` in the error path, which failed
+  the same way. The whole of HTML5 drag and drop was therefore unusable and
+  nothing said so, because there was no end-to-end test of a drag at all. With a
+  real path the drag is born the way it is for a hand and the gesture completes.
+  It is the same change as the entry above: one absence, three symptoms.
+- **`delay=` on typing was measured in milliseconds and slept in seconds.** The
+  public API documents it in milliseconds; the one server path that forwarded it
+  handed the number straight to `time.sleep`, so
+  `element_handle.type("abc", delay=100)` waited five minutes instead of 0.3
+  seconds. The six paths that dropped the value were accidentally protected from
+  the bug the seventh had. All seven honour it now, and the unit is in the name.
+- **`trial=True` no longer performs the action.** It is accepted on 31 public
+  signatures - click, dblclick, hover, tap, check, uncheck, set_checked and drag
+  across `Page`, `Frame`, `Locator` and `ElementHandle` - and the word appeared
+  nowhere in the engine client, so it reached the wire and fell off it: a call
+  whose whole purpose was not to click clicked. The single place that did read it
+  made the outcome worse rather than better, skipping the humanised pointer
+  approach and then running the action anyway, so the click went out in the most
+  recognisable shape a click has. It is honoured now in the retry loop, which is
+  the only thing that knows what actionable means: the checks run, the hit target
+  is verified, and nothing is dispatched. A drag checks both ends.
+
+- **A mis-aimed click is retried instead of blocked, and the injected script
+  no longer touches the page's window at all.** The hit-target interceptor
+  installed capture listeners there for the duration of every action and
+  called `preventDefault` on the events that landed on the wrong element.
+  Both halves are gone. The listeners were the last thing this package left
+  on the page, and the blocking was the worse half: a real `mousedown` that
+  disappears is not something an input stack produces, so the defence
+  announced itself exactly when it worked. The check is now a pure DOM read
+  run before the action and again after it, so a target that moves is caught
+  and the action retried. What a page sees is a click that landed where the
+  thing it was aimed at used to be, which is what a hand produces when a
+  layout shifts. The guarantee narrows in one case: an element that moves
+  between the check and the event now receives that one event before the
+  retry, where before it received none.
+## [0.18.0] - 2026-09-16
+
+### Removed
+- **`go_back()` and `go_forward()` now refuse.** 0.17.0 made them work for one
+  step, and one step is the problem. The engine restores the document and
+  reports the navigation, but a restored page leaves the driver holding a stale
+  handle for that page's world: go forward, or go back a second time, and every
+  locator raises `Cannot find object with id` while `evaluate()` and
+  `content()` keep answering from the right document. `reload()` clears it.
+  A method that is right once and wrong afterwards puts the failure somewhere
+  else, where it reads as a broken selector on a healthy page, so both refuse
+  with a sentence naming what would have happened. Navigate to the URL instead;
+  `reload()` is unaffected, and a page moving its own history with
+  `history.back()` still restores from the cache.
+
+### Changed
+- The perimeter gained a fifth category, `WITHDRAWN`, for an operation that is
+  written and held back by a defect rather than missing. The four that existed
+  would each have said something untrue about these two, and an inventory that
+  lies is worse than one with a gap.
+- The README stops claiming all methods. It never covered tracing, HAR, CDP or
+  the API request context, and every refusal has said so for a while; the
+  headline had not caught up.
+## [0.17.0] - 2026-09-16
+
+### Fixed
+- **An authenticated HTTP or HTTPS proxy routes the page again.** It was
+  accepted and then bypassed, silently, on every engine from firefox-24 to
+  firefox-30: the credentials went to the proxy endpoint, where Gecko
+  implements them for SOCKS only, so the call failed inside the channel filter
+  and the connection went out directly over the host's own address with
+  nothing raised anywhere. SOCKS was unaffected, which is why it lived through
+  seven releases. HTTP proxy auth answers the 407 challenge instead, and that
+  path was already wired. Reported from the outside, not caught here. There is
+  now an end to end test that drives a browser through an authenticated HTTP
+  proxy, on both the launch road and the context road, which is the case
+  nothing covered.
+- **`go_back()` and `go_forward()` report the navigation they performed.** The
+  engine went back all along; Juggler had no bookkeeping for a document
+  restored from the back forward cache, so the client was never told the
+  navigation had committed. The test asserts that going back RESTORES the
+  document rather than fetching it again, because asserting on the URL alone
+  passes against a browser that silently refetches.
+
+### Changed
+- Pinned engine moves to **firefox-31**, via `invisible-core` 31.23.0.
+- The pinning page's worked examples now run as written. Two of them named a
+  GPU the validated pool cannot present and raised when copied.
+- The ledger step realigns this file's heading date to the date the index
+  reports, so a heading typed hours before the upload it describes cannot
+  disagree with the gate that checks it.
+## [0.16.2] - 2026-09-15
 
 ### Changed
 - **The language gate comes from the core.** The check that this repository

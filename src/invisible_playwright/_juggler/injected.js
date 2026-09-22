@@ -6584,7 +6584,6 @@ var InjectedScript = class {
     this._testIdAttributeNameForStrictErrorAndConsoleCodegen = options.testIdAttributeName;
     this._evaluator = new SelectorEvaluatorImpl();
     this.consoleApi = new ConsoleAPI(this);
-    this.onGlobalListenersRemoved = /* @__PURE__ */ new Set();
     this._autoClosingTags = /* @__PURE__ */ new Set(["AREA", "BASE", "BR", "COL", "COMMAND", "EMBED", "HR", "IMG", "INPUT", "KEYGEN", "LINK", "MENUITEM", "META", "PARAM", "SOURCE", "TRACK", "WBR"]);
     this._booleanAttributes = /* @__PURE__ */ new Set(["checked", "selected", "disabled", "readonly", "multiple"]);
     this._eventTypes = /* @__PURE__ */ new Map([
@@ -6633,10 +6632,6 @@ var InjectedScript = class {
       ["deviceorientationabsolute", "deviceorientation"],
       ["devicemotion", "devicemotion"]
     ]);
-    this._hoverHitTargetInterceptorEvents = /* @__PURE__ */ new Set(["mousemove"]);
-    this._tapHitTargetInterceptorEvents = /* @__PURE__ */ new Set(["pointerdown", "pointerup", "touchstart", "touchend", "touchcancel"]);
-    this._mouseHitTargetInterceptorEvents = /* @__PURE__ */ new Set(["mousedown", "mouseup", "pointerdown", "pointerup", "click", "auxclick", "dblclick", "contextmenu"]);
-    this._allHitTargetInterceptorEvents = /* @__PURE__ */ new Set([...this._hoverHitTargetInterceptorEvents, ...this._tapHitTargetInterceptorEvents, ...this._mouseHitTargetInterceptorEvents]);
     this._engines = /* @__PURE__ */ new Map();
     this._engines.set("xpath", XPathEngine);
     this._engines.set("xpath:light", XPathEngine);
@@ -6676,22 +6671,25 @@ var InjectedScript = class {
     this._shouldPrependErrorPrefix = !!options.shouldPrependErrorPrefix;
     this._isUtilityWorld = !!options.isUtilityWorld;
     setGlobalOptions({ browserNameForWorkarounds: options.browserName });
-    if (this._isUtilityWorld) {
-      // MODIFIED by invisible_playwright: these two installations run ONLY
-      // nel mondo di utilita. Nel mondo MAIN usavano l addEventListener della
-      // PAGINA, e un sito che lo avvolge contava TREDICI listener a ogni
-      // bounding_box(): un __ctx_ping__ piu i dodici intercettori di hit-target.
-      // Misurato il 2026-08-27 con lo stack dei chiamanti, non dedotto.
-      //
-      // Nel mondo MAIN erano gia INERTI: _hitTargetInterceptor lo imposta solo il
-      // percorso delle azioni, che gira nel mondo di utilita, quindi il listener
-      // chiamava sempre un undefined. Zero costo funzionale, tredici tracce in meno.
-      //
-      // La riga sopra sa gia in quale mondo siamo, quindi la guardia sta dove il
-      // fatto e noto e non in un terzo posto che dovrebbe restare daccordo.
-      this._setupGlobalListenersRemovalDetection();
-      this._setupHitTargetInterceptors();
-    }
+    // MODIFIED by invisible_playwright: this bundle NEVER touches the page's
+    // window. Not here, and not later.
+    //
+    // Two installations used to live on this line, and an earlier fix only
+    // moved them into the utility world - which was not enough, because
+    // `this.window` there IS the page's window seen through an Xray, so a CALL
+    // on it lands on the page either way. Constructing the script registered
+    // THIRTEEN capture listeners for the life of the document, and replacing
+    // documentElement dispatched a CustomEvent on the page's window that a
+    // site could listen for in three lines.
+    //
+    // They are gone, not renamed and not narrowed: the hit-target check is a
+    // pure DOM read now (`checkHitTarget`), which the caller runs before the
+    // action and again after. Nothing listens, so nothing has to survive a
+    // documentElement replacement, so the detector that announced itself has
+    // no reason to exist.
+    //
+    // `tests/gates/injected_page_surface.js` measures this: zero touches, in
+    // every phase.
     if (this.isUnderTest)
       this.window.__injectedScript = this;
   }
@@ -7416,44 +7414,25 @@ var InjectedScript = class {
   //     2k. (injected) Event interceptor is removed.
   //     2l. All navigations triggered between 2g-2k are awaited to be either committed or canceled.
   //     2m. If failed, wait for increasing amount of time before the next retry.
-  setupHitTargetInterceptor(node, action, hitPoint, blockAllEvents) {
+  // MODIFIED by invisible_playwright: a pure read. It used to install capture
+  // listeners on the page's window and validate each event AS IT ARRIVED,
+  // blocking the ones that landed elsewhere. Both halves are gone.
+  //
+  // The listeners were the last thing this bundle put on the page, and the
+  // blocking was itself the tell: a REAL mousedown that vanishes under
+  // preventDefault is something no input stack produces, so the defence
+  // announced us exactly when it worked.
+  //
+  // What survives is the hit test, which was never the problem: it only READS
+  // the DOM, and it reads it through the Xray like everything else here. The
+  // caller runs it before the action and again after, so a target that moved
+  // becomes a retry instead of a blocked event.
+  checkHitTarget(node, hitPoint) {
     const element = this.retarget(node, "button-link");
     if (!element || !element.isConnected)
       return "error:notconnected";
-    if (hitPoint) {
-      const preliminaryResult = this.expectHitTarget(hitPoint, element);
-      if (preliminaryResult !== "done")
-        return preliminaryResult.hitTargetDescription;
-    }
-    if (action === "drag")
-      return { stop: () => "done" };
-    const events = {
-      "hover": this._hoverHitTargetInterceptorEvents,
-      "tap": this._tapHitTargetInterceptorEvents,
-      "mouse": this._mouseHitTargetInterceptorEvents
-    }[action];
-    let result;
-    const listener = (event) => {
-      if (!events.has(event.type))
-        return;
-      if (!event.isTrusted && !event.__pwTrustedSynthetic)
-        return;
-      const point = !!this.window.TouchEvent && event instanceof this.window.TouchEvent ? event.touches[0] : event;
-      if (result === void 0 && point)
-        result = this.expectHitTarget({ x: point.clientX, y: point.clientY }, element);
-      if (blockAllEvents || result !== "done" && result !== void 0) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-      }
-    };
-    const stop = () => {
-      if (this._hitTargetInterceptor === listener)
-        this._hitTargetInterceptor = void 0;
-      return result || "done";
-    };
-    this._hitTargetInterceptor = listener;
-    return { stop };
+    const result = this.expectHitTarget(hitPoint, element);
+    return result === "done" ? "done" : result.hitTargetDescription;
   }
   dispatchEvent(node, type, eventInitObj) {
     var _a, _b, _c, _d, _e;
@@ -7723,39 +7702,6 @@ var InjectedScript = class {
     //
     // Only the snapshot Streamer listened to them: the trace
     // viewer. Outside that case they went to nobody at all.
-  }
-  _setupGlobalListenersRemovalDetection() {
-    // MODIFIED by invisible_playwright: neutral name. This CustomEvent
-    // viaggia sul window della PAGINA, e un sito che sostituisce
-    // documentElement e ascolta quel nome otteneva un riscontro.
-    const customEventName = "__ctx_ping__";
-    let seenEvent = false;
-    const handleCustomEvent = () => seenEvent = true;
-    this.window.addEventListener(customEventName, handleCustomEvent);
-    new MutationObserver((entries) => {
-      const newDocumentElement = entries.some((entry) => Array.from(entry.addedNodes).includes(this.document.documentElement));
-      if (!newDocumentElement)
-        return;
-      seenEvent = false;
-      this.window.dispatchEvent(new CustomEvent(customEventName));
-      if (seenEvent)
-        return;
-      this.window.addEventListener(customEventName, handleCustomEvent);
-      for (const callback of this.onGlobalListenersRemoved)
-        callback();
-    }).observe(this.document, { childList: true });
-  }
-  _setupHitTargetInterceptors() {
-    const listener = (event) => {
-      var _a;
-      return (_a = this._hitTargetInterceptor) == null ? void 0 : _a.call(this, event);
-    };
-    const addHitTargetInterceptorListeners = () => {
-      for (const event of this._allHitTargetInterceptorEvents)
-        this.window.addEventListener(event, listener, { capture: true, passive: false });
-    };
-    addHitTargetInterceptorListeners();
-    this.onGlobalListenersRemoved.add(addHitTargetInterceptorListeners);
   }
   async expect(element, options, elements) {
     const core = await this._expectCore(element, options, elements);

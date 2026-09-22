@@ -76,14 +76,13 @@ from .firefox_extensions import (
     install_firefox_extensions,
 )
 
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
-
-try:
-    __version__ = _pkg_version("invisible-playwright")
-except PackageNotFoundError:
-    # Editable / source checkout without an install record: fall back to a
-    # marker rather than risk shipping a stale hardcoded string.
-    __version__ = "0.0.0+unknown"
+# `__version__` describes the CODE that is about to run; the install record is
+# a different fact and keeps a name that says so, the way `invisible_core` does.
+# ⛔ It used to be `importlib.metadata.version("invisible-playwright")`, which
+# describes the INSTALL: an editable one freezes that number and the code keeps
+# moving, measured here at 0.16.2 against a tree declaring 0.22.1 with the
+# checkout up to date. See `_version.py`.
+from ._version import __install_record_version__, __version__
 
 __all__ = [
     "InvisiblePlaywright",
@@ -102,4 +101,5 @@ __all__ = [
     "BINARY_VERSION",
     "FIREFOX_UPSTREAM_VERSION",
     "__version__",
+    "__install_record_version__",
 ]

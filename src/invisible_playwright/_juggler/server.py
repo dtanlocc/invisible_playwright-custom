@@ -161,6 +161,72 @@ class APIRequestContextDispatcher(RefusingDispatcher):
 #: what the alternative reads like.
 _HANDLE = "<element handle>"
 
+#: How the session's SEED reaches this server, which otherwise knows no seed at
+#: all. The launcher composes the pref dict in full and `op_launch` already
+#: receives it, so this adds no plumbing; `op_launch` takes the key back out
+#: before writing `user.js`, so it never reaches a profile.
+#:
+#: ⛔ THE SEED CROSSES, NOT A PERSONA, and the second consumer is what settled
+#: it. This carried a ready-made `TypingPersona` while the keyboard was the
+#: only thing that wanted a rhythm. Then the click wanted one too, from a
+#: DIFFERENT persona drawn from the same seed, and a transport carrying one
+#: built object would have had to grow a second field - then a third. What is
+#: actually session-scoped is the seed; a persona is something you build where
+#: you use it.
+#:
+#: ⛔ NOT under `stealthfox.*`. That prefix means "the patched binary reads
+#: this", and a reader who found this key there would go looking in C++ for
+#: something answered in Python.
+SESSION_SEED_PREF = "invisible.server.session_seed"
+
+#: The motion-duration cap `humanize=<seconds>` implies, in MILLISECONDS.
+#:
+#: ⛔ IT TRAVELS RATHER THAN BEING RE-DERIVED HERE, and in milliseconds because
+#: Gecko has no float pref type - `1.0` written as a number arrives with the
+#: right value and the wrong type. The cap is decided once, by
+#: `_cursor.max_seconds_for`, from the caller's `humanize=`; the server applying
+#: a cap of its own would be a second answer to a question the caller answered,
+#: and would show up as a drag that ignores a budget every click obeys.
+MOTION_BUDGET_PREF = "invisible.server.motion_budget_ms"
+
+
+def take_session_motion(prefs: Dict) -> tuple:
+    """Split the launch prefs into what the BROWSER gets and what the SESSION
+    keeps: the seed of its rhythms, and the budget one movement may spend.
+
+    ⛔ A FUNCTION RATHER THAN THREE LINES INSIDE `op_launch`, because the thing
+    worth testing is that the keys come OUT: a version that read them and forgot
+    to remove them would behave identically in every observable way except for
+    writing a session identifier into the profile, which no test that drives a
+    browser would notice.
+
+    ⛔ A MALFORMED VALUE RAISES rather than falling back to no rhythm. Emitting
+    input at pipe speed is precisely the failure these personae exist to
+    remove, and a fallback would make it the quiet default whenever the
+    launcher sent something unexpected.
+    """
+    rest = dict(prefs)
+    seed = rest.pop(SESSION_SEED_PREF, None)
+    budget_ms = rest.pop(MOTION_BUDGET_PREF, None)
+    return (rest,
+            (None if seed is None else int(seed)),
+            (None if budget_ms is None else int(budget_ms) / 1000.0))
+
+
+def _launch_environment(named) -> Dict[str, str]:
+    """The environment a launched browser gets, from what the caller named.
+
+    `named` is the protocol's `env`: a list of ``{"name", "value"}`` pairs,
+    or nothing. Naming nothing (no list, or an empty one) means "inherit this
+    process's environment"; naming anything means "this, and only this" - so
+    a variable the caller left out is a variable the browser does not get.
+    The `None` half of a hidden surface's `launch_env()` depends on the
+    second sentence, and the network of a bare launch on the first.
+    """
+    if not named:
+        return dict(os.environ)
+    return {e["name"]: e["value"] for e in named}
+
 
 def _upload_paths(params: Dict) -> list:
     """The local paths out of a `setInputFiles` request.
@@ -444,9 +510,16 @@ class ElementHandleDispatcher(Dispatcher):
     # of a request are one thing, and two readers of one wire format drift.
 
     def _act_args(self, params: Dict) -> Dict:
+        """⛔ THE PER-ACTION OPTIONS COME THROUGH HERE TOO, and that is why
+        every operation on this class uses this helper rather than spelling the
+        three arguments out. `strict` is inert on a handle - the node is given,
+        not looked up - but `trial` and `force` are not, and an operation that
+        built its own argument set would be the one written without them.
+        """
         return {"timeout": self.frame._timeout(params),
                 "frame_id": self.frame.frame_id,
-                "element_id": self.object_id}
+                "element_id": self.object_id,
+                **self.frame._act_opts(params)}
 
     def op_click(self, params: Dict) -> Any:
         self.frame.actions.click(_HANDLE, position=self.frame._position(params),
@@ -795,7 +868,40 @@ class FrameDispatcher(Dispatcher):
             # `modifiers=["Shift"]` must reach the page identically.
             "modifiers": mask,
             "clicks": int(params.get("clickCount") or 1),
+            # ⛔ The wait between `mousedown` and `mouseup`, in milliseconds,
+            # which is what Playwright documents `delay` to be for a click. It
+            # was dropped here with the other three, so a press had no duration
+            # at all and the caller had no way to give it one. It reads as an
+            # override of the session's hand, not as the only rhythm available.
+            "delay_ms": params.get("delay"),
         }
+
+    def _act_opts(self, params: Dict) -> Dict:
+        """Every per-action option the wire carries, read in ONE place.
+
+        ⛔ ONE PLACE KNOWS THE NAMES OF THESE PARAMETERS, and that is the point
+        of a helper this small. `trial` reaches seven operations, and seven
+        copies of `params.get("trial")` is how the eighth gets written without
+        one - which is exactly how it came to be accepted on 31 public
+        signatures and read by nobody, so `click(trial=True)` clicked.
+
+        ⛔ AND THAT SHAPE IS WHY THIS READS THREE OPTIONS RATHER THAN ONE.
+        The helper used to answer only `trial`, so `strict` and `force` had to
+        be wired option by option, action by action - and they never were: both
+        were accepted by the public API and read by nobody. `strict` is the
+        expensive one. Every Locator method sends `strict=True` (28 call sites
+        in `_locator.py`), so `page.locator("button").click()` on a page with
+        two buttons clicked the FIRST one instead of refusing - the automation
+        acting on an element nobody chose, with nothing said. Reading them
+        together means the ninth action cannot be written with one and without
+        the others.
+
+        What they MEAN lives in `Actions._retry`, the only thing that knows
+        what actionable is. This just carries them across the wire.
+        """
+        return {"trial": bool(params.get("trial")),
+                "strict": bool(params.get("strict")),
+                "force": bool(params.get("force"))}
 
     def _position(self, params: Dict):
         """The caller's offset inside the element, or None.
@@ -813,7 +919,7 @@ class FrameDispatcher(Dispatcher):
     def op_click(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.click(selector, timeout=self._timeout(params),
-                                frame_id=frame_id,
+                                frame_id=frame_id, **self._act_opts(params),
                                 position=self._position(params),
                                 **self._pointer(params))
         return None
@@ -824,65 +930,71 @@ class FrameDispatcher(Dispatcher):
         # dblclick sets its own clickCount; the caller's is not a second one.
         pointer.pop("clicks", None)
         self.actions.dblclick(selector, timeout=self._timeout(params),
-                                   frame_id=frame_id,
+                                   frame_id=frame_id, **self._act_opts(params),
                                    position=self._position(params), **pointer)
         return None
 
     def op_hover(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.hover(selector, timeout=self._timeout(params),
-                                frame_id=frame_id,
+                                frame_id=frame_id, **self._act_opts(params),
                                 position=self._position(params))
         return None
 
     def op_fill(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.fill(selector, params["value"],
-                               timeout=self._timeout(params), frame_id=frame_id)
+                               timeout=self._timeout(params), frame_id=frame_id,
+                               **self._act_opts(params))
         return None
 
     def op_check(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.check(selector, timeout=self._timeout(params),
-                                frame_id=frame_id,
+                                frame_id=frame_id, **self._act_opts(params),
                                 position=self._position(params))
         return None
 
     def op_uncheck(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.uncheck(selector, timeout=self._timeout(params),
-                                  frame_id=frame_id,
+                                  frame_id=frame_id, **self._act_opts(params),
                                   position=self._position(params))
         return None
 
     def op_focus(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.focus(selector,
-                                timeout=self._timeout(params), frame_id=frame_id)
+                                timeout=self._timeout(params), frame_id=frame_id,
+                                **self._act_opts(params))
         return None
 
     def op_blur(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.blur(selector,
-                               timeout=self._timeout(params), frame_id=frame_id)
+                               timeout=self._timeout(params), frame_id=frame_id,
+                               **self._act_opts(params))
         return None
 
     def op_select_text(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.select_text(selector,
-                                      timeout=self._timeout(params), frame_id=frame_id)
+                                      timeout=self._timeout(params), frame_id=frame_id,
+                                      **self._act_opts(params))
         return None
 
     def op_press(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.press(selector, params["key"],
-                                timeout=self._timeout(params), frame_id=frame_id)
+                                timeout=self._timeout(params), frame_id=frame_id,
+                                **self._act_opts(params))
         return None
 
     def op_type(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.type_text(selector, params["text"],
-                                    timeout=self._timeout(params), frame_id=frame_id)
+                                    timeout=self._timeout(params), frame_id=frame_id,
+                                    **self._act_opts(params))
         return None
 
     def op_select_option(self, params: Dict) -> Any:
@@ -892,20 +1004,21 @@ class FrameDispatcher(Dispatcher):
         # option. Measured: ["b"] answered ['a'].
         chosen = self.actions.select_option(
             params["selector"], params.get("options") or [],
-            timeout=self._timeout(params))
+            timeout=self._timeout(params), **self._act_opts(params))
         return {"values": chosen or []}
 
     def op_set_input_files(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.set_input_files(selector, _upload_paths(params),
                                      timeout=self._timeout(params),
-                                     frame_id=frame_id)
+                                     frame_id=frame_id,
+                                     **self._act_opts(params))
         return None
 
     def op_tap(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.tap(selector, timeout=self._timeout(params),
-                              frame_id=frame_id,
+                              frame_id=frame_id, **self._act_opts(params),
                               position=self._position(params))
         return None
 
@@ -921,12 +1034,14 @@ class FrameDispatcher(Dispatcher):
         self.actions.dispatch_event(
             selector, params["type"],
             _deserialize(params.get("eventInit")) or {},
-            timeout=self._timeout(params), frame_id=frame_id)
+            timeout=self._timeout(params), frame_id=frame_id,
+            **self._act_opts(params))
         return None
 
     def op_drag_and_drop(self, params: Dict) -> Any:
         self.actions.drag_and_drop(params["source"], params["target"],
-                                        timeout=self._timeout(params))
+                                        timeout=self._timeout(params),
+                                        **self._act_opts(params))
         return None
 
     def op_set_content(self, params: Dict) -> Any:
@@ -1080,11 +1195,18 @@ class FrameDispatcher(Dispatcher):
         from `Page.dispatchMouseEvent`, which synthesises the drag from real
         pointer movement and builds its own data.
 
-        So `drag_and_drop()` works, because that is a pointer gesture; `drop()`
-        with a payload cannot be expressed. Faking it by dispatching an
-        untrusted `drop` event from the injected script would produce
-        `isTrusted: false` on a form that saw trusted events for everything
-        else - which is the mixture [B175] exists about.
+        `drop()` with a payload therefore cannot be expressed. Faking it by
+        dispatching an untrusted `drop` event from the injected script would
+        produce `isTrusted: false` on a form that saw trusted events for
+        everything else - which is the mixture [B175] exists about.
+
+        ⛔ AND THIS USED TO SAY "so `drag_and_drop()` works, because that is a
+        pointer gesture". It does not, and nothing checked: measured 2026-09-16,
+        a drag onto a target that accepts the drop delivers no `dragenter`, no
+        `dragover` and no `drop`, so the payload never arrives. The gesture
+        moves the pointer correctly and transfers nothing. [B212] holds the
+        measurement and where the cause is; the sentence is gone because a
+        claim no gate can fail is how it survived.
         """
         raise ProtocolException(
             "drop() with an explicit data payload has no engine command: "
@@ -1527,7 +1649,9 @@ class PageDispatcher(Dispatcher):
         self.lifecycle = Lifecycle(conn, session)
         self.injected = InjectedScript(conn, session)
         self.injected.install()
-        self.actions = Actions(conn, session, self.lifecycle, self.injected)
+        self.actions = Actions(conn, session, self.lifecycle, self.injected,
+                               session_seed=context.browser.session_seed,
+                               motion_budget_s=context.browser.motion_budget_s)
         # ⛔ THE EVENTS THIS PAGE ALREADY MISSED, handed over now that the two
         # things that need them exist. `Page.frameAttached` and the
         # `Runtime.executionContextCreated` pair are sent by the browser BEFORE
@@ -2063,11 +2187,18 @@ class PageDispatcher(Dispatcher):
         return None
 
     def op_key_press(self, params: Dict) -> Any:
-        self.keyboard.press(params["key"])
+        # ⛔ `delay` IS the dwell here, not a gap: Playwright documents it as
+        # the wait between keydown and keyup. It used to be dropped, which is
+        # why a press had no duration at all.
+        self.keyboard.press(params["key"], dwell_ms=params.get("delay"))
         return None
 
     def op_key_type(self, params: Dict) -> Any:
-        self.keyboard.type(params["text"])
+        # ⛔ And here it IS a gap, and it was dropped too. Passing it now makes
+        # it an override of the session's rhythm rather than the only thing
+        # standing between the caller and pipe speed.
+        self.keyboard.type(params["text"],
+                           delay_ms=params.get("delay") or 0.0)
         return None
 
     def op_key_insert(self, params: Dict) -> Any:
@@ -2861,9 +2992,20 @@ class BrowserDispatcher(Dispatcher):
                "newPage": "op_new_page"}
 
     def __init__(self, server, browser_type: "BrowserTypeDispatcher",
-                 conn: Any, version: str) -> None:
+                 conn: Any, version: str, session_seed: Any = None,
+                 motion_budget_s: Any = None) -> None:
         self.conn = conn
         self.browser_type = browser_type
+        #: ⛔ THE SESSION'S SEED, and the reason it lives on the BROWSER rather
+        #: than on this module: a process can hold two sessions with two seeds,
+        #: and a module-level value would give the second one the first's hand.
+        #: That is the shape of defect the personae exist to remove, so it must
+        #: not be reintroduced by where it is stored.
+        #:
+        #: `None` means the caller turned humanising off, and every rhythm
+        #: downstream reads that as "no rhythm" rather than as a default one.
+        self.session_seed = session_seed
+        self.motion_budget_s = motion_budget_s
         self._sessions: Dict[str, str] = {}
         self._sessions_ready = threading.Condition()
         # ⛔ THE EVENTS OF A SESSION START BEFORE ANYBODY IS LISTENING, and
@@ -3229,29 +3371,31 @@ class BrowserTypeDispatcher(Dispatcher):
             raise ProtocolException(
                 "launch needs an executablePath: invisible_playwright pins its "
                 "own engine and never downloads one at launch time")
-        # ⛔ MERGED ONTO THIS PROCESS'S ENVIRONMENT, NEVER REPLACING IT, and
-        # the difference is a browser that cannot reach the network.
+        # ⛔ A NAMED ENVIRONMENT IS THE WHOLE ENVIRONMENT; NAMING NOTHING MEANS
+        # INHERIT. Two facts, one per half, and each was learned the hard way.
         #
-        # A bare `pw.firefox.launch()` sends an EMPTY `env` list - the caller
-        # named no variables, so there are none to name. Taking that literally
+        # Naming nothing: a bare `pw.firefox.launch()` names no variables (the
+        # client sends no `env`, or an empty list). Taking that literally once
         # meant launching Firefox with an environment of exactly nothing: no
         # `SYSTEMROOT`, no `PATH`, no `TEMP`. The browser starts, the protocol
         # works, `about:blank` and `data:` URLs load - and every HTTP
         # navigation comes back `Page.navigationAborted` with
         # `NS_ERROR_OUT_OF_MEMORY`, an error that names neither the cause nor
-        # the environment.
+        # the environment. Invisible to everything on the product path, which
+        # always names a full environment; it surfaced the first time a gate
+        # ran on this transport with a bare launch.
         #
-        # ⛔ AND IT WAS INVISIBLE TO EVERYTHING. The product path passes a
-        # FULL environment (`_session.build_env`), so every test and every gate
-        # that goes through `InvisiblePlaywright` was unaffected; only a caller
-        # using the vendored client directly hit it - which is exactly who
-        # `get_default_stealth_prefs` exists for. It surfaced the first time a
-        # gate ran on this transport with a bare launch.
-        #
-        # The driver has the same semantics: given no `env` it uses its own
-        # process environment, and given some it adds them.
-        env = dict(os.environ)
-        env.update({e["name"]: e["value"] for e in (params.get("env") or [])})
+        # Naming something: until 0.25.1 the named variables were ADDED onto
+        # this process's environment, so a variable the caller had REMOVED
+        # came back from `os.environ`. `_session.build_env` composes the full
+        # environment and drops what the session's hidden surface names with
+        # `None` (the Wayland variables an Xvfb session must not carry); with
+        # the merge, the hidden Firefox was born with `WAYLAND_DISPLAY` anyway
+        # (measured 2026-09-21, 0.25.0 from the index, `/proc/<pid>/environ`).
+        # Only `GDK_BACKEND=x11` kept it off the real desktop. The driver's
+        # semantics are the same as this: a given `env` is the environment the
+        # browser gets, not a patch on top of the driver's own.
+        env = _launch_environment(params.get("env"))
         # ⛔ WHO MAKES THE PROFILE TAKES IT AWAY - AND ONLY THAT ONE. The
         # caller's `userDataDir` is theirs and survives the session by
         # definition; a directory we invented is ours and must not.
@@ -3265,7 +3409,22 @@ class BrowserTypeDispatcher(Dispatcher):
         ours = params.get("userDataDir") is None
         profile = params.get("userDataDir") or tempfile.mkdtemp(
             prefix="invisible_profile_")
-        _write_user_js(profile, params.get("firefoxUserPrefs") or {})
+        # ⛔ THE TYPING SEED TRAVELS IN THE PREFS AND IS TAKEN OUT AGAIN HERE,
+        # before a single byte reaches the profile.
+        #
+        # It rides here because the launcher already composes this dict in full
+        # and this method already receives it, so nothing new has to be
+        # plumbed. It comes back OUT because it is not a browser preference:
+        # the engine never reads it, and leaving it in `user.js` would write a
+        # session identifier onto disk for no reader at all.
+        #
+        # ⛔ And the namespace is deliberately NOT `stealthfox.*`. That prefix
+        # means "the patched binary reads this", and a reader who found a
+        # typing key under it would go looking in C++ for something that is
+        # answered in Python.
+        prefs, session_seed, motion_budget_s = take_session_motion(
+            params.get("firefoxUserPrefs") or {})
+        _write_user_js(profile, prefs)
         # ⛔ THE CALLER'S TIMEOUT, not ours. `launch(timeout=)` is a
         # documented option and this server ignored it, so a caller who
         # shortened it waited the full built-in 60 s anyway - and one who
@@ -3314,7 +3473,9 @@ class BrowserTypeDispatcher(Dispatcher):
             # swallows one hook's failure so it cannot stop the others.
             self.server.on_shutdown(lambda: _remove_profile(profile))
         version = _read_version(executable)
-        browser = BrowserDispatcher(self.server, self, conn, version)
+        browser = BrowserDispatcher(self.server, self, conn, version,
+                                    session_seed=session_seed,
+                                    motion_budget_s=motion_budget_s)
         return {"browser": browser.channel}
 
 

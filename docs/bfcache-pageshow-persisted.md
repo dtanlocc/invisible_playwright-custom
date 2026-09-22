@@ -92,19 +92,20 @@ anyone who needs it.
 
 The cost is real and you should know it before you enable this anywhere:
 
-**[`go_back()`](https://playwright.dev/python/docs/api/class-page#page-go-back) waiting
-for `load` can time out.** A bfcache restore does not fire `load`,
-because nothing loaded. Code that navigates back and waits for that event will sit there
-until the timeout expires.
+**`go_back()` used to time out here, and does not any more.** A bfcache restore does not
+fire `load`, so code waiting for that event sat there until the deadline. The engine
+reports the navigation from firefox-31, and the driver stopped caching the injected
+script across a restore in 0.19.0, which was the second half of the same problem: the
+page came back and the driver was still holding a handle into the world it had left.
 
 ```python
-# fragile once bfcache is enabled
-page.go_back()                      # may wait for a load that never comes
-
-# robust either way
-page.go_back(wait_until="domcontentloaded")
+# fine now
+page.go_back()
 page.wait_for_selector("#something-on-the-previous-page")
 ```
+
+Waiting for something you can see is still more robust than waiting for a lifecycle
+event on a restore, because the lifecycle events genuinely do not fire again.
 
 Waiting for something you can see is more robust than
 [waiting for a lifecycle event](how-to-wait-for-page-load-playwright.md) anyway, and it
@@ -151,8 +152,9 @@ in Firefox explicitly and in Chromium effectively.
 never restore, which is not how consumer browsers behave. It is a weak signal on its own
 and it belongs to a family of weak behavioural signals.
 
-**Why does `go_back()` hang after I enable bfcache?** Because a restore does not fire
-`load`. Wait for `domcontentloaded` or for an element instead.
+**Does `go_back()` still hang?** No, since firefox-31 for the navigation and 0.19.0 for
+the driver side. Wait for an element rather than for `load`, which does not fire again
+on a restore.
 
 **Should I enable it?** For realistic sessions yes, for deterministic test suites
 probably not.
@@ -174,7 +176,7 @@ for where behavioural signals sit in the wider picture.
   and [MDN: the `pageshow` event](https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event),
   which documents `persisted`.
 - Playwright's documented [`go_back()`](https://playwright.dev/python/docs/api/class-page#page-go-back)
-  and its `wait_until` values, including `domcontentloaded`.
+  and its `wait_until` values.
 - The Playwright tracker's open items on bfcache behaviour and on enabling it under
   Chromium.
 - This project's driver, which reads a preference before disabling the cache and leaves
