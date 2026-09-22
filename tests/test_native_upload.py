@@ -1,3 +1,4 @@
+import contextlib
 import asyncio
 import ctypes
 from pathlib import Path
@@ -541,3 +542,35 @@ def test_waiting_for_global_chooser_lock_keeps_stream_active(monkeypatch):
 
     asyncio.run(exercise())
     assert activity == [True, False]
+
+
+def test_a_window_helper_runs_on_the_session_desktop(monkeypatch):
+    """From 0.24 the chooser is on the browser's own desktop, not this one."""
+    attached = []
+
+    @contextlib.contextmanager
+    def fake_attach(name):
+        attached.append(name)
+        yield True
+
+    monkeypatch.setattr(native_upload, "_thread_on_desktop", fake_attach)
+    monkeypatch.setattr(native_upload, "_ACTIVE_DESKTOP", "invpw_abc123")
+
+    @native_upload._on_browser_desktop
+    def find_windows():
+        return "found"
+
+    assert find_windows() == "found"
+    assert attached == ["invpw_abc123"]
+
+
+def test_the_helpers_that_touch_windows_are_all_bound():
+    for name in ("_snapshot_dialogs", "_watch_new_dialog", "_fill_and_accept",
+                 "_close_owned_dialogs", "_cancel_dialog"):
+        function = getattr(native_upload, name)
+        assert getattr(function, "__wrapped__", None) is not None, name
+
+
+def test_no_desktop_means_the_thread_is_left_alone():
+    with native_upload._thread_on_desktop(None) as attached:
+        assert attached is True

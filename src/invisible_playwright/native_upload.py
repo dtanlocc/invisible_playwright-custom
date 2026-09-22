@@ -14,7 +14,9 @@ protocol payload.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ctypes
+import functools
 import os
 import threading
 import time
@@ -37,6 +39,69 @@ _WM_NEXTDLGCTL = 0x0028
 _IDOK = 1
 _SMTO_BLOCK = 0x0001
 _SMTO_ABORTIFHUNG = 0x0002
+
+
+# ⛔ FROM 0.24 THE BROWSER - AND ITS FILE CHOOSER - LIVE ON A PRIVATE DESKTOP.
+# `headless=True` builds the session on a desktop of its own (`CreateDesktopW`),
+# and a thread attached to the ordinary desktop enumerates NONE of its windows:
+# the chooser would never be found, the click would look like it opened nothing.
+# The name is set by `set_input_files_native` while it holds the chooser lock,
+# so a second session cannot see the wrong desktop, and every window-facing
+# helper below runs attached to it. Empty (the pre-0.24 shape) changes nothing.
+_ACTIVE_DESKTOP: str | None = None
+_DESKTOP_ALL_ACCESS = 0x000F01FF
+
+
+@contextlib.contextmanager
+def _thread_on_desktop(name: str | None):
+    """Attach THIS thread to `name` for the duration of the block."""
+    if os.name != "nt" or not name:
+        yield True
+        return
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.OpenDesktopW.restype = wintypes.HANDLE
+    user32.OpenDesktopW.argtypes = (
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    user32.GetThreadDesktop.restype = wintypes.HANDLE
+    user32.GetThreadDesktop.argtypes = (wintypes.DWORD,)
+    user32.SetThreadDesktop.restype = wintypes.BOOL
+    user32.SetThreadDesktop.argtypes = (wintypes.HANDLE,)
+    user32.CloseDesktop.restype = wintypes.BOOL
+    user32.CloseDesktop.argtypes = (wintypes.HANDLE,)
+
+    previous = user32.GetThreadDesktop(kernel32.GetCurrentThreadId())
+    handle = user32.OpenDesktopW(name, 0, False, _DESKTOP_ALL_ACCESS)
+    if not handle:
+        raise NativeUploadError(
+            "Could not open the browser desktop %s (WinError %d)"
+            % (name, ctypes.get_last_error())
+        )
+    attached = bool(user32.SetThreadDesktop(handle))
+    try:
+        if not attached:
+            raise NativeUploadError(
+                "Could not attach to the browser desktop %s (WinError %d)"
+                % (name, ctypes.get_last_error())
+            )
+        yield attached
+    finally:
+        if attached and previous:
+            user32.SetThreadDesktop(previous)
+        user32.CloseDesktop(handle)
+
+
+def _on_browser_desktop(function):
+    """Run a window-facing helper where the browser's windows actually are."""
+
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        with _thread_on_desktop(_ACTIVE_DESKTOP):
+            return function(*args, **kwargs)
+
+    return wrapper
 
 
 async def _acquire_chooser_lock(
@@ -77,6 +142,7 @@ def _normalise_files(paths: Iterable[os.PathLike[str] | str]) -> list[str]:
     return files
 
 
+@_on_browser_desktop
 def _snapshot_dialogs() -> set[int]:
     import win32gui
 
@@ -183,6 +249,7 @@ def _activate_hidden_dialog_offscreen(hwnd: int) -> None:
     time.sleep(0.15)
 
 
+@_on_browser_desktop
 def _watch_new_dialog(
     before: set[int],
     found: threading.Event,
@@ -381,6 +448,7 @@ def _post_dialog_accept(hwnd: int, open_button: int) -> None:
     win32gui.PostMessage(hwnd, _WM_COMMAND, _IDOK, open_button)
 
 
+@_on_browser_desktop
 def _fill_and_accept(hwnd: int, files: Sequence[str]) -> dict[str, Any]:
     import win32con
     import win32gui
@@ -607,6 +675,7 @@ def _fill_and_accept(hwnd: int, files: Sequence[str]) -> dict[str, Any]:
     return diagnostics
 
 
+@_on_browser_desktop
 def _cancel_dialog(hwnd: int | None) -> None:
     if not hwnd:
         return
@@ -645,6 +714,7 @@ def _cancel_dialog(hwnd: int | None) -> None:
         pass
 
 
+@_on_browser_desktop
 def _close_owned_dialogs(
     *,
     owner_process_ids: frozenset[int] | None,
@@ -691,6 +761,7 @@ async def set_input_files_native(
     on_dialog_active: Callable[[bool], None] | None = None,
     trigger_dwell_ms: int | None = None,
     trigger_click_delay_ms: int | None = None,
+    desktop: str | None = None,
     timeout_ms: int = 15_000,
 ) -> None:
     """Attach files through a real, DWM-cloaked Windows chooser.
@@ -720,6 +791,8 @@ async def set_input_files_native(
         raise NativeUploadError("The Firefox session has no owned processes.")
     timeout_seconds = max(1.0, timeout_ms / 1000.0)
     await _acquire_chooser_lock()
+    global _ACTIVE_DESKTOP
+    _ACTIVE_DESKTOP = desktop
     dialog_hwnd: int | None = None
     fill_diagnostics: dict[str, Any] | None = None
     click_task: asyncio.Task[Any] | None = None
@@ -886,4 +959,7 @@ async def set_input_files_native(
                 on_dialog_active(False)
             except Exception:
                 pass
+        # The desktop belongs to the session that held the lock; the next
+        # caller sets its own.
+        _ACTIVE_DESKTOP = None
         _CHOOSER_LOCK.release()
