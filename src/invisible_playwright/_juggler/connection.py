@@ -179,6 +179,11 @@ class Connection(EventListeners):
         # into one unparseable line - a failure that shows up as the browser
         # ignoring a command, not as an error here.
         self._write_lock = threading.Lock()
+        # One closer at a time, and only once: `close` is reached both from
+        # the caller's teardown and from Juggler's own `op_close`, and the two
+        # used to race on the same descriptors.
+        self._close_lock = threading.Lock()
+        self._close_done = False
         self._closed = False
         self._error: Optional[BaseException] = None
         self._reader = threading.Thread(target=self._read_loop, daemon=True)
@@ -344,24 +349,68 @@ class Connection(EventListeners):
         read returns zero, and Juggler shuts the browser down. Closing
         the pipe IS the exit command. `terminate()` remains only as a
         last resort, for whatever did not die on its own.
+
+        ⛔ THE READ END IS CLOSED LAST, AND ONLY ONCE THE READER IS OUT OF
+        IT. `os.close()` on a descriptor another thread is blocked reading
+        takes that descriptor's CRT lock on Windows and does not return
+        until the read does. Measured 23/09/2026: two threads walked into
+        this function, both stopped on the read end, the browser stayed
+        alive, and the caller - an asyncio application whose event loop was
+        on one of those threads - froze with them for as long as it was
+        left running. Closing the write end is already the exit command, so
+        the read end can wait for the process to be gone; if it never goes,
+        one leaked descriptor is cheaper than a frozen caller.
         """
-        self._closed = True
-        for fd in (self._to_browser, self._from_browser):
+        with self._close_lock:
+            if self._close_done:
+                return
+            self._close_done = True
+            self._closed = True
+            # 1) The exit command.
             try:
-                os.close(fd)
+                os.close(self._to_browser)
             except OSError:
                 pass
-        p = self._process
-        if not p:
-            return
-        deadline = time.monotonic() + timeout
-        while p.poll() is None and time.monotonic() < deadline:
-            time.sleep(0.05)
-        if p.poll() is None:
+            p = self._process
+            if p:
+                # 2) Give the browser its own exit, then insist.
+                deadline = time.monotonic() + timeout
+                while p.poll() is None and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if p.poll() is None:
+                    try:
+                        p.terminate()
+                    except OSError:
+                        pass
+                    grace = time.monotonic() + 2.0
+                    while p.poll() is None and time.monotonic() < grace:
+                        time.sleep(0.05)
+            # 3) The read returns as soon as the writer at the other end is
+            # gone. Only then is the descriptor safe to close.
+            reader = getattr(self, "_reader", None)
+            if reader is not None and reader.is_alive():
+                reader.join(timeout=2.0)
+                if reader.is_alive():
+                    # The browser is still holding its end. A thread can wait
+                    # for that as long as it takes; the caller cannot.
+                    threading.Thread(
+                        target=self._close_when_reader_is_out,
+                        args=(reader, self._from_browser),
+                        daemon=True,
+                    ).start()
+                    return
             try:
-                p.terminate()
+                os.close(self._from_browser)
             except OSError:
                 pass
+
+    @staticmethod
+    def _close_when_reader_is_out(reader: threading.Thread, fd: int) -> None:
+        reader.join()
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 
 # ── launch ──────────────────────────────────────────────────────────────────
