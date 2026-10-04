@@ -105,15 +105,17 @@ OUTSIDE = {
     "tracingStopChunk":                "tracing",
     "write":                           "tracing",
     "zip":                             "tracing",
-    # video
+    # video annotations. ⛔ `screencastStart` and `screencastStop` are NOT
+    # here any more: since the engine's screencast came back (firefox-28) the
+    # server answers them with live JPEG frames of the window. What stays out
+    # is the overlay the driver used to paint on the recording - chapters,
+    # action captions - which needs the recorder this package does not ship.
     "screencastChapter":               "video",
     "screencastHideActions":           "video",
     "screencastRemoveOverlay":         "video",
     "screencastSetOverlayVisible":     "video",
     "screencastShowActions":           "video",
     "screencastShowOverlay":           "video",
-    "screencastStart":                 "video",
-    "screencastStop":                  "video",
 }
 
 #: ⛔ ANSWERED THOUGH OUTSIDE. These are the ones the CLIENT sends on its own
@@ -131,6 +133,88 @@ COURTESY = {
     "traceDiscarded": "the client sends it at the end of a session",
     "__waitInfo__": "the client annotates every wait for the trace viewer",
 }
+
+
+#: ⛔ TEN OPERATIONS REFUSE WITHOUT BEING IN `OUTSIDE`, AND UNTIL NOW NO
+#: INVENTORY KNEW THEM. They raise `ProtocolException` inline in their
+#: dispatcher, with a good sentence beside the code and nothing anywhere that
+#: says they exist. That is the same defect this module was written to remove:
+#: the docstring above says a refusal must name the feature "so that the refusal
+#: is a decision rather than a gap", and for these nine there was no way to tell
+#: which of the two it was without reading `server.py` end to end.
+#:
+#: ⛔ AND THEY ARE NOT ALL THE SAME THING, which is why this is three sets and
+#: not one. Folding them into `OUTSIDE` would have said "outside by decision"
+#: about four operations that are simply not written yet, and about three that
+#: the engine gives us no way to honour. The distinction is the information.
+#:
+#: What is NOT repeated here is the explanation: each of these raises with a
+#: sentence that says exactly why, next to the code that knows. These sets carry
+#: the NAME and the CATEGORY only, so there is no second copy of a fact.
+
+#: The engine offers no command at all. Not our debt, and not a decision we can
+#: revisit on our own: honouring them would mean inventing an answer.
+NO_ENGINE_COMMAND = {
+    "drop",
+    "setOffline",
+    "setWebSocketInterceptionPatterns",
+}
+
+#: Decided when the injected script is BUILT, so a later call cannot change it.
+#: These are honourable at construction time, and the refusal says so.
+FIXED_AT_BUILD = {
+    "registerSelectorEngine",
+    "setTestIdAttributeName",
+}
+
+#: Our debt, plainly. Nothing external blocks these: they are not written yet.
+#: This set is the honest list of what "100% compatible" does not cover today.
+NOT_WIRED_YET = {
+    "exposeBinding",
+    # ⛔ `reject` shares its handler with `resolve`, and that is how it stayed
+    # invisible: the first scan keyed the method table by python name, so the
+    # second operation routed to `op_binding_reply` overwrote the first. Two
+    # operations, one handler, one of them unaccounted for.
+    "reject",
+    "resolve",
+    "setExtraHTTPHeaders",
+}
+
+#: Written, wired, and WITHDRAWN: the engine answers, and what it leaves behind
+#: makes the method worse than its absence.
+#:
+#: ⛔ A FIFTH CATEGORY RATHER THAN A WRONG LABEL, and the four that existed are
+#: why. `NO_ENGINE_COMMAND` is false here, the engine has `Page.goBack` and
+#: performs it. `NOT_WIRED_YET` calls itself "our debt, simply not written",
+#: and this is written. `OUTSIDE` says "left out by decision, not by omission"
+#: and drives a sentence claiming the feature was never in scope. Filing these
+#: under any of the three would have made the inventory say something untrue,
+#: and an inventory that lies is worse than one with a gap, because nobody goes
+#: looking behind it.
+#:
+#: ⛔ EMPTY TODAY, AND IT EMPTIED ITSELF, WHICH IS THE POINT OF HAVING IT.
+#:
+#: `goBack` and `goForward` lived here for one day, 2026-09-16. They were
+#: withdrawn because a document restored from the back forward cache left the
+#: client holding a stale handle for that page's world: locators raised
+#: `Cannot find object with id` while `evaluate()` kept answering, so the method
+#: was right once and wrong immediately afterwards. The cause was read as the
+#: engine's, and it was not: the client cached the injected script per FRAME
+#: while the script is an object inside one CONTEXT, and a frame outlives its
+#: contexts. Handle and context are stored together now, so the question "is
+#: this still mine" is decidable instead of inferred, and the two came back.
+#:
+#: The set stays, and stays declared, for the next operation that is written and
+#: cannot be trusted yet. The four categories beside it would each have said
+#: something untrue about that day - no engine command, decided at build time,
+#: simply not written, left out by decision - and an inventory that lies is
+#: worse than one with a gap, because nobody looks behind it.
+WITHDRAWN: set = set()
+
+#: Everything that answers with a refusal, whatever the reason. `OUTSIDE` is
+#: kept separate because it carries a feature name and drives `refusal()`.
+REFUSED = (set(OUTSIDE) | NO_ENGINE_COMMAND | FIXED_AT_BUILD | NOT_WIRED_YET
+           | WITHDRAWN)
 
 
 def refusal(operation):

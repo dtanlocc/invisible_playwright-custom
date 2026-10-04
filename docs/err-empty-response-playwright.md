@@ -22,7 +22,7 @@ failure and not a handshake failure. Something answered the socket, then said no
 **A crashed or overloaded backend.** A worker process dying mid-request, an
 out-of-memory kill, or a request handler that raises before writing a single byte all
 leave the reverse proxy or load balancer in front of it holding an open connection with
-nothing to forward. The proxy closes the client connection rather than inventing a
+nothing to forward. The proxy closes the client connection instead of inventing a
 response, and the browser reports exactly this.
 
 **A proxy or load balancer timing out on the backend and giving up without answering.**
@@ -36,10 +36,13 @@ documented, ordinary feature of production web servers, not a theory about hosti
 intent. nginx's own status code `444` exists specifically to close a connection without
 sending any response, and the `reset_timedout_connection` directive, in nginx's own
 words, applies to "connections closed with the non-standard code 444," releasing the
-socket with a TCP reset rather than a normal close. A server operator who wants to deny
+socket with a TCP reset, not a normal close. A server operator who wants to deny
 a request with zero information leakage, whether the requester is a scanner, a bot, or
 simply unwanted traffic, has this as a first-class, standard option: return nothing
-rather than a status code that says "blocked."
+rather than a status code that says "blocked." That is the one cause on this list
+where the error is not a fault to repair but a decision made about your session, and
+the question then moves off this page and onto
+[why the script is being refused in the first place](why-does-my-playwright-script-get-blocked.md).
 
 **A proxy-side rewrite or bypass rule interacting badly with routing.** [A real Playwright
 report](https://github.com/microsoft/playwright/issues/20703) traces `ERR_EMPTY_RESPONSE`
@@ -81,7 +84,12 @@ resemblance to the Chromium string you searched for.
    that closes with zero bytes, and removes the browser as a variable.
 2. **Remove the proxy and retry direct.** Gone without it, the proxy or the path to it is
    implicated, matching the shape in the routing-bypass report above. Persists, the origin
-   server or something between you and it is next.
+   server or something between you and it is next. If the proxy never opened the tunnel
+   at all you would be reading
+   [ERR_TUNNEL_CONNECTION_FAILED](err-tunnel-connection-failed-playwright.md), and if the
+   socket was torn down after some bytes had moved,
+   [ERR_CONNECTION_RESET](err-connection-reset-playwright.md): the three differ only in
+   how far the exchange got.
 3. **Check whether it is one target or many.** Consistent on one specific site with
    everything else loading normally is the shape of a deliberate drop; intermittent across
    unrelated targets points at your own proxy or network path.

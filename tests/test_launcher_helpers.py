@@ -245,11 +245,11 @@ def test_build_env_injects_webrtc_egress_when_discovered():
     ip = InvisiblePlaywright(seed=42)
     # ⛔ TWO FIELDS, and this test only exercised one. `_webrtc_egress_ip`
     # is the FACT (where we exit from, read by the guard against drift);
-    # `_srflx_dichiarato` is the DECISION that ends up in the env. Since
+    # `_srflx_declared` is the DECISION that ends up in the env. Since
     # 2026-08-25 they do not coincide: when the exit has proven, consistent
     # UDP the decision is None and nothing gets declared.
     ip._webrtc_egress_ip = "203.0.113.9"  # what __enter__ resolves behind a proxy
-    ip._srflx_dichiarato = "203.0.113.9"  # and here the decision coincides with the fact
+    ip._srflx_declared = "203.0.113.9"  # and here the decision coincides with the fact
     env = ip._build_env({})
     assert env["STEALTHFOX_WEBRTC_PUBLIC_IP"] == "203.0.113.9"
     assert env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] == "1"
@@ -273,6 +273,29 @@ def test_build_env_caller_env_override_wins(monkeypatch):
     env = ip._build_env({})
     assert env["STEALTHFOX_WEBRTC_PUBLIC_IP"] == "198.51.100.5"  # caller wins
     assert env["STEALTHFOX_WEBRTC_DISABLE_IPV6"] == "1"
+
+
+@pytest.mark.unit
+def test_build_env_drops_the_variables_the_display_names_absent():
+    """The hidden surface's ``launch_env()`` can name a variable with ``None``,
+    and that means: the browser must NOT carry it. An Xvfb session names the
+    five Wayland variables that way (inherited from WSLg they pull Firefox
+    onto the real compositor); before 34.25.0 the core popped them from
+    ``os.environ`` instead, which is B221. The known-bad input is a build_env
+    that ``update()``s the dict as it used to: it would hand the subprocess a
+    ``None`` value and, worse, keep ``WAYLAND_DISPLAY``."""
+    from invisible_playwright._session import build_env
+    base = {"PATH": "/usr/bin", "WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0"}
+    env = build_env(timezone=None, srflx_declared=None, base_env=base,
+                    display_env={"DISPLAY": ":123", "GDK_BACKEND": "x11",
+                                 "WAYLAND_DISPLAY": None, "PULSE_SERVER": None})
+    assert env["DISPLAY"] == ":123"
+    assert env["GDK_BACKEND"] == "x11"
+    assert "WAYLAND_DISPLAY" not in env
+    assert "PULSE_SERVER" not in env
+    assert all(v is not None for v in env.values())
+    assert base == {"PATH": "/usr/bin", "WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0"}, \
+        "the caller's mapping was written into"
 
 
 @pytest.mark.unit

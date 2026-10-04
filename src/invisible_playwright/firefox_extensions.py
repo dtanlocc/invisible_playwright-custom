@@ -70,27 +70,45 @@ def firefox_extension_id(xpi_path: os.PathLike[str] | str) -> str:
 def install_firefox_extensions(
     firefox_executable: os.PathLike[str] | str,
     xpi_paths: Iterable[os.PathLike[str] | str],
+    remove_addon_ids: Iterable[str] = (),
 ) -> tuple[Path, ...]:
-    """Atomically install XPIs into the selected Firefox distribution.
+    """Atomically synchronize managed XPIs in the Firefox distribution.
 
     The destination is tied to the resolved engine binary, so a future
     invisible_playwright engine upgrade automatically receives the extensions
     again on its first launch. Existing identical files are left untouched.
+    Explicit removals make a per-launch off switch reliable even when an XPI
+    was installed into this shared engine by an earlier profile.
     """
 
     executable = Path(firefox_executable).expanduser().resolve()
     if not executable.is_file():
         raise FirefoxExtensionInstallError(f"Firefox executable does not exist: {executable}")
     sources = [Path(value).expanduser().resolve() for value in xpi_paths]
-    if not sources:
+    removals = {str(value) for value in remove_addon_ids}
+    invalid_removals = sorted(value for value in removals if not _ADDON_ID_RE.fullmatch(value))
+    if invalid_removals:
+        raise FirefoxExtensionInstallError(
+            f"Invalid Firefox extension removal ID: {invalid_removals[0]!r}"
+        )
+    if not sources and not removals:
         return ()
 
     prepared = [(source, firefox_extension_id(source)) for source in sources]
+    removals.difference_update(addon_id for _, addon_id in prepared)
     destination_dir = executable.parent / "distribution" / "extensions"
     installed: list[Path] = []
 
     with _INSTALL_LOCK:
         destination_dir.mkdir(parents=True, exist_ok=True)
+        for addon_id in sorted(removals):
+            destination = destination_dir / f"{addon_id}.xpi"
+            try:
+                destination.unlink(missing_ok=True)
+            except OSError as exc:
+                raise FirefoxExtensionInstallError(
+                    f"Could not remove Firefox extension {addon_id} from {destination_dir}: {exc}"
+                ) from exc
         for source, addon_id in prepared:
             destination = destination_dir / f"{addon_id}.xpi"
             if destination.is_file() and _sha256(destination) == _sha256(source):

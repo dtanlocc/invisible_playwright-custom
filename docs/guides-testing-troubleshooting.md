@@ -39,6 +39,9 @@ telling the difference before you ship a fix, not after.
 
 ## When you get blocked or detected
 
+- [Selenium detected by Cloudflare](selenium-detected-by-cloudflare.md) - The specific default properties a managed challenge reads, and why patching one from JavaScript does not survive a descriptor check.
+- [Playwright blocked by CORS policy](playwright-blocked-by-cors-policy.md) - Almost never detection - the browser correctly enforcing a policy the server set. How to tell the two apart.
+
 - [Playwright detected as a bot on one site: a checklist](playwright-detected-as-bot.md) - a checklist that checks the free fixes first, before buying a better proxy on day one.
 - [Why Does My Playwright Script Get Blocked?](why-does-my-playwright-script-get-blocked.md) - a four-layer diagnostic across fingerprint, IP reputation, rate and quota, and behaviour.
 - [Why am I blocked with a clean fingerprint?](why-blocked-with-a-clean-fingerprint.md) - you pass CreepJS, BotD and sannysoft and still get blocked; how to isolate which of four layers is failing.
@@ -50,7 +53,11 @@ telling the difference before you ship a fix, not after.
 - [Playwright TargetClosedError: the causes and the fixes](playwright-targetclosederror-causes.md) - usually not a timeout; three specific Firefox and Juggler causes, their symptoms, and how to tell them apart.
 - [Firefox preferences that silently do nothing](firefox-prefs-not-applying.md) - a preference you set can be silently ignored with no error; the reasons in order, and how to confirm which one you hit.
 
+- [First Firefox launch fails on Windows, then works](first-firefox-launch-fails-then-works-windows.md) - The first launch of a freshly extracted build fails, every later one works: what Windows remembers between the two.
+- [Keep Playwright Firefox memory flat on long runs](playwright-firefox-memory-long-runs.md) - Memory that grows over a long run comes from unclosed contexts, an accumulating list, or one context kept too long.
+
 ## Canvas, screenshots and fingerprint noise
 
 - [Canvas fingerprint changes every run: use a seed](canvas-fingerprint-changes-every-run.md) - canvas, WebGL and audio hashes change each run; pass a fixed seed to make readbacks byte-identical.
 - [Playwright screenshot returns noise: readback fix](playwright-screenshot-returns-noise.md) - why page.screenshot() returned a noise PNG, and the principal-split canvas readback fix that made captures clean.
+- [Missing fonts in Docker break Playwright screenshots](playwright-firefox-fonts-docker.md) - A container ships almost no fonts, so text renders as boxes or as the wrong family.

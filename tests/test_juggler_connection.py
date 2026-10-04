@@ -27,29 +27,38 @@ class _ReadinessProcess:
 
 
 def test_readiness_timeout_is_real_when_stdout_never_writes_a_line():
+    """The deadline belongs to whoever waits, never to whoever reads.
+
+    ⛔ CARRIED ACROSS THE 0.25.11 MERGE, which replaced the readiness loop
+    with ProcessOutput. The failure guarded here is a stdout whose `readline`
+    BLOCKS and prints nothing - a MOZILLA_OFFICIAL build can suppress the
+    readiness dump() entirely. While that read sat on the waiting thread the
+    timeout was fictional: the call came back when the read did, not when the
+    clock ran out. upstream's own readiness test writes a line into a real
+    pipe, so it never puts the reader in that state.
+    """
     class SlowSilentStdout:
         def readline(self):
             time.sleep(0.2)
             return b""
 
+    stdout = SlowSilentStdout()
+    output = conn.ProcessOutput(stdout)
     started = time.monotonic()
-    seen, output = conn._wait_until_ready(
-        _ReadinessProcess(SlowSilentStdout()), 0.02
-    )
+
+    seen = output.wait_for_ready(_ReadinessProcess(stdout), 0.02)
 
     assert not seen
-    assert output == []
+    assert output.tail() == []
     assert time.monotonic() - started < 0.15
 
 
 def test_readiness_line_is_collected_without_waiting_for_the_deadline():
-    seen, output = conn._wait_until_ready(
-        _ReadinessProcess(io.BytesIO(b"noise\nJuggler listening to the pipe\n")),
-        1.0,
-    )
+    stdout = io.BytesIO(b"noise\nJuggler listening to the pipe\n")
+    output = conn.ProcessOutput(stdout)
 
-    assert seen
-    assert output == ["noise", "Juggler listening to the pipe"]
+    assert output.wait_for_ready(_ReadinessProcess(stdout), 1.0)
+    assert output.tail() == ["noise", "Juggler listening to the pipe"]
 
 
 # ── without a browser ───────────────────────────────────────────────────────
@@ -58,8 +67,16 @@ def test_the_generated_protocol_has_the_five_domains():
     """If the generator ingests a wrong Protocol.js, the count moves."""
     domains = {n.split(".")[0] for n in COMMANDS}
     assert domains == {"Browser", "Page", "Network", "Runtime", "Heap"}
-    assert len(COMMANDS) == 71, "commands: %d" % len(COMMANDS)
-    assert len(EVENTS) == 34, "events: %d" % len(EVENTS)
+    # ⛔ THESE TWO NUMBERS WERE 71 AND 34 WHILE THE PINNED ENGINE ALREADY
+    # DECLARED 75 AND 35, and this test was green the whole time: it fixes
+    # the count of the mirror, not the mirror's agreement with the engine, so
+    # a mirror that stops being regenerated stays "right" forever. The four
+    # commands it lacked (`Network.getResponseBody`, the three screencast
+    # ones) and the one event were shipped by the engine and never mirrored.
+    # What ties the mirror to the engine is `gen_juggler_protocol.py --check`
+    # against the pinned binary, run where the binary is - the e2e job.
+    assert len(COMMANDS) == 77, "commands: %d" % len(COMMANDS)
+    assert len(EVENTS) == 35, "events: %d" % len(EVENTS)
 
 
 def test_the_commands_the_client_will_use_are_declared():
@@ -67,7 +84,11 @@ def test_the_commands_the_client_will_use_are_declared():
     command does not degrade, it REJECTS. These are the ones on the
     minimum path."""
     for name in ("Browser.enable", "Browser.createBrowserContext",
-                 "Browser.newPage", "Page.navigate", "Runtime.evaluate"):
+                 "Browser.newPage", "Page.navigate", "Runtime.evaluate",
+                 # Asked after every click and hover since [B217]: an engine
+                 # without it refuses the question, and the mirror must say so
+                 # before a browser does.
+                 "Page.pointerLanded"):
         assert name in COMMANDS, name
 
 

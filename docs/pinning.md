@@ -18,7 +18,7 @@ from invisible_playwright import InvisiblePlaywright
 with InvisiblePlaywright(
     seed=42,
     pin={
-        "gpu.renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11)",
+        "gpu.renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0, D3D11)",
         "gpu.vendor":   "Google Inc. (NVIDIA)",
         "screen.width":  2560,
         "screen.height": 1440,
@@ -32,14 +32,14 @@ with InvisiblePlaywright(
 
 Pinning a field skips the sampler only for that field - every other field still draws from its own conditional distribution, using the parent's original posterior rather than the value you just pinned. A pinned value does not pull correlated fields along with it.
 
-The generator is a Bayesian network: every field has a probability distribution **conditioned on its parents**. For example `gpu_class_tier` conditions `screen.tier` and `webgl.msaa_samples`. It does NOT condition `hardware.concurrency`: that one is a root, sampled from the real Windows marginal (`Node("hw_concurrency", parents=[])`), because core count is an OS-level fact rather than a GPU-conditioned one. A high-end GPU will tend to pair with a 2560x1440+ screen; the core count is drawn independently.
+The generator is a Bayesian network: every field has a probability distribution **conditioned on its parents**. For example `gpu_class_tier` conditions `screen.tier` and the MSAA sample count (drawn, though no longer pinnable or emitted - see below). It does NOT condition `hardware.concurrency`: that one is a root, sampled from the real Windows marginal (`Node("hw_concurrency", parents=[])`), because core count is an OS-level fact rather than a GPU-conditioned one. A high-end GPU will tend to pair with a 2560x1440+ screen; the core count is drawn independently.
 
 When you pin a field:
 
 1. The pinned value is written directly, bypassing the sampler.
 2. **Unpinned children are still sampled from their conditionals** - using the parent's original posterior, not the pinned value.
 
-That last point is the subtle one: pinning breaks the conditional chain. If you pin `gpu.renderer` to an RTX 4090 string but leave `screen` unpinned, the sampler will pick `screen` from the seed-derived tier (which might be `low_end`), producing a physically implausible "RTX 4090 + 1366x768" pairing.
+That last point is the subtle one, and `gpu.*` is the exception to it: a GPU pin selects a whole persona, so the class of the persona you picked conditions the screen, concurrency and storage still being drawn (see the `gpu.*` section below). Where an implausible pairing can still be built is by pinning both halves, because a value you write explicitly is never re-drawn: put a `low_end` persona next to `screen.width: 3840, screen.height: 2160` and you get exactly that, on a tier that draws a 4K screen zero times in 200 seeds.
 
 **Rule of thumb:** pin correlated fields together, or just trust the sampler.
 
@@ -51,27 +51,62 @@ Keys are dotted paths. All values are optional - omitted keys fall back to the s
 
 | Key | Type | Example | Notes |
 |-----|------|---------|-------|
-| `gpu.class_tier` | str | `"high_end"` | The **root** of the Bayesian network. One of `"low_end"`, `"mid_range"`, `"high_end"`, `"integrated_old"`, `"integrated_modern"`. Pin this alone to steer the whole profile (screen, concurrency, MSAA, ...) toward a coherent tier without having to name each sub-field. |
-| `gpu.vendor` | str | `"Google Inc. (NVIDIA)"` | Must exactly match the renderer vendor prefix, otherwise detectors catch the mismatch. |
-| `gpu.renderer` | str | `"ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11)"` | Windows ANGLE string. Used by WebGL's [`UNMASKED_RENDERER_WEBGL`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info). |
+| `gpu.class_tier` | str | `"mid_range"` | Selects a persona of that class. Only classes the validated pool actually contains can be pinned; anything else raises. |
+| `gpu.vendor` | str | `"Google Inc. (NVIDIA)"` | Selects a persona by vendor. Combined with `gpu.renderer` both must match the same persona. |
+| `gpu.renderer` | str | see below | Selects a persona by its Windows ANGLE string, the one WebGL reports as [`UNMASKED_RENDERER_WEBGL`](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info). |
 
-**Why `class_tier` is pinnable separately from `renderer`.** They live at different levels of abstraction:
+**A GPU pin SELECTS a persona, it does not set a string.** This is the one place
+in this table where you are not free to invent a value, and the reason is that
+the renderer string does not travel alone. Around 81 `getParameter` values, the
+shader-precision formats and the whole extension list belong to the same GPU, and
+a detector cross-checks the name against them - a name over another card's
+parameters is the mismatch that scores ~0.70 on a commercial checker. So the
+engine ships a pool of validated personas, each one a complete and coherent set,
+and a pin picks one of them.
 
-- `class_tier` is a **coarse handle** over the whole Bayesian graph. It gates the distribution of `screen`, `webgl.msaa_samples`, and [storage quota](hardware-concurrency-device-memory.md). Pin `{"gpu.class_tier": "low_end"}` and the sampler returns a *coherent* low-end machine - small screen, 4x MSAA - without you having to specify each field.
-- `renderer` is an **exact string** that lands verbatim in WebGL's `UNMASKED_RENDERER_WEBGL`. Useful when you want to imitate a specific GPU the target site has seen before. Does **not** condition other fields - if you pin `renderer` to an RTX 4090 but leave `class_tier` unpinned, `class_tier` is re-sampled from scratch and might disagree with the renderer string (see [How sampling + pinning interact](#how-sampling--pinning-interact)).
+Two consequences:
 
-In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`+`class_tier` together if they want full control.
+- **A renderer, vendor or class the pool cannot present is REFUSED**, with a
+  `ValueError` that names the values that are available. It is not silently
+  ignored. Up to 2026-09-15 it was: a pin for an RTX 4090 set the label on the
+  profile object and left the browser reporting the seed's own GPU, so
+  `InvisiblePlaywright(pin={"gpu.renderer": ...})` returned a profile that
+  disagreed with the page. Do not hard-code the valid strings from this page -
+  read them off the exception, which is generated from the pool itself.
+- **A GPU pin conditions the rest of the profile.** Screen, concurrency, MSAA and
+  [storage quota](hardware-concurrency-device-memory.md) are re-sampled around
+  the pinned persona's class, so you cannot end up with a low-end GPU behind
+  high-end storage. You do not need to pin `class_tier` alongside `renderer`;
+  pinning `class_tier` alone is still the coarse handle, it just picks the
+  persona too.
 
 ### `screen.*`
+
+`screen.avail_width` and `screen.avail_height` left this table on 2026-09-15
+for the same reason as the tier: the engine derives the available rect from
+`width`, `height` and `taskbar_px`, and none of the three avail values is
+emitted, so pinning one moved a label on the profile and nothing a page can
+read. Pin `screen.width`, `screen.height` and `screen.taskbar_px`; availWidth
+and availHeight follow from them, which is what keeps two properties of one
+window from disagreeing.
+
+`screen.tier` was in this table until the same day and is not a knob: pins are
+applied after the sampler has drawn, so pinning the tier could not condition the
+screen it names, and it emitted no preference. It is the sampler's own label for
+the screen it chose, and it is still on the profile as one. Pin `screen.width`
+and `screen.height` to choose a screen.
+
+`codec.webspeech_synth` left the table the same day, and left the profile with
+it. `media.webspeech.synth.enabled` is emitted as a constant `true`, which is
+what retail Firefox does on desktop; the sampled field only ever made the
+profile disagree with the browser, on about 12% of seeds.
+
 
 | Key | Type | Example |
 |-----|------|---------|
 | `screen.width` | int | `2560` |
 | `screen.height` | int | `1440` |
-| `screen.avail_width` | int | `2560` |
-| `screen.avail_height` | int | `1400` |
 | `screen.dpr` | float | `1.0`, `1.25`, `1.5`, `2.0` |
-| `screen.tier` | str | `"1080p"`, `"1440p"`, `"4k"`, ... |
 | `screen.color_depth` | int | `24` | `screen.colorDepth` and `screen.pixelDepth`. Declared rather than read off the panel: the engine only returned a fixed 24 when resistFingerprinting was on, which we do not turn on because it is itself a tell, so before this it reported the real display - 30 on a wide-gamut monitor, and a persona claiming an office laptop with a 30-bit panel is a contradiction a page can read. |
 
 ### `hardware.*`
@@ -108,13 +143,16 @@ In practice most users should pin `class_tier` alone, or pin `renderer`+`vendor`
 | `codec.webm_encoder_enabled` | `MediaRecorder` advertises WebM support. |
 | `codec.mediasource_webm` | `MediaSource.isTypeSupported('video/webm')`. |
 | `codec.mediasource_mp4` | `MediaSource.isTypeSupported('video/mp4')`. |
-| `codec.webspeech_synth` | `speechSynthesis.getVoices()` returns a fabricated voice list. |
 
-### `webgl.*`
+### `webgl.*` - retired
 
-| Key | Type | Example | Notes |
-|-----|------|---------|-------|
-| `webgl.msaa_samples` | int | `4`, `8`, `16` | `MAX_SAMPLES` WebGL parameter. Conditioned on `gpu.class_tier` when sampled. |
+There is no pinnable `webgl.*` key. `webgl.msaa_samples` was one until 2026-09-15,
+and pinning it did nothing on Windows: the emitted sample count is held at 4 so
+`gl.SAMPLES` is constant across sessions, because a varying count changes the
+WebGL parameters hash even when the renderer does not. Honouring the pin on Linux
+alone is what made the two builds emit different counts for the same seed - seven
+of eight measured seeds. Both emit 4 now, so a pin has nothing left to move, and
+the key refuses rather than looking like it worked.
 
 ### `font.*`
 
@@ -188,7 +226,7 @@ Pin the whole visible tuple - GPU, screen, concurrency, audio:
 ```python
 pin = {
     "gpu.vendor":   "Google Inc. (Intel)",
-    "gpu.renderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11)",
+    "gpu.renderer": "ANGLE (Intel, Intel(R) HD Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)",
     "gpu.class_tier": "mid_range",
     "screen.width":  1920,
     "screen.height": 1080,

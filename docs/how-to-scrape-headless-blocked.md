@@ -55,15 +55,15 @@ with InvisiblePlaywright(seed=42, headless=True) as browser:
 `browser` here is a real Playwright `Browser`, so every standard method works exactly
 as documented upstream. What is different is what `headless=True` means underneath:
 this engine renders on the code path a visible window uses, and hides the window
-itself rather than switching to a stripped rendering mode. On Windows that is a
-compositor-level cloak on the window; on Linux it is a private virtual display; on
-macOS the window stays transparent with occlusion checks pinned. The point of all
-three is the same, and it is worth being specific about it because the same product
-did not always get this right: for several releases, `headless=True` on Windows
-rendered the browser on the real desktop anyway, because the hiding mechanism moved
-the launching *thread* to an invisible desktop while the browser's own child
-processes inherited the *parent process's* desktop instead, and stayed visible
-regardless. The fix had to move to the window itself, in the browser binary, because
+itself rather than switching to a stripped rendering mode. On Windows the browser
+process is created on a fresh desktop object nobody switches to; on Linux it is a
+private virtual display. The point of both is the same, and it is worth being specific
+about it because the same product did not always get this right: for several releases,
+`headless=True` on Windows rendered the browser on the real desktop anyway, because
+the hiding mechanism moved the launching *thread* to an invisible desktop while the
+browser's own child processes inherited the *parent process's* desktop instead, and
+stayed visible regardless. The fix is to name the desktop when the process is created,
+so the whole tree is born there - the browser binary is not involved, because
 only the window's own owning process can set that attribute. See
 [headless vs headful](headless-vs-headful.md) for the full account and why it stayed
 unnoticed for as long as it did.
@@ -182,6 +182,20 @@ The fix that actually holds is a font stack that does not read the host at all, 
 is what this product bundles into the engine on all three platforms, so the same
 identity reports the same fonts whether the machine underneath is Windows, Linux or a
 container with nothing installed.
+
+### What the two browsers report before you change anything
+
+![Two panels listing two values. The bundled Firefox headless reports a 1366 by 768
+screen with 1366 by 720 available. The patched engine reports 1920 by 1080 with 1920 by
+1032 available. Both of the two values differ.](https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/img/how-to-scrape-headless-blocked-values.png)
+
+Both values differ, and the shape of the difference is the thing to notice. The bundled
+Firefox headless reports `1366x768`, a laptop resolution it uses whatever viewport you
+asked for, so every stock headless session on any machine claims the same display. The
+patched engine reports a declared `1920x1080`.
+
+Neither browser reports the host's actual monitor, which is the part people expect and
+do not get.
 
 ## Fix three: the screen and viewport numbers
 

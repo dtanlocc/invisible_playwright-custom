@@ -18,7 +18,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 
-def _as_callable(expression: str) -> str:
+def _as_callable(expression: str, argument: Any) -> str:
     """Wrap an expression so it can always be CALLED with the argument.
 
     <M> PLAYWRIGHT SENDS BOTH FORMS DOWN THE SAME FIELD. `page.evaluate("1+1")`
@@ -35,9 +35,57 @@ def _as_callable(expression: str) -> str:
     function. Deciding by shape - does it start with `(` or `function` or
     `async` - is the version that gets it wrong: `(1+2)` starts with a
     parenthesis and is not a function.
+
+    <M> THE ARGUMENT GOES IN HERE, IN THE SAME PASS, AND THAT IS THE WHOLE
+    POINT. It used to be spelled `r(ARG)` and the caller substituted it
+    afterwards with `.replace("ARG", ...)` - over a string that already held
+    the caller's expression. So every uppercase `ARG` a caller wrote was
+    rewritten to the argument's JSON, inside their own code, silently.
+
+    Measured on 2026-09-14 by driving it: `'CARGO'.length` answered 6 instead
+    of 5, because the source that ran was `'CnullO'.length`; a selector
+    `[data-role='TARGET']` became `[data-role='TnullET']` and matched nothing;
+    `/ARGH/` became `/nullH/`; and `const ARG = 5` was a SyntaxError. The three
+    letters need only appear inside a longer word - MARGIN, LARGE, CHARGE - and
+    three of those four failures are silent, which is the bad kind.
+
+    A format string is only scanned where the format string itself is, so the
+    expression is an ARGUMENT to `%` and never a place `%` looks.
     """
-    return ("(() => { const r = (%s);"
-            "  return typeof r === 'function' ? r(ARG) : r; })()" % expression)
+    return "(() => { %s })()" % _invocation(expression, argument)
+
+
+def _invocation(expression: str, argument: Any, *receivers: str) -> str:
+    """The statements that evaluate the caller's expression and, when it is a
+    function, call it with `receivers` first and the argument last.
+
+    <M> THE ONLY PLACE THAT SPELLS THE CALL. The main-world wrapper above and
+    the three element-scoped ones (`handle.evaluate`, `eval_on_selector`,
+    `eval_on_selector_all`) used to write it out each on its own, and that is
+    how the argument reached `handle.evaluate` and was dropped by the other
+    two: a callback reading its second parameter got `undefined` there.
+
+    The main-world output is pinned byte for byte by
+    `test_the_argument_does_not_rewrite_the_expression.py`, because that one
+    runs as the page.
+    """
+    return ("const r = (%s);  return typeof r === 'function' ? r(%s) : r;"
+            % (expression,
+               ", ".join(receivers + (json.dumps(argument, default=str),))))
+
+
+def _called_on(params: Dict, receiver: str) -> str:
+    """The body of an element-scoped wrapper: the caller's function called
+    with `receiver` and the caller's argument, Playwright's `fn(element, arg)`.
+    """
+    return _invocation(params["expression"], _deserialize(params.get("arg")),
+                       receiver)
+
+
+def _element_function(params: Dict) -> str:
+    """The declaration `handle.evaluate` and `eval_on_selector` both send: one
+    element, then the argument. Both run in the utility world."""
+    return "(injected, el) => { %s }" % _called_on(params, "el")
 
 
 def _deserialize(value: Any) -> Any:
@@ -62,10 +110,13 @@ def _deserialize(value: Any) -> Any:
 
 
 def _with_argument(params: Dict) -> str:
-    """The expression, callable, with the caller's argument substituted in."""
-    argument = _deserialize(params.get("arg"))
-    return _as_callable(params["expression"]).replace(
-        "ARG", json.dumps(argument, default=str))
+    """The expression, callable, with the caller's argument placed in it.
+
+    <M> THE ONLY PLACE THAT BUILDS THIS. `wait_for_function` used to repeat the
+    two lines inline, which is how one of the two could have been fixed and the
+    other left alone.
+    """
+    return _as_callable(params["expression"], _deserialize(params.get("arg")))
 
 
 def _js_string(value: str) -> str:

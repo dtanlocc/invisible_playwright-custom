@@ -11,7 +11,6 @@ from invisible_playwright._pw.sync_api import Browser, BrowserContext, Playwrigh
 from . import _session
 from ._cursor import resolve_cursor_engine
 from invisible_core._fpforge import Profile, generate_profile
-from invisible_core import forced_gpu_class
 from invisible_core import prepare_session_geo
 from ._engine import assert_wire_version, resolve_executable
 from .firefox_extensions import install_firefox_extensions
@@ -215,13 +214,18 @@ class InvisiblePlaywright(_session.CommonLaunch):
         self._binary_path = binary_path
         self._profile_dir: Optional[Path] = Path(profile_dir) if profile_dir else None
         self._firefox_extensions: tuple[Path, ...] = ()
+        self._firefox_extension_exclusions: tuple[str, ...] = ()
         # reCAPTCHA cookie pre-seed - opt-in. Gated server-side: if a
         # persistent profile_dir is in use, respect its existing cookies
         # and DON'T enable pre-seed (the profile owns its own state).
         self._prep_recaptcha = bool(prep_recaptcha) and self._profile_dir is None
-        self._profile: Profile = generate_profile(
-            self.seed, pin=self._pin, fixed_gpu_class=forced_gpu_class(self.seed)
-        )
+        # No `fixed_gpu_class=`. It used to be passed here as
+        # `forced_gpu_class(self.seed)`, restating what `generate_profile`
+        # already derives from the persona it chooses, so this was one of six
+        # places that had to stay in step about which GPU a session presents -
+        # and a `pin` reached some of them and not the ones that decide what the
+        # browser is told. The choice lives in `invisible_core`, once.
+        self._profile: Profile = generate_profile(self.seed, pin=self._pin)
         self._pw: Optional[Playwright] = None
         self._browser: Optional[Browser] = None
         self._persistent_context: Optional[BrowserContext] = None
@@ -239,7 +243,7 @@ class InvisiblePlaywright(_session.CommonLaunch):
         #: The DECISION about the srflx, distinct from the fact above.
         #: Starts at None like it: `_build_env` can be called before the
         #: geo path has resolved, and in that case nothing is declared.
-        self._srflx_dichiarato: Optional[str] = None
+        self._srflx_declared: Optional[str] = None
         #: When the egress was last rechecked. Starts at 0 rather than at
         #: `time.monotonic()`: the first context must be able to check
         #: right away, because time may already have passed between launch
@@ -261,6 +265,14 @@ class InvisiblePlaywright(_session.CommonLaunch):
         self._firefox_extensions = tuple(Path(path) for path in xpi_paths)
         return self
 
+    def set_firefox_extension_exclusions(
+        self, addon_ids: Iterable[str]
+    ) -> "InvisiblePlaywright":
+        """Remove these managed add-ons from the shared engine before launch."""
+
+        self._firefox_extension_exclusions = tuple(str(value) for value in addon_ids)
+        return self
+
     def __enter__(self) -> Union[Browser, BrowserContext]:
         # Resolve timezone="auto" (and the proxy-set-but-unset default) to a
         # concrete IANA zone AND discover the proxy egress IP - one round-trip,
@@ -273,13 +285,13 @@ class InvisiblePlaywright(_session.CommonLaunch):
         # `_webrtc_egress_ip` is the FACT: where we exit from. It serves the
         # guard against drift, which compares now's egress against the one
         # at launch.
-        # `_srflx_dichiarato` is the DECISION: what the engine must
+        # `_srflx_declared` is the DECISION: what the engine must
         # announce. It is None when the egress has proven, consistent UDP,
         # because there the real srflx is already born correct and
         # declaring one would add a candidate with no matching
         # allocation - the signal a detector running its own TURN reads.
         # The core reads it in one place only.
-        self._srflx_dichiarato = _geo.srflx_da_dichiarare()
+        self._srflx_declared = _geo.srflx_to_declare()
         # Geo-aware locale: "auto" derives the language from the egress country (reusing
         # the egress IP already discovered above), like timezone="auto". Keeps the browser
         # language consistent with the proxy's country instead of a fixed en-US.
@@ -289,8 +301,12 @@ class InvisiblePlaywright(_session.CommonLaunch):
         # binary_path= never reaches ensure_binary(), so the engine check lives
         # on the resolved executable rather than inside the fetcher.
         executable = resolve_executable(self._binary_path)
-        if self._firefox_extensions:
-            install_firefox_extensions(executable, self._firefox_extensions)
+        if self._firefox_extensions or self._firefox_extension_exclusions:
+            install_firefox_extensions(
+                executable,
+                self._firefox_extensions,
+                self._firefox_extension_exclusions,
+            )
         # The REAL result of _resolve_headless (did it create an alternate
         # desktop or not?) must be known BEFORE composing the prefs, not
         # after: B172, 2026-08-24.

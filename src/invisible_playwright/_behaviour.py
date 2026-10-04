@@ -83,12 +83,22 @@ from __future__ import annotations
 
 import math
 import random
+import threading
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, List, Optional, Sequence, Tuple
+from typing import (Any, Callable, Dict, Iterable, List, Optional, Sequence,
+                    Tuple)
 
 __all__ = [
     "Step",
     "PointerPersona",
+    "TypingPersona",
+    "plan_typing",
+    "plan_hesitation",
+    "hesitation",
+    "plan_click",
+    "act_nonce",
+    "PageActs",
+    "SessionActs",
     "PlanStats",
     "initial_pointer",
     "landing_point",
@@ -143,8 +153,92 @@ def _rng(seed: int, tag: str, nonce: int = 0) -> random.Random:
     return random.Random(_sub_seed(seed, f"{tag}:{nonce}"))
 
 
+def act_nonce(page: int, n: int) -> int:
+    """The nonce of the `n`-th act of one kind on the session's `page`-th page.
+
+    The page goes in the high bits, so two pages never share a nonce and the
+    first page (0) keeps the plain count 1, 2, 3 that `hesitation` documents.
+    """
+    return (int(page) << 32) | (int(n) & 0xFFFFFFFF)
+
+
+class PageActs:
+    """Numbers the acts of one page, so no two acts of a session share a stream.
+
+    ⛔ THE COUNT RESTARTS PER PAGE, THE PAGE NUMBER DOES NOT. These counters
+    used to live as bare integers on each page's `Actions` and `Keyboard`, so
+    every new page started from nonce 1 again: with one seed, the first field
+    of every tab waited the same pause and was typed with the same intervals,
+    and the first click of every tab was held for the same time. A site that
+    sees two tabs of one session saw the same numbers twice. The page's
+    number, handed out once by the session (`SessionActs`), is now part of
+    every nonce, which is what the client's cursor already did with its page
+    ordinal (`_cursor.page_motion_seed`).
+
+    Reproducible: the same seed and the same acts in the same pages give the
+    same sequence. Per page rather than one count for the whole session for
+    the cursor's reason: a single count would make each tab's numbers depend
+    on how the acts of the tabs happened to interleave.
+    """
+
+    __slots__ = ("page", "_counts")
+
+    def __init__(self, page: int = 0) -> None:
+        self.page = int(page)
+        self._counts: Dict[str, int] = {}
+
+    def next(self, act: str) -> int:
+        """The nonce for the next act of kind `act` on this page."""
+        n = self._counts.get(act, 0) + 1
+        self._counts[act] = n
+        return act_nonce(self.page, n)
+
+
+class SessionActs:
+    """Hands each page of a session its number, 0, 1, 2, in the order asked.
+
+    Owned by whatever object IS the session, never by a module: a process can
+    hold two sessions. Two layers number their pages with it, each holding
+    its own: the server's `BrowserDispatcher`, for the acts it draws, and the
+    client cursor's `_cursor._Session`, for the paths it draws. They cannot
+    hold one object between them: the client's is keyed by the vendored
+    client's objects, which the server never sees, and the seed reaches the
+    server through the launch prefs for that same reason.
+    """
+
+    __slots__ = ("_pages", "_lock")
+
+    def __init__(self) -> None:
+        self._pages = 0
+        self._lock = threading.Lock()
+
+    def next_page(self) -> int:
+        """The next page's number."""
+        with self._lock:
+            n = self._pages
+            self._pages += 1
+        return n
+
+    def page(self) -> PageActs:
+        """The next page, ready to number its acts."""
+        return PageActs(self.next_page())
+
+
 def _clamp(v: float, lo: float, hi: float) -> float:
     return lo if v < lo else (hi if v > hi else v)
+
+
+def _log_normal(rng: random.Random, median: float, sigma: float) -> float:
+    """A right-skewed draw whose MEDIAN is `median`.
+
+    ⛔ The median, not the mean, and the distinction is the reason this helper
+    exists rather than a `gauss` at each call site. Human timings - a keystroke
+    gap, a pause, a movement time - have a floor and a long tail, so their mean
+    sits above their typical value and a symmetric draw around the mean puts
+    too much mass below the floor. `exp(gauss(log(m), s))` has median `m` by
+    construction.
+    """
+    return median * math.exp(rng.gauss(0.0, sigma))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -275,6 +369,25 @@ class PointerPersona:
     # negative (100% of movements ending on a control is not a hand), not a
     # measured human rate.
     aimless_rate: float
+    # ⛔ THE THREE BELOW ARE DRAWN LAST, AND THAT IS LOAD BEARING. `from_seed`
+    # draws in order from one stream, so a field inserted ABOVE any existing
+    # one would shift every draw after it and change what every existing seed
+    # produces - silently, for a property this package documents and users rely
+    # on. New fields go at the end. Verified by comparing the other fields
+    # against the previous release for three seeds.
+    #
+    # How long a mouse button stays down for one click.
+    # [judg] informed by the same body of work as the key dwell: a deliberate
+    # click sits around 60-120 ms, and what came out before was the cost of one
+    # protocol round trip.
+    click_dwell_median_ms: float
+    click_dwell_sigma: float
+    # Between the two presses of a double click. [lit] operating systems accept
+    # a double click up to about 500 ms apart and people land well inside that,
+    # around 100-250 ms. Below a few tens of ms is a number no hand produces,
+    # and the pair is still delivered as a `dblclick` because the event is born
+    # from `clickCount`, not from the interval.
+    dblclick_gap_median_ms: float
 
     @classmethod
     def from_seed(cls, seed: int) -> "PointerPersona":
@@ -295,7 +408,232 @@ class PointerPersona:
             pause_sigma=r.uniform(0.75, 1.25),
             overshoot_bias=r.uniform(0.55, 1.45),
             aimless_rate=r.uniform(0.22, 0.48),
+            # ⛔ APPENDED, never inserted: see the note on the fields.
+            click_dwell_median_ms=r.uniform(58.0, 124.0),
+            click_dwell_sigma=r.uniform(0.20, 0.40),
+            dblclick_gap_median_ms=r.uniform(95.0, 215.0),
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# The hand on the keyboard
+# ──────────────────────────────────────────────────────────────────────
+#
+# ⛔ WHY THIS EXISTS AT ALL. The pointer has had an owner of its rhythm since
+# 0.4.0 - this module - and the keyboard had none. A keypress went out as two
+# protocol messages back to back, so the page saw a `keydown` and a `keyup`
+# about 2.4 ms apart and two characters about 5 ms apart, against the 60-250 ms
+# a hand produces. It is the cheapest tell there is to collect: a site does not
+# need to probe for it, it only has to listen, and a password field is exactly
+# where that listening is already installed.
+#
+# The `delay=` parameter was not the fix. It was dropped by the server on six
+# of the seven paths that accept it, and even honoured it would be a constant
+# the caller chose: every install that passed `delay=100` would share one
+# rhythm, which is the linkage key this module exists to remove.
+
+#: Which hand types each key on a US layout, for the digram effects below.
+#: ⛔ A FINITE, KNOWN domain, which is the condition that makes a table the
+#: right shape here rather than something computed. Keys absent from it are
+#: treated as neither hand, which costs only the digram modulation.
+_LEFT_HAND = set("`12345qwertasdfgzxcvb~!@#$%QWERTASDFGZXCVB")
+_RIGHT_HAND = set("67890-=yuiop[]\\hjkl;'nm,./^&*()_+YUIOP{}|HJKL:\"NM<>?")
+
+
+def _hand(ch: str) -> str:
+    if ch in _LEFT_HAND:
+        return "L"
+    if ch in _RIGHT_HAND:
+        return "R"
+    return "?"
+
+
+@dataclass(frozen=True)
+class TypingPersona:
+    """The parameters of one session's typing hand. Drawn from the session seed.
+
+    Same shape as :class:`PointerPersona` and for the same reason: every field
+    is a range, because the centre is an estimate and the width is the
+    admission that people differ. A single hardcoded value would be a constant
+    shared by every install.
+
+    ⛔ It is drawn on its OWN tagged stream (`typing-persona`), so adding it
+    does not move a single number any existing seed produces for the pointer.
+    That property is why `_sub_seed` takes a tag at all.
+    """
+
+    seed: int
+    # How long a key stays down, median of a log-normal.
+    # [judg] informed by keystroke-dynamics work, where hold times for ordinary
+    # typists cluster in the 60-120 ms band. The spread matters more than the
+    # centre: a constant dwell is as recognisable as a zero one.
+    dwell_median_ms: float
+    dwell_sigma: float
+    # Gap between one key going up and the next going down, median of a
+    # log-normal. [judg] continuous prose for a non-expert typist sits around
+    # 120-280 ms per keystroke overall, of which the dwell is a part.
+    gap_median_ms: float
+    gap_sigma: float
+    # Digram modulation. [lit] Alternating hands is FASTER than staying on one
+    # hand, and repeating the same key is slowest of all, which is the most
+    # robust structure in typing timing and the reason a flat interval reads as
+    # machine-made even when its mean is right.
+    alternate_hand_factor: float
+    same_hand_factor: float
+    same_key_factor: float
+    # How often the typist stops to think, and for how long. [judg] the pauses
+    # are what make a real transcript spiky; a distribution with no tail is a
+    # distribution nobody produced.
+    hesitation_rate: float
+    hesitation_median_ms: float
+    # The spread of one hesitation, sigma of its log-normal. [judg] centred on
+    # the 0.55 every hesitation used to share as a literal inside
+    # `plan_typing`.
+    #
+    # ⛔ A FIELD, BECAUSE TWO PLACES DRAW A HESITATION: a pause in the middle
+    # of a word (`plan_typing`) and the pause between reaching a field and its
+    # first key (`plan_hesitation`). With the spread written at each call site
+    # the second one was a copy, and the first copy lived in another package,
+    # which imported private names of this module to repeat it.
+    #
+    # ⛔ DRAWN LAST, so every field above keeps the value it had for the same
+    # seed.
+    hesitation_sigma: float
+
+    @classmethod
+    def from_seed(cls, seed: int) -> "TypingPersona":
+        r = _rng(seed, "typing-persona")
+        return cls(
+            seed=seed,
+            dwell_median_ms=r.uniform(62.0, 118.0),
+            dwell_sigma=r.uniform(0.22, 0.42),
+            gap_median_ms=r.uniform(95.0, 235.0),
+            gap_sigma=r.uniform(0.34, 0.62),
+            alternate_hand_factor=r.uniform(0.74, 0.92),
+            same_hand_factor=r.uniform(1.04, 1.24),
+            same_key_factor=r.uniform(1.25, 1.75),
+            hesitation_rate=r.uniform(0.02, 0.07),
+            hesitation_median_ms=r.uniform(420.0, 1250.0),
+            hesitation_sigma=r.uniform(0.40, 0.70),
+        )
+
+    def hesitation_ms(self, rng: random.Random) -> float:
+        """One stop to think, in milliseconds, drawn from `rng`.
+
+        The only place a hesitation's distribution is written: `plan_typing`
+        and `plan_hesitation` both draw through here.
+        """
+        return _log_normal(rng, self.hesitation_median_ms, self.hesitation_sigma)
+
+
+def plan_click(persona: PointerPersona, clicks: int = 1,
+               nonce: int = 0) -> List[Tuple[float, float]]:
+    """One `(dwell_ms, gap_ms)` per press of a click or a double click.
+
+    `dwell_ms` is how long the button stays down; `gap_ms` is the wait before
+    the NEXT press, and is zero for the last one because the pause after a
+    click belongs to whatever happens next.
+
+    ⛔ SAME SHAPE AS `plan_typing`, AND FOR THE SAME REASON. A press with no
+    duration is a press no hand made, whether it is a finger on a key or a
+    finger on a button: `mouseup.timeStamp - mousedown.timeStamp` came back as
+    the cost of one protocol round trip. The double click had the matching
+    defect one level up - two presses with nothing between them, delivered as a
+    `dblclick` anyway because the event is born from `clickCount` rather than
+    from the interval, so the page saw a double click no operating system would
+    have accepted as one.
+    """
+    r = _rng(persona.seed, "click", nonce)
+    out: List[Tuple[float, float]] = []
+    for i in range(max(1, clicks)):
+        dwell = _log_normal(r, persona.click_dwell_median_ms,
+                            persona.click_dwell_sigma)
+        gap = (0.0 if i == clicks - 1
+               else _log_normal(r, persona.dblclick_gap_median_ms, 0.30))
+        out.append((dwell, gap))
+    return out
+
+
+def plan_typing(text: str, persona: TypingPersona,
+                nonce: int = 0) -> List[Tuple[float, float]]:
+    """One `(dwell_ms, gap_ms)` per character of `text`.
+
+    `dwell_ms` is how long that key stays down; `gap_ms` is the wait before the
+    NEXT key goes down, and is zero for the last character because the pause
+    after the last keystroke belongs to whatever happens next, not to typing.
+
+    ⛔ THE PLAN IS COMPUTED WHERE THE SEED IS, which is here, and carried to the
+    engine with the text. The engine holds no seed and decides no timing: it
+    obeys. That is the same division the cursor already uses, and it is what
+    keeps one session's rhythm from being a property of the machine.
+    """
+    r = _rng(persona.seed, "typing", nonce)
+    out: List[Tuple[float, float]] = []
+    for i, ch in enumerate(text):
+        dwell = _log_normal(r, persona.dwell_median_ms, persona.dwell_sigma)
+        if i == len(text) - 1:
+            out.append((dwell, 0.0))
+            break
+        nxt = text[i + 1]
+        gap = _log_normal(r, persona.gap_median_ms, persona.gap_sigma)
+        if ch == nxt:
+            gap *= persona.same_key_factor
+        else:
+            a, b = _hand(ch), _hand(nxt)
+            if a != "?" and b != "?":
+                gap *= (persona.alternate_hand_factor if a != b
+                        else persona.same_hand_factor)
+        if r.random() < persona.hesitation_rate:
+            gap += persona.hesitation_ms(r)
+        out.append((dwell, gap))
+    return out
+
+
+def plan_hesitation(persona: TypingPersona, act: str, nonce: int = 0,
+                    times: int = 1) -> float:
+    """How long this typist stops before `act`, in milliseconds: `times` of
+    its hesitations, drawn on the stream for `act` and `nonce`.
+
+    The same hand `plan_typing` pauses with in the middle of a word, so the
+    pause before a field and the pause inside it are one person's. Each act
+    has its own tagged stream, so adding an act cannot move a number another
+    act or the typing itself draws for the same seed; the nonce makes two acts
+    of the same kind in one session two different pauses.
+    """
+    r = _rng(persona.seed, act, nonce)
+    return sum(persona.hesitation_ms(r) for _ in range(max(1, times)))
+
+
+def hesitation(seed: Optional[int], act: str, *, nonce: int = 0,
+               times: int = 1) -> float:
+    """How long the person of session `seed` stops before an act, in SECONDS.
+
+    Public, for a caller that drives an act this package does not perform
+    itself and wants the pause before it to be the session's own: answering a
+    file chooser (find the file, confirm it), reading a page before replying.
+    It is drawn from the same typing persona the engine types with, so it
+    varies per session and per act and is no constant every install shares.
+
+    * `seed` is the session's seed, the one passed to `InvisiblePlaywright`.
+      `None` means humanising is off and returns 0.0: no rhythm, not a
+      default one.
+    * `act` names the kind of act, and each name is its own random stream:
+      the same seed, act and nonce always give the same pause.
+    * `nonce` tells two acts of the same kind apart; pass a counter the
+      caller keeps per session, not per page or per tab, or every new page
+      replays the first page's pauses.
+    * `times` sums that many hesitations, for an act made of several stops.
+
+    ``fill`` and ``press_sequentially`` (``type``) take this pause by
+    themselves between focusing a field and its first key, on the act
+    ``"field"`` with one nonce per field (`act_nonce`: 1, 2, 3 on the
+    session's first page, and every later page numbered apart from it); a
+    caller does not add one in front of them.
+    """
+    if seed is None:
+        return 0.0
+    return plan_hesitation(TypingPersona.from_seed(int(seed)), act,
+                           nonce, times) / 1000.0
 
 
 # ──────────────────────────────────────────────────────────────────────

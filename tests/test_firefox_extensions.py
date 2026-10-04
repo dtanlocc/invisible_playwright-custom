@@ -55,6 +55,32 @@ def test_reads_id_and_rejects_invalid_archive(tmp_path: Path) -> None:
         firefox_extension_id(broken)
 
 
+def test_explicit_removal_clears_an_extension_left_by_an_earlier_launch(
+    tmp_path: Path,
+) -> None:
+    executable = tmp_path / "engine" / "firefox.exe"
+    executable.parent.mkdir()
+    executable.write_bytes(b"binary")
+    nord = tmp_path / "nord.xpi"
+    omo = tmp_path / "omo.xpi"
+    _xpi(nord, "nordvpnproxy@nordvpn.com", "nord")
+    _xpi(omo, "omocaptcha@gmail.com", "omo")
+
+    install_firefox_extensions(executable, [nord, omo])
+    destination_dir = executable.parent / "distribution" / "extensions"
+    assert (destination_dir / "nordvpnproxy@nordvpn.com.xpi").is_file()
+
+    installed = install_firefox_extensions(
+        executable,
+        [omo],
+        remove_addon_ids=["nordvpnproxy@nordvpn.com"],
+    )
+
+    assert installed == (destination_dir / "omocaptcha@gmail.com.xpi",)
+    assert not (destination_dir / "nordvpnproxy@nordvpn.com.xpi").exists()
+    assert (destination_dir / "omocaptcha@gmail.com.xpi").is_file()
+
+
 @pytest.mark.parametrize("launcher_class", [InvisiblePlaywright, AsyncInvisiblePlaywright])
 def test_launcher_extension_configuration_keeps_constructor_compatible(
     launcher_class,
@@ -66,3 +92,5 @@ def test_launcher_extension_configuration_keeps_constructor_compatible(
 
     assert launcher.set_firefox_extensions([source]) is launcher
     assert launcher._firefox_extensions == (source,)
+    assert launcher.set_firefox_extension_exclusions(["blocked@example.test"]) is launcher
+    assert launcher._firefox_extension_exclusions == ("blocked@example.test",)

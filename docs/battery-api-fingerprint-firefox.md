@@ -20,7 +20,7 @@ That single fact turns the Battery API into a small but reliable consistency che
 page that claims to be Firefox in its user agent, and then successfully obtains a
 battery object, has not measured your battery. It has caught a browser that is lying
 about what it is. This page explains why that happens, why the honest answer is to have
-no Battery API rather than a convincing fake one, and how a genuine Firefox build gets
+no Battery API instead of a convincing fake one, and how a genuine Firefox build gets
 that for free.
 
 ## What the Battery Status API was, and why Firefox dropped it
@@ -88,6 +88,21 @@ logic covers the identity fields that a page reads far more often than the batte
 as [what `navigator.vendor` and `navigator.productSub` report on Firefox](navigator-vendor-productsub-firefox.md),
 which are wrong on a Chromium base pretending to be Firefox and correct on an actual
 Firefox build.
+
+### The answer, read from a session
+
+![One panel listing three values read from the patched engine, headless:
+navigator.getBattery is undefined, navigator.vendor is an empty string, and
+navigator.productSub is 20100101. A note says the bundled Firefox returned the same
+values.](https://raw.githubusercontent.com/feder-cr/invisible_playwright/main/docs/img/battery-api-fingerprint-firefox-values.png)
+
+`navigator.getBattery` is `undefined`, which is the answer to the title, and the bundled
+Firefox returns the same thing.
+
+The two Firefox constants sit next to it on purpose. A build that reports the empty
+`vendor` and `20100101` for `productSub`, and then hands a page a battery object, has
+contradicted itself with three property reads: the first two say Firefox and the third
+says something that is not one.
 
 ## Check it yourself in two lines
 

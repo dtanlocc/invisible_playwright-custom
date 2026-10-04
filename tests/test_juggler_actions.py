@@ -14,6 +14,7 @@ import time
 
 import pytest
 
+from invisible_playwright._behaviour import PageActs
 from invisible_playwright._juggler.actions import Actions, ElementNotActionable
 
 PAGE = b"""<!doctype html><html><head><title>actions</title></head><body>
@@ -21,7 +22,6 @@ PAGE = b"""<!doctype html><html><head><title>actions</title></head><body>
 <input id=field>
 <input id=date type=date>
 <div id=events data-count="0" data-trusted=""></div>
-<div id=late style="display:none"><button id=slow>delayed</button></div>
 <input id=checkbox type=checkbox>
 <input id=already type=checkbox checked>
 <select id=choice><option value=a>A</option><option value=b>B</option></select>
@@ -29,6 +29,14 @@ PAGE = b"""<!doctype html><html><head><title>actions</title></head><body>
 <div id=dbl data-n="0" ondblclick="this.dataset.n=(+this.dataset.n+1)">double</div>
 <div id=source draggable=true style="width:60px;height:30px">drag</div>
 <div id=target data-drop="0" style="width:60px;height:30px">here</div>
+<!-- LAST in the flow, on purpose. It appears 1.2 s after load, and while it
+     stood above the checkboxes its appearance pushed them down by one line.
+     A `check("#checkbox")` that straddled that instant verified the point on
+     the checkbox and pressed on #slow, which is what the engine now reports
+     (ActionMissed: mousedown landed on button#slow) and what the CI saw as
+     "clicked but the box stayed unchecked" one run in twelve since
+     2026-09-05. Nothing below it is acted on by another test. [B217] -->
+<div id=late style="display:none"><button id=slow>delayed</button></div>
 <script>
   const log = document.getElementById('keys');
   document.addEventListener('keydown', ev => {
@@ -99,7 +107,7 @@ def _open(binary, body):
     time.sleep(0.4)
     lifecycle.goto("http://127.0.0.1:%d/" % srv.server_address[1],
                    until="load", timeout=30)
-    actions = Actions(c, sess, lifecycle, inj)
+    actions = Actions(c, sess, lifecycle, inj, acts=PageActs())
 
     def close():
         c.close()
@@ -121,7 +129,7 @@ def _dataset(inj, f, sel, attr):
 def test_a_lifecycle_without_a_frame_SAYS_SO_instead_of_timing_out():
     class FakeLifecycle:
         main_frame = None
-    actions = Actions(None, "S", FakeLifecycle(), None)
+    actions = Actions(None, "S", FakeLifecycle(), None, acts=PageActs())
     with pytest.raises(RuntimeError) as e:
         actions.click("#x")
     assert "main frame" in str(e.value)
@@ -149,7 +157,7 @@ def test_typing_does_NOT_send_keypress():
             return {}
 
     c = Fake()
-    Keyboard(c, "S").type("ab")
+    Keyboard(c, "S", acts=PageActs()).type("ab")
     assert c.types, "no key event"
     assert set(c.types) == {"keydown", "keyup"}, (
         "types Juggler rejects: %r" % sorted(set(c.types)))
@@ -182,10 +190,11 @@ def test_the_fill_events_are_TRUSTED(firefox_binary):
     and the first draft of this test only exercised one. On a TEXT input
     `injected.fill` returns `needsinput` and the text gets TYPED: those
     events are trusted because they come from key presses, and a mutation to
-    `Page.dispatchTrustedInputEvents` **survived** because that line was
+    the trusted-events command of the time **survived** because that line was
     never executed. The path [B175] lives on is the other one: inputs whose
-    value gets SET - `date`, `color`, `range`, `time` - where `fill` returns
-    `done` and the events have to be requested from the trusted command.
+    value gets SET - `date`, `color`, `range`, `time` - where `fill` hands
+    the value to the engine (`Page.setUserInput`), which commits it through
+    Firefox's own user path so that Firefox fires the events.
     """
     actions, inj, f, close = _open(firefox_binary, PAGE)
     try:
@@ -321,7 +330,7 @@ def test_a_key_that_does_not_exist_gets_REJECTED_instead_of_coming_out_empty():
     """
     from invisible_playwright._juggler.keyboard import Keyboard, UnknownKey
     c = _Fake()
-    t = Keyboard(c, "S")
+    t = Keyboard(c, "S", acts=PageActs())
     with pytest.raises(UnknownKey):
         t.type(chr(0x4E2D))
     assert not c.events, "sent an event for a key that does not exist"
@@ -336,7 +345,7 @@ def test_shift_changes_the_key_and_control_removes_the_text():
     the `text` comes out empty, read in the driver."""
     from invisible_playwright._juggler.keyboard import Keyboard
     c = _Fake()
-    t = Keyboard(c, "S")
+    t = Keyboard(c, "S", acts=PageActs())
     t.press("Shift+KeyA")
     down = [e for e in c.events
             if e["type"] == "keydown" and e["code"] == "KeyA"]
@@ -356,7 +365,7 @@ def test_keyup_NEVER_carries_the_text():
     dies halfway through. Read in its `_dispatchKeyEvent`, not deduced."""
     from invisible_playwright._juggler.keyboard import Keyboard
     c = _Fake()
-    Keyboard(c, "S").type("aZ1")
+    Keyboard(c, "S", acts=PageActs()).type("aZ1")
     up = [e for e in c.events if e["type"] == "keyup"]
     assert up and all("text" not in e for e in up)
 

@@ -26,14 +26,17 @@ hard failure. Everything here creates first and returns the channel second.
 """
 from __future__ import annotations
 
-import json
+import base64
 import os
 import pathlib
+import shutil
 import tempfile
 import threading
 import time
+import warnings
 from typing import Any, Dict, List, Optional
 
+from .._behaviour import SessionActs
 from . import connection as juggler
 from .actions import Actions
 from .dispatcher import Dispatcher, ProtocolException, Server
@@ -47,8 +50,9 @@ from .lifecycle import Lifecycle
 # transport tests import `_write_user_js`, `_serialize`, `_host_of` and
 # `_domain_matches` from HERE, and a move that breaks its callers to tidy a
 # file is not a tidy-up. One definition, two names to reach it.
-from ._marshal import (_as_callable, _button, _console_text, _deserialize,
-                       _guid_of, _headers_array, _js_string, _location,
+from ._marshal import (_as_callable, _button, _called_on, _console_text,
+                       _deserialize, _element_function, _guid_of,
+                       _headers_array, _js_string, _location,
                        _resource_type, _serialize, _with_argument)
 # ⛔ THE PARSER IS THE CORE'S, and briefly it was not: a copy of it lived
 # here for the length of one fix. Two readings of what a proxy is would be
@@ -162,11 +166,140 @@ class APIRequestContextDispatcher(RefusingDispatcher):
 _HANDLE = "<element handle>"
 
 
+def _key_delay(params: Dict) -> Optional[float]:
+    """The caller's `delay` for a key operation, in milliseconds, or None.
+
+    ⛔ ONE PLACE READS IT, for the same reason `_act_opts` and `_pointer` exist:
+    six key operations take it, and the copies that each read it on their own
+    were how `page.type(sel, text, delay=100)`, `locator.type`,
+    `press_sequentially` and `locator.press(delay=...)` came to accept it and
+    drop it, while `keyboard.type` and the element-handle `type` honoured it.
+
+    It means two things and the callers say which: for `type` it is the gap
+    between two keys, for `press` the time the key stays down, as Playwright
+    documents both. Either way it overrides the session's hand rather than
+    replacing a rhythm that is otherwise missing.
+    """
+    delay = params.get("delay")
+    return None if delay is None else float(delay)
+
+#: How the session's SEED reaches this server, which otherwise knows no seed at
+#: all. The launcher composes the pref dict in full and `op_launch` already
+#: receives it, so this adds no plumbing; `op_launch` takes the key back out
+#: before writing `user.js`, so it never reaches a profile.
+#:
+#: ⛔ THE SEED CROSSES, NOT A PERSONA, and the second consumer is what settled
+#: it. This carried a ready-made `TypingPersona` while the keyboard was the
+#: only thing that wanted a rhythm. Then the click wanted one too, from a
+#: DIFFERENT persona drawn from the same seed, and a transport carrying one
+#: built object would have had to grow a second field - then a third. What is
+#: actually session-scoped is the seed; a persona is something you build where
+#: you use it.
+#:
+#: ⛔ NOT under `stealthfox.*`. That prefix means "the patched binary reads
+#: this", and a reader who found this key there would go looking in C++ for
+#: something answered in Python.
+SESSION_SEED_PREF = "invisible.server.session_seed"
+
+#: The motion-duration cap `humanize=<seconds>` implies, in MILLISECONDS.
+#:
+#: ⛔ IT TRAVELS RATHER THAN BEING RE-DERIVED HERE, and in milliseconds because
+#: Gecko has no float pref type - `1.0` written as a number arrives with the
+#: right value and the wrong type. The cap is decided once, by
+#: `_cursor.max_seconds_for`, from the caller's `humanize=`; the server applying
+#: a cap of its own would be a second answer to a question the caller answered,
+#: and would show up as a drag that ignores a budget every click obeys.
+MOTION_BUDGET_PREF = "invisible.server.motion_budget_ms"
+
+
+def take_session_motion(prefs: Dict) -> tuple:
+    """Split the launch prefs into what the BROWSER gets and what the SESSION
+    keeps: the seed of its rhythms, and the budget one movement may spend.
+
+    ⛔ A FUNCTION RATHER THAN THREE LINES INSIDE `op_launch`, because the thing
+    worth testing is that the keys come OUT: a version that read them and forgot
+    to remove them would behave identically in every observable way except for
+    writing a session identifier into the profile, which no test that drives a
+    browser would notice.
+
+    ⛔ A MALFORMED VALUE RAISES rather than falling back to no rhythm. Emitting
+    input at pipe speed is precisely the failure these personae exist to
+    remove, and a fallback would make it the quiet default whenever the
+    launcher sent something unexpected.
+    """
+    rest = dict(prefs)
+    seed = rest.pop(SESSION_SEED_PREF, None)
+    budget_ms = rest.pop(MOTION_BUDGET_PREF, None)
+    return (rest,
+            (None if seed is None else int(seed)),
+            (None if budget_ms is None else int(budget_ms) / 1000.0))
+
+
+def _launch_environment(named) -> Dict[str, str]:
+    """The environment a launched browser gets, from what the caller named.
+
+    `named` is the protocol's `env`: a list of ``{"name", "value"}`` pairs,
+    or nothing. Naming nothing (no list, or an empty one) means "inherit this
+    process's environment"; naming anything means "this, and only this" - so
+    a variable the caller left out is a variable the browser does not get.
+    The `None` half of a hidden surface's `launch_env()` depends on the
+    second sentence, and the network of a bare launch on the first.
+    """
+    if not named:
+        return dict(os.environ)
+    return {e["name"]: e["value"] for e in named}
+
+
+def _upload_paths(server: "JugglerServer", params: Dict) -> list:
+    """The local paths a `setInputFiles` request stands for.
+
+    ⛔ ONE READER, because there are two senders. The same request arrives at
+    the Frame (a selector) and at the ElementHandle (a chooser already holding
+    the input), and the wire shape is the same for both. Two dispatchers each
+    unpacking that by hand is two places that know one fact, and the second
+    one is always the one that falls behind.
+
+    ⛔ THREE SHAPES, AND ONLY ONE WAS READ. The client sends `localPaths` for
+    files, `localDirectory` for a folder (`<input webkitdirectory>`), and
+    `payloads` - name, MIME type and base64 bytes - when the caller hands
+    over content instead of a path. Only `localPaths` was read, so the other
+    two became an EMPTY upload: the input was cleared, `change` fired with
+    no files, and the call returned as if it had worked. Measured on 0.25.7:
+    a payload `note.txt` arrived as `files.length == 0`.
+
+    A payload is written to a file this session owns and goes through the
+    same engine command as a path, so the page receives it the way it
+    receives a file a user picked - and, as for a user's pick, Firefox derives
+    the file's type from its name; the payload's `mimeType` is not carried.
+    `streams` are the remote-connection path (`createTempFiles`), outside the
+    perimeter by decision; this client never sends them to a local server.
+
+    ⛔ A FOLDER IS REFUSED, BY NAME. The engine's `Page.setFileInputFiles`
+    takes files: handed the folder's path it took the TAB down (the next call
+    answered "cannot find session"), measured on firefox-34 and on the engine
+    after it. Read as an empty list, as before, the engine answered with an
+    exception naming neither the folder nor the reason. Both are worse than
+    saying it.
+    """
+    directory = params.get("localDirectory")
+    if directory:
+        raise ProtocolException(
+            "set_input_files with a folder (%s) is not supported: the engine "
+            "takes files, so pass the files inside it instead" % directory)
+    raw = params.get("localPaths") or params.get("files")
+    if raw:
+        return [entry.get("name") if isinstance(entry, dict) else entry
+                for entry in raw]
+    return [server.stage_upload(payload)
+            for payload in params.get("payloads") or []]
+
+
 class ElementHandleDispatcher(Dispatcher):
     TYPE = "ElementHandle"
     METHODS = {
         "dispose": "op_dispose",
         "boundingBox": "op_bounding_box",
+        "checkHitTarget": "op_check_hit_target",
         "evaluateExpression": "op_evaluate",
         "textContent": "op_text_content",
         "innerText": "op_inner_text",
@@ -191,6 +324,7 @@ class ElementHandleDispatcher(Dispatcher):
         "check": "op_check",
         "uncheck": "op_uncheck",
         "selectOption": "op_select_option",
+        "setInputFiles": "op_set_input_files",
     }
 
     def __init__(self, server, frame: "FrameDispatcher", object_id: str,
@@ -248,6 +382,21 @@ class ElementHandleDispatcher(Dispatcher):
         return {"value": self.injected.bounding_box(
             self.frame.frame_id, self.object_id)}
 
+    def op_check_hit_target(self, params: Dict) -> Any:
+        """Would an event at this MAIN-FRAME point land on this element?
+
+        ⛔ NOT A PLAYWRIGHT METHOD: the humanised cursor (`_cursor._hits`) is
+        its only caller, asking about the off-centre point it is about to aim
+        at. The point is in the space `boundingBox` answers in, and the answer
+        is the one the action's own check gives (`Actions.hit_target`): the
+        same frame shift, the same shadow-aware test. A second hit test here
+        would be a second definition of where a click lands.
+        """
+        point = params["point"]
+        return {"value": self.page.actions.hit_target(
+            self.frame.frame_id, self.object_id,
+            (float(point["x"]), float(point["y"]))) == "done"}
+
     def op_evaluate(self, params: Dict) -> Any:
         """`handle.evaluate(fn, arg)` - and the SECOND argument is the point.
 
@@ -273,11 +422,7 @@ class ElementHandleDispatcher(Dispatcher):
         driver's `click` carried a `position` and ours did not.
         """
         return {"value": _serialize(self.injected.call(
-            self.frame.frame_id,
-            "(injected, el) => { const r = (%s);"
-            "  return typeof r === 'function' ? r(el, %s) : r; }"
-            % (params["expression"],
-               json.dumps(_deserialize(params.get("arg")), default=str)),
+            self.frame.frame_id, _element_function(params),
             {"objectId": self.object_id}))}
 
     def op_text_content(self, params: Dict) -> Any:
@@ -345,14 +490,34 @@ class ElementHandleDispatcher(Dispatcher):
             {"objectId": self.object_id}))}
 
     def op_scroll_into_view(self, params: Dict) -> Any:
-        """⛔ [B184]: this does not work in the shipped engine, and it does not
-        work through the Node driver either. It is wired correctly here so the
-        day the engine is fixed nothing else has to change, and the failure
-        arrives from the engine rather than from a missing method."""
-        self.page.send("Page.scrollIntoViewIfNeeded",
-                       _only_set({"frameId": self.frame.frame_id,
-                                  "objectId": self.object_id,
-                                  "rect": params.get("rect")}))
+        """Bring the element into view, through the injected script.
+
+        ⛔ IT USED TO SEND `Page.scrollIntoViewIfNeeded`, AND THAT COMMAND CAN
+        NEVER SUCCEED. [B184]: the engine's handler calls
+        `unsafeObject.scrollRectIntoViewIfNeeded`, and that method is not
+        declared in ANY binding of `Element` in the tree - not a `.webidl`, not
+        a `.idl`, not `Bindings.conf` - so it is `undefined` for every caller
+        and the `else` branch always throws. Measured on the shipped binary at
+        four positions, including an element ALREADY IN VIEW: timeout every
+        time, while `bounding_box()` on the same element answered correctly.
+
+        ⛔ AND THE REMEDY WAS ALREADY IN THIS FILE'S REACH, which is the part
+        worth knowing. `Actions` scrolls before every click through
+        `InjectedScript.scroll_into_view` - native `scrollIntoView` reached from
+        the utility world, `block: "center"` - and has done since a click below
+        the fold was found to miss. So the click path scrolled correctly while
+        the public method sent a command that cannot work. One concept, two
+        implementations, and the broken one was the one users call.
+
+        Reusing that helper rather than writing a second one is the whole fix:
+        no new abstraction, and the two paths cannot drift.
+
+        ⛔ `rect` IS NOT HONOURED, and saying so is better than pretending.
+        Playwright can ask to scroll a sub-rectangle of the element; the helper
+        scrolls the element. No caller in this package passes it, and a partial
+        answer that looks total is worse than a named limit.
+        """
+        self.injected.scroll_into_view(self.frame.frame_id, self.object_id)
         return None
 
     def op_owner_frame(self, params: Dict) -> Any:
@@ -404,9 +569,16 @@ class ElementHandleDispatcher(Dispatcher):
     # of a request are one thing, and two readers of one wire format drift.
 
     def _act_args(self, params: Dict) -> Dict:
+        """⛔ THE PER-ACTION OPTIONS COME THROUGH HERE TOO, and that is why
+        every operation on this class uses this helper rather than spelling the
+        three arguments out. `strict` is inert on a handle - the node is given,
+        not looked up - but `trial` and `force` are not, and an operation that
+        built its own argument set would be the one written without them.
+        """
         return {"timeout": self.frame._timeout(params),
                 "frame_id": self.frame.frame_id,
-                "element_id": self.object_id}
+                "element_id": self.object_id,
+                **self.frame._act_opts(params)}
 
     def op_click(self, params: Dict) -> Any:
         self.frame.actions.click(_HANDLE, position=self.frame._position(params),
@@ -441,12 +613,14 @@ class ElementHandleDispatcher(Dispatcher):
         holding `foobar`.
         """
         self.frame.actions.type_text(_HANDLE, params["text"],
-                                     delay=params.get("delay") or 0.0,
+                                     delay=_key_delay(params) or 0.0,
                                      **self._act_args(params))
         return None
 
     def op_press(self, params: Dict) -> Any:
-        self.frame.actions.press(_HANDLE, params["key"], **self._act_args(params))
+        self.frame.actions.press(_HANDLE, params["key"],
+                                 dwell_ms=_key_delay(params),
+                                 **self._act_args(params))
         return None
 
     def op_focus(self, params: Dict) -> Any:
@@ -457,6 +631,24 @@ class ElementHandleDispatcher(Dispatcher):
         chosen = self.frame.actions.select_option(
             None, params.get("options") or [], **self._act_args(params))
         return {"values": chosen or []}
+
+    def op_set_input_files(self, params: Dict) -> Any:
+        """⛔ THE DOOR `FileChooser.set_files()` COMES THROUGH, and it was shut.
+
+        A chooser already holds the input element, so the client never sends a
+        selector: it asks this dispatcher for `setInputFiles`, and until now
+        there was no such method here. The refusal was honest - the dispatcher
+        said the operation is inside the perimeter and therefore a gap - but a
+        gap it was, and the whole listening half of the file-chooser feature
+        led to it.
+
+        Same action as the Frame's, same helper reading the request: one
+        upload, not two.
+        """
+        self.frame.actions.set_input_files(
+            _HANDLE, _upload_paths(self.server, params),
+            **self._act_args(params))
+        return None
 
 class FrameDispatcher(Dispatcher):
     TYPE = "Frame"
@@ -514,16 +706,23 @@ class FrameDispatcher(Dispatcher):
 
     def __init__(self, server, page: "PageDispatcher", frame_id: str,
                  url: str = "about:blank", name: str = "",
-                 load_states: Optional[List[str]] = None) -> None:
+                 load_states: Optional[List[str]] = None,
+                 parent_frame: Optional["FrameDispatcher"] = None) -> None:
         self.page = page
         self.frame_id = frame_id
+        self.parent_frame = parent_frame
         #: ⛔ Kept here because the INITIALIZER is a snapshot: the client reads
         #: the url from it once, at creation, and afterwards only from
         #: `navigated` events. A frame created before it navigates keeps an
         #: empty url forever unless something updates this.
         self.url = url
-        super().__init__(server, page.context,
+        #: Same reason, and both navigation events report it: a same-document
+        #: navigation carries no name, so it has to repeat the one the frame
+        #: already has rather than blank it.
+        self.name = name
+        super().__init__(server, page if parent_frame else page.context,
                          {"url": url, "name": name,
+                          "parentFrame": parent_frame.channel if parent_frame else None,
                           "loadStates": load_states or ["commit"]})
 
     # ── the engines, which belong to the page ───────────────────────────────
@@ -553,11 +752,19 @@ class FrameDispatcher(Dispatcher):
             params["url"], frame_id=self.frame_id,
             until=params.get("waitUntil") or "load",
             timeout=(params.get("timeout") or 30000) / 1000.0)
-        self.emit("navigated", {"url": result["url"], "name": "",
-                                "newDocument": {"request": None}})
+        # Navigation events come from the engine, not a snapshot taken when
+        # goto's lifecycle wait finished: another navigation may follow it.
         # ⛔ `goto` answers with a Response CHANNEL or null, never with a URL.
         # `_frame.py` calls `from_nullable_channel` on it.
-        return {"response": None}
+        #
+        # ⛔ AND IT WAS HARDCODED TO null UNTIL 2026-09-08, WHICH WAS THE WHOLE
+        # OF [B200]: the network layer was already right - the events, the
+        # statuses and `expect_response` all worked - and only the RETURN VALUE
+        # was missing, so nothing in this project saw it for a month because
+        # nothing in this project reads what `goto` answers. Crawlee does, and
+        # treats a None as a failed load, so every request it made failed.
+        return {"response": self.page.navigation_response(
+            result["navigationId"])}
 
     # ── reading ─────────────────────────────────────────────────────────────
     def op_title(self, params: Dict) -> Any:
@@ -581,34 +788,30 @@ class FrameDispatcher(Dispatcher):
         if not object_id:
             raise ProtocolException("no element matches %r" % selector)
         try:
-            return {"value": read(object_id)}
+            return {"value": read(frame_id, object_id)}
         finally:
             self.injected.dispose(frame_id, object_id)
 
     def op_text_content(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.injected
-                                  .text_content(self.frame_id, o))
+        return self._with_element(params, self.injected.text_content)
 
     def op_inner_text(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.injected
-                                  .inner_text(self.frame_id, o))
+        return self._with_element(params, self.injected.inner_text)
 
     def op_inner_html(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.injected
-                                  .inner_html(self.frame_id, o))
+        return self._with_element(params, self.injected.inner_html)
 
     def op_input_value(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.injected
-                                  .input_value(self.frame_id, o))
+        return self._with_element(params, self.injected.input_value)
 
     def op_get_attribute(self, params: Dict) -> Any:
-        return self._with_element(params, lambda o: self.injected
-                                  .get_attribute(self.frame_id, o,
+        return self._with_element(params, lambda f, o: self.injected
+                                  .get_attribute(f, o,
                                                  params["name"]))
 
     def _state(self, params: Dict, state: str) -> Any:
-        return self._with_element(params, lambda o: self.injected
-                                  .element_state(self.frame_id, o, state))
+        return self._with_element(params, lambda f, o: self.injected
+                                  .element_state(f, o, state))
 
     def op_is_visible(self, params: Dict) -> Any:
         return self._state(params, "visible")
@@ -730,7 +933,40 @@ class FrameDispatcher(Dispatcher):
             # `modifiers=["Shift"]` must reach the page identically.
             "modifiers": mask,
             "clicks": int(params.get("clickCount") or 1),
+            # ⛔ The wait between `mousedown` and `mouseup`, in milliseconds,
+            # which is what Playwright documents `delay` to be for a click. It
+            # was dropped here with the other three, so a press had no duration
+            # at all and the caller had no way to give it one. It reads as an
+            # override of the session's hand, not as the only rhythm available.
+            "delay_ms": params.get("delay"),
         }
+
+    def _act_opts(self, params: Dict) -> Dict:
+        """Every per-action option the wire carries, read in ONE place.
+
+        ⛔ ONE PLACE KNOWS THE NAMES OF THESE PARAMETERS, and that is the point
+        of a helper this small. `trial` reaches seven operations, and seven
+        copies of `params.get("trial")` is how the eighth gets written without
+        one - which is exactly how it came to be accepted on 31 public
+        signatures and read by nobody, so `click(trial=True)` clicked.
+
+        ⛔ AND THAT SHAPE IS WHY THIS READS THREE OPTIONS RATHER THAN ONE.
+        The helper used to answer only `trial`, so `strict` and `force` had to
+        be wired option by option, action by action - and they never were: both
+        were accepted by the public API and read by nobody. `strict` is the
+        expensive one. Every Locator method sends `strict=True` (28 call sites
+        in `_locator.py`), so `page.locator("button").click()` on a page with
+        two buttons clicked the FIRST one instead of refusing - the automation
+        acting on an element nobody chose, with nothing said. Reading them
+        together means the ninth action cannot be written with one and without
+        the others.
+
+        What they MEAN lives in `Actions._retry`, the only thing that knows
+        what actionable is. This just carries them across the wire.
+        """
+        return {"trial": bool(params.get("trial")),
+                "strict": bool(params.get("strict")),
+                "force": bool(params.get("force"))}
 
     def _position(self, params: Dict):
         """The caller's offset inside the element, or None.
@@ -748,7 +984,7 @@ class FrameDispatcher(Dispatcher):
     def op_click(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.click(selector, timeout=self._timeout(params),
-                                frame_id=frame_id,
+                                frame_id=frame_id, **self._act_opts(params),
                                 position=self._position(params),
                                 **self._pointer(params))
         return None
@@ -759,65 +995,73 @@ class FrameDispatcher(Dispatcher):
         # dblclick sets its own clickCount; the caller's is not a second one.
         pointer.pop("clicks", None)
         self.actions.dblclick(selector, timeout=self._timeout(params),
-                                   frame_id=frame_id,
+                                   frame_id=frame_id, **self._act_opts(params),
                                    position=self._position(params), **pointer)
         return None
 
     def op_hover(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.hover(selector, timeout=self._timeout(params),
-                                frame_id=frame_id,
+                                frame_id=frame_id, **self._act_opts(params),
                                 position=self._position(params))
         return None
 
     def op_fill(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.fill(selector, params["value"],
-                               timeout=self._timeout(params), frame_id=frame_id)
+                               timeout=self._timeout(params), frame_id=frame_id,
+                               **self._act_opts(params))
         return None
 
     def op_check(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.check(selector, timeout=self._timeout(params),
-                                frame_id=frame_id,
+                                frame_id=frame_id, **self._act_opts(params),
                                 position=self._position(params))
         return None
 
     def op_uncheck(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.uncheck(selector, timeout=self._timeout(params),
-                                  frame_id=frame_id,
+                                  frame_id=frame_id, **self._act_opts(params),
                                   position=self._position(params))
         return None
 
     def op_focus(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.focus(selector,
-                                timeout=self._timeout(params), frame_id=frame_id)
+                                timeout=self._timeout(params), frame_id=frame_id,
+                                **self._act_opts(params))
         return None
 
     def op_blur(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.blur(selector,
-                               timeout=self._timeout(params), frame_id=frame_id)
+                               timeout=self._timeout(params), frame_id=frame_id,
+                               **self._act_opts(params))
         return None
 
     def op_select_text(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.select_text(selector,
-                                      timeout=self._timeout(params), frame_id=frame_id)
+                                      timeout=self._timeout(params), frame_id=frame_id,
+                                      **self._act_opts(params))
         return None
 
     def op_press(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.press(selector, params["key"],
-                                timeout=self._timeout(params), frame_id=frame_id)
+                                timeout=self._timeout(params), frame_id=frame_id,
+                                dwell_ms=_key_delay(params),
+                                **self._act_opts(params))
         return None
 
     def op_type(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.type_text(selector, params["text"],
-                                    timeout=self._timeout(params), frame_id=frame_id)
+                                    timeout=self._timeout(params), frame_id=frame_id,
+                                    delay=_key_delay(params) or 0.0,
+                                    **self._act_opts(params))
         return None
 
     def op_select_option(self, params: Dict) -> Any:
@@ -825,23 +1069,25 @@ class FrameDispatcher(Dispatcher):
         # `matches = true` and narrows only on valueOrLabel / value / label /
         # index, so a plain string matches everything and picks the FIRST
         # option. Measured: ["b"] answered ['a'].
+        frame_id, selector = self.enter_frames(params["selector"])
         chosen = self.actions.select_option(
-            params["selector"], params.get("options") or [],
-            timeout=self._timeout(params))
+            selector, params.get("options") or [], frame_id=frame_id,
+            timeout=self._timeout(params), **self._act_opts(params))
         return {"values": chosen or []}
 
     def op_set_input_files(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
-        paths = [f.get("name") if isinstance(f, dict) else f
-                 for f in (params.get("localPaths") or params.get("files") or [])]
-        self.actions.set_input_files(selector, paths,
-                                          timeout=self._timeout(params), frame_id=frame_id)
+        self.actions.set_input_files(selector,
+                                     _upload_paths(self.server, params),
+                                     timeout=self._timeout(params),
+                                     frame_id=frame_id,
+                                     **self._act_opts(params))
         return None
 
     def op_tap(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
         self.actions.tap(selector, timeout=self._timeout(params),
-                              frame_id=frame_id,
+                              frame_id=frame_id, **self._act_opts(params),
                               position=self._position(params))
         return None
 
@@ -857,12 +1103,14 @@ class FrameDispatcher(Dispatcher):
         self.actions.dispatch_event(
             selector, params["type"],
             _deserialize(params.get("eventInit")) or {},
-            timeout=self._timeout(params), frame_id=frame_id)
+            timeout=self._timeout(params), frame_id=frame_id,
+            **self._act_opts(params))
         return None
 
     def op_drag_and_drop(self, params: Dict) -> Any:
         self.actions.drag_and_drop(params["source"], params["target"],
-                                        timeout=self._timeout(params))
+                                        timeout=self._timeout(params),
+                                        **self._act_opts(params))
         return None
 
     def op_set_content(self, params: Dict) -> Any:
@@ -911,12 +1159,15 @@ class FrameDispatcher(Dispatcher):
         return None
 
     def op_wait_for_selector(self, params: Dict) -> Any:
+        frame_id, selector = self.enter_frames(params["selector"])
         state = params.get("state") or "visible"
         object_id = self.actions.wait_for_selector(
-            params["selector"], state=state, timeout=self._timeout(params))
+            selector, state=state, timeout=self._timeout(params),
+            frame_id=frame_id, strict=self._act_opts(params)["strict"])
         if object_id is None:
             return {"element": None}
-        handle = ElementHandleDispatcher(self.server, self, object_id)
+        handle = ElementHandleDispatcher(
+            self.server, self.page.frame_for(frame_id), object_id)
         return {"element": handle.channel}
 
     def op_wait_for_function(self, params: Dict) -> Any:
@@ -942,8 +1193,7 @@ class FrameDispatcher(Dispatcher):
         interval stays coarse.
         """
         deadline = time.monotonic() + self._timeout(params)
-        expression = _as_callable(params["expression"]).replace(
-            "ARG", json.dumps(_deserialize(params.get("arg")), default=str))
+        expression = _with_argument(params)
         while True:
             value = self.injected.evaluate_in_main(self.frame_id,
                                                         expression)
@@ -980,7 +1230,7 @@ class FrameDispatcher(Dispatcher):
                 state = expression.split("to.be.", 1)[1]
                 return self._with_element(
                     {"selector": selector},
-                    lambda o: None) and {"matches": True}
+                    lambda f, o: None) and {"matches": True}
         except ProtocolException:
             return {"matches": False, "received": _serialize(None)}
         raise ProtocolException(
@@ -999,8 +1249,8 @@ class FrameDispatcher(Dispatcher):
         if selector:
             return self._with_element(
                 params,
-                lambda o: self.injected.call(
-                    self.frame_id,
+                lambda f, o: self.injected.call(
+                    f,
                     "(injected, el, o) => injected.ariaSnapshot(el, o)",
                     {"objectId": o}, {"mode": params.get("mode") or "raw"}))
         return {"snapshot": self.injected.call(
@@ -1017,11 +1267,18 @@ class FrameDispatcher(Dispatcher):
         from `Page.dispatchMouseEvent`, which synthesises the drag from real
         pointer movement and builds its own data.
 
-        So `drag_and_drop()` works, because that is a pointer gesture; `drop()`
-        with a payload cannot be expressed. Faking it by dispatching an
-        untrusted `drop` event from the injected script would produce
-        `isTrusted: false` on a form that saw trusted events for everything
-        else - which is the mixture [B175] exists about.
+        `drop()` with a payload therefore cannot be expressed. Faking it by
+        dispatching an untrusted `drop` event from the injected script would
+        produce `isTrusted: false` on a form that saw trusted events for
+        everything else - which is the mixture [B175] exists about.
+
+        ⛔ AND THIS USED TO SAY "so `drag_and_drop()` works, because that is a
+        pointer gesture". It does not, and nothing checked: measured 2026-09-16,
+        a drag onto a target that accepts the drop delivers no `dragenter`, no
+        `dragover` and no `drop`, so the payload never arrives. The gesture
+        moves the pointer correctly and transfers nothing. [B212] holds the
+        measurement and where the cause is; the sentence is gone because a
+        claim no gate can fail is how it survived.
         """
         raise ProtocolException(
             "drop() with an explicit data payload has no engine command: "
@@ -1042,22 +1299,9 @@ class FrameDispatcher(Dispatcher):
             "caller holds")
 
     def op_resolve_selector(self, params: Dict) -> Any:
-        """The frame and selector a locator finally points at.
-
-        ⛔ It answers THIS frame and the selector unchanged, which is correct
-        only because frame-crossing locators are not supported here yet: an
-        `iframe >> internal:control=enter-frame >> ...` would resolve into a
-        child frame upstream. Answering this frame for one of those would be a
-        wrong answer rather than a missing feature, so the compound form is
-        refused.
-        """
-        selector = params.get("selector") or ""
-        if "enter-frame" in selector:
-            raise ProtocolException(
-                "a frame-crossing locator (%s) cannot be resolved yet: "
-                "answering this frame would be a wrong answer, not a missing "
-                "one" % selector[:80])
-        return {"frame": self.channel, "selector": selector}
+        """The frame and selector a locator finally points at."""
+        frame_id, selector = self.enter_frames(params.get("selector") or "")
+        return {"frame": self.page.frame_for(frame_id).channel, "selector": selector}
 
     def op_wait_for_element_state(self, params: Dict) -> Any:
         frame_id, selector = self.enter_frames(params["selector"])
@@ -1075,9 +1319,14 @@ class FrameDispatcher(Dispatcher):
 
     # ── frames as objects ───────────────────────────────────────────────────
     def op_frame_element(self, params: Dict) -> Any:
-        raise ProtocolException(
-            "frameElement needs the owner frame's handle, which this server "
-            "does not track yet")
+        parent = self.parent_frame
+        if parent is None:
+            raise ProtocolException("Frame has been detached or has no parent")
+        object_id = self.injected.adopt(self.frame_id, into=parent.frame_id)
+        if not object_id:
+            raise ProtocolException("Frame has been detached")
+        handle = ElementHandleDispatcher(self.server, parent, object_id)
+        return {"element": handle.channel}
 
     # ── selectors that answer many ──────────────────────────────────────────
     def op_query_count(self, params: Dict) -> Any:
@@ -1095,21 +1344,17 @@ class FrameDispatcher(Dispatcher):
     def op_eval_on_selector(self, params: Dict) -> Any:
         return self._with_element(
             params,
-            lambda o: _serialize(self.injected.call(
-                self.frame_id,
-                "(injected, el) => { const r = (%s);"
-                "  return typeof r === 'function' ? r(el) : r; }"
-                % params["expression"],
-                {"objectId": o})))
+            lambda f, o: _serialize(self.injected.call(
+                f, _element_function(params), {"objectId": o})))
 
     def op_eval_on_selector_all(self, params: Dict) -> Any:
+        frame_id, selector = self.enter_frames(params["selector"])
         value = self.injected.call(
-            self.frame_id,
+            frame_id,
             "(injected, sel) => { const els = injected.querySelectorAll("
-            "  injected.parseSelector(sel), document);"
-            "  const r = (%s); return typeof r === 'function' ? r(els) : r; }"
-            % params["expression"],
-            params["selector"])
+            "  injected.parseSelector(sel), document); %s }"
+            % _called_on(params, "els"),
+            selector)
         return {"value": _serialize(value)}
 
     def op_evaluate_handle(self, params: Dict) -> Any:
@@ -1142,6 +1387,13 @@ class RequestDispatcher(Dispatcher):
     def __init__(self, server, page: "PageDispatcher", params: Dict) -> None:
         self.page = page
         self.request_id = params.get("requestId")
+        #: The navigation this request BELONGS to, or None when it is not a
+        #: document load. ⛔ `NetworkObserver.js` sets it only on the main
+        #: document channel, and hands the SAME id to every hop of a redirect
+        #: chain, so it identifies a navigation exactly rather than by
+        #: heuristic - which is what makes `PageDispatcher.navigation_response`
+        #: able to answer `goto` with the response of the document it loaded.
+        self.navigation_id = params.get("navigationId")
         self.raw_headers = _headers_array(params.get("headers"))
         self.response: Optional["ResponseDispatcher"] = None
         #: Filled by `Network.requestFailed`. ⛔ None until it fails: an
@@ -1170,7 +1422,7 @@ class RequestDispatcher(Dispatcher):
             # this is where somebody will come looking.
             **({"postData": params["postData"]}
                if params.get("postData") is not None else {}),
-            "isNavigationRequest": bool(params.get("navigationId")),
+            "isNavigationRequest": bool(self.navigation_id),
             "resourceType": _resource_type(params),
             "frame": page.frame_for(frame_id).channel,
         })
@@ -1420,6 +1672,8 @@ class PageDispatcher(Dispatcher):
         "setViewportSize": "op_set_viewport_size",
         "emulateMedia": "op_emulate_media",
         "screenshot": "op_screenshot",
+        "screencastStart": "op_screencast_start",
+        "screencastStop": "op_screencast_stop",
         "bringToFront": "op_bring_to_front",
         "exposeBinding": "op_expose_binding",
         "touchscreenTap": "op_touchscreen_tap",
@@ -1444,15 +1698,64 @@ class PageDispatcher(Dispatcher):
     }
 
     def __init__(self, server, context: "BrowserContextDispatcher",
-                 session: str, target_id: str) -> None:
+                 session: str, target_id: str,
+                 opener: Optional["PageDispatcher"] = None) -> None:
         self.context = context
         self.session = session
         self.target_id = target_id
+        # ⛔ The once-guard for `announce_closed` lives under this lock, not
+        # in a bare attribute: the close arrives on up to four threads
+        # (`op_close`, the reader's detach, an adoption finishing early, a
+        # context closing underfoot) and check-then-set without it emits
+        # `close` twice when the two interleave between the test and the set.
+        self._close_lock = threading.Lock()
+        self._announced_closed = False
+        # The id Juggler gave the running screencast, or None. One per page,
+        # because the engine holds one capture sink per window.
+        self._screencast_id: Optional[str] = None
         conn = context.browser.conn
+        # ⛔ THIS PAGE'S OWN EVENTS ARE HELD FROM HERE, not dropped. A page the
+        # SITE opened has usually sent its document request, and often had the
+        # response, before this object exists: the replay below hands those to
+        # the lifecycle and the injected script, which ignore the network, and
+        # the ones arriving between the replay and `_install_events` went to
+        # nobody. Measured 2026-10-04 on firefox-35: for a `window.open` and a
+        # `target=_blank` popup `context.on("request")`/`("response")` saw the
+        # stylesheet, the image and the favicon, and never the document itself
+        # - the response a PDF opened in a new tab lives in. The subscriber is
+        # registered BEFORE the replay, so the buffered events reach it too,
+        # and it holds rather than handles until the channel exists. The idea
+        # and its de-duplication are richardpowellus's, from #268.
+        #
+        # ⛔ AFTER THE LIFECYCLE AND THE INJECTED SCRIPT, NOT BEFORE THEM. The
+        # connection calls its subscribers in the order they registered, and
+        # this page's handler reads what those two already learned from the
+        # same event: registered first, a child frame's `frameAttached` reached
+        # the page before the lifecycle knew the frame, and the frame came out
+        # with no parent (`test_nested_frame_actions`, two failures, measured
+        # 2026-10-04). What matters for the hold is only that it precedes the
+        # replay.
+        self._held: Optional[List] = []
+        self._held_lock = threading.Lock()
         self.lifecycle = Lifecycle(conn, session)
         self.injected = InjectedScript(conn, session)
+        conn.add_listener(self._route_juggler_event)
+        try:
+            self._build(server, context, session, conn, opener)
+        except BaseException:
+            # A popup can be gone before its main frame is announced: the
+            # three subscribers registered above must not outlive the attempt.
+            conn.remove_listener(self._route_juggler_event)
+            self.lifecycle.detach()
+            self.injected.detach()
+            raise
+
+    def _build(self, server, context: "BrowserContextDispatcher",
+               session: str, conn, opener: Optional["PageDispatcher"]) -> None:
+        """The rest of the construction, under `__init__`'s cleanup."""
         self.injected.install()
-        self.actions = Actions(conn, session, self.lifecycle, self.injected)
+        self.actions = context.browser.actions_for_page(
+            session, self.lifecycle, self.injected)
         # ⛔ THE EVENTS THIS PAGE ALREADY MISSED, handed over now that the two
         # things that need them exist. `Page.frameAttached` and the
         # `Runtime.executionContextCreated` pair are sent by the browser BEFORE
@@ -1470,6 +1773,16 @@ class PageDispatcher(Dispatcher):
         self.replayed_events = replayed
         self._frames: Dict[str, Any] = {}
         self._requests: Dict[str, Any] = {}
+        #: navigationId -> the document RequestDispatcher of that navigation.
+        #: ⛔ AN INDEX, NOT A SECOND COPY: the response itself keeps living on
+        #: the request, and this only answers "which request loaded navigation
+        #: N". It cannot be replaced by a scan of `_request_log`, which is
+        #: capped, nor of `_requests`, which is emptied on `requestFinished` -
+        #: and by the time `goto` stops waiting for `load` the document request
+        #: has finished. Capped like the logs, and a REDIRECT overwrites its
+        #: own entry hop by hop, so the last writer is the final hop, which is
+        #: the response Playwright answers with.
+        self._navigation_requests: Dict[str, Any] = {}
         # ⛔ CAPPED, and that is not a detail: a page printing in a loop
         # would exhaust the memory of the process DRIVING it. Playwright keeps
         # the same logs and caps them for the same reason.
@@ -1484,9 +1797,16 @@ class PageDispatcher(Dispatcher):
         self.frame = FrameDispatcher(server, self, self.main_frame_id)
         viewport = context.options.get("viewport") or {"width": 1280,
                                                        "height": 720}
-        super().__init__(server, context,
-                         {"mainFrame": self.frame.channel,
-                          "viewportSize": viewport, "isClosed": False})
+        initializer = {"mainFrame": self.frame.channel,
+                       "viewportSize": viewport, "isClosed": False}
+        if opener is not None:
+            # ⛔ THE OPENER TRAVELS IN THE INITIALIZER, and nowhere else. The
+            # client resolves `page.opener()` from it and emits `popup` on the
+            # opener when the context announces the page - so a page built
+            # without it is tracked but orphaned: present in `context.pages`
+            # while its opener never fires `popup` and `opener()` is None.
+            initializer["opener"] = opener.channel
+        super().__init__(server, context, initializer)
         self.emit("__adopt__", {"guid": self.frame.guid})
         self.frame.parent = self
         # ⛔ AFTER the Page exists: an event that fires during construction
@@ -1531,15 +1851,92 @@ class PageDispatcher(Dispatcher):
         no error at all: the handler simply never runs, and the user concludes
         their page prints nothing.
         """
-        # ⛔ Registered on the connection's list, never chained. The isolation
-        # that used to live in this closure is now `dispatch_event`'s job and
-        # covers every subscriber instead of just this one.
-        self.conn.add_listener(self._route_juggler_event)
+        # ⛔ Registered on the connection's list, never chained, and already
+        # in `__init__`: what is left here is to stop holding. Only the NETWORK
+        # events held are delivered - the rest describe the page's birth,
+        # which the initializer already carries, and replaying a main frame's
+        # `frameAttached` would announce it twice. Delivered under the lock, so
+        # a live event waits for the held ones and keeps their order: a
+        # response handled before its request is dropped as unknown.
+        #
+        # ⛔ AND EACH EVENT ONCE, AT ITS LAST PLACE. One that arrived after the
+        # subscriber was registered but before the replay marked the session
+        # live was both buffered by the browser and held here, so the replay
+        # hands it over a second time, behind events older than it. It is the
+        # same params object both times; keeping its last occurrence restores
+        # the order the engine sent them in and announces each request once.
+        with self._held_lock:
+            held, self._held = self._held or [], None
+            last = {id(params): i for i, (_, params) in enumerate(held)}
+            for i, (method, params) in enumerate(held):
+                if last[id(params)] == i and method.startswith("Network."):
+                    try:
+                        self._on_juggler_event(method, params)
+                    except Exception:
+                        pass
+        self._hear_lifecycle()
+
+    def _hear_lifecycle(self) -> None:
+        """Take what only the lifecycle can decide and send it up.
+
+        ⛔ networkidle IS NOT AN ENGINE EVENT: it is born in
+        `Lifecycle._settle` on a silence deadline, and until 2026-10-04 it went
+        no further than the lifecycle's own waits. The client never got
+        `loadstate {"add": "networkidle"}`, so `page.wait_for_load_state(
+        "networkidle")`, `wait_for_url(..., wait_until="networkidle")` and
+        `expect_navigation(wait_until="networkidle")` - which wait for exactly
+        that event - timed out on a loaded, silent page. One definition, two
+        consumers: `goto`'s wait and this event.
+        """
+        self.lifecycle.announce = self._on_lifecycle
+
+    def _on_lifecycle(self, what: str, frame_id: str,
+                      url: Optional[str] = None) -> None:
+        child = self.frame_for(frame_id)
+        if what == "networkidle":
+            child.emit("loadstate", {"add": "networkidle"})
+        elif what == "sameDocument":
+            # ⛔ THE CLIENT HAS TO HEAR THIS ONE TOO, and until 2026-09-20 it
+            # did not. A pushState, a hash change, the route change of every
+            # single-page application arrives as `Page.sameDocumentNavigation`
+            # and not as a `navigationCommitted`; the lifecycle updated its own
+            # record of the frame's URL and nothing went up, so `page.url` kept
+            # the URL of the last full load and `wait_for_url` never resolved.
+            # Measured against a page that routes in the client: the fetch
+            # returned 200, the content changed, `location.href` changed, and
+            # `page.url` still named the previous document thirty seconds
+            # later - a click that worked, reported as a timeout.
+            #
+            # ⛔ AND IT IS SENT FROM HERE, NOT FROM `_on_juggler_event`, because
+            # of ORDER: the lifecycle calls this under its lock before it wakes
+            # a waiter, so a `goto` to a fragment answers after its `navigated`
+            # (as upstream does). Sent from the page's own listener it raced
+            # the answer, and `page.url` read one step behind (2026-10-04).
+            #
+            # No `newDocument`: that key is how the client tells a full load
+            # from this, and `wait_for_navigation` reads `newDocument.request`
+            # to answer with a Response. There is no document here, so there
+            # is nothing to announce - the same shape upstream's
+            # `_onSameDocumentNavigation` sends.
+            child.url = url or ""
+            child.emit("navigated", {"url": child.url, "name": child.name})
+
+    #: Events held while the page is being built. The birth of a page is a
+    #: burst of a few dozen; a page that never finishes building must not
+    #: grow this without bound.
+    HELD_CAP = 512
 
     def _route_juggler_event(self, method: str, params: Dict,
                              session) -> None:
-        if session == self.session:
-            self._on_juggler_event(method, params)
+        if session != self.session:
+            return
+        if self._held is not None:
+            with self._held_lock:
+                if self._held is not None:
+                    if len(self._held) < self.HELD_CAP:
+                        self._held.append((method, params))
+                    return
+        self._on_juggler_event(method, params)
 
     def _detach_listeners(self) -> None:
         """Unsubscribe this page and everything it owns.
@@ -1555,9 +1952,34 @@ class PageDispatcher(Dispatcher):
         conn.remove_listener(self._route_juggler_event)
         self.lifecycle.detach()
         self.injected.detach()
+        # A screencast owns a capture thread in the browser, reading a window
+        # that is about to go. The engine stops it when the page is disposed
+        # too; asking first means a page closed from here never leaves a
+        # frame in flight with nobody to acknowledge it.
+        if self._screencast_id:
+            conn.post("Page.stopScreencast", {}, session=self.session)
+            self._screencast_id = None
 
     def _on_juggler_event(self, method: str, params: Dict) -> None:
-        if method == "Runtime.console":
+        if method == "Page.screencastFrame":
+            # ⛔ ON THE READER THREAD, and both halves have to respect that.
+            # The frame goes up to the client as the event `Screencast`
+            # listens for - base64 stays base64, the client decodes - under
+            # the names the vendored client reads (`viewportWidth`, not the
+            # engine's `deviceWidth`). The ack goes back with `post`: a `send`
+            # here would wait for a reply only this thread can deliver.
+            if not self._screencast_id:
+                return
+            self.emit("screencastFrame", {
+                "data": params.get("data") or "",
+                "timestamp": params.get("timestamp") or 0,
+                "viewportWidth": params.get("deviceWidth") or 0,
+                "viewportHeight": params.get("deviceHeight") or 0,
+            })
+            self.conn.post("Page.screencastFrameAck",
+                           {"screencastId": self._screencast_id},
+                           session=self.session)
+        elif method == "Runtime.console":
             # ⛔ THE LOG FILLS HERE, not inside `console_messages()`. A log
             # filled on request can only ever hold what arrived AFTER the
             # request, which is nothing: `page.console_messages()` would always
@@ -1638,6 +2060,8 @@ class PageDispatcher(Dispatcher):
             request = RequestDispatcher(self.server, self, params)
             self._requests[params.get("requestId")] = request
             self._remember(self._request_log, request)
+            if request.navigation_id:
+                self._remember_navigation(request)
             self.context.emit("request", {"request": request.channel,
                                           "page": self.channel})
             if self.context.intercepting and params.get("isIntercepted"):
@@ -1688,12 +2112,19 @@ class PageDispatcher(Dispatcher):
                 })
         elif method == "Page.navigationCommitted":
             child = self.frame_for(params["frameId"])
+            for state in ("commit", "domcontentloaded", "load", "networkidle"):
+                child.emit("loadstate", {"remove": state})
             child.url = params.get("url") or ""
+            child.name = params.get("name") or ""
             child.emit("navigated", {
                 "url": child.url,
-                "name": params.get("name") or "",
-                "newDocument": {"request": None},
+                "name": child.name,
+                "newDocument": self.navigation_document(params.get("navigationId")),
             })
+            child.emit("loadstate", {"add": "commit"})
+        # `Page.sameDocumentNavigation` is not handled here: the lifecycle
+        # announces it (`_on_lifecycle`), so the `navigated` it causes goes up
+        # BEFORE a `goto` waiting for it answers.
 
     #: How many entries are kept. ⛔ A CAP, not a history: a page printing in
     #: a loop would exhaust the memory of the process DRIVING it, and a driver
@@ -1706,6 +2137,49 @@ class PageDispatcher(Dispatcher):
         log.append(entry)
         if len(log) > PageDispatcher.LOG_LIMIT:
             del log[0]
+
+    def _remember_navigation(self, request: "RequestDispatcher") -> None:
+        """Index a document request by the navigation it belongs to.
+
+        ⛔ THE KEY IS RE-INSERTED, not merely overwritten, so that a redirect
+        chain keeps ONE entry and keeps it at the young end of the dict. A
+        plain assignment would leave the entry at the position of the first
+        hop, and the eviction below - which drops the oldest key - would then
+        be able to throw away a navigation that is still in progress.
+        """
+        index = self._navigation_requests
+        index.pop(request.navigation_id, None)
+        index[request.navigation_id] = request
+        while len(index) > PageDispatcher.LOG_LIMIT:
+            del index[next(iter(index))]
+
+    def navigation_document(self, navigation_id: Optional[str]) -> Dict:
+        """The request field is optional, not nullable in Playwright's protocol."""
+        request = self._navigation_requests.get(navigation_id)
+        return {"request": request.channel} if request is not None else {}
+
+    def navigation_response(self, navigation_id: Optional[str]) -> Any:
+        """The Response CHANNEL for a finished navigation, or None.
+
+        ⛔ None IS A REAL ANSWER, and Playwright gives it in exactly the cases
+        that reach here with nothing to return: a same-document navigation or
+        an anchor (no navigationId at all, so `goto` never even started a
+        document load), and a navigation whose document request failed or was
+        served without a response. Answering with an empty object instead
+        would turn "there is no response" into "here is a response with no
+        status", which is the shape of lie rule 12 is about.
+
+        The three cases collapse into ONE lookup on purpose: a `None` id, an
+        id nothing was indexed under, and an indexed request that has no
+        response yet all mean the same thing here. An explicit guard on the
+        id was written first and removed - it could not change the answer,
+        since `get(None)` misses like any other miss, so it was a second
+        place deciding a question this line already decides.
+        """
+        request = self._navigation_requests.get(navigation_id)
+        if request is None or request.response is None:
+            return None
+        return request.response.channel
 
     def _announce_file_chooser(self, params: Dict) -> None:
         """Build the handle the client expects and emit `fileChooser`.
@@ -1730,7 +2204,7 @@ class PageDispatcher(Dispatcher):
                 # Saying nothing loses the event; saying the wrong thing loses
                 # the trust in every event.
                 return
-            adopted = self.injected.adopt(frame_id, context_id, object_id)
+            adopted = self.injected.adopt(frame_id, object_id)
             if not adopted:
                 return
             frame = self.frame_for(frame_id)
@@ -1761,9 +2235,11 @@ class PageDispatcher(Dispatcher):
         if existing is not None:
             return existing
         frame = self.lifecycle.frame(frame_id)
+        parent_id = getattr(frame, "parent", None)
         made = FrameDispatcher(
             self.server, self, frame_id,
             url=getattr(frame, "url", "") or "",
+            parent_frame=self.frame_for(parent_id) if parent_id else None,
             load_states=sorted(getattr(frame, "states", []) or []) or ["commit"])
         self._frames[frame_id] = made
         return made
@@ -1858,10 +2334,16 @@ class PageDispatcher(Dispatcher):
             # normal answer in Playwright, and raising would turn an ordinary
             # "there is nothing behind" into a failed script.
             return {"response": None}
-        self.lifecycle.wait_for_new_navigation(
+        # ⛔ THE ANCHOR IS THE ANSWER. History gives back no navigationId, so
+        # the wait is what discovers which navigation this was - and it is the
+        # only thing that can, since reading the frame afterwards would race a
+        # navigation the page started on its own. Returning it is what lets
+        # `reload` answer with a Response like `goto` does: the same [B200],
+        # which would otherwise be reopened here in a month.
+        navigation = self.lifecycle.wait_for_new_navigation(
             frame_id, previous, params.get("waitUntil") or "load",
             timeout=(params.get("timeout") or 30000) / 1000.0)
-        return {"response": None}
+        return {"response": self.navigation_response(navigation)}
 
     def op_go_back(self, params: Dict) -> Any:
         return self._history("Page.goBack", params)
@@ -1907,11 +2389,18 @@ class PageDispatcher(Dispatcher):
         return None
 
     def op_key_press(self, params: Dict) -> Any:
-        self.keyboard.press(params["key"])
+        # ⛔ `delay` IS the dwell here, not a gap: Playwright documents it as
+        # the wait between keydown and keyup. It used to be dropped, which is
+        # why a press had no duration at all.
+        self.keyboard.press(params["key"], dwell_ms=_key_delay(params))
         return None
 
     def op_key_type(self, params: Dict) -> Any:
-        self.keyboard.type(params["text"])
+        # ⛔ And here it IS a gap, and it was dropped too. Passing it now makes
+        # it an override of the session's rhythm rather than the only thing
+        # standing between the caller and pipe speed.
+        self.keyboard.type(params["text"],
+                           delay_ms=_key_delay(params) or 0.0)
         return None
 
     def op_key_insert(self, params: Dict) -> Any:
@@ -2244,6 +2733,95 @@ class PageDispatcher(Dispatcher):
         self.send("Page.bringToFront", {})
         return None
 
+    #: The bound a screencast frame is scaled to fit when the caller gives no
+    #: `size`. The frame is the whole WINDOW, chrome included, so this is not
+    #: a viewport size; it is a ceiling that keeps a JPEG of a 1920x1080 window
+    #: around 100 KB. Frames are never scaled up.
+    SCREENCAST_DEFAULT_SIZE = {"width": 1280, "height": 800}
+    SCREENCAST_DEFAULT_QUALITY = 80
+
+    #: Frames per second when the caller does not ask for a rate.
+    #:
+    #: ⛔ TEN AND NOT TWENTY-FIVE, and the caller can ask for either. Measured
+    #: 2026-09-08 on the same page, interleaved arms: asking for 10 delivers
+    #: 9.6-9.8 fps and 257 KB/s, asking for 25 delivers 23.8-24.0 and 629 KB/s.
+    #: Raising the constant would impose two and a half times the bandwidth on
+    #: every consumer to serve the one that is watching, and a batch job that
+    #: never looks at a frame would pay it too. So the default stays where it
+    #: is and somebody watching a window says so.
+    #:
+    #: The engine's own default is 25 (`fps || 25` in TargetRegistry.js); this
+    #: number is the wrapper's opinion, not the engine's.
+    SCREENCAST_FPS = 10
+
+    def op_screencast_start(self, params: Dict) -> Any:
+        """`page.screencast.start(on_frame=...)`: live JPEG frames of the
+        browser WINDOW.
+
+        ⛔ THE WINDOW, NOT THE PAGE, AND THAT IS THE POINT. `page.screenshot()`
+        already gives the content viewport. What it can never give is the
+        pointer, which is drawn in the chrome document precisely so that no
+        page can see it - and a person watching an agent work wants the
+        pointer, the tab strip and the address bar. So every screencast this
+        server starts asks the engine for `fullWindow`, our own flag on
+        `Page.startScreencast`, and the `viewportWidth`/`viewportHeight` the
+        client reads on each frame are the captured window's size in device
+        pixels.
+
+        Nothing is injected into the page and no script runs in it: the engine
+        captures the window through the operating system, in the parent
+        process, and the content process is never told.
+
+        ⛔ `record` (a video file) is REFUSED, not ignored. The engine has no
+        encoder - the VP8/WebM half of Playwright's screencast was never
+        rebuilt - and the refusal at context creation for `record_video_dir`
+        is the same decision one level up.
+        """
+        if self._screencast_id:
+            raise ProtocolException(
+                "a screencast is already running on this page; stop it first")
+        if params.get("record"):
+            raise ProtocolException(
+                "screencast to a video FILE is not available: the engine "
+                "streams JPEG frames and has no video encoder. Pass "
+                "on_frame= to receive the frames instead of path=")
+        if not params.get("sendFrames"):
+            raise ProtocolException(
+                "screencast.start() was called with neither on_frame= nor "
+                "path=, so there is nobody to deliver frames to")
+        size = params.get("size") or self.SCREENCAST_DEFAULT_SIZE
+        quality = params.get("quality")
+        if quality is None:
+            quality = self.SCREENCAST_DEFAULT_QUALITY
+        # ⛔ THE CALLER'S RATE, WHERE THIS IGNORED IT. The engine takes an `fps`
+        # and this passed the constant unconditionally, so `screencast.start()`
+        # had no way to ask for more - a live view got ten frames a second
+        # whatever it wanted, which is what made the pane feel slow after the
+        # client's own pause was fixed. Same shape as `quality` and `size`
+        # above: the caller decides, the constant is what happens when nobody
+        # does.
+        fps = params.get("fps")
+        if fps is None:
+            fps = self.SCREENCAST_FPS
+        result = self.send("Page.startScreencast", {
+            "width": int(size["width"]),
+            "height": int(size["height"]),
+            "quality": int(quality),
+            "fullWindow": True,
+            "fps": int(fps),
+        })
+        self._screencast_id = result["screencastId"]
+        # The client's `start()` reads an optional `artifact` from the reply
+        # for the video-file case, which does not exist here.
+        return {}
+
+    def op_screencast_stop(self, params: Dict) -> Any:
+        if not self._screencast_id:
+            return None
+        self._screencast_id = None
+        self.send("Page.stopScreencast", {})
+        return None
+
     def op_noop(self, params: Dict) -> Any:
         return None
 
@@ -2264,40 +2842,48 @@ class PageDispatcher(Dispatcher):
                 session=self.session, timeout=10)
         except Exception:
             pass
-        # ⛔ The session leaves the browser's registry here, or a long-lived
-        # browser accumulates one entry per page it ever opened. Small, but it
-        # is the kind of small that a scraper turns into a day-long leak.
-        try:
-            self.browser.forget(self.session)
-        except Exception:
-            pass
+        # ⛔ The session, the context's list and the browser's target map are
+        # all left inside `announce_closed` (`BrowserDispatcher._page_over`),
+        # not here: the engine's detach for this same target ends the page
+        # too, and two places doing the bookkeeping is how one of them forgets.
         self.announce_closed()
-        self.dispose()
         return None
 
     def announce_closed(self) -> None:
         """Tell the client this page is closed, ONCE.
 
-        ⛔ Once, because there are two ways in: the caller closes the page,
-        and the caller closes the CONTEXT, which now tells its pages. Both are
-        legitimate and both can happen in the same session - `page.close()`
-        followed by `context.close()` is the ordinary shape. A second `close`
+        ⛔ Once, because there are four ways in: the caller closes the page,
+        the caller closes the CONTEXT, which tells its pages, the engine
+        detaches the target (the site called `window.close()`), and a detach
+        that arrived while the page was still being adopted. They can overlap
+        - `page.close()` is followed by the engine's detach for the same
+        target, and by `context.close()` - and they run on different threads,
+        hence the lock rather than a bare flag. A second `close`
         is not obviously harmful on today's client, which resolves a future
         that is already resolved; it is a protocol event that never happens
         against the driver, and the whole point of this exercise is that the
         two answer the same.
         """
-        if getattr(self, "_announced_closed", False):
-            return
-        self._announced_closed = True
-        # ⛔ THE UNSUBSCRIBE HANGS OFF THE SAME ONCE-GUARD AS THE EVENT, on
-        # purpose. Both ways a page can end - `page.close()` and
-        # `context.close()` - already funnel through here, so this is the one
-        # place that knows a page is over; putting the removal anywhere else
-        # would mean two places deciding it, and the one that got missed
-        # would leak a subscriber per page exactly as before.
-        self._detach_listeners()
-        self.emit("close")
+        with self._close_lock:
+            if self._announced_closed:
+                return
+            self._announced_closed = True
+            # ⛔ THE UNSUBSCRIBE AND THE REGISTRIES HANG OFF THE SAME ONCE-GUARD
+            # AS THE EVENT, on purpose. Every way a page can end funnels
+            # through here, so this is the one place that knows a page is over;
+            # putting the removal anywhere else would mean two places deciding
+            # it, and the one that got missed would leak a subscriber, a target
+            # entry or a buffered session per page exactly as before.
+            try:
+                self.browser._page_over(self)
+            except Exception:
+                pass
+            self._detach_listeners()
+            self.emit("close")
+            # ⛔ `dispose` (the `__dispose__` message) rides the SAME lock as
+            # the guard above, so two threads ending the page together cannot
+            # both pass `dispose`'s own check and send `__dispose__` twice.
+            self.dispose()
         # ⛔ `close` FIRST, THEN `__dispose__`, which is the order the driver
         # uses and not a preference: the client resolves the close on the
         # event, and an object disposed before it is announced is one the
@@ -2312,12 +2898,28 @@ class PageDispatcher(Dispatcher):
         # is why `diff_protocol.py` grew a fifth dimension to see it: the other
         # four compare `__create__`, initializers, events and parentage, and
         # the event comparison skips every method starting with `__`.
-        self.dispose()
 
 
 
 
 # ── context, browser, browser type ──────────────────────────────────────────
+def _address(context_id: Optional[str], params: Dict) -> Dict:
+    """The context a `Browser.*` command is about, in the form Juggler reads.
+
+    ⛔ `None` IS THE DEFAULT CONTEXT, AND IT IS ADDRESSED BY ABSENCE. Juggler
+    keeps every context in a Map keyed by its id and registers the default one
+    under `undefined`, so an omitted field resolves to it and a `null` does not:
+    `Map.get(null)` finds nothing, and the command fails naming no cause. Every
+    command that names a context goes through here, so the rule lives once.
+    """
+    out = dict(params)
+    if context_id is None:
+        out.pop("browserContextId", None)
+    else:
+        out["browserContextId"] = context_id
+    return out
+
+
 class BrowserContextDispatcher(Dispatcher):
     TYPE = "BrowserContext"
     METHODS = {
@@ -2340,9 +2942,12 @@ class BrowserContextDispatcher(Dispatcher):
     }
 
     def __init__(self, server, browser: "BrowserDispatcher", options: Dict,
-                 context_id: str) -> None:
+                 context_id: Optional[str]) -> None:
         self.browser = browser
         self.options = options
+        #: `None` is the DEFAULT context - userContextId 0, the one whose
+        #: cookies and storage are the profile's. It is what a persistent
+        #: launch hands back; every other context is a Juggler container.
         self.context_id = context_id
         # ⛔ THE THREE CHILDREN COME FIRST. `_browser_context.py` resolves all
         # of them with `from_channel` inside its constructor, so a context whose
@@ -2466,21 +3071,25 @@ class BrowserContextDispatcher(Dispatcher):
         return None
 
     def op_new_page(self, params: Dict) -> Any:
+        """Ask the engine for a page, then wait for its adoption.
+
+        ⛔ THIS DOES NOT BUILD THE PAGE ITSELF, and that is the whole fix for
+        popups. The engine emits `Browser.attachedToTarget` for EVERY page
+        target - requested or spontaneous - and a single adoption path builds
+        the `PageDispatcher` for all of them, so a target can never be built
+        twice (once by this call, once by the event) and a `window.open`
+        target is a page like any other, with its opener recorded.
+        """
         conn = self.conn
         result = conn.send("Browser.newPage",
-                           {"browserContextId": self.context_id}, timeout=30)
-        target_id = result["targetId"]
-        session = self.browser.session_for(target_id, timeout=20.0)
-        page = PageDispatcher(self.server, self, session, target_id)
-        self.pages.append(page)
-        self.emit("page", {"page": page.channel})
+                           _address(self.context_id, {}), timeout=30)
+        page = self.browser._wait_for_page(result["targetId"], timeout=60.0)
         return {"page": page.channel}
 
     # ── cookies, permissions, geolocation ───────────────────────────────────
     def _browser_send(self, command: str, params: Dict) -> Any:
-        params = dict(params)
-        params["browserContextId"] = self.context_id
-        return self.conn.send(command, params, timeout=30)
+        return self.conn.send(command, _address(self.context_id, params),
+                              timeout=30)
 
     def op_add_cookies(self, params: Dict) -> Any:
         """⛔ `expires` IS SECONDS AND -1 MEANS SESSION, not zero and not
@@ -2553,6 +3162,21 @@ class BrowserContextDispatcher(Dispatcher):
         return {"cookies": result.get("cookies") or [], "origins": []}
 
     def op_close(self, params: Dict) -> Any:
+        if self.context_id is None:
+            # ⛔ THE DEFAULT CONTEXT IS NEVER REMOVED, and closing it closes
+            # the browser: that is what upstream does for a persistent context,
+            # whose only context it is. `Browser.removeBrowserContext` on it
+            # would make Juggler's `destroy()` unregister the default from its
+            # maps and leave a browser that no command can address.
+            for page in list(self.pages):
+                try:
+                    page.announce_closed()
+                except Exception:
+                    pass
+            self.emit("close")
+            self.dispose()
+            self.browser.op_close({})
+            return None
         try:
             self.conn.send("Browser.removeBrowserContext",
                                    {"browserContextId": self.context_id},
@@ -2582,9 +3206,26 @@ class BrowserDispatcher(Dispatcher):
                "newPage": "op_new_page"}
 
     def __init__(self, server, browser_type: "BrowserTypeDispatcher",
-                 conn: Any, version: str) -> None:
+                 conn: Any, version: str, session_seed: Any = None,
+                 motion_budget_s: Any = None) -> None:
         self.conn = conn
         self.browser_type = browser_type
+        #: ⛔ THE SESSION'S SEED, and the reason it lives on the BROWSER rather
+        #: than on this module: a process can hold two sessions with two seeds,
+        #: and a module-level value would give the second one the first's hand.
+        #: That is the shape of defect the personae exist to remove, so it must
+        #: not be reintroduced by where it is stored.
+        #:
+        #: `None` means the caller turned humanising off, and every rhythm
+        #: downstream reads that as "no rhythm" rather than as a default one.
+        self.session_seed = session_seed
+        self.motion_budget_s = motion_budget_s
+        #: ⛔ THE NUMBER OF EACH PAGE, handed out here for the same reason the
+        #: seed lives here: it belongs to the session, and every context of
+        #: this browser is the same person. Each page's acts draw their nonces
+        #: under its number (`_behaviour.PageActs`), so the first field, key
+        #: and click of a second tab are not the first tab's again.
+        self.acts = SessionActs()
         self._sessions: Dict[str, str] = {}
         self._sessions_ready = threading.Condition()
         # ⛔ THE EVENTS OF A SESSION START BEFORE ANYBODY IS LISTENING, and
@@ -2620,6 +3261,36 @@ class BrowserDispatcher(Dispatcher):
         #: the life of the browser. Enough to hold the burst that precedes a
         #: `newPage` reply, far too little to be a leak.
         self.BUFFER_CAP = 256
+        # ⛔ EVERY PAGE TARGET, REQUESTED OR NOT, AND THESE COME FIRST -
+        # before the listener below and before `Browser.enable`. The reader
+        # thread can deliver `attachedToTarget` while `Browser.enable` is
+        # still blocking, so anything this listener touches must exist before
+        # it is installed: with the map created after, the very first event
+        # died in `AttributeError` inside the listener. Measured 2026-10-03:
+        # this engine reports no pre-existing tab at enable, so the window
+        # never fired here - but a target arriving between `enable` and the
+        # end of this constructor is a target that PREDATES every context, and
+        # adopting it would mint a phantom page (in a persistent launch the
+        # default context would catch it). Those are recorded for their
+        # session and never adopted: `_adopt_enabled` flips only once this
+        # constructor has fully run.
+        self._targets_lock = threading.Lock()
+        self._page_targets: Dict[str, PageDispatcher] = {}
+        #: Targets whose adoption thread is still building. `op_new_page`
+        #: waits on these instead of building a second dispatcher.
+        self._adopting: set = set()
+        #: Adoption failures, by target. The `newPage` waiter re-raises (and
+        #: pops) them; capped because a spontaneous popup nobody waits for
+        #: must not grow this for the life of the browser.
+        self._adopt_errors: Dict[str, Exception] = {}
+        #: Targets detached BEFORE their adoption finished (a popup closed
+        #: faster than it attached). The adoption still emits `page` first and
+        #: the close right after, so the client always sees them in order.
+        #: Ending the page - registries, session, listeners - is
+        #: `announce_closed`'s job alone: see `_page_over`.
+        self._detached_early: set = set()
+        self._pages_ready = threading.Condition(self._targets_lock)
+        self._adopt_enabled = False
         # ⛔ THIS ONE RUNS FIRST NOW, WHERE THE CHAIN RAN IT LAST, and the
         # change is deliberate rather than incidental. A chain calls the most
         # recently installed link first, so the browser's recorder - installed
@@ -2635,6 +3306,19 @@ class BrowserDispatcher(Dispatcher):
                          {"version": version, "name": "firefox",
                           "browserName": "firefox"})
         self.contexts: List[BrowserContextDispatcher] = []
+        # ⛔ Adoptions start HERE, not at `add_listener` above. Anything the
+        # engine attached in between predates every context (see the note on
+        # the target map): recorded for its session, never built into a page.
+        self._adopt_enabled = True
+
+    def actions_for_page(self, session: str, lifecycle, injected) -> Actions:
+        """The hands of a new page: the session's seed and motion budget, and
+        the page's number in the session, which goes into the nonce of every
+        act it performs. Built here because all three are the session's."""
+        return Actions(self.conn, session, lifecycle, injected,
+                       acts=self.acts.page(),
+                       session_seed=self.session_seed,
+                       motion_budget_s=self.motion_budget_s)
 
     def _route_browser_event(self, method: str, params: Dict, session) -> None:
         if method == "Browser.attachedToTarget":
@@ -2642,6 +3326,21 @@ class BrowserDispatcher(Dispatcher):
             with self._sessions_ready:
                 self._sessions[info.get("targetId")] = params.get("sessionId")
                 self._sessions_ready.notify_all()
+            # ⛔ EVERY page target is adopted, not just requested ones. This
+            # listener runs on the connection's reader thread, so it only
+            # CLAIMS the target here; the building happens on a daemon thread
+            # (`PageDispatcher` blocks waiting for its main frame, and the
+            # reader must never block).
+            # `type` is required by the protocol (`Protocol.js`: an enum of one,
+            # "page"); a targetInfo without it is not a page to adopt.
+            if info.get("type") == "page" and info.get("targetId"):
+                self._spawn_adoption(info.get("targetId"),
+                                     params.get("sessionId"),
+                                     info.get("browserContextId"),
+                                     info.get("openerId"))
+        elif method == "Browser.detachedFromTarget":
+            self._handle_detach(params.get("targetId"),
+                                params.get("sessionId"))
         if session:
             with self._buffer_lock:
                 if session not in self._live:
@@ -2686,6 +3385,167 @@ class BrowserDispatcher(Dispatcher):
                         % (target_id, timeout))
                 self._sessions_ready.wait(left)
             return self._sessions[target_id]
+
+    # ── popup adoption: window.open / target=_blank become real Pages ─────────
+    def _spawn_adoption(self, target_id: str, session_id: Optional[str],
+                        browser_context_id: Optional[str],
+                        opener_id: Optional[str]) -> None:
+        """Claim a fresh engine target and build its page off the reader thread."""
+        with self._targets_lock:
+            if not self._adopt_enabled:
+                return
+            if target_id in self._page_targets or target_id in self._adopting:
+                return
+            self._adopting.add(target_id)
+        thread = threading.Thread(
+            target=self._adopt_target,
+            args=(target_id, session_id, browser_context_id, opener_id),
+            daemon=True, name="invpw-adopt-%s" % target_id[:8])
+        thread.start()
+
+    def _adopt_target(self, target_id: str, session_id: Optional[str],
+                      browser_context_id: Optional[str],
+                      opener_id: Optional[str]) -> None:
+        """Build the `PageDispatcher` for one engine target, then announce it.
+
+        A popup goes through EXACTLY the same construction as a `newPage`
+        page - lifecycle, injected script, buffered-event replay, cursor acts -
+        so it behaves like any other page and carries no observable marker of
+        how it was opened. Stealth is preserved by doing nothing special.
+        """
+        try:
+            session = session_id or self.session_for(target_id, timeout=20.0)
+            context = self._context_for_popup(browser_context_id)
+            with self._targets_lock:
+                opener = self._page_targets.get(opener_id) if opener_id else None
+            page = PageDispatcher(self.server, context, session, target_id,
+                                  opener=opener)
+            # ⛔ `page` BEFORE the registration, on purpose. A detach racing
+            # this build is recorded as early (see `_handle_detach`) and the
+            # close is announced right after, so the client always sees the
+            # page before its close - never a close for a page it has not met.
+            context.emit("page", {"page": page.channel})
+            with self._targets_lock:
+                self._adopting.discard(target_id)
+                self._page_targets[target_id] = page
+                context.pages.append(page)
+                early = target_id in self._detached_early
+                if early:
+                    self._detached_early.discard(target_id)
+                self._pages_ready.notify_all()
+            if early:
+                page.announce_closed()
+        except Exception as failure:
+            with self._targets_lock:
+                self._adopting.discard(target_id)
+                self._detached_early.discard(target_id)
+                self._adopt_errors[target_id] = failure
+                while len(self._adopt_errors) > 64:
+                    self._adopt_errors.pop(next(iter(self._adopt_errors)))
+                # ⛔ LOUD, before the waiter is woken: a failed adoption that
+                # only lives in `handler_errors` is found by nobody. The warn
+                # precedes the notify so that whoever the waiter wakes (it
+                # re-raises this failure) has necessarily already been told.
+                try:
+                    warnings.warn(
+                        "invisible_playwright: adoption of target %s failed: %s"
+                        % (target_id, failure), RuntimeWarning, stacklevel=2)
+                except Exception:
+                    pass
+                self._pages_ready.notify_all()
+            try:
+                if session_id:
+                    self.forget(session_id)
+            except Exception:
+                pass
+            try:
+                if len(self.conn.handler_errors) < 32:
+                    self.conn.handler_errors.append(
+                        "Browser.attachedToTarget: adoption of target %s "
+                        "failed: %s" % (target_id, failure))
+            except Exception:
+                pass
+
+    def _context_for_popup(self, browser_context_id: Optional[str]
+                           ) -> "BrowserContextDispatcher":
+        """The context an engine target belongs to. The DEFAULT context (a
+        persistent launch) is addressed by ABSENCE - `context_id None` - which
+        is also what the event omits, so the two Nones meet here."""
+        for context in list(self.contexts):
+            # A closed context stays in `self.contexts`; a target that attaches
+            # to it late must not become a page of an object already disposed.
+            if context.context_id == browser_context_id and not context.disposed:
+                return context
+        raise ProtocolException(
+            "popup arrived for unknown browserContextId %r: its context was "
+            "closed or never existed here" % (browser_context_id,))
+
+    def _wait_for_page(self, target_id: str, timeout: float) -> PageDispatcher:
+        """The `newPage` half of the single creation path: the adoption thread
+        owns the build, this only waits for it (or re-raises its failure)."""
+        deadline = time.monotonic() + timeout
+        with self._pages_ready:
+            while True:
+                page = self._page_targets.get(target_id)
+                if page is not None:
+                    return page
+                failure = self._adopt_errors.pop(target_id, None)
+                if failure is not None:
+                    raise failure
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise ProtocolException(
+                        "no page was attached for target %s in %.0fs: the "
+                        "engine answered Browser.newPage but never emitted "
+                        "Browser.attachedToTarget for it" % (target_id, timeout))
+                self._pages_ready.wait(left)
+
+    def _handle_detach(self, target_id: Optional[str],
+                       session_id: Optional[str]) -> None:
+        """The engine reports a target gone: an engine-side close (or a popup
+        that died before it finished attaching). Never blocks the reader."""
+        if not target_id:
+            return
+        with self._targets_lock:
+            page = self._page_targets.get(target_id)
+            if page is None and target_id in self._adopting:
+                self._detached_early.add(target_id)
+                return
+        if page is None:
+            # A target that never became a page: only its buffered events
+            # and its session entry are left to drop.
+            with self._sessions_ready:
+                self._sessions.pop(target_id, None)
+            if session_id:
+                self.forget(session_id)
+            return
+        try:
+            page.announce_closed()
+        except Exception:
+            pass
+
+    def _page_over(self, page: PageDispatcher) -> None:
+        """Forget a page everywhere this browser keeps it.
+
+        ⛔ CALLED FROM ONE PLACE, `PageDispatcher.announce_closed`, and that
+        is the point. A page ends four ways - `page.close()`, `context.close()`,
+        the engine's detach, and a detach that beat its own adoption - and each
+        of them used to repeat this bookkeeping next to its call to
+        `announce_closed`, so a fifth way would have had to remember both. The
+        once-guard there already knows when a page is over; the registries
+        hang off it like the listeners do.
+        """
+        with self._targets_lock:
+            if self._page_targets.get(page.target_id) is page:
+                del self._page_targets[page.target_id]
+            try:
+                page.context.pages.remove(page)
+            except ValueError:
+                pass
+        with self._sessions_ready:
+            if self._sessions.get(page.target_id) == page.session:
+                del self._sessions[page.target_id]
+        self.forget(page.session)
 
     #: Context options that are ENGINE state, with the Juggler command and the
     #: field name each one travels in.
@@ -2745,7 +3605,7 @@ class BrowserDispatcher(Dispatcher):
         self.emit("context", {"context": context.channel})
         return {"context": context.channel}
 
-    def _apply_context_options(self, context_id: str, params: Dict) -> None:
+    def _apply_context_options(self, context_id: Optional[str], params: Dict) -> None:
         """Push the options the caller asked for into the engine.
 
         ⛔ BEFORE THE FIRST PAGE EXISTS, and that ordering is the whole point:
@@ -2764,7 +3624,7 @@ class BrowserDispatcher(Dispatcher):
             value = params.get(name)
             if value in (None, ""):
                 continue
-            self.conn.send(command,
+            self._context_send(command,
                            {"browserContextId": context_id, field: value},
                            timeout=10)
         # ⛔ The rest of the option set, each one a lever that was arriving
@@ -2782,34 +3642,34 @@ class BrowserDispatcher(Dispatcher):
             except ValueError as exc:
                 raise ProtocolException(
                     "new_context(proxy=...) cannot be applied: %s" % exc)
-            self.conn.send("Browser.setContextProxy",
+            self._context_send("Browser.setContextProxy",
                            dict(proxy, browserContextId=context_id),
                            timeout=10)
         headers = params.get("extraHTTPHeaders")
         if headers:
-            self.conn.send("Browser.setExtraHTTPHeaders",
+            self._context_send("Browser.setExtraHTTPHeaders",
                            {"browserContextId": context_id,
                             "headers": headers}, timeout=10)
         if params.get("offline"):
-            self.conn.send("Browser.setOnlineOverride",
+            self._context_send("Browser.setOnlineOverride",
                            {"browserContextId": context_id,
                             "override": "offline"}, timeout=10)
         geolocation = params.get("geolocation")
         if geolocation:
-            self.conn.send("Browser.setGeolocationOverride",
+            self._context_send("Browser.setGeolocationOverride",
                            {"browserContextId": context_id,
                             "geolocation": geolocation}, timeout=10)
         credentials = params.get("httpCredentials")
         if credentials:
-            self.conn.send("Browser.setHTTPCredentials",
+            self._context_send("Browser.setHTTPCredentials",
                            {"browserContextId": context_id,
                             "credentials": credentials}, timeout=10)
         if params.get("ignoreHTTPSErrors"):
-            self.conn.send("Browser.setIgnoreHTTPSErrors",
+            self._context_send("Browser.setIgnoreHTTPSErrors",
                            {"browserContextId": context_id,
                             "ignoreHTTPSErrors": True}, timeout=10)
         if params.get("bypassCSP"):
-            self.conn.send("Browser.setBypassCSP",
+            self._context_send("Browser.setBypassCSP",
                            {"browserContextId": context_id,
                             "bypassCSP": True}, timeout=10)
         # ⛔ Inverted on purpose: Playwright says `javaScriptEnabled=False`,
@@ -2817,11 +3677,11 @@ class BrowserDispatcher(Dispatcher):
         # other would turn scripting OFF for every default context, which is
         # the kind of inversion that looks like the site being broken.
         if params.get("javaScriptEnabled") is False:
-            self.conn.send("Browser.setJavaScriptDisabled",
+            self._context_send("Browser.setJavaScriptDisabled",
                            {"browserContextId": context_id,
                             "javaScriptDisabled": True}, timeout=10)
         if params.get("hasTouch"):
-            self.conn.send("Browser.setTouchOverride",
+            self._context_send("Browser.setTouchOverride",
                            {"browserContextId": context_id,
                             "hasTouch": True}, timeout=10)
         permissions = params.get("permissions")
@@ -2831,7 +3691,7 @@ class BrowserDispatcher(Dispatcher):
             # `TargetRegistry.js`). An empty string would ALSO match every url
             # through the `startsWith` half, which is exactly the kind of
             # accident that works until somebody tightens that condition.
-            self.conn.send("Browser.grantPermissions",
+            self._context_send("Browser.grantPermissions",
                            {"browserContextId": context_id, "origin": "*",
                             "permissions": permissions}, timeout=10)
         viewport = params.get("viewport")
@@ -2850,9 +3710,42 @@ class BrowserDispatcher(Dispatcher):
                 wanted["deviceScaleFactor"] = params["deviceScaleFactor"]
             if params.get("isMobile"):
                 wanted["isMobile"] = True
-            self.conn.send("Browser.setDefaultViewport",
+            self._context_send("Browser.setDefaultViewport",
                            {"browserContextId": context_id,
                             "viewport": wanted}, timeout=10)
+
+    def _context_send(self, command: str, params: Dict, timeout: float = 10) -> Any:
+        """A `Browser.*` command about one context. The literal dicts above
+        carry `browserContextId` with the id, or with None for the default
+        context; `_address` turns None into the absence Juggler reads."""
+        return self.conn.send(command,
+                              _address(params.get("browserContextId"), params),
+                              timeout=timeout)
+
+    def op_default_context(self, params: Dict) -> Any:
+        """The context whose state IS the profile's: userContextId 0, the one
+        `launchPersistentContext` promises.
+
+        ⛔ UNTIL 0.12.0 THE PERSISTENT PATH HANDED BACK `op_new_context`, AND A
+        `profile_dir=` KEPT NOTHING. `Browser.createBrowserContext` makes a
+        container, a fresh userContextId, and Juggler's `destroy()` calls
+        `ContextualIdentityService.remove` on it, which deletes the container's
+        cookies and storage together with the identity. Every cookie and every
+        localStorage entry a session wrote lived in a container that died with
+        the session: `cookies.sqlite` in the profile stayed at zero rows, and
+        the second session of the same profile started logged out. Measured
+        2026-09-05 against the published 0.12.0, cookies and localStorage both,
+        while the docs promised "logging in once instead of every run".
+
+        Upstream's persistent context is the DEFAULT one, addressed by omitting
+        `browserContextId`. That is what this returns, with the same options
+        applied the same way.
+        """
+        self._apply_context_options(None, params)
+        context = BrowserContextDispatcher(self.server, self, params, None)
+        self.contexts.append(context)
+        self.emit("context", {"context": context.channel})
+        return {"context": context.channel}
 
     def op_new_page(self, params: Dict) -> Any:
         context = self.op_new_context(params)
@@ -2909,7 +3802,7 @@ class BrowserTypeDispatcher(Dispatcher):
         browser_channel = self.op_launch(dict(params, userDataDir=directory))
         browser = self.server.object(browser_channel["browser"]["guid"])
         return {"browser": browser_channel["browser"],
-                "context": browser.op_new_context(params)["context"]}
+                "context": browser.op_default_context(params)["context"]}
 
     def op_launch(self, params: Dict) -> Any:
         executable = params.get("executablePath")
@@ -2917,29 +3810,31 @@ class BrowserTypeDispatcher(Dispatcher):
             raise ProtocolException(
                 "launch needs an executablePath: invisible_playwright pins its "
                 "own engine and never downloads one at launch time")
-        # ⛔ MERGED ONTO THIS PROCESS'S ENVIRONMENT, NEVER REPLACING IT, and
-        # the difference is a browser that cannot reach the network.
+        # ⛔ A NAMED ENVIRONMENT IS THE WHOLE ENVIRONMENT; NAMING NOTHING MEANS
+        # INHERIT. Two facts, one per half, and each was learned the hard way.
         #
-        # A bare `pw.firefox.launch()` sends an EMPTY `env` list - the caller
-        # named no variables, so there are none to name. Taking that literally
+        # Naming nothing: a bare `pw.firefox.launch()` names no variables (the
+        # client sends no `env`, or an empty list). Taking that literally once
         # meant launching Firefox with an environment of exactly nothing: no
         # `SYSTEMROOT`, no `PATH`, no `TEMP`. The browser starts, the protocol
         # works, `about:blank` and `data:` URLs load - and every HTTP
         # navigation comes back `Page.navigationAborted` with
         # `NS_ERROR_OUT_OF_MEMORY`, an error that names neither the cause nor
-        # the environment.
+        # the environment. Invisible to everything on the product path, which
+        # always names a full environment; it surfaced the first time a gate
+        # ran on this transport with a bare launch.
         #
-        # ⛔ AND IT WAS INVISIBLE TO EVERYTHING. The product path passes a
-        # FULL environment (`_session.build_env`), so every test and every gate
-        # that goes through `InvisiblePlaywright` was unaffected; only a caller
-        # using the vendored client directly hit it - which is exactly who
-        # `get_default_stealth_prefs` exists for. It surfaced the first time a
-        # gate ran on this transport with a bare launch.
-        #
-        # The driver has the same semantics: given no `env` it uses its own
-        # process environment, and given some it adds them.
-        env = dict(os.environ)
-        env.update({e["name"]: e["value"] for e in (params.get("env") or [])})
+        # Naming something: until 0.25.1 the named variables were ADDED onto
+        # this process's environment, so a variable the caller had REMOVED
+        # came back from `os.environ`. `_session.build_env` composes the full
+        # environment and drops what the session's hidden surface names with
+        # `None` (the Wayland variables an Xvfb session must not carry); with
+        # the merge, the hidden Firefox was born with `WAYLAND_DISPLAY` anyway
+        # (measured 2026-09-21, 0.25.0 from the index, `/proc/<pid>/environ`).
+        # Only `GDK_BACKEND=x11` kept it off the real desktop. The driver's
+        # semantics are the same as this: a given `env` is the environment the
+        # browser gets, not a patch on top of the driver's own.
+        env = _launch_environment(params.get("env"))
         # ⛔ WHO MAKES THE PROFILE TAKES IT AWAY - AND ONLY THAT ONE. The
         # caller's `userDataDir` is theirs and survives the session by
         # definition; a directory we invented is ours and must not.
@@ -2953,7 +3848,22 @@ class BrowserTypeDispatcher(Dispatcher):
         ours = params.get("userDataDir") is None
         profile = params.get("userDataDir") or tempfile.mkdtemp(
             prefix="invisible_profile_")
-        _write_user_js(profile, params.get("firefoxUserPrefs") or {})
+        # ⛔ THE TYPING SEED TRAVELS IN THE PREFS AND IS TAKEN OUT AGAIN HERE,
+        # before a single byte reaches the profile.
+        #
+        # It rides here because the launcher already composes this dict in full
+        # and this method already receives it, so nothing new has to be
+        # plumbed. It comes back OUT because it is not a browser preference:
+        # the engine never reads it, and leaving it in `user.js` would write a
+        # session identifier onto disk for no reader at all.
+        #
+        # ⛔ And the namespace is deliberately NOT `stealthfox.*`. That prefix
+        # means "the patched binary reads this", and a reader who found a
+        # typing key under it would go looking in C++ for something that is
+        # answered in Python.
+        prefs, session_seed, motion_budget_s = take_session_motion(
+            params.get("firefoxUserPrefs") or {})
+        _write_user_js(profile, prefs)
         # ⛔ THE CALLER'S TIMEOUT, not ours. `launch(timeout=)` is a
         # documented option and this server ignored it, so a caller who
         # shortened it waited the full built-in 60 s anyway - and one who
@@ -3002,7 +3912,9 @@ class BrowserTypeDispatcher(Dispatcher):
             # swallows one hook's failure so it cannot stop the others.
             self.server.on_shutdown(lambda: _remove_profile(profile))
         version = _read_version(executable)
-        browser = BrowserDispatcher(self.server, self, conn, version)
+        browser = BrowserDispatcher(self.server, self, conn, version,
+                                    session_seed=session_seed,
+                                    motion_budget_s=motion_budget_s)
         return {"browser": browser.channel}
 
 
@@ -3048,6 +3960,34 @@ class JugglerServer(Server):
     #: direction that makes you write code twice.
     METHODS = {"initialize": "op_initialize"}
 
+    def stage_upload(self, payload: Dict) -> str:
+        """A `setInputFiles` payload written to a file, and that file's path.
+
+        Each payload gets a folder of its own, so the file keeps exactly the
+        name the caller gave it - that is the `File.name` the page reads -
+        and two payloads with the same name do not overwrite each other. The
+        name is reduced to its last component: a payload is content, and its
+        name must not choose where on this machine the content is written.
+
+        ⛔ THE FILES LIVE AS LONG AS THE SESSION, not as long as the call. A
+        page reads an uploaded file when it SUBMITS it, which can be minutes
+        after `set_input_files` returned; removing it at the end of the call
+        would leave the input holding a file that no longer exists.
+        """
+        name = os.path.basename((payload.get("name") or "").replace("\\", "/"))
+        if not name:
+            raise ProtocolException(
+                "a file payload needs a name: the page reads it as File.name")
+        root = getattr(self, "_upload_root", None)
+        if root is None:
+            root = tempfile.mkdtemp(prefix="invisible_upload_")
+            self._upload_root = root
+            self.on_shutdown(lambda: shutil.rmtree(root, ignore_errors=True))
+        path = os.path.join(tempfile.mkdtemp(dir=root), name)
+        with open(path, "wb") as out:
+            out.write(base64.b64decode(payload.get("buffer") or ""))
+        return path
+
     def handle_root(self, method: str, params: Dict) -> Any:
         name = self.METHODS.get(method)
         if name is None:
@@ -3067,7 +4007,6 @@ class JugglerServer(Server):
                          "utils": utils.channel},
             guid="Playwright")
         return {"playwright": playwright.channel}
-
 
 
 

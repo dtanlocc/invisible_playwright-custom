@@ -6,6 +6,1024 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.25.11] - 2026-10-04
+
+### Fixed
+- **A page the site opens is a `Page`.** A `window.open()` or a
+  `target=_blank` link opened a tab or a window the client never heard about:
+  no `page` event on the context, no `popup` event on the opener,
+  `expect_page()` and `expect_popup()` timed out, and `context.pages` never
+  listed it. Every page the engine reports is now built on one path, the one
+  `new_page()` uses too, with its opener, so `popup.opener()` answers and the
+  popup is driven like any other page. A popup the site closes with
+  `window.close()` now fires `close` and leaves `context.pages`.
+- **A popup's own document reaches `context.on("request")` and
+  `context.on("response")`**, once each and with its body. It is requested
+  before the popup's page exists, and only its subresources used to arrive;
+  that response is where a PDF opened in a new tab lives.
+
+### Notes
+- A popup opened without a user gesture is still refused by Firefox's popup
+  blocker, as in any Firefox: `page.evaluate("window.open(...)")` returns
+  `null`, because `evaluate` does not carry a user gesture. A real click does.
+
+## [0.25.10] - 2026-10-04
+
+### Fixed
+- **`eval_on_selector` and `eval_on_selector_all` pass `arg` to the expression.**
+  The argument was dropped, so an expression that read it failed with
+  `a is undefined`. The wrapper that turns the caller's expression into a call
+  was written out by hand in four places, which is how two of them came to
+  forget the argument; it is now built in one.
+- **`networkidle` waits for the new document, and reaches every wait that
+  asks for it.** After a `goto`, the old page's silence could satisfy
+  `wait_until="networkidle"` before the new document had loaded. And
+  `wait_for_load_state("networkidle")`, `wait_for_url` and `expect_navigation`
+  with `networkidle` always timed out, because the state was computed inside
+  one wait and never sent to the client. It is now a load state like the
+  others, reached once the current document has loaded and the network has
+  been quiet for half a second, and both `goto` and the client read that one
+  definition.
+- **After a `goto` to a fragment of the same page, `page.url` already has the
+  fragment.** The answer came before the navigation event, so the URL stayed
+  one step behind until the next call.
+
+## [0.25.9] - 2026-10-03
+
+### Changed
+- **`select_option`, and `fill` on a field whose value is picked rather than
+  typed (`date`, `time`, `color`, `range`...), let the engine commit the value
+  through Firefox's own user path** (`Page.selectOptions`, `Page.setUserInput`).
+  Firefox then fires `input` and `change` itself, with the flags a user's change
+  has (not `cancelable`), and nothing at all when a select did not change. The
+  page-side script used to set the value and ask the engine for hand-built
+  trusted events afterwards (`Page.dispatchTrustedInputEvents`): those came out
+  `cancelable`, and inside a shadow root the request failed with
+  `NS_ERROR_UNEXPECTED`, so a `<select>` or a date field in a web component
+  could not be set at all. This needs the firefox-35 engine, which drops
+  `Page.dispatchTrustedInputEvents`; on firefox-34 these two actions fail with
+  an unknown-command error.
+
+### Fixed
+- **A click lands where it was asked on a page with a saved zoom.** The engine
+  sent page coordinates into the window with no zoom factor, so with a site
+  zoomed to 110% or 120% a click landed 145 or 263 px away, a click meant for
+  an iframe reached its parent, and `set_viewport_size` waited forever. The
+  engine now converts with the zoom Firefox actually applies.
+- **On Linux behind a SOCKS proxy, real sites see WebRTC working.** Firefox
+  handed the proxy's wildcard address to the default-route probe, Linux
+  answered with loopback, and no UDP candidate and no srflx were made: sites
+  reported WebRTC as blocked or the page as manipulated. The engine now falls
+  back as it does on Windows. The WebRTC check behind a TCP-only SOCKS proxy,
+  which skipped this case and blamed the CI machine, now fails instead.
+
+### Requires
+- `invisible-core` 35.32.0, which seals the firefox-35 engine. This version
+  does not run on firefox-34, and earlier versions do not run on firefox-35.
+
+## [0.25.8] - 2026-10-02
+
+### Added
+- **`invisible_playwright.hesitation(seed, act, *, nonce=0, times=1)`**, the
+  session's pause before an act, in seconds, for an act this package does not
+  perform itself (answering a file chooser, say). It is drawn from the same
+  typing persona the keyboard uses, so it varies per session and per act, and
+  it returns 0 when `seed` is `None`. A caller that needed this used to import
+  private names of the package and copy the spread of a hesitation.
+
+### Fixed
+- **`fill` and `press_sequentially` (`type`) wait a moment between the focus
+  and the first key.** They focused the field and pressed the first key a few
+  milliseconds later, which no hand does, and a page that answers the focus
+  a moment later (a store that writes its stored value back into the input,
+  a formatter, a field that loads its suggestions) wrote over the text that
+  was arriving: on a field whose store empties it 300, 600 or 900 ms after
+  the focus, an address kept only its last letters in 30 fills out of 30. With
+  humanising on, the session's typist now pauses for one of its hesitations,
+  starting again whenever the field changes, for no longer than the action's
+  timeout: the same 30 fills kept the address 10, 7 and 3 times out of 10,
+  each time the pause outlasted the store's timer, which nothing on the page
+  shows in advance. A fill takes a median 0.7 s longer. The page gets no new
+  event, only time, and the field is read from the utility world, where the
+  page cannot see the read. With humanising off nothing changes. The spread
+  of a hesitation is now one field of the typing persona, used by both
+  pauses.
+- **`delay` reaches the keyboard on `page.type`, `locator.type`,
+  `press_sequentially` and `press`.** `keyboard.type` and the element-handle
+  `type` honoured it; the selector operations accepted it and dropped it, so
+  `locator.type("abcd", delay=150)` went out 6, 10 and 22 ms apart, and
+  `locator.press(key, delay=300)` held the key for the session's own time.
+  For `type` it is the gap between two keys and for `press` how long the key
+  stays down, as Playwright documents both, and one reader takes it off the
+  wire for every key operation.
+- **Each tab of a session types, pauses and clicks with its own rhythm.** The
+  counters that tell two acts apart (the pause before a field, the intervals
+  between keys, how long a click is held, the curve of a drag) lived on each
+  page and started again with every new one, so with one seed the first
+  field of every tab waited the same pause and was typed with the same
+  intervals, and the first click of every tab was held for the same time.
+  Measured with seed 106 and three tabs: a pause of 2.14 to 2.16 s in all
+  three, keydown intervals within a few milliseconds of each other, and a
+  hold of 107 to 109 ms. The session now numbers its pages and every act
+  draws under its page's number, as the cursor already did for its paths:
+  the same three tabs pause 2.15, 0.83 and 1.08 s and type with intervals
+  that differ by as much as 274 ms. The same seed still replays the same
+  sequence, and the first tab of a session pauses, types and clicks exactly
+  as before.
+- **`expect_navigation()` and `wait_for_url()` no longer crash on a new
+  document.** Every navigation event announced its document with a request
+  of `None`, a value Playwright's protocol does not allow there, and the
+  client died on it with `AttributeError: 'NoneType' object has no attribute
+  '_object'`. The event now carries the navigation's request, or no request
+  when there was none (`about:blank`), and after a redirect
+  `expect_navigation().value` is the final response.
+- **A same-document navigation now reaches the client.** A `pushState`, a
+  hash change or the route change of a single-page application arrives from
+  the engine as `Page.sameDocumentNavigation`, and the server updated its own
+  record of the frame and sent nothing up: `page.url` kept the URL of the
+  last full load, `wait_for_url` never resolved and `framenavigated` never
+  fired. A click that worked therefore timed out, on every site that routes
+  in the client rather than reloading. The event now goes up as a `navigated`
+  without a `newDocument`, the shape upstream sends, so the client tells it
+  from a full load the way it always did.
+- **Locators and handles work through nested cross-origin frames.** A
+  locator two frames deep found its element and then read it in the wrong
+  frame: `inner_text` answered "Cannot find object", `bounding_box`,
+  `select_option` and `scroll_into_view_if_needed` matched nothing, and a
+  handle from `wait_for_selector` belonged to the top frame.
+  `frame.parent_frame` is no longer None, `frame.frame_element()` answers
+  instead of refusing, and `frame.url` and the frame's load states follow
+  every new document instead of the last `goto`.
+- **A humanised click lands off-centre in a nested frame and inside a shadow
+  root.** The cursor checked its chosen point with its own hit test, at the
+  top frame's coordinates and blind to shadow roots, so it rejected every
+  off-centre point there and the click went to the exact geometric centre of
+  the element, the same point in every install. The cursor now asks the check
+  the action itself makes before it presses.
+- **`fill('')` and `clear()` empty the field.** On a text input, a textarea
+  or a contenteditable, the injected script only selects the text when the
+  value is empty, and `fill` then asked the engine for bare `input`/`change`
+  events: the page heard about a change while the old text stayed, a
+  contenteditable got a `change` no user can produce, and inside a shadow
+  root the request failed with `NS_ERROR_UNEXPECTED`. It now presses
+  `Delete`, as Playwright does: the page gets the trusted `InputEvent`
+  (`deleteContentForward`) a user's Delete gives, and `change` waits for blur.
+- **`set_input_files`, `focus`, `blur` and `dispatch_event` work on a hidden
+  element.** Each asked the element for a point it never uses, and an element
+  with `display:none` has none, so the action timed out: a file chooser
+  opened from the usual styled button in front of a hidden
+  `<input type=file>` could not receive its files through `set_files` or
+  `set_input_files`. The four act on a hidden element now, as they do in
+  Playwright.
+- **`set_input_files` with content instead of a path uploads that content.**
+  A `{"name", "mimeType", "buffer"}` payload was read as nothing at all: the
+  input was cleared, `change` fired with no files, and the call returned as
+  if it had worked. The payload now reaches the page as a file with its name
+  and its bytes, through the same path as a file on disk, so its type is the
+  one Firefox gives that name, as for a file a user picks. A folder, which
+  the engine cannot take, is refused with a message that says so.
+- **On Linux, a headless session starts on its own virtual display.** The
+  display counted as ready as soon as its lockfile existed, which Xvfb writes
+  before it opens its sockets: sessions started together could land on each
+  other's display, and an Xvfb that died opening its sockets passed for alive,
+  so the browser failed with `cannot open display`. That was 19 failures and
+  9 errors in one run of this package's Linux e2e suite, and none with the
+  core below. The display is also no longer reachable over TCP.
+
+### Requires
+- `invisible-core` 34.32.0, which carries the display fix. Same engine
+  (firefox-34).
+
+## [0.25.7] - 2026-09-25
+
+### Fixed
+- **`goto` returns on a page that replaces itself from script while it
+  loads.** YouTube (`?themeRefresh=1`), Reddit's JavaScript challenge and any
+  page that calls `location.replace` before `load` start a new navigation
+  after ours has committed, and `goto` kept waiting for the `load` of the one
+  that was replaced, which never comes: 45 s and a `TimeoutError` on a page
+  that was ready, while stock Playwright answered in 2 to 4 s on the same
+  Firefox. The wait now accepts our navigation or one that came after it, and
+  still refuses the states of the page we are leaving.
+- **A long session no longer freezes the browser.** Its stdout and stderr
+  share one pipe, which was read only until startup. Once Firefox had written
+  a pipe buffer's worth after that, its next write blocked and the browser
+  stopped answering, with no error. The output is now read for the whole life
+  of the process, and when the browser goes away mid-session the error carries
+  its exit code and its last lines instead of only "the pipe is closed".
+
+### Requires
+- `invisible-core` 34.31.0: the GeoIP database now opens under a non-ASCII
+  path, so a Windows user named José or with a CJK account name can start the
+  browser behind a proxy (it failed with `FileNotFoundError` on a database that
+  exists), and a Windows ARM64 Python gets the x86_64 engine instead of being
+  refused. Same engine (firefox-34).
+
+## [0.25.6] - 2026-09-25
+
+### Fixed
+- **The engine starts under Claude Desktop and other MSIX hosts on Windows.**
+  An app installed as an MSIX package (Claude Desktop, the Microsoft Store
+  Python) silently redirects the files its processes write under AppData into
+  its own package folder. The engine was downloaded there, and launching it
+  from the AppData path failed with `[Errno 14001] ... side-by-side
+  configuration is incorrect`, because Windows looks for `mozglue.dll` where
+  the file really is. Retail Firefox fails the same way when installed like
+  that. The engine path handed to the launcher is now the one the file system
+  reports, so it starts. Reported in discussion #256; issue #22 was the same
+  failure.
+
+### Requires
+- `invisible-core` 34.30.0, which carries the fix. Same engine (firefox-34).
+
+## [0.25.5] - 2026-09-23
+
+### Added
+- **The README is checked for promises no measurement supports, on every
+  change.** A sentence that puts a word quantifying everything next to a
+  circumvention word and a protection word ("it passes every bot detection
+  test") is refused by CI. The check used to run by hand, from outside this
+  repository, after the text was already public. It is `invisible_core.claims`,
+  shared with the MCP server's repository; a circumvention claim on its own
+  stays allowed and is only reported.
+
+### Requires
+- `invisible-core` 34.29.0, which carries that check. Same engine
+  (firefox-34), no change in this package's runtime beyond the pin.
+
+## [0.25.4] - 2026-09-21
+
+### Fixed
+- **Asking again is the caller's choice, not the downloader's.** 0.25.3 put
+  the retry inside the shared download primitive, so the geoip database
+  refresh inherited it - and that caller had already written down the
+  opposite answer, because it holds a cached copy it falls back on. A
+  transient failure there would have spent up to ten seconds of backoff, at
+  browser-session start, on the way to the fallback it was taking anyway, and
+  printed retry lines in a path designed to be silent. The attempt count is
+  now the caller's: the engine download keeps three, and the geoip refresh
+  asks once when it has a cache and three times when it does not, which is
+  the case where the failure is terminal for the session.
+
+### Requires
+- `invisible-core` 34.28.0, which carries that change. Same engine
+  (firefox-34), no change in this package beyond the pin.
+
+## [0.25.3] - 2026-09-21
+
+### Fixed
+- **A transient gateway error on the engine download is asked again instead
+  of ending the install.** Nothing in the package had ever asked twice: a
+  `504 Gateway Time-out` from GitHub on the 262 MB archive came out as
+  `error: 504` and that was the end of it, on a CI runner and on the machine
+  of anyone whose first use of the package landed on one. The download now
+  makes up to three attempts on the failures that mean "ask again" (408,
+  429, 500, 502, 503, 504, dropped connections, read timeouts, a stream that
+  dies mid-transfer), waits 2s and then 8s between them, honours a
+  `Retry-After` the server sends up to a minute, and says on stderr that it
+  is doing so. A permanent answer is unchanged and still comes out on the
+  first ask: a 404 keeps reaching the message that explains a withdrawn tag,
+  and the download deadline is never repeated, because retrying it would
+  multiply the very wait it exists to cap.
+
+### Requires
+- `invisible-core` 34.27.0, which carries that change. Same engine
+  (firefox-34), no change in this package beyond the pin.
+
+## [0.25.2] - 2026-09-21
+
+### Changed
+- **One composer for the launch environment.** `_session.build_env` was a
+  twin of the core's `launch.build_launch_env`, and the hidden surface's half
+  of the contract (the variables `launch_env()` names, including the ones to
+  remove) lived only in the twin. The wrapper now verifies the font manifest
+  against the executable, which is the one thing that needs the executable,
+  and delegates the composition to the core. Same environment on the wire.
+
+### Requires
+- `invisible-core` 34.26.0, where `build_launch_env` takes `display_env`.
+  Same engine (firefox-34).
+
+## [0.25.1] - 2026-09-21
+
+### Fixed
+- **A launch environment the caller names is the whole environment.** The
+  in-process Juggler server added the named variables onto its own process
+  environment, so a variable `build_env` had removed came back: measured on
+  0.25.0 from the index, a `headless=True` session on Linux was born with
+  `WAYLAND_DISPLAY` still set, and only `GDK_BACKEND=x11` kept it off the
+  real desktop. The server now hands the engine exactly what was named;
+  naming nothing (a bare launch) still inherits, because a browser with no
+  `PATH` starts and then cannot reach the network.
+
+## [0.25.0] - 2026-09-21
+
+### Fixed
+- **On Linux the Xvfb display no longer travels through `os.environ`.**
+  `_LinuxVirtualDisplay.start()` used to write `DISPLAY`, `MOZ_ENABLE_WAYLAND`
+  and `GDK_BACKEND` into the process environment and pop the five Wayland
+  variables from it, restoring everything in `stop()`. Every session's
+  environment is a copy of `os.environ`, so a `headless=False` session opened
+  while an Xvfb session was still alive in the same process was born on the
+  Xvfb and never appeared. The whole fact now travels in the surface's
+  `launch_env()`, the same channel the Windows hidden desktop already used: the
+  variables to set, and, named with `None`, the ones the browser must not
+  carry; `build_env` applies both to the session's environment only.
+
+### Requires
+- `invisible-core` 34.25.0, where `launch_env()` gained the `None` half of the
+  contract. Same engine (firefox-34).
+
+## [0.24.0] - 2026-09-21
+
+### Changed
+- **`headless=True` on Windows creates the browser on a hidden Win32 desktop
+  instead of asking the engine to cloak its window.** The spawner now calls
+  `CreateProcessW` itself, naming a fresh desktop object in
+  `STARTUPINFO.lpDesktop` - the one field `subprocess` cannot set - so the
+  launcher, the parent, the GPU process and every content process are born
+  off screen, out of the taskbar and out of alt-tab, with no cooperation from
+  the binary. Linux is unchanged (Xvfb). The pref `zoom.stealth.cloak_windows`
+  is no longer emitted and `invisible_core.cloak_prefs` is gone; the engine
+  is stock on that surface, and the next engine release removes the dead
+  hook.
+
+  Measured on the sealed firefox-33 before shipping, same seed hidden against
+  headed: `hasFocus`, `visibilityState`, `innerWidth/Height`,
+  `outerWidth/Height`, `screenX/Y`, `screen.*`, `devicePixelRatio` and the
+  WebGL renderer string identical, ANGLE D3D11 on both, one Firefox window on
+  the session's desktop and none on the interactive one, three cross-origin
+  navigations in a row without a content-process crash. The two sandbox keys
+  that a hidden desktop needs (`security.sandbox.gpu.level=0`,
+  `security.sandbox.content.level=4`, measured in 2026-05) ride only when the
+  desktop was actually created, never from the platform name.
+
+  Why: the owner chose a stock engine on this surface, and the same
+  mechanism a mass-test harness has used since 2026-05 for dozens of parallel
+  workers. What made it possible now and not in June is that the Node driver
+  is gone: the process is ours to create.
+
+### Requires
+- **The firefox-34 engine, for the screencast of a hidden session.** On
+  firefox-33 a `headless=True` session on Windows starts the window capture
+  and never receives a frame: the engine's cropping capturer saw a visible,
+  uncloaked window and cropped it from the SCREEN, which shows the input
+  desktop only, and the screen capturer moved the capture thread there, after
+  which the window capturer could not read the window either. firefox-34
+  keeps a window that lives on another desktop on the window capturer, whose
+  `PrintWindow` reads it in full from its own desktop. Measured 2026-09-20:
+  0 frames in 15 s on firefox-33, both screencast tests green on the fixed
+  build, hidden. `tests/test_hidden_desktop.py` now asks for a frame from the
+  hidden session, so the engine's release gate proves it on every build.
+
+### Removed
+- `tests/test_cloak.py`, replaced by `tests/test_hidden_desktop.py`, which
+  also carries the control arm the old guard lacked: a headed window is found
+  on the interactive desktop before a hidden one is asserted absent from it.
+- `build_prefs(headless=...)`: the argument selected the cloak layer and
+  selects nothing now. `virtual_display` is the fact that remains.
+
+## [0.23.0] - 2026-09-20
+
+### Changed
+- **The engine floor moves to firefox-33.** It is the first build where a drag
+  gesture is delivered, where a gesture interrupted by a navigation does not
+  leave the page dead to the pointer, and where the renderer acks every mouse
+  event it handles - the ack this driver's questions about input rest on, and
+  the one the engine had lost in its port to Firefox 150.
+
+  On the drag: until now the pinned engine sent its mouse events through a
+  door that could not dispatch `dragover` at all, and then lost the
+  acknowledgement that upstream used to await, so a drag born in the gap
+  between two calls went unnoticed. Measured against the previous engine, a
+  humanised journey opened 0 drag sessions out of 20; against this one, 5 out
+  of 5, and the dose-response on the pause between events went from 5
+  deliveries out of 24 to 24 out of 24, which is the threshold disappearing
+  rather than moving. Nothing in this package changed to get that: the pin
+  carries it, and a consumer only ever runs the engine its seal names.
+
+  The 0.22.3 that was prepared and never published pinned firefox-32, a build
+  that delivered the drag and, under load, failed clicks more often than the
+  engine it replaced - measured on the same runners, the same day: 0 red runs
+  out of 6 before, 1 out of 4 with that engine alone. That is the defect the
+  entry below closes, and it is why that version went out as this one instead.
+
+### Fixed
+- **Under load, a humanised movement no longer collapses into a jump.** The
+  pacer drops an event whose successor is already due rather than sending it
+  late, and that rule had no ceiling in space: on a loaded machine nearly every
+  point was overtaken, the destination survived, and one event carried 89% of
+  an 820 px journey with a timestamp exactly where the plan put it. Now an
+  event is dropped only while the one after it lies within twice the plan's
+  largest step of the last position sent; past that it goes out late, still no
+  closer to the previous one than the 8 ms floor, and the movement overruns
+  its budget by however much the machine is behind. The one overslept sample
+  the Windows timer produces is still dropped, and the plan still ends on
+  time. Both drivers now tell the pacer where the pointer starts, so the first
+  drops are measured from where it really is.
+- **A pointer action that did not reach its element no longer reports
+  success.** `hover`, `click`, `check` and `uncheck` now ask the engine where
+  each event actually landed, as recorded at dispatch by a privileged listener
+  the page cannot see, and raise `ActionMissed` when the move, the press or
+  the release fell on something else. Measured on a target that moves: `hover`
+  returned normally 2 times out of 8 and `click` 8 times out of 8 with the
+  page having seen no event at all. The miss is reported, not retried - the
+  press happened, and repeating it is the defect the retry loop exists to
+  prevent. `force` skips this as it skips the hit-target check. Requires an
+  engine that answers `Page.pointerLanded` and returns an `eventId` from
+  `Page.dispatchMouseEvent`: the question carries the id of the last event the
+  action sent and the engine waits for the renderer's ack of it before it
+  looks, because a `mousemove` is coalesced and dispatched at the next refresh
+  tick, after a question sent right behind it.
+- **The e2e test that asserted a `hover` reaches the page through a handle
+  asserted an entrance, not a move.** It listened for `mouseover`, which fires
+  only when the pointer enters the element, and did not control where the
+  previous action had left the pointer; whether it passed depended on the
+  humanised path of the action before it. It now says what it means. This was
+  the red that appeared on runs whose whole diff was a data file, and it was
+  the test, not the driver.
+
+## [0.22.2] - 2026-09-18
+
+### Fixed
+- **`__version__` describes the code, not the install record.** It came from
+  `importlib.metadata`, which answers about the distribution the installer put
+  there. For a wheel that is the same artifact as the code. For
+  `pip install -e` the metadata is written once while the code keeps moving,
+  and pulling does not touch it. Measured minutes after the checkout had been
+  brought to zero commits behind `origin/main`: the record said 0.16.2 while
+  the tree declared 0.22.1, six releases apart.
+
+  That matters here more than in most packages, because this is the one a
+  measurement names. Read from the program, the X in "measured against
+  invisible-playwright X" was the moment somebody ran `pip install -e`, not the
+  code under test.
+
+  The version is now the install record for a normal install, and for an
+  editable one the version the source tree declares plus a `+editable` local
+  segment, so a tree that can carry uncommitted work is never read as the
+  published release of the same number. Which of the two an install is comes
+  from what `pip` itself wrote in `direct_url.json` (PEP 610), not from a guess
+  about `__file__`. The record is still reported, under
+  `__install_record_version__`, the way `invisible_core` already names it.
+
+- **Two tests were exercising whatever was installed rather than this code.**
+  The `--version` and `-V` arms spawned a subprocess, and a subprocess does not
+  inherit pytest's `pythonpath`. In CI the two coincide, because the workflow
+  installs this repository editable; from a worktree they do not, and the arms
+  went red against a checkout they were never meant to measure.
+
+## [0.22.1] - 2026-09-18
+
+### Fixed
+- **A click is delivered once, whatever the click does to the page.** One
+  `click` could hand the page thirty-nine clicks and then report the action
+  failed; on a control that stays put it did the action twice and reported
+  success. Measured on 0.22.0, three buttons on one page differing only in
+  what their handler does, thirty calls each: a button that does nothing and a
+  button that moves itself were correct thirty times out of thirty, and a
+  button that hides itself received 1068 clicks across 30 calls, all of which
+  were then reported as failures.
+
+  The discriminant is not movement. It is the target ceasing to be hittable by
+  its OWN effect, which is what a modal's close, a cookie banner's accept, a
+  menu item and a submit that becomes a spinner all do.
+
+  The hit target was read before the action and again after it, and both reads
+  raised `WrongHitTarget`, which the retry loop absorbs by starting over -
+  and starting over presses again. The read afterwards cannot answer the
+  question it is asked: once the event has gone out, "the point stopped
+  belonging to the element" is the same observation for a click that missed
+  and for a click that worked. It is gone rather than narrowed.
+
+  What replaces it is one read, between the approach and the press. The read
+  also moved after the approach, which is where the race is: a page that
+  rearranges itself on hover was being judged in the layout from before the
+  pointer arrived.
+
+## [0.22.0] - 2026-09-17
+
+### Fixed
+- **`strict` now refuses an ambiguous selector instead of picking one.** The
+  option was accepted across the public API, the injected script has always
+  known how to raise on it, and nothing in between passed it on: the default
+  stayed false all the way down. Every Locator method sends `strict=True`, so
+  `page.locator("button").click()` on a page with two buttons clicked the
+  FIRST one and reported success. That is not a missing error message. The
+  automation acted on an element nobody had chosen, and said nothing about it.
+- **`force` now bypasses the actionability checks it promises to bypass**, and
+  both of them: the state checks and the hit-target check. "Receives events"
+  is one of the checks the option names, and an overlay intercepting the
+  pointer is the ordinary reason to pass it, so honouring only the first half
+  would leave the option indistinguishable from doing nothing.
+
+### Changed
+- The server reads the per-action options in ONE place rather than one reader
+  per option. A reader per option is the shape that lost these two: seven
+  copies of `params.get("trial")` is how the eighth action gets written
+  without one. A test derives the list of actions that can carry the options
+  from the code and requires every operation reaching one of them to hand
+  them over, so an action added without the wiring is red on the day it is
+  written.
+- `no_wait_after` is NOT in this list, and the note that grouped it with the
+  other two was wrong. Upstream declares it deprecated and without effect, so
+  a client that ignores it matches upstream rather than departing from it.
+
+## [0.21.0] - 2026-09-17
+
+### Added
+- **`go_back()` and `go_forward()` are back**, and the cause 0.18.0 withdrew
+  them for turned out to be here rather than in the engine. A restored
+  document left this client holding the injected script it had cached PER
+  FRAME, while that script is an object inside one execution CONTEXT, and a
+  frame outlives its contexts: every navigation replaces them and so does a
+  restore. The handle and the context it was minted in are stored together
+  now, so "is this still mine" is decided from state rather than inferred
+  from destruction events arriving complete and in order. They do not: on a
+  restore the engine destroys worlds this client was never told existed.
+- The end to end test walks back, forward and back again and READS THROUGH A
+  LOCATOR each time. One movement was green against the defect, and so is
+  asserting on the URL: both of the earlier tests did one of those.
+
+### Changed
+- The perimeter's `WITHDRAWN` set is empty again and stays declared, for the
+  next operation that is written and cannot be trusted yet.
+
+## [0.20.0] - 2026-09-16
+
+### Added
+- **A gate on what the injected script leaves on the page's NODES.** The half of
+  this class that concerned the page's `window` was closed in 0.19.0; this is
+  the other verb. `computeAriaRef` writes `element._ariaRef` while building the
+  accessibility tree, reachable only through `mode="ai"`, and the question
+  underneath had never been answered: does an assignment made through an Xray
+  stay in the sandbox, or reach the page's node?
+
+  Measured against a page served from `127.0.0.1` that watches its own elements:
+  it stays. With `mode="ai"` the snapshot comes back carrying refs and the
+  sandbox sees the expando, while the page sees nothing at all. Nothing was
+  broken and nothing needed fixing - but the day that confinement stops holding,
+  every interactable element would carry a property any page can enumerate, and
+  nothing would have said so. The test drives the writing branch deliberately
+  and fails if it ever stops being reached, so it cannot go quietly green.
+
+## [0.19.0] - 2026-09-16
+
+### Changed
+- **A click has a duration now, and a double click has an interval.**
+  `mousedown` and `mouseup` used to leave together, so what a page measured as
+  the hold was **8.0 ms** against the 60-120 ms a finger takes; and the two
+  presses of a double click had nothing between them, yet were still delivered
+  as a `dblclick`, because that event is born from `clickCount` rather than from
+  the interval - so a page received a double click no operating system would
+  have accepted as one. Both now come from the session's `PointerPersona`, and
+  `delay=`, which was dropped here along with `button` and `modifiers` before
+  it, works again as the override Playwright documents it to be.
+  `humanize=False` keeps the old behaviour.
+
+- **Typing now takes the time a hand takes, and that is a real slowdown you
+  should know about before upgrading.** `page.type`, `locator.press_sequentially`,
+  `keyboard.type` and the typing half of `fill` used to emit keys as fast as the
+  protocol allows: a `keydown` and its `keyup` measured **4.0 ms** apart on a
+  real page, against the 60-120 ms a finger takes, and eleven characters went by
+  in about 50 ms. A site does not have to probe for that, it only has to listen,
+  and a password field is where that listening is already installed. The rhythm
+  now comes from a `TypingPersona` drawn from the session seed - dwell, gaps,
+  the digram structure that makes alternating hands faster than one hand, and
+  occasional hesitations - so `password123` takes about 1.8 s instead of 50 ms.
+  Same seed still types the same way. `humanize=False` keeps the old speed, and
+  the `delay=` you pass still wins over the persona for that call.
+
+- **A drag travels now, instead of arriving.** The whole of `drag_and_drop` was
+  five events, and the two carrying the journey were identical and 7 ms apart -
+  a pair no device can report, since a move event is born from moving. They were
+  deliberate: one jump alone did not reliably start the drag. Measured on a
+  480-pixel drag, that journey now takes 27 events over 26 distinct points, on a
+  path drawn by the same generator and delivered under the same pacing rules as
+  every other pointer movement this package makes. The approach to the source is
+  a path too. `humanize=False` keeps a single event, and `humanize=<seconds>`
+  now caps this movement as it already capped every other one.
+
+### Fixed
+- **`drag_and_drop` raised on a `draggable` element, and left the mouse button
+  down.** Gecko started a native drag session off that single 480-pixel jump,
+  `dispatchDragEvent` then failed with `NS_ERROR_FAILURE`, and the `mouseup`
+  never went out - so the `buttons` field of every event after it said
+  "pressed", including the recovery `mouseup` in the error path, which failed
+  the same way. The whole of HTML5 drag and drop was therefore unusable and
+  nothing said so, because there was no end-to-end test of a drag at all. With a
+  real path the drag is born the way it is for a hand and the gesture completes.
+  It is the same change as the entry above: one absence, three symptoms.
+- **`delay=` on typing was measured in milliseconds and slept in seconds.** The
+  public API documents it in milliseconds; the one server path that forwarded it
+  handed the number straight to `time.sleep`, so
+  `element_handle.type("abc", delay=100)` waited five minutes instead of 0.3
+  seconds. The six paths that dropped the value were accidentally protected from
+  the bug the seventh had. All seven honour it now, and the unit is in the name.
+- **`trial=True` no longer performs the action.** It is accepted on 31 public
+  signatures - click, dblclick, hover, tap, check, uncheck, set_checked and drag
+  across `Page`, `Frame`, `Locator` and `ElementHandle` - and the word appeared
+  nowhere in the engine client, so it reached the wire and fell off it: a call
+  whose whole purpose was not to click clicked. The single place that did read it
+  made the outcome worse rather than better, skipping the humanised pointer
+  approach and then running the action anyway, so the click went out in the most
+  recognisable shape a click has. It is honoured now in the retry loop, which is
+  the only thing that knows what actionable means: the checks run, the hit target
+  is verified, and nothing is dispatched. A drag checks both ends.
+
+- **A mis-aimed click is retried instead of blocked, and the injected script
+  no longer touches the page's window at all.** The hit-target interceptor
+  installed capture listeners there for the duration of every action and
+  called `preventDefault` on the events that landed on the wrong element.
+  Both halves are gone. The listeners were the last thing this package left
+  on the page, and the blocking was the worse half: a real `mousedown` that
+  disappears is not something an input stack produces, so the defence
+  announced itself exactly when it worked. The check is now a pure DOM read
+  run before the action and again after it, so a target that moves is caught
+  and the action retried. What a page sees is a click that landed where the
+  thing it was aimed at used to be, which is what a hand produces when a
+  layout shifts. The guarantee narrows in one case: an element that moves
+  between the check and the event now receives that one event before the
+  retry, where before it received none.
+## [0.18.0] - 2026-09-16
+
+### Removed
+- **`go_back()` and `go_forward()` now refuse.** 0.17.0 made them work for one
+  step, and one step is the problem. The engine restores the document and
+  reports the navigation, but a restored page leaves the driver holding a stale
+  handle for that page's world: go forward, or go back a second time, and every
+  locator raises `Cannot find object with id` while `evaluate()` and
+  `content()` keep answering from the right document. `reload()` clears it.
+  A method that is right once and wrong afterwards puts the failure somewhere
+  else, where it reads as a broken selector on a healthy page, so both refuse
+  with a sentence naming what would have happened. Navigate to the URL instead;
+  `reload()` is unaffected, and a page moving its own history with
+  `history.back()` still restores from the cache.
+
+### Changed
+- The perimeter gained a fifth category, `WITHDRAWN`, for an operation that is
+  written and held back by a defect rather than missing. The four that existed
+  would each have said something untrue about these two, and an inventory that
+  lies is worse than one with a gap.
+- The README stops claiming all methods. It never covered tracing, HAR, CDP or
+  the API request context, and every refusal has said so for a while; the
+  headline had not caught up.
+## [0.17.0] - 2026-09-16
+
+### Fixed
+- **An authenticated HTTP or HTTPS proxy routes the page again.** It was
+  accepted and then bypassed, silently, on every engine from firefox-24 to
+  firefox-30: the credentials went to the proxy endpoint, where Gecko
+  implements them for SOCKS only, so the call failed inside the channel filter
+  and the connection went out directly over the host's own address with
+  nothing raised anywhere. SOCKS was unaffected, which is why it lived through
+  seven releases. HTTP proxy auth answers the 407 challenge instead, and that
+  path was already wired. Reported from the outside, not caught here. There is
+  now an end to end test that drives a browser through an authenticated HTTP
+  proxy, on both the launch road and the context road, which is the case
+  nothing covered.
+- **`go_back()` and `go_forward()` report the navigation they performed.** The
+  engine went back all along; Juggler had no bookkeeping for a document
+  restored from the back forward cache, so the client was never told the
+  navigation had committed. The test asserts that going back RESTORES the
+  document rather than fetching it again, because asserting on the URL alone
+  passes against a browser that silently refetches.
+
+### Changed
+- Pinned engine moves to **firefox-31**, via `invisible-core` 31.23.0.
+- The pinning page's worked examples now run as written. Two of them named a
+  GPU the validated pool cannot present and raised when copied.
+- The ledger step realigns this file's heading date to the date the index
+  reports, so a heading typed hours before the upload it describes cannot
+  disagree with the gate that checks it.
+## [0.16.2] - 2026-09-15
+
+### Changed
+- **The language gate comes from the core.** The check that this repository
+  is English used to be a script here and a copy in AIHawk, and the copies
+  drifted: this one never gained the `.js`, `.css` and `.html` coverage the
+  other did, so the front end was outside its sight. It now runs as
+  `invisible_core.english` from the pinned core, `invisible-core` 30.23.0,
+  and what this repository exempts is declared once in
+  `[tool.invisible.english]` in `pyproject.toml`. An exclusion that names
+  nothing is refused, which is the check the copies did not have.
+- **Three names cross into English with the core.** `srflx_to_declare()`,
+  the `srflx_declared` keyword of `build_launch_env` and the attribute that
+  carries the decision follow the core's rename in the same release, because
+  either half alone breaks the launch. Nothing the browser receives changes:
+  the emitted prefs and the launch environment are byte-identical to 0.16.1.
+
+## [0.16.1] - 2026-09-15
+
+### Fixed
+- **Setting real files on a file input works.** Both doors ended in
+  `InvalidStateError: An attempt was made to use an object that is not, or is
+  no longer, usable`, a sentence naming no file, no API and no preference. The
+  refusal is in the parent process: it declines to build a `File` for any
+  content process whose remote type is not `file`. The preference the engine's
+  own gate calls the "or for testing" escape ships from `invisible-core`
+  30.22.0, which this release pins, and the two tests that covered the defect
+  are hard assertions again for the first time since it was opened.
+- **`FileChooser.set_files()` could not upload anything, and said so.** A
+  chooser already holds the input element, so the client asks the
+  `ElementHandle` for `setInputFiles` rather than going through a selector, and
+  this package had no such method: the whole listening half of the file-chooser
+  feature led to a dispatcher that correctly reported a gap rather than a
+  decision. The element handle now performs the same upload the frame does,
+  through the same action and the same reader of the request, so there is one
+  upload path and not two. The engine-side half of file uploads is a preference
+  that belongs to `invisible-core` and arrives when the pin moves: the two
+  tests covering it stay expected-red until then, and are now strict so they
+  turn red the day they start passing.
+- **`locator.scroll_into_view_if_needed()` works. It never had.** It sent the
+  engine command `Page.scrollIntoViewIfNeeded`, whose handler calls
+  `scrollRectIntoViewIfNeeded` - a method declared in no binding of `Element`
+  anywhere in the engine, so it was `undefined` for every caller and the call
+  threw every time. Measured at four positions, including an element already in
+  view: a timeout on all four, while `bounding_box()` on the same element
+  answered correctly. The package already knew how to scroll, in the one place
+  that mattered: every click has scrolled through the injected script since a
+  click below the fold was found to miss. The public method now calls that same
+  helper, so there is one scroll and not two. It centres the element rather than
+  scrolling the minimum, and a `rect` argument is not honoured.
+
+### Added
+- **Every operation that refuses now says so in `_juggler/perimeter.py`, and a
+  test keeps it that way.** Ten operations raised `ProtocolException` inline
+  with a good reason beside the code and nothing anywhere that recorded they
+  existed, so there was no way to tell a deliberate refusal from a gap without
+  reading the dispatcher end to end. They are declared in three sets that keep
+  the distinction: the engine offers no command (`drop`, `setOffline`,
+  `setWebSocketInterceptionPatterns`), the answer is fixed when the injected
+  script is built (`registerSelectorEngine`, `setTestIdAttributeName`), or it is
+  simply not written yet (`exposeBinding`, `frameElement`, `resolve`, `reject`,
+  `setExtraHTTPHeaders`). The test fails both ways: a new inline refusal nobody
+  declares, and a declared name that has since started working.
+
+## [0.16.0] - 2026-09-15
+
+### Changed
+- **A GPU pin now selects a validated persona instead of setting a label, and an
+  impossible value is refused rather than ignored.** `pin={"gpu.renderer": ...}`
+  used to change the `Profile` object and leave the browser reporting the seed's
+  own GPU: measured on seed 1561645783, the profile said AMD RX 7900 XTX while
+  `zoom.stealth.webgl.renderer` stayed the seed's NVIDIA GTX 980. The same held
+  for `gpu.vendor` and `gpu.class_tier`, so all three keys were decorative with
+  respect to the page. A renderer string cannot travel alone - around 81
+  `getParameter` values, the shader precisions and the extension list belong to
+  the same GPU - so a pin picks one of the validated personas, and a renderer,
+  vendor or class the pool cannot present raises with the available values named.
+  Sessions that pin nothing are unaffected: 404 seeds emit byte-identical
+  preferences before and after.
+- **`webgl.msaa_samples` is no longer a pin key.** The engine now emits the same
+  MSAA sample count on Windows and Linux, so a pin has nothing left to move.
+  Before this, the value was honoured on Linux and held at 4 on Windows, and the
+  two builds emitted a different `gl.SAMPLES` for the same seed on seven of eight
+  measured seeds.
+
+### Fixed
+- **`docs/pinning.md` described behaviour the code did not have.** It said
+  `gpu.renderer` "lands verbatim in `UNMASKED_RENDERER_WEBGL`" and "does not
+  condition other fields"; both were the opposite of true. The README example
+  pinned a card no validated persona carries, so the snippet a reader copied did
+  nothing.
+
+- **The pinning surface loses three keys that could not work.** `screen.tier`
+  could not condition the screen it named, because pins are applied after the
+  sampler has drawn. `screen.avail_width` and `screen.avail_height` were
+  page-contradicting: the engine derives the available rect from `width`,
+  `height` and `taskbar_px`, so pinning either moved a label on the profile and
+  nothing a page reads. Pin `screen.width`, `screen.height` and
+  `screen.taskbar_px`; the available rect follows from them.
+- **`codec.webspeech_synth` is gone from the profile.**
+  `media.webspeech.synth.enabled` is emitted as a constant `true`, which is what
+  retail Firefox does on desktop, so the sampled field only ever made the profile
+  disagree with the browser - on about 12% of seeds.
+
+### Internal
+- Requires `invisible-core==30.21.0`.
+- `_cursor.humanize_prefs` is deleted. It was a second implementation of the
+  `stealthfox.humanize*` contract with no caller in `src/`, and it disagreed with
+  the live one: it never emitted `stealthfox.humanize.stepMs`. The two properties
+  its tests asserted now run through `_session.build_prefs`, which is the
+  function both front doors actually call.
+
+## [0.15.2] - 2026-09-14
+
+### Fixed
+- **`evaluate` no longer rewrites the JavaScript you passed it.** The argument
+  was placed by searching the built script for the placeholder `ARG` and
+  replacing it - over a string that already held your expression - so those
+  three uppercase letters were rewritten to the argument's JSON anywhere they
+  appeared in your own code. `'CARGO'.length` answered 6 instead of 5, a
+  selector `[data-role='TARGET']` matched nothing, `/ARGH/` became `/nullH/`,
+  and `const ARG = 5` was a syntax error. The three letters only had to appear
+  inside a longer word, and three of those four failures were silent. The
+  argument is now placed in the same formatting pass that inserts the
+  expression, so your code is never scanned. `page.evaluate`,
+  `page.evaluate_handle` and `page.wait_for_function` were affected;
+  `element_handle.evaluate` and `eval_on_selector` already built their wrapper
+  this way and were not.
+- The script the page actually runs is unchanged, character for character, for
+  every expression that did not spell the placeholder, and a test pins it:
+  `evaluate` is the one call that deliberately runs in the main world, so the
+  shape of that wrapper is something a site can look at.
+
+## [0.15.1] - 2026-09-14
+
+### Changed
+- **The engine is `firefox-30`, through `invisible-core 30.19.0`.** The
+  screencast capture no longer ends for good when a headed window is
+  minimised for a moment: the engine listens for its capture module ending,
+  starts another one a second later for as long as the window cannot be
+  captured, and repeats the last frame every 250 ms while the module is
+  quiet, so the age of a frame means one thing to a client that watches it.
+  Nothing else moves: the pin follows the seal.
+
+## [0.15.0] - 2026-09-14
+
+### Changed
+- **A closed pipe is a closed target.** A call made after the browser's pipe
+  closed, or one that was waiting when it closed, now raises
+  `TargetClosedError` - the same class a call on a disposed page, context or
+  browser raises - instead of a plain `Error` carrying `the pipe closed`. The
+  browser being gone is one fact and reaches a caller as one type.
+- `invisible_playwright.async_api` and `invisible_playwright.sync_api` export
+  `Error`, `TimeoutError` and `TargetClosedError`, so a caller can catch the
+  type without importing a private path.
+
+## [0.14.0] - 2026-09-08
+
+### Added
+- **`page.screencast.start(fps=...)` sets the frame rate, and the default
+  stays at ten.** The engine has taken a frame rate all along, and the wrapper
+  passed its own constant to it whatever the caller asked, so a live view could
+  not go past ten frames a second no matter what it did. Measured on the same
+  page, interleaved arms: asking for 10 delivers 9.6-9.8 fps at 257 KB/s,
+  asking for 25 delivers 23.8-24.0 at 629 KB/s. The default does not move,
+  which is the whole shape of the change: raising it would put two and a half
+  times the bandwidth on every consumer to serve the one that is watching a
+  window, so the caller decides and the constant is what happens when nobody
+  does. That is how `quality` and `size` on the same call already work.
+
+## [0.13.2] - 2026-09-07
+
+### Fixed
+- **`page.goto()` now answers with the Response, instead of always `None`.**
+  The navigation itself was never broken - the page loaded, the `response`
+  events carried the right statuses and `expect_response` worked - but the
+  return value was hardcoded to `None`, so `page.goto(url).status` was not
+  reachable. `page.reload()` answers with a Response too, and so does history
+  navigation, which shares that code path but is still held back by a separate
+  engine defect of its own. A redirect chain answers with the FINAL response,
+  and a same-document navigation still answers `None`, as upstream does.
+  Crawlee treats a `None` here as a failed load, so a `PlaywrightCrawler`
+  driven by this package failed every request; it now finishes them.
+
+## [0.13.1] - 2026-09-06
+
+### Changed
+- **The engine is `firefox-29`, through `invisible-core 29.19.0`.** It carries
+  the screencast that `page.screencast.start(on_frame=...)` needs, so the
+  feature shipped in 0.13.0 now has an engine that answers it, and the
+  full-window frame no longer carries the Windows resize border. Nothing
+  else moves: the pin follows the seal.
+
+## [0.13.0] - 2026-09-05
+
+### Added
+- **`page.screencast.start(on_frame=...)` streams JPEG frames of the browser
+  WINDOW.** `page.screenshot()` gives the content viewport and can never show
+  the pointer, which is drawn in the chrome document precisely so that no page
+  can see it. The screencast captures the window through the operating system
+  in the parent process - tab strip, address bar and pointer included, nothing
+  injected into the page - and hands each frame to `on_frame` as JPEG bytes
+  with the captured window's size. Needs an engine from `firefox-28` on;
+  `size=` bounds the frame (scaled down to fit, never up, default 1280x800)
+  and `quality=` the JPEG quality (default 80). `path=` (a video file) is
+  refused by name: the engine has no video encoder.
+
+### Fixed
+- **Two threads writing the Juggler pipe could splice two commands into one
+  line.** Frames are acknowledged from the reader thread while the caller's
+  thread dispatches input; the pipe now has a write lock, and a
+  `Connection.post` that sends without waiting for the reply.
+
+## [0.12.3] - 2026-09-05
+
+### Fixed
+- **Orphaned `.tmp-<tag>-<pid>` trees in the engine cache are swept.** Through
+  `invisible-core 27.19.0`: a download killed during `verifying` or
+  `extracting` used to leave up to the whole extracted tree behind, because
+  only a fresh download by the same pid ever removed it. `ensure_binary` now
+  removes the trees whose process is gone, on every call, and leaves alone
+  this process's own tree, a live process's tree and anything not named after
+  a pid. The MCP server 0.13.0 starts the download with the process, which made
+  a killed download an ordinary event rather than a Ctrl-C.
+
+## [0.12.2] - 2026-09-05
+
+### Changed
+- **The launch counter lives on the engine's repository.** Every session now
+  declares `invisible_firefox.usage_ping.url` through `invisible-core 27.18.0`,
+  pointing at the `usage-counter` release of `firefox_antidetect_patch`, the
+  repository that builds and ships the engine. The engine's compiled default
+  says the same from the next build. Engines older than firefox-21 do not read
+  the pref and are not counted. To opt out of the ping, set
+  `invisible_firefox.usage_ping.enabled` to `False` in `extra_prefs`.
+- **The `browser launches` badge is back.** It was removed in 0.7.2 because the
+  counter behind it lived on a repository that had been deleted, so the badge
+  would have redrawn a frozen number every morning. The counter has lived on
+  this repository since 2026-08-19 and is counting again, so the figure the
+  badge shows is live. It is cumulative, and it undercounts: engines before
+  firefox-21 still ask the old address, and they rejoin only as they upgrade.
+
+## [0.12.1] - 2026-09-05
+
+### Fixed
+- **A persistent profile keeps its cookies and storage for the next session.**
+  Since 0.8.0, `profile_dir=` kept nothing: the first session on a profile set a
+  cookie and a localStorage entry and read both back, the second session on the
+  same profile read an empty jar and `None`, and on disk `cookies.sqlite` held
+  zero rows. The persistent launch handed back an ordinary context, a Juggler
+  container with its own userContextId, and Juggler deletes a container's
+  cookies and storage together with the identity when the context is removed;
+  everything a session wrote lived in a container that died with the session.
+  The persistent context is now the browser's default one, the one whose state
+  is the profile's, addressed by omitting `browserContextId` and never removed;
+  closing it closes the browser, as upstream does. Found by a clean-environment
+  check of 0.12.0, on the day after the docs page promised "logging in once
+  instead of every run".
+
+### Added
+- **A test that a persistent profile keeps state**, e2e: two sessions on one
+  profile, cookie and localStorage written in the first and read in the second,
+  and the cookie row read from `cookies.sqlite` in between, so a regression
+  cannot pass by keeping the data where the page sees it and the disk does not.
+  Against 0.12.0 it fails on the on-disk read.
+
+## [0.12.0] - 2026-09-04
+
+### Fixed
+- **The first launch on Windows works.** On a machine that had never run the
+  engine from that path, the first `InvisiblePlaywright(...)` exited with
+  `3221226505` (0xC0000409) before the protocol came up, and the second one
+  worked. It was Firefox's launcher process, not the browser: on a new path
+  `firefox.exe` runs as the launcher first and forwards the Juggler pipe to the
+  real browser, and it read that pipe from CRT descriptors 3 and 4, which the
+  Node.js driver provides and this client does not, since it names the handles
+  in `PW_PIPE_READ` / `PW_PIPE_WRITE`. The launcher died on `_get_osfhandle(3)`;
+  the next launch found a launcher timestamp with no browser timestamp in the
+  registry and disabled the launcher for that path, which is why it failed
+  exactly once per machine and why nothing about the cache directory mattered.
+  The engine is firefox-27, where the launcher forwards the handles it is
+  handed. Every Windows first launch since 0.8.0, the release where this client
+  replaced the Node driver, had this; the daily Windows install check had been
+  red since 2026-08-31. (#144)
+
+### Added
+- **A test for the first launch from a path Firefox has never run from**,
+  Windows only, e2e. It removes the launcher's registry values for the binary
+  under test, launches once, and checks both that the page answers and that the
+  launcher recorded a start followed by the browser's, so a success with the
+  launcher disabled, the path that always worked, does not pass. Against
+  firefox-26 it fails with the exit code above.
+
+### Internal
+- Engine pin moved to firefox-27 through `invisible-core 27.17.0`.
+
+## [0.11.0] - 2026-09-04
+
+### Fixed
+- **A screenshot photographs where the page is.** The clip was
+  `{x: 0, y: 0, width: innerWidth, height: innerHeight}`, and that clip is in
+  document coordinates: not the window, but the top corner of the page at the
+  window's size. An agent that scrolled and looked got the same image every
+  time, and nothing in the image says so. `full_page` was not read at all:
+  800x600 came back where 800x4000 was asked for. (#136)
+- **Two manual workflows stop calling the removed `path` command.** Both
+  called `python -m invisible_playwright path`, a subcommand removed when the
+  CLI became `fetch` plus `version`. The Windows launch matrix failed in all
+  three cells before reaching its launch probe, and the WebRTC gate had not run
+  since the removal. The existing parser gate scanned Python tests only, so
+  neither call site was in its perimeter; there is now one that reads the
+  workflows too. Thanks to @SamadhiFire for finding and fixing it. (#141)
+
+### Added
+- **A check that asks the index whether the version a change proposes is
+  still free**, on pull requests. This release exists partly because that
+  check found its own repository in the state it exists to prevent: 0.10.0 was
+  on the index while main sat on 0.10.0 with fifteen commits on top of the
+  tag, the screenshot fix among them. A release from there would have
+  published nothing and reported success, because the publish workflow treats
+  an already-present version as a deliberate no-op, which is right for a
+  re-pushed tag and indistinguishable from somebody forgetting to bump. (#142)
+
+### Documentation
+- Twelve pages stop shipping code that cannot run as pasted, tool metadata is
+  out of the shipped screenshots, and the front page names the agent layer
+  that sits on this engine. (#137, #138, #139, #140)
+
 ## [0.10.0] - 2026-09-03
 
 ### Added

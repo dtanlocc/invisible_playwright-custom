@@ -40,10 +40,12 @@ SECOND = b"""<!doctype html><html><head><title>second</title></head>
 <body><div id=t>page two</div></body></html>"""
 
 
-def _serve(body):
+def _serve(body, asked=None):
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             page = SECOND if self.path.startswith("/second") else body
+            if asked is not None:
+                asked.append(self.path)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(page)))
@@ -246,6 +248,11 @@ def test_the_public_API_reads_MANY_elements_without_node(firefox_binary):
             assert page.eval_on_selector("#t", "el => el.textContent") == "hello"
             assert page.eval_on_selector_all(
                 "li.x", "els => els.length") == 3
+            # Playwright's contract is fn(element, arg): the argument is passed on.
+            assert page.eval_on_selector(
+                "#t", "(el, a) => el.textContent + a.suffix", {"suffix": "!"}) == "hello!"
+            assert page.eval_on_selector_all(
+                "li.x", "(els, n) => els.length * n", 2) == 6
     finally:
         os.environ.pop(factory.CHOICE_ENV, None)
         srv.shutdown()
@@ -278,25 +285,23 @@ def test_the_public_API_WAITS_for_an_element_that_arrives_late(firefox_binary):
 
 
 @pytest.mark.e2e
-@pytest.mark.xfail(reason="[B185] Page.goBack answers success and does nothing "
-                          "in the shipped engine - the Node driver fails the "
-                          "same way, so this is not the server",
-                   strict=True)
-def test_the_public_API_navigates_BACK_and_FORWARD_without_node(firefox_binary):
-    """⛔ XFAIL ON AN ENGINE DEFECT, MEASURED ON BOTH ARMS.
+def test_going_BACK_then_FORWARD_leaves_the_page_readable(firefox_binary):
+    """⛔ TWO MOVEMENTS, AND A READ FROM THE PAGE. One of each is what the two
+    earlier tests did, and between them they missed the defect entirely.
 
-    `Page.goBack` answers `{success: true}` and then nothing happens: no
-    navigation event, no state change, the title stays on the page you were
-    already on. Measured on 2026-08-27 with `history.length == 2`, so the
-    history entries exist and the command simply does not act on them.
+    Going back once worked from firefox-31 and a locator read fine, so a bench
+    that stops there is green. The second movement is where it broke: the client
+    cached the injected script per FRAME, and the script is an object inside one
+    CONTEXT, so after a restore it was asking the engine for an object in a world
+    that no longer existed. `Cannot find object with id`, while `evaluate()` and
+    `content()` kept answering from the right document, because those resolve the
+    context afresh every time.
 
-    The control is what makes this an engine defect rather than a gap here: the
-    SAME call through the Node driver, same binary, times out with `waiting for
-    navigation until load`. Two different clients, one engine, one behaviour.
-
-    `strict=True` on purpose: the day the engine is fixed this must turn RED so
-    somebody deletes the xfail, instead of quietly passing forever as an
-    expected failure that is no longer failing.
+    So this walks back, forward, and back again, and READS THROUGH A LOCATOR each
+    time. Asserting on `page.url` would pass against the defect; so would
+    counting requests, which is what the restore test next door does for a
+    different and still valid reason. The three ways of being green stop looking
+    alike.
     """
     os.environ[factory.CHOICE_ENV] = factory.JUGGLER
     srv = socketserver.TCPServer(("127.0.0.1", 0), _serve(PAGE))
@@ -309,18 +314,23 @@ def test_the_public_API_navigates_BACK_and_FORWARD_without_node(firefox_binary):
             page = browser.new_page()
             page.goto(url)
             page.goto(url + "second")
-            assert page.title() == "second"
-            # ⛔ A SHORT TIMEOUT because this failure is EXPECTED: at the
-            # default 30 seconds the xfail holds a browser open for half a
-            # minute, and the tests running beside it start failing on load.
-            # That is the rule about never measuring under load, applied to the
-            # bench itself.
-            page.go_back(timeout=3000)
-            assert page.title() == "seam"
-            page.go_forward()
-            assert page.title() == "second"
+            # ⛔ A LOCATOR HERE, BEFORE MOVING. It is what mints the handle, and
+            # without it the first restore builds a fresh one and the defect
+            # hides one movement further along. The bench has to arrive at the
+            # restore already holding something.
+            assert page.locator("#t").inner_text() == "page two"
+
+            page.go_back(timeout=5000)
+            assert page.locator("#t").inner_text() == "hello"
+
+            page.go_forward(timeout=5000)
+            assert page.locator("#t").inner_text() == "page two"
+
+            page.go_back(timeout=5000)
+            assert page.locator("#t").inner_text() == "hello"
+
             page.reload()
-            assert page.title() == "second"
+            assert page.locator("#t").inner_text() == "hello"
     finally:
         os.environ.pop(factory.CHOICE_ENV, None)
         srv.shutdown()
@@ -895,6 +905,72 @@ def test_a_profile_WE_made_is_removed_and_the_caller_s_is_not():
         shutil.rmtree(theirs, ignore_errors=True)
     finally:
         module.juggler.launch = real
+
+
+def test_a_named_launch_environment_is_the_whole_environment(monkeypatch):
+    """⛔ A variable the caller REMOVED must not come back from this process.
+
+    `_session.build_env` composes the browser's full environment and drops
+    what the session's hidden surface names with `None` (an Xvfb session
+    drops the Wayland variables). Until 0.25.1 the server ADDED the named
+    variables onto `dict(os.environ)`, so the removal never reached the
+    browser: measured on 0.25.0 from the index, the hidden Firefox was born
+    with `WAYLAND_DISPLAY=wayland-0` in `/proc/<pid>/environ`. The known-bad
+    input is that merge. The other half stays: a launch that names nothing
+    inherits, because a browser with no `PATH` and no `SYSTEMROOT` starts and
+    then cannot reach the network."""
+    from invisible_playwright._juggler.server import _launch_environment
+
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("SYSTEMROOT_OR_PATH_LIKE", "inherited")
+
+    named = _launch_environment([{"name": "DISPLAY", "value": ":123"},
+                                 {"name": "GDK_BACKEND", "value": "x11"}])
+    assert named == {"DISPLAY": ":123", "GDK_BACKEND": "x11"}
+    assert "WAYLAND_DISPLAY" not in named, "the removed variable came back"
+
+    for nothing in (None, []):
+        inherited = _launch_environment(nothing)
+        assert inherited["SYSTEMROOT_OR_PATH_LIKE"] == "inherited"
+        assert inherited["WAYLAND_DISPLAY"] == "wayland-0"
+        assert inherited is not os.environ
+
+
+def test_the_launch_handler_hands_the_named_environment_to_the_engine(monkeypatch):
+    """And the handler uses it: what `juggler.launch` receives is exactly what
+    the caller named, not a patch on top of the server's process."""
+    import shutil
+    from invisible_playwright._juggler.server import (BrowserTypeDispatcher,
+                                                      JugglerServer)
+    from invisible_playwright._juggler import server as module
+
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    server = JugglerServer()
+    server.attach(type("R", (), {"emit_message": lambda self, m: None})())
+    seen: list = []
+
+    class FakeConnection(EventListeners):
+        def __init__(self):
+            EventListeners.__init__(self)
+
+        def send(self, method, params=None, session=None, timeout=30):
+            return {"browserContextId": "ctx-1", "targetId": "t-1"}
+
+        def close(self):
+            pass
+
+    def fake_launch(executable, profile_dir, **kwargs):
+        seen.append(kwargs["env"])
+        return FakeConnection()
+
+    monkeypatch.setattr(module.juggler, "launch", fake_launch)
+    kind = BrowserTypeDispatcher(server)
+    kind.op_launch({"executablePath": "x", "firefoxUserPrefs": {},
+                    "env": [{"name": "DISPLAY", "value": ":123"}]})
+    try:
+        assert seen[-1] == {"DISPLAY": ":123"}
+    finally:
+        server.shutdown()
 
 
 def test_removing_a_profile_NEVER_raises():
