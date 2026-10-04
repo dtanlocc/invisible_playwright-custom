@@ -104,9 +104,13 @@ class Actions:
     #: without `__init__` still has one, and so that "no event sent yet" reads
     #: as 0 - the value that also means "the engine returned no id".
     _last_event_id = 0
+    #: The session's typing hand, or None when humanising is off. Class
+    #: defaults for the same reason as above: a bench that builds this object
+    #: without `__init__` gets "no rhythm", which is what None means.
+    typing_persona = None
 
-    def __init__(self, connection, session: str, lifecycle, injected,
-                 session_seed=None, motion_budget_s=None):
+    def __init__(self, connection, session: str, lifecycle, injected, *,
+                 acts, session_seed=None, motion_budget_s=None):
         self.c = connection
         self.session = session
         self.lifecycle = lifecycle
@@ -121,7 +125,7 @@ class Actions:
         #: what it meant: no rhythm, not a default one.
         self.session_seed = session_seed
         self.pointer_persona = None
-        typing_persona = None
+        self.typing_persona = None
         #: ⛔ THE ONE POINTER PATH THE CLIENT CANNOT DRAW. The client's cursor
         #: wrapper does "approach THEN act", which is every action except the
         #: drag: there the movement IS the action, it happens with the button
@@ -134,21 +138,27 @@ class Actions:
         if session_seed is not None:
             from .._behaviour import PointerPersona, TypingPersona, _sub_seed
             self.pointer_persona = PointerPersona.from_seed(session_seed)
-            typing_persona = TypingPersona.from_seed(session_seed)
+            self.typing_persona = TypingPersona.from_seed(session_seed)
             try:
                 from .._motion import CursorMotion
             except Exception:  # noqa: BLE001 - see `_cursor`: motion is optional
                 CursorMotion = None  # type: ignore[assignment]
             if CursorMotion is not None:
                 self.motion = CursorMotion(_sub_seed(session_seed, "server:drag"))
-        #: One stream per Actions, so two clicks in a session do not repeat the
-        #: same durations - the same reason the keyboard keeps one.
-        self._click_nonce = 0
+        #: ⛔ THE NONCE OF EVERY ACT OF THIS PAGE, and it is REQUIRED, not
+        #: defaulted. It carries the page's number in the session
+        #: (`_behaviour.SessionActs.page`), so two clicks, two fields or two
+        #: typed strings never draw the same durations, not even the first act
+        #: of two different tabs. Bare counters here restarted at 1 on every
+        #: page, and a default would bring that back for whoever forgot to
+        #: pass one. The keyboard and the drag draw from this same object.
+        self.acts = acts
         #: ⛔ A SINGLE keyboard per page, and that's the point: it holds
         #: the state of the modifiers. Building one per action would lose
         #: "Shift is down" between a `down` and the next key, and
         #: `Shift+a` would type `a`.
-        self.keyboard = Keyboard(connection, session, typing_persona)
+        self.keyboard = Keyboard(connection, session, self.typing_persona,
+                                 acts=acts)
         #: The last pointer position. Used by the wheel and by drag and
         #: drop, which start from where the mouse IS - not from 0,0.
         self.position = (0.0, 0.0)
@@ -228,19 +238,25 @@ class Actions:
     def _retry(self, selector: str, run, *, states=None,
                timeout: float = 30.0, frame_id: Optional[str] = None,
                position=None, element_id: Optional[str] = None,
-               needs_point: bool = True, trial: bool = False,
-               strict: bool = False, force: bool = False):
+               trial: bool = False, strict: bool = False,
+               force: bool = False, needs_point: bool = True):
         """Resolve, check, act, and if something doesn't match, START OVER.
 
-        ⛔ `needs_point=False` IS FOR THE ACTION THAT HAS NO POINT TO AIM AT.
-        Everything here is built around an event that lands somewhere, so the
-        loop measures a quad before it acts. `set_input_files` doesn't: it
-        hands the paths to the parent process and its `run` ignores the point
-        it is given. Demanding a quad anyway made it fail on the one input
-        shape the whole web uses - the HIDDEN `<input type=file>` behind a
-        styled button - with "the element has no quad (it isn't visible)",
-        after burning the full timeout. Measured on TikTok Studio Upload,
-        2026-09-16: 285 turns, 15s, on an input that was there the whole time.
+        ⛔ `needs_point=False` IS FOR AN ACTION THAT DOES NOT TOUCH THE SCREEN.
+        Setting a file input's files goes through the engine, not the pointer,
+        and the input it is aimed at is usually HIDDEN - a styled button in
+        front of an `<input type=file>` with `display:none`. Asking that input
+        for a quad answered "it isn't visible" on every turn until the
+        timeout, so an upload to the commonest upload widget there is could
+        not happen through either door, `set_input_files` or a file chooser's
+        `set_files`. Such an action gets the element and no point: no scroll,
+        no hit test, nothing a hidden element cannot satisfy.
+
+        ⛔ AND IT IS A PROPERTY OF THE ACTION, NOT OF FILE INPUTS: every action
+        whose `states` are empty declared that it needs no visibility, and the
+        quad put the requirement back. `focus`, `blur` and `dispatch_event` on
+        a `display:none` element timed out the same way, 4 s out of 4, where
+        Playwright performs all three; they pass `needs_point=False` too.
 
         ⛔ `position` travels HERE and not through each action, because the
         point is recomputed on every turn of this loop: an offset applied by
@@ -300,12 +316,9 @@ class Actions:
                     element_ok = True
 
                 if element and element_ok and not needs_point:
-                    # No geometry is read and none is needed: act where the
-                    # node is, hidden or not. A trial still only checks,
-                    # because trial is a statement about actionability and
-                    # this action's actionability is "the node is there".
-                    return None if trial else run(f, element, None)
-
+                    if trial:
+                        return None
+                    return run(f, element, None)
                 if element and element_ok:
                     # ⛔ SCROLL FIRST, and only when the point is not usable.
                     # Actionability says "visible", which is true of an element
@@ -353,8 +366,7 @@ class Actions:
                         # would actually ask, and `trial=True, force=True` asks
                         # whether a FORCED action would go through.
                         if not force:
-                            verdict = self.inj.check_hit_target(
-                                f, element, self._hit_point(f, point))
+                            verdict = self.hit_target(f, element, point)
                             if verdict != "done":
                                 raise WrongHitTarget(verdict)
                         return None
@@ -403,6 +415,21 @@ class Actions:
             time.sleep(0.05)
 
     # ── the hit target ──────────────────────────────────────────────────────
+    def hit_target(self, f, element, point) -> str:
+        """Does a MAIN-FRAME point land on `element`? `"done"`, or what is there.
+
+        ⛔ ONE QUESTION, ONE ANSWER, THREE ASKERS: the trial, the check before
+        a commit, and the humanised cursor choosing an off-centre landing
+        (`ElementHandle.checkHitTarget`). The cursor used to answer it on its
+        own with `document.elementFromPoint` at main-frame coordinates, which
+        is wrong twice: inside a nested frame the number means another place,
+        and inside a shadow root the hit is the host, never the control. Both
+        made every landing fail its check and fall back to the exact geometric
+        centre - one number for every click. Asking here means the cursor
+        accepts exactly the points the action itself would accept.
+        """
+        return self.inj.check_hit_target(f, element, self._hit_point(f, point))
+
     def _hit_point(self, f, point):
         """The caller's point, expressed in `f`'s own coordinate space.
 
@@ -502,8 +529,7 @@ class Actions:
         """
         approach()
         if not force:
-            verdict = self.inj.check_hit_target(f, element,
-                                                self._hit_point(f, point))
+            verdict = self.hit_target(f, element, point)
             if verdict != "done":
                 raise WrongHitTarget(verdict)
         result = commit()
@@ -528,7 +554,8 @@ class Actions:
 
     # ── waiting ─────────────────────────────────────────────────────────────
     def wait_for_selector(self, selector: str, *, state: str = "visible",
-                          timeout: float = 30.0, frame_id: Optional[str] = None):
+                          timeout: float = 30.0, frame_id: Optional[str] = None,
+                          strict: bool = False):
         """Waits for a selector to reach a state, and returns its handle.
 
         ⛔ THE HANDLE IS NOT DISPOSED HERE, and that is deliberate: the caller
@@ -549,7 +576,7 @@ class Actions:
         deadline = time.monotonic() + timeout
         reason = "not tried yet"
         while True:
-            element = self.inj.query_selector(frame, selector)
+            element = self.inj.query_selector(frame, selector, strict=strict)
             if state == "detached":
                 if not element:
                     return None
@@ -692,7 +719,7 @@ class Actions:
                 f, "(injected, el) => injected.focusNode(el, true)",
                 {"objectId": element})
         return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id,
-                           element_id=element_id, **opts)
+                           element_id=element_id, needs_point=False, **opts)
 
     def blur(self, selector: str, *, timeout: float = 30.0,
              frame_id: Optional[str] = None, **opts):
@@ -703,7 +730,7 @@ class Actions:
                 "'error:notconnected'; el.blur(); return 'done'; }",
                 {"objectId": element})
         return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id,
-                           **opts)
+                           needs_point=False, **opts)
 
     def select_text(self, selector: str, *, timeout: float = 30.0,
                     frame_id: Optional[str] = None, **opts):
@@ -721,11 +748,11 @@ class Actions:
                       element_id: Optional[str] = None, **opts):
         """`select_option`. Options are given by value, label or index.
 
-        ⛔ And the `input`/`change` events are requested from the TRUSTED
-        command after the mutation, same as for `fill`: without it, a
-        `<select>` changes value and the page doesn't know it - and if the
-        injected script dispatched them they would come out with
-        `isTrusted: false`, which is [B175].
+        ⛔ The injected script only RESOLVES which options are meant; the
+        engine selects them through the dropdown's own path
+        (`Page.selectOptions`), so Firefox fires `input`/`change` itself, and
+        fires nothing when the selection did not change. Selected from the
+        page they came out with `isTrusted: false`, which is [B175].
         """
         wanted = _normalize_options(options)
 
@@ -735,8 +762,11 @@ class Actions:
                 {"objectId": element}, wanted)
             if isinstance(r, str) and r.startswith("error:"):
                 raise EvaluationError("selectOptions: %s" % r)
-            self._trusted_events(f, element, ["input", "change"])
-            return r
+            self.c.send("Page.selectOptions",
+                        {"frameId": f, "objectId": element,
+                         "indices": r["indices"]},
+                        session=self.session, timeout=10)
+            return r["values"]
         return self._retry(selector, run,
                            states=["visible", "stable", "enabled"],
                            timeout=timeout, frame_id=frame_id,
@@ -760,16 +790,26 @@ class Actions:
                 f, "(injected, el, t, d) => injected.dispatchEvent(el, t, d)",
                 {"objectId": element}, event_type, detail or {})
         return self._retry(selector, run, states=[], timeout=timeout, frame_id=frame_id,
-                           **opts)
+                           needs_point=False, **opts)
 
     def press(self, selector: str, key: str, *, timeout: float = 30.0,
               frame_id: Optional[str] = None,
-              element_id: Optional[str] = None, **opts):
-        """`press`: focuses and presses, with the modifiers from the name."""
+              element_id: Optional[str] = None,
+              dwell_ms: Optional[float] = None, **opts):
+        """`press`: focuses and presses, with the modifiers from the name.
+
+        No typist's pause before the key, unlike `fill` and `type`: a press is
+        one key, most often sent to a field that already holds the focus
+        (Enter after typing), where there is no focus for a page to answer
+        and the wait between the two calls is the caller's.
+
+        `dwell_ms` is the caller's `delay`, how long the key stays down; None
+        leaves it to the session's hand, as `keyboard.press` does.
+        """
         def run(f, element, point):
             self.inj.call(f, "(injected, el) => injected.focusNode(el, true)",
                           {"objectId": element})
-            self.keyboard.press(key)
+            self.keyboard.press(key, dwell_ms=dwell_ms)
             return key
         return self._retry(selector, run,
                            states=["visible", "stable", "enabled"],
@@ -784,10 +824,14 @@ class Actions:
         ⛔ It isn't `fill`: that one replaces the content, this one
         appends to it. Swapping them is the easiest way to end up with
         `foobar` in a field that was meant to hold `bar`.
+
+        The typist's pause between the focus and the first key is the same
+        as `fill`'s, see `_reach_field`.
         """
+        deadline = time.monotonic() + timeout
+
         def run(f, element, point):
-            self.inj.call(f, "(injected, el) => injected.focusNode(el, true)",
-                          {"objectId": element})
+            self._reach_field(f, element, deadline)
             self.keyboard.type(text, delay_ms=delay)
             return text
         return self._retry(selector, run,
@@ -864,7 +908,11 @@ class Actions:
         # very pair this replaced. The client's walk drops it for the same
         # reason; found here by the browser arm, because in isolation there is
         # no preceding event for it to duplicate.
-        path = self.motion.path(x0, y0, to_point[0], to_point[1])[1:]
+        # ⛔ `index=`: the generator's own count lives on this page's
+        # instance and restarts with it, so the first drag of every tab drew
+        # the same curve. The page's act nonce numbers it across the session.
+        path = self.motion.path(x0, y0, to_point[0], to_point[1],
+                                index=self.acts.next("drag"))[1:]
         # ⛔ A curved path near an edge leaves the viewport on its own, and a
         # pointer event outside it is not ignored - the browser parks the cursor
         # at the origin, mid-movement. The destination is emitted unclamped: it
@@ -1017,8 +1065,8 @@ class Actions:
         if self.pointer_persona is None:
             return [(0.0, 0.0)] * clicks
         from .._behaviour import plan_click
-        self._click_nonce += 1
-        return plan_click(self.pointer_persona, clicks, nonce=self._click_nonce)
+        return plan_click(self.pointer_persona, clicks,
+                          nonce=self.acts.next("click"))
 
     def fill(self, selector: str, text: str, *, timeout: float = 30.0,
              frame_id: Optional[str] = None,
@@ -1026,36 +1074,125 @@ class Actions:
         """Writes into a field.
 
         ⛔ It doesn't just write `element.value = ...`: a site listening
-        for `input`/`change` would see nothing. The injected script does
-        the mutation and says what's needed next - `needsinput` if the
-        text still needs typing, `done` if the value was set and only the
-        events are missing. And those events are requested from
-        `Page.dispatchTrustedInputEvents`, or they come out with
-        `isTrusted: false`, which is the tell measured in [B175].
+        for `input`/`change` would see nothing. The injected script says
+        what's needed - `needsinput` if the text has to be typed, or
+        `{"setUserInput": value}` for a control a user sets by picking
+        (date, color, range...). That value is committed by the ENGINE
+        through Firefox's own user path (`Page.setUserInput`), so Firefox
+        fires the events with the shape a user's pick gets; built here or in
+        the page they came out untrusted ([B175]) or with the wrong shape.
+
+        ⛔ AND THE FIRST KEY DOES NOT FOLLOW THE FOCUS IN THE SAME BREATH:
+        `_reach_field` stands between them, before the injected script
+        selects what the field holds, so what gets selected and replaced is
+        what the page left there once it had answered the focus. A picked
+        value waits the same: the person who focuses a date field does not
+        commit a date in the same millisecond either.
         """
+        deadline = time.monotonic() + timeout
+
         def run(f, element, point):
-            self.inj.call(f, "(injected, el) => injected.focusNode(el, true)",
-                          {"objectId": element})
+            self._reach_field(f, element, deadline)
             result = self.inj.call(
                 f, "(injected, el, v) => injected.fill(el, v)",
                 {"objectId": element}, text)
             if isinstance(result, str) and result.startswith("error:"):
                 raise EvaluationError("fill: %s" % result)
-            if result == "needsinput":
+            if isinstance(result, dict) and "setUserInput" in result:
+                self.c.send("Page.setUserInput",
+                            {"frameId": f, "objectId": element,
+                             "value": result["setUserInput"]},
+                            session=self.session, timeout=10)
+            elif result == "needsinput":
                 if text:
                     self._type(text)
                 else:
-                    # Clearing a field doesn't generate keystrokes: the
-                    # events still need to be requested, or the page
-                    # doesn't know it changed.
-                    self._trusted_events(f, element, ["input", "change"])
-            else:
-                self._trusted_events(f, element, ["input", "change"])
+                    # ⛔ Clearing is a keystroke, as in Playwright: the
+                    # injected script only SELECTED the text, so `Delete`
+                    # is what empties it, and the page gets the `InputEvent`
+                    # a user's Delete gives (`deleteContentForward`). This
+                    # used to request bare `input`/`change` instead: the
+                    # text stayed in the field, a contenteditable heard a
+                    # `change` no user can produce, and inside a shadow root
+                    # firefox-34 refused the request (NS_ERROR_UNEXPECTED).
+                    self.keyboard.press("Delete")
             return result
         return self._retry(selector, run, element_id=element_id,
                            states=["visible", "stable", "enabled",
                                    "editable"],
                            timeout=timeout, frame_id=frame_id, **opts)
+
+    #: What a field holds, for telling whether the page is still changing it.
+    #: `textContent` rather than `innerText` for editable content: the question
+    #: is only "did it change", and `innerText` would make the page lay itself
+    #: out for an answer `textContent` gives without.
+    _FIELD_TEXT_JS = (
+        "(injected, el) => {"
+        "  if (!el.isConnected) return 'error:notconnected';"
+        "  const e = injected.retarget(el, 'follow-label') || el;"
+        "  const n = e.nodeName.toLowerCase();"
+        "  return (n === 'input' || n === 'textarea') ? e.value : e.textContent; }")
+
+    def _reach_field(self, f, element, deadline: float) -> None:
+        """Focus a field, then wait the time a person takes before the first
+        key, and longer while the field visibly changes.
+
+        ⛔ A PERSON DOES NOT TYPE THE INSTANT A FIELD HAS THE FOCUS, AND PAGES
+        COUNT ON IT. `fill` and `type` focused and pressed the first key in
+        the same breath, a few milliseconds apart, which no hand does - and a
+        page that answers the focus a moment later (a store writing its stored
+        answer back, a formatter, a field loading its suggestions) then wrote
+        over what was already arriving. Measured by the MCP server on a real
+        form: "30" gone a second after it was typed, an email keeping only its
+        last letters. The server inserted a pause of its own in front of
+        `fill`, importing private names of this package to draw it; the pause
+        belongs to the action that types, and to every caller of it.
+
+        The pause is one hesitation of the session's typing persona
+        (`_behaviour.plan_hesitation`, act ``"field"``, one nonce per field
+        of the session, from `self.acts`),
+        and it starts again from every change the field shows, so a page still
+        answering the focus finishes before the first key. Bounded by the
+        action's own deadline: a field that never stops changing is typed into
+        when the time the caller gave the action is up, not waited on forever.
+
+        ⛔ NOTHING THE PAGE CAN SEE IS ADDED, ONLY TIME. The field is read in
+        the utility world, through the engine's own accessors, so a page that
+        wrapped `value` in its own world is not called, and a read fires no
+        event. What the page does not SHOW - a timer about to fire - cannot be
+        waited for by anybody.
+
+        No persona, no pause: humanising off keeps meaning no rhythm. And a
+        caller who passed `delay=` chose the interval between keys, not this.
+        """
+        def text():
+            got = self.inj.call(f, self._FIELD_TEXT_JS, {"objectId": element})
+            if got == "error:notconnected":
+                # Nothing has been typed yet, so starting over is free: the
+                # retry loop finds the field the page put in its place.
+                raise EvaluationError("field: error:notconnected")
+            return got
+
+        self.inj.call(f, "(injected, el) => injected.focusNode(el, true)",
+                      {"objectId": element})
+        if self.typing_persona is None:
+            return
+        from .._behaviour import plan_hesitation
+        pause = plan_hesitation(self.typing_persona, "field",
+                                self.acts.next("field")) / 1000.0
+        held = text()
+        still_since = time.monotonic()
+        while True:
+            now = time.monotonic()
+            left = min(still_since + pause, deadline) - now
+            if left <= 0:
+                return
+            # Read eight times per pause, so a change is seen within an eighth
+            # of it and the restarted pause is never late by more than that.
+            time.sleep(min(left, pause / 8))
+            seen = text()
+            if seen != held:
+                held, still_since = seen, time.monotonic()
 
     # ── the tools ───────────────────────────────────────────────────────────
     def _mouse_event(self, event_type: str, point, *, button: int = 0,
@@ -1102,16 +1239,3 @@ class Actions:
             # error mid-typing would get swallowed and the text
             # reinserted from scratch, doubling what had already gone in.
             self.keyboard.insert_text(text)
-
-    def _trusted_events(self, frame_id: str, element: str, types: list):
-        """⛔ Goes through the command our OWN fork added to Juggler.
-
-        Dispatching from the injected script would produce `isTrusted:
-        false`, and mixing trusted and untrusted events on the same form
-        is a cheaper tell than any single signal: no enumeration API, just
-        one `addEventListener`. Measured in [B175].
-        """
-        self.c.send("Page.dispatchTrustedInputEvents",
-                    {"frameId": frame_id, "objectId": element,
-                     "types": types},
-                    session=self.session, timeout=10)

@@ -6,6 +6,251 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.25.11] - 2026-10-04
+
+### Fixed
+- **A page the site opens is a `Page`.** A `window.open()` or a
+  `target=_blank` link opened a tab or a window the client never heard about:
+  no `page` event on the context, no `popup` event on the opener,
+  `expect_page()` and `expect_popup()` timed out, and `context.pages` never
+  listed it. Every page the engine reports is now built on one path, the one
+  `new_page()` uses too, with its opener, so `popup.opener()` answers and the
+  popup is driven like any other page. A popup the site closes with
+  `window.close()` now fires `close` and leaves `context.pages`.
+- **A popup's own document reaches `context.on("request")` and
+  `context.on("response")`**, once each and with its body. It is requested
+  before the popup's page exists, and only its subresources used to arrive;
+  that response is where a PDF opened in a new tab lives.
+
+### Notes
+- A popup opened without a user gesture is still refused by Firefox's popup
+  blocker, as in any Firefox: `page.evaluate("window.open(...)")` returns
+  `null`, because `evaluate` does not carry a user gesture. A real click does.
+
+## [0.25.10] - 2026-10-04
+
+### Fixed
+- **`eval_on_selector` and `eval_on_selector_all` pass `arg` to the expression.**
+  The argument was dropped, so an expression that read it failed with
+  `a is undefined`. The wrapper that turns the caller's expression into a call
+  was written out by hand in four places, which is how two of them came to
+  forget the argument; it is now built in one.
+- **`networkidle` waits for the new document, and reaches every wait that
+  asks for it.** After a `goto`, the old page's silence could satisfy
+  `wait_until="networkidle"` before the new document had loaded. And
+  `wait_for_load_state("networkidle")`, `wait_for_url` and `expect_navigation`
+  with `networkidle` always timed out, because the state was computed inside
+  one wait and never sent to the client. It is now a load state like the
+  others, reached once the current document has loaded and the network has
+  been quiet for half a second, and both `goto` and the client read that one
+  definition.
+- **After a `goto` to a fragment of the same page, `page.url` already has the
+  fragment.** The answer came before the navigation event, so the URL stayed
+  one step behind until the next call.
+
+## [0.25.9] - 2026-10-03
+
+### Changed
+- **`select_option`, and `fill` on a field whose value is picked rather than
+  typed (`date`, `time`, `color`, `range`...), let the engine commit the value
+  through Firefox's own user path** (`Page.selectOptions`, `Page.setUserInput`).
+  Firefox then fires `input` and `change` itself, with the flags a user's change
+  has (not `cancelable`), and nothing at all when a select did not change. The
+  page-side script used to set the value and ask the engine for hand-built
+  trusted events afterwards (`Page.dispatchTrustedInputEvents`): those came out
+  `cancelable`, and inside a shadow root the request failed with
+  `NS_ERROR_UNEXPECTED`, so a `<select>` or a date field in a web component
+  could not be set at all. This needs the firefox-35 engine, which drops
+  `Page.dispatchTrustedInputEvents`; on firefox-34 these two actions fail with
+  an unknown-command error.
+
+### Fixed
+- **A click lands where it was asked on a page with a saved zoom.** The engine
+  sent page coordinates into the window with no zoom factor, so with a site
+  zoomed to 110% or 120% a click landed 145 or 263 px away, a click meant for
+  an iframe reached its parent, and `set_viewport_size` waited forever. The
+  engine now converts with the zoom Firefox actually applies.
+- **On Linux behind a SOCKS proxy, real sites see WebRTC working.** Firefox
+  handed the proxy's wildcard address to the default-route probe, Linux
+  answered with loopback, and no UDP candidate and no srflx were made: sites
+  reported WebRTC as blocked or the page as manipulated. The engine now falls
+  back as it does on Windows. The WebRTC check behind a TCP-only SOCKS proxy,
+  which skipped this case and blamed the CI machine, now fails instead.
+
+### Requires
+- `invisible-core` 35.32.0, which seals the firefox-35 engine. This version
+  does not run on firefox-34, and earlier versions do not run on firefox-35.
+
+## [0.25.8] - 2026-10-02
+
+### Added
+- **`invisible_playwright.hesitation(seed, act, *, nonce=0, times=1)`**, the
+  session's pause before an act, in seconds, for an act this package does not
+  perform itself (answering a file chooser, say). It is drawn from the same
+  typing persona the keyboard uses, so it varies per session and per act, and
+  it returns 0 when `seed` is `None`. A caller that needed this used to import
+  private names of the package and copy the spread of a hesitation.
+
+### Fixed
+- **`fill` and `press_sequentially` (`type`) wait a moment between the focus
+  and the first key.** They focused the field and pressed the first key a few
+  milliseconds later, which no hand does, and a page that answers the focus
+  a moment later (a store that writes its stored value back into the input,
+  a formatter, a field that loads its suggestions) wrote over the text that
+  was arriving: on a field whose store empties it 300, 600 or 900 ms after
+  the focus, an address kept only its last letters in 30 fills out of 30. With
+  humanising on, the session's typist now pauses for one of its hesitations,
+  starting again whenever the field changes, for no longer than the action's
+  timeout: the same 30 fills kept the address 10, 7 and 3 times out of 10,
+  each time the pause outlasted the store's timer, which nothing on the page
+  shows in advance. A fill takes a median 0.7 s longer. The page gets no new
+  event, only time, and the field is read from the utility world, where the
+  page cannot see the read. With humanising off nothing changes. The spread
+  of a hesitation is now one field of the typing persona, used by both
+  pauses.
+- **`delay` reaches the keyboard on `page.type`, `locator.type`,
+  `press_sequentially` and `press`.** `keyboard.type` and the element-handle
+  `type` honoured it; the selector operations accepted it and dropped it, so
+  `locator.type("abcd", delay=150)` went out 6, 10 and 22 ms apart, and
+  `locator.press(key, delay=300)` held the key for the session's own time.
+  For `type` it is the gap between two keys and for `press` how long the key
+  stays down, as Playwright documents both, and one reader takes it off the
+  wire for every key operation.
+- **Each tab of a session types, pauses and clicks with its own rhythm.** The
+  counters that tell two acts apart (the pause before a field, the intervals
+  between keys, how long a click is held, the curve of a drag) lived on each
+  page and started again with every new one, so with one seed the first
+  field of every tab waited the same pause and was typed with the same
+  intervals, and the first click of every tab was held for the same time.
+  Measured with seed 106 and three tabs: a pause of 2.14 to 2.16 s in all
+  three, keydown intervals within a few milliseconds of each other, and a
+  hold of 107 to 109 ms. The session now numbers its pages and every act
+  draws under its page's number, as the cursor already did for its paths:
+  the same three tabs pause 2.15, 0.83 and 1.08 s and type with intervals
+  that differ by as much as 274 ms. The same seed still replays the same
+  sequence, and the first tab of a session pauses, types and clicks exactly
+  as before.
+- **`expect_navigation()` and `wait_for_url()` no longer crash on a new
+  document.** Every navigation event announced its document with a request
+  of `None`, a value Playwright's protocol does not allow there, and the
+  client died on it with `AttributeError: 'NoneType' object has no attribute
+  '_object'`. The event now carries the navigation's request, or no request
+  when there was none (`about:blank`), and after a redirect
+  `expect_navigation().value` is the final response.
+- **A same-document navigation now reaches the client.** A `pushState`, a
+  hash change or the route change of a single-page application arrives from
+  the engine as `Page.sameDocumentNavigation`, and the server updated its own
+  record of the frame and sent nothing up: `page.url` kept the URL of the
+  last full load, `wait_for_url` never resolved and `framenavigated` never
+  fired. A click that worked therefore timed out, on every site that routes
+  in the client rather than reloading. The event now goes up as a `navigated`
+  without a `newDocument`, the shape upstream sends, so the client tells it
+  from a full load the way it always did.
+- **Locators and handles work through nested cross-origin frames.** A
+  locator two frames deep found its element and then read it in the wrong
+  frame: `inner_text` answered "Cannot find object", `bounding_box`,
+  `select_option` and `scroll_into_view_if_needed` matched nothing, and a
+  handle from `wait_for_selector` belonged to the top frame.
+  `frame.parent_frame` is no longer None, `frame.frame_element()` answers
+  instead of refusing, and `frame.url` and the frame's load states follow
+  every new document instead of the last `goto`.
+- **A humanised click lands off-centre in a nested frame and inside a shadow
+  root.** The cursor checked its chosen point with its own hit test, at the
+  top frame's coordinates and blind to shadow roots, so it rejected every
+  off-centre point there and the click went to the exact geometric centre of
+  the element, the same point in every install. The cursor now asks the check
+  the action itself makes before it presses.
+- **`fill('')` and `clear()` empty the field.** On a text input, a textarea
+  or a contenteditable, the injected script only selects the text when the
+  value is empty, and `fill` then asked the engine for bare `input`/`change`
+  events: the page heard about a change while the old text stayed, a
+  contenteditable got a `change` no user can produce, and inside a shadow
+  root the request failed with `NS_ERROR_UNEXPECTED`. It now presses
+  `Delete`, as Playwright does: the page gets the trusted `InputEvent`
+  (`deleteContentForward`) a user's Delete gives, and `change` waits for blur.
+- **`set_input_files`, `focus`, `blur` and `dispatch_event` work on a hidden
+  element.** Each asked the element for a point it never uses, and an element
+  with `display:none` has none, so the action timed out: a file chooser
+  opened from the usual styled button in front of a hidden
+  `<input type=file>` could not receive its files through `set_files` or
+  `set_input_files`. The four act on a hidden element now, as they do in
+  Playwright.
+- **`set_input_files` with content instead of a path uploads that content.**
+  A `{"name", "mimeType", "buffer"}` payload was read as nothing at all: the
+  input was cleared, `change` fired with no files, and the call returned as
+  if it had worked. The payload now reaches the page as a file with its name
+  and its bytes, through the same path as a file on disk, so its type is the
+  one Firefox gives that name, as for a file a user picks. A folder, which
+  the engine cannot take, is refused with a message that says so.
+- **On Linux, a headless session starts on its own virtual display.** The
+  display counted as ready as soon as its lockfile existed, which Xvfb writes
+  before it opens its sockets: sessions started together could land on each
+  other's display, and an Xvfb that died opening its sockets passed for alive,
+  so the browser failed with `cannot open display`. That was 19 failures and
+  9 errors in one run of this package's Linux e2e suite, and none with the
+  core below. The display is also no longer reachable over TCP.
+
+### Requires
+- `invisible-core` 34.32.0, which carries the display fix. Same engine
+  (firefox-34).
+
+## [0.25.7] - 2026-09-25
+
+### Fixed
+- **`goto` returns on a page that replaces itself from script while it
+  loads.** YouTube (`?themeRefresh=1`), Reddit's JavaScript challenge and any
+  page that calls `location.replace` before `load` start a new navigation
+  after ours has committed, and `goto` kept waiting for the `load` of the one
+  that was replaced, which never comes: 45 s and a `TimeoutError` on a page
+  that was ready, while stock Playwright answered in 2 to 4 s on the same
+  Firefox. The wait now accepts our navigation or one that came after it, and
+  still refuses the states of the page we are leaving.
+- **A long session no longer freezes the browser.** Its stdout and stderr
+  share one pipe, which was read only until startup. Once Firefox had written
+  a pipe buffer's worth after that, its next write blocked and the browser
+  stopped answering, with no error. The output is now read for the whole life
+  of the process, and when the browser goes away mid-session the error carries
+  its exit code and its last lines instead of only "the pipe is closed".
+
+### Requires
+- `invisible-core` 34.31.0: the GeoIP database now opens under a non-ASCII
+  path, so a Windows user named José or with a CJK account name can start the
+  browser behind a proxy (it failed with `FileNotFoundError` on a database that
+  exists), and a Windows ARM64 Python gets the x86_64 engine instead of being
+  refused. Same engine (firefox-34).
+
+## [0.25.6] - 2026-09-25
+
+### Fixed
+- **The engine starts under Claude Desktop and other MSIX hosts on Windows.**
+  An app installed as an MSIX package (Claude Desktop, the Microsoft Store
+  Python) silently redirects the files its processes write under AppData into
+  its own package folder. The engine was downloaded there, and launching it
+  from the AppData path failed with `[Errno 14001] ... side-by-side
+  configuration is incorrect`, because Windows looks for `mozglue.dll` where
+  the file really is. Retail Firefox fails the same way when installed like
+  that. The engine path handed to the launcher is now the one the file system
+  reports, so it starts. Reported in discussion #256; issue #22 was the same
+  failure.
+
+### Requires
+- `invisible-core` 34.30.0, which carries the fix. Same engine (firefox-34).
+
+## [0.25.5] - 2026-09-23
+
+### Added
+- **The README is checked for promises no measurement supports, on every
+  change.** A sentence that puts a word quantifying everything next to a
+  circumvention word and a protection word ("it passes every bot detection
+  test") is refused by CI. The check used to run by hand, from outside this
+  repository, after the text was already public. It is `invisible_core.claims`,
+  shared with the MCP server's repository; a circumvention claim on its own
+  stays allowed and is only reported.
+
+### Requires
+- `invisible-core` 34.29.0, which carries that check. Same engine
+  (firefox-34), no change in this package's runtime beyond the pin.
+
 ## [0.25.4] - 2026-09-21
 
 ### Fixed

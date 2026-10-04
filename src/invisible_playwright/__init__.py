@@ -76,6 +76,12 @@ from .firefox_extensions import (
     install_firefox_extensions,
 )
 
+# The one piece of the session's behaviour a caller may draw for an act this
+# package does not perform itself (answering a file chooser, say), so the pause
+# before it is the session's own hand. Public rather than reached for in
+# `_behaviour`, whose names are free to change.
+from ._behaviour import hesitation
+
 # `__version__` describes the CODE that is about to run; the install record is
 # a different fact and keeps a name that says so, the way `invisible_core` does.
 # ⛔ It used to be `importlib.metadata.version("invisible-playwright")`, which
@@ -92,6 +98,7 @@ __all__ = [
     "FirefoxExtensionInstallError",
     "firefox_extension_id",
     "install_firefox_extensions",
+    "hesitation",
     "ensure_binary",
     "ensure_geoip_mmdb",
     "get_default_stealth_prefs",

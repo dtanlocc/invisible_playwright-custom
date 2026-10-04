@@ -379,17 +379,17 @@ def page_motion_seed(session_seed: int, ordinal: int) -> int:
 class _Session:
     """Everything a session hands to the pages underneath it."""
 
-    __slots__ = ("seed", "max_seconds", "_ordinal")
+    __slots__ = ("seed", "max_seconds", "pages")
 
     def __init__(self, seed: int, max_seconds: float) -> None:
         self.seed = int(seed)
         self.max_seconds = float(max_seconds)
-        self._ordinal = 0
+        #: The pages' numbers, by the one counter the server numbers its pages
+        #: with too (`_behaviour.SessionActs`).
+        self.pages = _behaviour.SessionActs()
 
     def next_ordinal(self) -> int:
-        n = self._ordinal
-        self._ordinal += 1
-        return n
+        return self.pages.next_page()
 
 
 class _PageCursor:
@@ -807,20 +807,29 @@ async def _target_point(frame: Any, selector: str, position: Any) -> Optional[Tu
 
 
 async def _hits(handle: Any, x: float, y: float) -> bool:
-    """Does (x, y) actually land on this element?
+    """Does (x, y), in the same main-frame space as the box, land on this element?
 
     A bounding box is not the element. An inline link that wraps across two
     lines, a rotated control, a rounded button: all of them have points inside
     their box that belong to something else. The centre is checked by the
     automation layer itself; a point we chose has to be checked by us, or we
     would be turning working clicks into hit-target failures.
+
+    ⛔ THE QUESTION GOES TO THE SERVER, WHICH ANSWERS IT FOR THE ACTION TOO
+    (`Actions.hit_target`). It used to be answered here with
+    `document.elementFromPoint`, in the element's own document but at the
+    main frame's coordinates: in a nested frame that asked about another
+    place, and in a shadow root the hit is the host, never the control. Both
+    rejected every off-centre point, so those clicks went to the exact
+    geometric centre, one number for every install. `checkHitTarget` is a
+    method of this package's server, not of Playwright's protocol: the Node
+    driver arm (`INVPW_TRANSPORT=driver`) refuses it, and there the landing
+    falls back to the centre.
     """
     try:
-        return bool(await handle.evaluate(
-            "(el, p) => { const e = document.elementFromPoint(p.x, p.y);"
-            " return !!e && (e === el || el.contains(e) || e.contains(el)); }",
-            {"x": x, "y": y},
-        ))
+        return bool(await handle._channel.send(
+            "checkHitTarget", None, {"point": {"x": x, "y": y}},
+            is_internal=True))
     except _page_errors():
         return False
 

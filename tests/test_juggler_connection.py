@@ -27,29 +27,38 @@ class _ReadinessProcess:
 
 
 def test_readiness_timeout_is_real_when_stdout_never_writes_a_line():
+    """The deadline belongs to whoever waits, never to whoever reads.
+
+    ⛔ CARRIED ACROSS THE 0.25.11 MERGE, which replaced the readiness loop
+    with ProcessOutput. The failure guarded here is a stdout whose `readline`
+    BLOCKS and prints nothing - a MOZILLA_OFFICIAL build can suppress the
+    readiness dump() entirely. While that read sat on the waiting thread the
+    timeout was fictional: the call came back when the read did, not when the
+    clock ran out. upstream's own readiness test writes a line into a real
+    pipe, so it never puts the reader in that state.
+    """
     class SlowSilentStdout:
         def readline(self):
             time.sleep(0.2)
             return b""
 
+    stdout = SlowSilentStdout()
+    output = conn.ProcessOutput(stdout)
     started = time.monotonic()
-    seen, output = conn._wait_until_ready(
-        _ReadinessProcess(SlowSilentStdout()), 0.02
-    )
+
+    seen = output.wait_for_ready(_ReadinessProcess(stdout), 0.02)
 
     assert not seen
-    assert output == []
+    assert output.tail() == []
     assert time.monotonic() - started < 0.15
 
 
 def test_readiness_line_is_collected_without_waiting_for_the_deadline():
-    seen, output = conn._wait_until_ready(
-        _ReadinessProcess(io.BytesIO(b"noise\nJuggler listening to the pipe\n")),
-        1.0,
-    )
+    stdout = io.BytesIO(b"noise\nJuggler listening to the pipe\n")
+    output = conn.ProcessOutput(stdout)
 
-    assert seen
-    assert output == ["noise", "Juggler listening to the pipe"]
+    assert output.wait_for_ready(_ReadinessProcess(stdout), 1.0)
+    assert output.tail() == ["noise", "Juggler listening to the pipe"]
 
 
 # ── without a browser ───────────────────────────────────────────────────────
@@ -66,7 +75,7 @@ def test_the_generated_protocol_has_the_five_domains():
     # ones) and the one event were shipped by the engine and never mirrored.
     # What ties the mirror to the engine is `gen_juggler_protocol.py --check`
     # against the pinned binary, run where the binary is - the e2e job.
-    assert len(COMMANDS) == 76, "commands: %d" % len(COMMANDS)
+    assert len(COMMANDS) == 77, "commands: %d" % len(COMMANDS)
     assert len(EVENTS) == 35, "events: %d" % len(EVENTS)
 
 
